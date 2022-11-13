@@ -27,7 +27,8 @@ TextStyle kLoginOrSignUpTextStyle(
 
 TextStyle kTextFormFieldStyle() => const TextStyle(color: Colors.black);
 
-String HOME_SCREEN = '/IntroPage',
-    LOGIN_SCREEN = '/LoginPage',
+String SIGNUP_SCREEN = '/LoginPage',
     LOGIN = '/Login',
-    ANIMATED_SPALSH = '/AnimatedSplashScreen';
+    ANIMATED_SPLASH = '/AnimatedSplashScreen',
+    CURVED_NAVIGATION = '/CurvedNavigation';
+    //HOME_PAGE = '/HomePage';

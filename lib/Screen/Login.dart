@@ -1,3 +1,5 @@
+import 'package:dios_delices/Screen/CurvedNavigation.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import 'package:get/get.dart';
@@ -5,6 +7,7 @@ import 'package:get/get.dart';
 import '../Constant/Constant.dart';
 import '../Controller/UiController.dart';
 import 'package:avatar_glow/avatar_glow.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class Login extends StatefulWidget {
   const Login({Key? key}) : super(key: key);
@@ -50,7 +53,7 @@ class _LoginState extends State<Login> {
     );
   }
 
-  /// For large screens
+  // For large screens
   Widget _buildLargeScreen(
     Size size,
     SimpleUIController simpleUIController,
@@ -75,7 +78,7 @@ class _LoginState extends State<Login> {
     );
   }
 
-  /// For Small screens
+  // For Small screens
   Widget _buildSmallScreen(
     Size size,
     SimpleUIController simpleUIController,
@@ -88,7 +91,7 @@ class _LoginState extends State<Login> {
     );
   }
 
-  /// Main Body
+  // Main Body
   Widget _buildMainBody(
     Size size,
     SimpleUIController simpleUIController,
@@ -145,7 +148,7 @@ class _LoginState extends State<Login> {
             key: _formKey,
             child: Column(
               children: [
-                /// username or Gmail
+                // username or Gmail
                 TextFormField(
                   style: kTextFormFieldStyle(),
                   decoration: const InputDecoration(
@@ -211,13 +214,13 @@ class _LoginState extends State<Login> {
                   height: size.height * 0.01,
                 ),
 
-                /// Login Button
+                // Login Button
                 loginButton(),
                 SizedBox(
                   height: size.height * 0.03,
                 ),
 
-                /// Navigate To Login Screen
+                // Navigate To Login Screen
                 GestureDetector(
                   onTap: () {
                     Navigator.pop(context);
@@ -257,7 +260,7 @@ class _LoginState extends State<Login> {
       height: 55,
       child: ElevatedButton(
         style: ButtonStyle(
-          backgroundColor: MaterialStateProperty.all(Colors.deepPurpleAccent),
+          backgroundColor: MaterialStateProperty.all(Colors.red),
           shape: MaterialStateProperty.all(
             RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(15),
@@ -268,6 +271,9 @@ class _LoginState extends State<Login> {
           // Validate returns true if the form is valid, or false otherwise.
           if (_formKey.currentState!.validate()) {
             // ... Navigate To your Home Page
+            // print(AppLocalizations.of(context)!.helloWorld);
+            Navigator.push(context,
+                CupertinoPageRoute(builder: (ctx) => CurvedNavigation()));
           }
         },
         child: const Text('Login'),

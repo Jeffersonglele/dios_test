@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import '../Constant/Constant.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 class AnimatedSplashScreen extends StatefulWidget {
@@ -22,7 +21,7 @@ class SplashScreenState extends State<AnimatedSplashScreen>
   }
 
   void navigationPage() {
-    Navigator.of(context).pushReplacementNamed(LOGIN_SCREEN);
+    Navigator.of(context).pushReplacementNamed(SIGNUP_SCREEN);
   }
 
   @override

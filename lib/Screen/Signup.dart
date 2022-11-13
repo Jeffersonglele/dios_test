@@ -1,3 +1,4 @@
+import 'package:dios_delices/Screen/CurvedNavigation.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
@@ -26,6 +27,7 @@ class _SignUpViewState extends State<SignUpView> {
   TextEditingController passwordConfirmController = TextEditingController();
 
   var password = "";
+  bool _isSelected = false;
 
   final _formKey = GlobalKey<FormState>();
 
@@ -67,7 +69,7 @@ class _SignUpViewState extends State<SignUpView> {
     );
   }
 
-  /// For large screens
+  // For large screens
   Widget _buildLargeScreen(
       Size size, SimpleUIController simpleUIController, ThemeData theme) {
     return Row(
@@ -81,7 +83,7 @@ class _SignUpViewState extends State<SignUpView> {
     );
   }
 
-  /// For Small screens
+  // For Small screens
   Widget _buildSmallScreen(
       Size size, SimpleUIController simpleUIController, ThemeData theme) {
     return Center(
@@ -89,7 +91,7 @@ class _SignUpViewState extends State<SignUpView> {
     );
   }
 
-  /// Main Body
+  // Main Body
   Widget _buildMainBody(
       Size size, SimpleUIController simpleUIController, ThemeData theme) {
     return Column(
@@ -357,41 +359,44 @@ class _SignUpViewState extends State<SignUpView> {
                 CheckboxListTile(
                   title: Text(
                       "Creating an account means you\'re okay with our Terms of Services and our Privacy Policy"),
-                  value: false,
-                  onChanged: (newValue) {},
+                  value: _isSelected,
+                  onChanged: (newValue) {
+                    setState(() {
+                      _isSelected = newValue!;
+                    });
+                  },
                   controlAffinity:
                       ListTileControlAffinity.leading, //  <-- leading Checkbox
                 ),
-
-                /*Text(
-                  'Creating an account means you\'re okay with our Terms of Services and our Privacy Policy',
-                  style: kLoginTermsAndPrivacyStyle(size),
-                  textAlign: TextAlign.center,
-                ),*/
 
                 SizedBox(
                   height: size.height * 0.02,
                 ),
 
-                /// SignUp Button
+                // SignUp Button
                 signUpButton(theme),
+
                 SizedBox(
                   height: size.height * 0.03,
                 ),
 
-                /// Navigate To Login Screen
+                // Navigate To Login Screen
                 GestureDetector(
                   onTap: () {
                     Navigator.push(context,
                         CupertinoPageRoute(builder: (ctx) => const Login()));
-                    firstnameController.clear();
-                    lastnameController.clear();
-                    usernameController.clear();
-                    emailController.clear();
-                    passwordController.clear();
-                    passwordConfirmController.clear();
+
                     _formKey.currentState?.reset();
 
+                    setState(() {
+                      //<-- Clear at the end
+                      firstnameController.clear();
+                      lastnameController.clear();
+                      usernameController.clear();
+                      emailController.clear();
+                      passwordController.clear();
+                      passwordConfirmController.clear();
+                    });
                     simpleUIController.isObscure.value = true;
                   },
                   child: RichText(
@@ -407,9 +412,7 @@ class _SignUpViewState extends State<SignUpView> {
                   ),
                 ),
 
-                SizedBox(
-                  height: 5,
-                ),
+                invisibleButton(theme),
               ],
             ),
           ),
@@ -425,7 +428,7 @@ class _SignUpViewState extends State<SignUpView> {
       height: 55,
       child: ElevatedButton(
         style: ButtonStyle(
-          backgroundColor: MaterialStateProperty.all(Colors.deepPurpleAccent),
+          backgroundColor: MaterialStateProperty.all(Colors.red),
           shape: MaterialStateProperty.all(
             RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(15),
@@ -435,10 +438,34 @@ class _SignUpViewState extends State<SignUpView> {
         onPressed: () {
           // Validate returns true if the form is valid, or false otherwise.
           if (_formKey.currentState!.validate()) {
-            // ... Navigate To your Home Page
+            print("everything complete");
+          } else {
+            print("error");
           }
         },
         child: const Text('Sign up'),
+      ),
+    );
+  }
+
+  Widget invisibleButton(ThemeData theme) {
+    return SizedBox(
+      width: double.infinity,
+      height: 55,
+      child: ElevatedButton(
+        style: ButtonStyle(
+          backgroundColor: MaterialStateProperty.all(Colors.white),
+        ),
+        onPressed: () {
+          // Validate returns true if the form is valid, or false otherwise.
+          if (_formKey.currentState!.validate()) {
+            // ... Navigate To your Home Page
+            // TODO : condition
+            Navigator.push(context,
+                CupertinoPageRoute(builder: (ctx) => CurvedNavigation()));
+          }
+        },
+        child: const Text(''),
       ),
     );
   }
