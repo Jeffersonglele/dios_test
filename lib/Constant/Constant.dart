@@ -6,6 +6,11 @@ TextStyle kLoginTitleStyle(Size size) => GoogleFonts.ubuntu(
       fontWeight: FontWeight.bold,
     );
 
+TextStyle bigTitleStyle(Size size) => GoogleFonts.ubuntu(
+      fontSize: size.height * 0.045,
+      fontWeight: FontWeight.bold,
+    );
+
 TextStyle kLoginSubtitleStyle(Size size) => GoogleFonts.ubuntu(
       fontSize: size.height * 0.030,
     );

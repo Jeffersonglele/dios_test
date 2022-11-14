@@ -47,6 +47,7 @@ dependencies:
   intl: ^0.17.0
   provider: ^5.0.0
   shared_preferences: ^2.0.15
+  timer_builder: ^2.0.0
   flutter_localizations: 
     sdk: flutter   
 
