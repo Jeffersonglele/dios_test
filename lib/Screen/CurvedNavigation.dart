@@ -38,14 +38,22 @@ class _CurvedNavigationState extends State<CurvedNavigation> {
 
   @override
   Widget build(BuildContext context) {
+    bool isIOS = Theme.of(context).platform == TargetPlatform.iOS;
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          _options[_activePage],
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        elevation: 0,
-      ),
+          title: Text(
+            _options[_activePage],
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          elevation: 0,
+          leading: IconButton(
+            onPressed: () {
+              Navigator.popUntil(
+                  context, (Route<dynamic> predicate) => predicate.isFirst);
+            },
+            icon: isIOS ? Icon(Icons.arrow_back_ios) : Icon(Icons.arrow_back),
+          )),
       body: _tabItems[_activePage],
       bottomNavigationBar: CurvedNavigationBar(
         buttonBackgroundColor: Colors.white,

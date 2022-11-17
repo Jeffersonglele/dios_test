@@ -48,6 +48,7 @@ dependencies:
   provider: ^5.0.0
   shared_preferences: ^2.0.15
   timer_builder: ^2.0.0
+  url_launcher: ^6.1.6
   flutter_localizations: 
     sdk: flutter   
 
@@ -82,12 +83,20 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   assets:
+    - assets/static_data/Meals.json
     - assets/images/logo.png
     - assets/images/logo_small.png
     - assets/images/search.png
     - assets/images/paragraph.png
     - assets/images/zzz.png
-    
+    - assets/images/beef_steak.jpeg
+    - assets/images/chicken_nuggets.jpeg
+    - assets/images/chocolate_cake.jpeg
+    - assets/images/pancakes.jpeg
+    - assets/images/pizza.jpeg
+    - assets/images/veggie_tomato_mix.jpeg
+    - assets/images/meatballs.jpg
+
 
 
   #   - images/a_dot_burr.jpeg

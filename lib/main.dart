@@ -1,3 +1,6 @@
+import 'package:dios_delices/Screen/Cart.dart';
+import 'package:dios_delices/Screen/FoodDetails.dart';
+import 'package:dios_delices/Screen/ScreenArguments.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'Screen/Signup.dart';
@@ -19,7 +22,9 @@ Future main() async {
     routes: <String, WidgetBuilder>{
       ANIMATED_SPLASH: (BuildContext context) => new AnimatedSplashScreen(),
       SIGNUP_SCREEN: (BuildContext context) => new SignUpView(),
-      LOGIN: (BuildContext context) => new Login()
+      LOGIN: (BuildContext context) => new Login(),
+      FOOD_DETAILS: (BuildContext context) => new FoodDetails(),
     },
+    initialRoute: "/",
   ));
 }

@@ -1,0 +1,88 @@
+{
+    "items": [
+  {
+    "id": 1,
+    "meal_name": "Chicken nuggets",
+    "store": "La cuisine de Léa",
+    "image": "assets/images/meals/chicken_nuggets.jpeg",
+    "price": 9.50,
+    "category": "meat",
+    "description": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
+    "number_of_servings": 5,
+    "hashtags": "#chickens, ",
+    "currency": "$"
+  },
+  {
+    "id": 2,
+    "meal_name": "Veggie Tomato Mix",
+    "store": "Salad's",
+    "image": "assets/images/meals/veggie_tomato_mix.jpeg",
+    "price": 20.2,
+    "category": "",
+    "description": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
+    "number_of_servings": 5,
+    "hashtags": "",
+    "currency": "$"
+  },
+  {
+    "id": 3,
+    "meal_name": "Chocolate cake",
+    "store": "La cuisine de Léa",
+    "image": "assets/images/meals/chocolate_cake.jpeg",
+    "price": 20.2,
+    "category": "",
+    "description": "",
+    "number_of_servings": 5,
+    "hashtags": "",
+    "currency": "$"
+  },
+  {
+    "id": 4,
+    "meal_name": "Meatballs",
+    "store": "La cuisine de Léa",
+    "image": "assets/images/meals/meatballs.jpg",
+    "price": 20.2,
+    "category": "",
+    "description": "",
+    "number_of_servings": 5,
+    "hashtags": "",
+    "currency": "$"
+  },
+  {
+    "id": 5,
+    "meal_name": "Pancakes",
+    "store": "La cuisine de Léa",
+    "image": "assets/images/meals/pancakes.jpeg",
+    "price": 20.2,
+    "category": "",
+    "description": "",
+    "number_of_servings": 5,
+    "hashtags": "",
+    "currency": "$"
+  },
+  {
+    "id": 6,
+    "meal_name": "Pizza",
+    "store": "La cuisine de Léa",
+    "image": "assets/images/meals/pizza.jpeg",
+    "price": 20.2,
+    "category": "",
+    "description": "",
+    "number_of_servings": 5,
+    "hashtags": "",
+    "currency": "$"
+  },
+  {
+    "id": 7,
+    "meal_name": "Beef Steak",
+    "store": "La cuisine de Léa",
+    "image": "assets/images/meals/beef_steak.jpeg",
+    "price": 20.2,
+    "category": "",
+    "description": "Frites gratuites",
+    "number_of_servings": 5,
+    "hashtags": "",
+    "currency": "$"
+  }
+  ]
+  }
