@@ -1,17 +1,18 @@
 import 'dart:convert';
 
 import 'package:dios_delices/Screen/CurvedNavigation.dart';
+import 'package:dios_delices/Screen/MyStore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import '../Controller/UiController.dart';
 
-class Settings extends StatefulWidget {
+class MySales extends StatefulWidget {
   @override
-  _SettingsState createState() => _SettingsState();
+  _MySalesState createState() => _MySalesState();
 }
 
-class _SettingsState extends State<Settings> {
+class _MySalesState extends State<MySales> {
   TextEditingController totalController = TextEditingController();
 
   @override

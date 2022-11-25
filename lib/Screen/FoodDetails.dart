@@ -1,9 +1,5 @@
 import 'dart:convert';
 
-import 'package:dios_delices/Screen/CurvedNavigation.dart';
-import 'package:dios_delices/Screen/Home.dart';
-import 'package:dios_delices/Screen/ScreenArguments.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -13,14 +9,16 @@ import '../Constant/Constant.dart';
 import '../Controller/UiController.dart';
 
 class FoodDetails extends StatefulWidget {
-  const FoodDetails({Key? key}) : super(key: key);
   static const routeName = '/FoodDetails';
+
+  final int meal_id;
+  final int from_page;
+
+  FoodDetails({required this.meal_id, required this.from_page});
 
   @override
   State<FoodDetails> createState() => _FoodDetailsState();
 }
-
-var screenArguments;
 
 class _FoodDetailsState extends State<FoodDetails> {
   @override
@@ -32,8 +30,11 @@ class _FoodDetailsState extends State<FoodDetails> {
   void initState() {
     super.initState();
     readJson();
+    getCategories();
   }
 
+  List _items_categories = [];
+  var _category_details = {};
   var current_food = {};
   List _items = [];
   var number_of_parts = 1;
@@ -44,28 +45,16 @@ class _FoodDetailsState extends State<FoodDetails> {
   Widget build(BuildContext context) {
     var size = MediaQuery.of(context).size;
     var theme = Theme.of(context);
-    bool isIOS = Theme.of(context).platform == TargetPlatform.iOS;
 
-    screenArguments =
-        ModalRoute.of(context)!.settings.arguments as ScreenArguments;
     _getFoodDetailsById();
+    _getCategoryDetails();
 
     return GestureDetector(
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
       child: Scaffold(
         backgroundColor: Colors.white,
         resizeToAvoidBottomInset: false,
-        appBar: AppBar(
-            leading: IconButton(
-          onPressed: () {
-            Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(
-                  builder: (context) => CurvedNavigation(),
-                ),
-                (route) => route.isActive);
-          },
-          icon: isIOS ? Icon(Icons.arrow_back_ios) : Icon(Icons.arrow_back),
-        )),
+        appBar: AppBar(),
         body: SingleChildScrollView(
           physics: NeverScrollableScrollPhysics(),
           child: LayoutBuilder(
@@ -175,12 +164,12 @@ class _FoodDetailsState extends State<FoodDetails> {
         Row(
           children: [
             SizedBox(
-              width: 20,
+              width: 25,
             ),
             Expanded(
               child: Text(
                 current_food["description"],
-                maxLines: 3, // you can change it accordingly
+                maxLines: 3,
                 overflow: TextOverflow.ellipsis, // and this
               ),
             ),
@@ -337,7 +326,7 @@ class _FoodDetailsState extends State<FoodDetails> {
   }
 
   _getFoodDetailsById() async {
-    var id = screenArguments.getId();
+    var id = widget.meal_id;
     for (var i = 0, j = _items.length; i < j; i++) {
       if (_items[i]["id"] == id) {
         setState(() {
@@ -355,5 +344,25 @@ class _FoodDetailsState extends State<FoodDetails> {
     setState(() {
       _items = data["items"];
     });
+  }
+
+  Future<void> getCategories() async {
+    final String response =
+        await rootBundle.loadString('assets/static_data/FoodCategories.json');
+    final data = await json.decode(response);
+    setState(() {
+      _items_categories = data["items"];
+    });
+  }
+
+  _getCategoryDetails() async {
+    var id = widget.meal_id;
+    for (var i = 0, j = _items_categories.length; i < j; i++) {
+      if (_items_categories[i]["id"] == current_food["category_id"]) {
+        setState(() {
+          _category_details = _items_categories[i];
+        });
+      }
+    }
   }
 }

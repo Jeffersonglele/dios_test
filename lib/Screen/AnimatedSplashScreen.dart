@@ -50,11 +50,16 @@ class SplashScreenState extends State<AnimatedSplashScreen>
           new Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
-              new Image.asset(
-                'assets/images/logo.png',
+              CircleAvatar(
+                backgroundImage: AssetImage('assets/images/logo_sm01.jpg'),
+                radius: 75,
+              ),
+              /* new Image.asset(
+                'assets/images/logo.jpg',
                 width: animation.value * 300,
                 height: animation.value * 300,
-              ),
+                
+              ),*/
             ],
           ),
         ],

@@ -1,0 +1,19 @@
+{
+    "items": [
+  {
+    "id": 1,
+    "description": "Click and Collect"
+  },
+  {
+    "id": 2,
+    "description": "Cook Delivery"
+
+  },
+  {
+    "id": 3,
+    "description": "Classic Delivery"
+
+  }
+  
+]
+}

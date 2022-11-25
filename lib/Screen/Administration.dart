@@ -6,12 +6,12 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import '../Controller/UiController.dart';
 
-class Settings extends StatefulWidget {
+class Administration extends StatefulWidget {
   @override
-  _SettingsState createState() => _SettingsState();
+  _AdministrationState createState() => _AdministrationState();
 }
 
-class _SettingsState extends State<Settings> {
+class _AdministrationState extends State<Administration> {
   TextEditingController totalController = TextEditingController();
 
   @override

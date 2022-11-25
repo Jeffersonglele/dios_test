@@ -71,6 +71,20 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "1.16.0"
+  count_stepper:
+    dependency: "direct main"
+    description:
+      name: count_stepper
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.0.4"
+  counter:
+    dependency: "direct main"
+    description:
+      name: counter
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.2.2"
   crypto:
     dependency: transitive
     description:
@@ -343,6 +357,20 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "5.0.0"
+  quantity_input:
+    dependency: "direct main"
+    description:
+      name: quantity_input
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "1.0.2"
+  roundcheckbox:
+    dependency: "direct main"
+    description:
+      name: roundcheckbox
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "2.0.5"
   shared_preferences:
     dependency: "direct main"
     description:

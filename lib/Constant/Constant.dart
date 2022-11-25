@@ -44,5 +44,6 @@ String SIGNUP_SCREEN = '/LoginPage',
     LOGIN = '/Login',
     ANIMATED_SPLASH = '/AnimatedSplashScreen',
     CURVED_NAVIGATION = '/CurvedNavigation',
-    FOOD_DETAILS = '/Cart';
+    FOOD_DETAILS = '/Cart',
+    MEALS_OF_A_CATEGORY = '/MealsOfACategory';
     //HOME_PAGE = '/HomePage';

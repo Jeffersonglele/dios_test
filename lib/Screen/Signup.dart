@@ -121,7 +121,7 @@ class _SignUpViewState extends State<SignUpView> {
                     child: CircleAvatar(
                       backgroundColor: Colors.transparent,
                       backgroundImage:
-                          AssetImage('assets/images/logo_small.png'),
+                          AssetImage('assets/images/logo_sm01.jpg'),
                       radius: 50.0,
                     ),
                   ),
@@ -461,8 +461,10 @@ class _SignUpViewState extends State<SignUpView> {
           if (_formKey.currentState!.validate()) {
             // ... Navigate To your Home Page
             // TODO : condition
-            Navigator.push(context,
-                CupertinoPageRoute(builder: (ctx) => CurvedNavigation()));
+            Navigator.push(
+                context,
+                CupertinoPageRoute(
+                    builder: (ctx) => CurvedNavigation(specified_index: 0)));
           }
         },
         child: const Text(''),

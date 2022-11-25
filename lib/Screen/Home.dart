@@ -1,6 +1,9 @@
 import 'dart:convert';
 
-import 'package:dios_delices/Screen/ScreenArguments.dart';
+import 'package:dios_delices/Screen/ExploreMeals.dart';
+import 'package:dios_delices/Screen/FoodCategories.dart';
+import 'package:dios_delices/Screen/FoodDetails.dart';
+import 'package:dios_delices/Screen/NearMeMeals.dart';
 import 'package:dios_delices/SearchInput.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/gestures.dart';
@@ -10,7 +13,6 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import '../Constant/Constant.dart';
 import '../Controller/UiController.dart';
-import 'FoodDetails.dart';
 
 class Home extends StatefulWidget {
   @override
@@ -41,20 +43,23 @@ class _HomeState extends State<Home> {
     var size = MediaQuery.of(context).size;
     var theme = Theme.of(context);
 
-    return GestureDetector(
-      onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        resizeToAvoidBottomInset: false,
-        body: SingleChildScrollView(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              if (constraints.maxWidth > 600) {
-                return _buildLargeScreen(size, simpleUIController, theme);
-              } else {
-                return _buildSmallScreen(size, simpleUIController, theme);
-              }
-            },
+    return new WillPopScope(
+      onWillPop: () async => false,
+      child: GestureDetector(
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+        child: Scaffold(
+          backgroundColor: Colors.white,
+          resizeToAvoidBottomInset: false,
+          body: SingleChildScrollView(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                if (constraints.maxWidth > 600) {
+                  return _buildLargeScreen(size, simpleUIController, theme);
+                } else {
+                  return _buildSmallScreen(size, simpleUIController, theme);
+                }
+              },
+            ),
           ),
         ),
       ),
@@ -164,7 +169,10 @@ class _HomeState extends State<Home> {
                       text: "See more",
                       recognizer: TapGestureRecognizer()
                         ..onTap = () async {
-                          //on tap code here, you can navigate to other page or URL
+                          Navigator.push(
+                              context,
+                              CupertinoPageRoute(
+                                  builder: (ctx) => NearMeMeals()));
                         }),
 
                   //more text paragraph, sentences here.
@@ -188,8 +196,12 @@ class _HomeState extends State<Home> {
                   itemBuilder: (BuildContext ctx, index) {
                     return GestureDetector(
                       onTap: () => {
-                        Navigator.of(context).pushReplacementNamed(FOOD_DETAILS,
-                            arguments: ScreenArguments(_items[index]["id"]))
+                        Navigator.push(
+                            context,
+                            CupertinoPageRoute(
+                                builder: (ctx) => FoodDetails(
+                                    from_page: 1,
+                                    meal_id: _items[index]["id"])))
                       },
                       child: Card(
                         clipBehavior: Clip.antiAlias,
@@ -241,7 +253,10 @@ class _HomeState extends State<Home> {
                       text: "See more",
                       recognizer: TapGestureRecognizer()
                         ..onTap = () async {
-                          //on tap code here, you can navigate to other page or URL
+                          Navigator.push(
+                              context,
+                              CupertinoPageRoute(
+                                  builder: (ctx) => ExploreMeals()));
                         }),
 
                   //more text paragraph, sentences here.
@@ -263,7 +278,16 @@ class _HomeState extends State<Home> {
                       mainAxisSpacing: 20),
                   itemCount: 3,
                   itemBuilder: (BuildContext ctx, index) {
-                    return Card(
+                    return GestureDetector(
+                      onTap: () => {
+                        Navigator.push(
+                            context,
+                            CupertinoPageRoute(
+                                builder: (ctx) => FoodDetails(
+                                    from_page: 1,
+                                    meal_id: _items[index]["id"])))
+                      },
+                      child: Card(
                         clipBehavior: Clip.antiAlias,
                         child: Column(
                           children: [
@@ -280,14 +304,19 @@ class _HomeState extends State<Home> {
                               ),
                             ),
                           ],
-                        ));
+                        ),
+                      ),
+                    );
                   }))
           : Container(),
       SizedBox(
         height: size.height * 0.03,
       ),
       ElevatedButton(
-        onPressed: () {},
+        onPressed: () {
+          Navigator.push(
+              context, CupertinoPageRoute(builder: (ctx) => FoodCategories()));
+        },
         child: Text(
           'Show all food categories',
           style: TextStyle(color: Colors.red),

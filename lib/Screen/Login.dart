@@ -7,7 +7,6 @@ import 'package:get/get.dart';
 import '../Constant/Constant.dart';
 import '../Controller/UiController.dart';
 import 'package:avatar_glow/avatar_glow.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class Login extends StatefulWidget {
   const Login({Key? key}) : super(key: key);
@@ -123,7 +122,7 @@ class _LoginState extends State<Login> {
                     child: CircleAvatar(
                       backgroundColor: Colors.transparent,
                       backgroundImage:
-                          AssetImage('assets/images/logo_small.png'),
+                          AssetImage('assets/images/logo_sm01.jpg'),
                       radius: 50.0,
                     ),
                   ),
@@ -270,10 +269,12 @@ class _LoginState extends State<Login> {
         onPressed: () {
           // Validate returns true if the form is valid, or false otherwise.
           if (_formKey.currentState!.validate()) {
-            // ... Navigate To your Home Page
-            // print(AppLocalizations.of(context)!.helloWorld);
-            Navigator.push(context,
-                CupertinoPageRoute(builder: (ctx) => CurvedNavigation()));
+            Navigator.push(
+                context,
+                CupertinoPageRoute(
+                    builder: (ctx) => CurvedNavigation(
+                          specified_index: 0,
+                        )));
           }
         },
         child: const Text('Login'),

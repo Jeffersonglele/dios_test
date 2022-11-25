@@ -3,10 +3,14 @@ import 'package:dios_delices/Screen/Cart.dart';
 import 'package:dios_delices/Screen/Favorites.dart';
 import 'package:dios_delices/Screen/Home.dart';
 import 'package:dios_delices/Screen/Menu.dart';
-import 'package:dios_delices/Screen/Settings.dart';
+import 'package:dios_delices/Screen/MyStore.dart';
 import 'package:flutter/material.dart';
 
 class CurvedNavigation extends StatefulWidget {
+  final int specified_index;
+
+  CurvedNavigation({required this.specified_index});
+
   @override
   _CurvedNavigationState createState() => _CurvedNavigationState();
 }
@@ -17,18 +21,20 @@ class _CurvedNavigationState extends State<CurvedNavigation> {
   List<String> _options = [
     "HOME",
     "CART",
-    "MENU",
     "FAVORITES",
-    "SETTINGS",
+    "MENU",
+    "MY STORE",
   ];
   final List<Widget> _tabItems = [
     Home(),
     Cart(),
-    Menu(),
     Favorites(),
-    Settings()
+    Menu(),
+    MyStore()
   ];
   int _activePage = 0;
+
+  int navigation_index = 0;
 
   @override
   void initState() {
@@ -38,22 +44,8 @@ class _CurvedNavigationState extends State<CurvedNavigation> {
 
   @override
   Widget build(BuildContext context) {
-    bool isIOS = Theme.of(context).platform == TargetPlatform.iOS;
-
     return Scaffold(
-      appBar: AppBar(
-          title: Text(
-            _options[_activePage],
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-          elevation: 0,
-          leading: IconButton(
-            onPressed: () {
-              Navigator.popUntil(
-                  context, (Route<dynamic> predicate) => predicate.isFirst);
-            },
-            icon: isIOS ? Icon(Icons.arrow_back_ios) : Icon(Icons.arrow_back),
-          )),
+      appBar: AppBar(),
       body: _tabItems[_activePage],
       bottomNavigationBar: CurvedNavigationBar(
         buttonBackgroundColor: Colors.white,
@@ -70,21 +62,22 @@ class _CurvedNavigationState extends State<CurvedNavigation> {
             color: Colors.red,
           ),
           Icon(
-            Icons.restaurant_menu,
-            color: Colors.red,
-          ),
-          Icon(
             Icons.favorite,
             color: Colors.red,
           ),
           Icon(
-            Icons.settings,
+            Icons.playlist_add_check,
+            color: Colors.red,
+          ),
+          Icon(
+            Icons.storefront,
             color: Colors.red,
           ),
         ],
         onTap: (index) {
           setState(() {
             _activePage = index;
+
             if (index == 0) {
             } else if (index == 2) {
             } else if (index == 3) {

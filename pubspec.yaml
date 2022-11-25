@@ -49,6 +49,11 @@ dependencies:
   shared_preferences: ^2.0.15
   timer_builder: ^2.0.0
   url_launcher: ^6.1.6
+  counter: ^0.2.2
+  quantity_input: ^1.0.2
+  count_stepper: ^0.0.4
+  roundcheckbox: ^2.0.5
+
   flutter_localizations: 
     sdk: flutter   
 
@@ -60,7 +65,7 @@ dev_dependencies:
 flutter_icons:
   android: "launcher_icon"
   ios: true
-  image_path: "assets/images/logo.png"
+  image_path: "assets/images/logo.jpg"
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -84,11 +89,18 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/static_data/Meals.json
-    - assets/images/logo.png
-    - assets/images/logo_small.png
+    - assets/static_data/Stores.json
+    - assets/static_data/FoodCategories.json
+    - assets/static_data/Orders.json
+    - assets/static_data/OrdersDetails.json
+    - assets/static_data/DeliveriesTypes.json
+    - assets/images/logo_big.jpg
+    - assets/images/logo_sm01.jpg
+    - assets/images/logo_sm02.jpg
+    - assets/images/logo_sm03.jpg
+    - assets/images/logo_sm04.jpg
     - assets/images/search.png
     - assets/images/paragraph.png
-    - assets/images/zzz.png
     - assets/images/beef_steak.jpeg
     - assets/images/chicken_nuggets.jpeg
     - assets/images/chocolate_cake.jpeg
@@ -96,8 +108,6 @@ flutter:
     - assets/images/pizza.jpeg
     - assets/images/veggie_tomato_mix.jpeg
     - assets/images/meatballs.jpg
-
-
 
   #   - images/a_dot_burr.jpeg
   #   - images/a_dot_ham.jpeg
