@@ -33,33 +33,51 @@ dependencies:
     sdk: flutter
   simple_animations: ^5.0.0+2
   avatar_glow:
-  # The following adds the Cupertino Icons font to your application.
-  # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.2
   english_words: ^4.0.0
   flutter_launcher_icons: ^0.10.0
-  google_fonts: ^3.0.1
+  google_fonts: ^4.0.4  # Version compatible
   lottie: ^1.4.2
   get: ^4.6.5
   email_validator: ^2.1.17
-  flutter_pw_validator: ^1.4.2
-  curved_navigation_bar: ^1.0.3 
-  intl: ^0.17.0
+  flutter_pw_validator: ^1.6.0
+  curved_navigation_bar: ^1.0.3
   provider: ^5.0.0
   shared_preferences: ^2.0.15
   timer_builder: ^2.0.0
   url_launcher: ^6.1.6
   counter: ^0.2.2
+  intl: ^0.19.0
   quantity_input: ^1.0.2
   count_stepper: ^0.0.4
   roundcheckbox: ^2.0.5
+  font_awesome_flutter: ^10.6.0
+  flutter_riverpod: ^2.4.10
+  gpassword: ^0.0.1
+  path: ^1.8.3
+  http: ^0.13.5
+  mailer: ^6.1.0
+  path_provider: ^2.1.2
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  parse_server_sdk_flutter: ^9.0.0
+  geolocator: ^9.0.2
+  geocoding: ^2.0.0
 
   flutter_localizations: 
     sdk: flutter   
+  pin_code_fields: ^8.0.1
+  image_picker: ^1.1.2
+  firebase_core: ^2.27.0
+  firebase_storage: ^11.6.9
+  firebase_auth: ^4.17.8
+  connectivity_plus: ^6.0.3
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  hive_generator: ^2.0.0
+  build_runner: ^2.3.3
 
 
 flutter_icons:
@@ -75,7 +93,10 @@ flutter_icons:
   flutter_lints: ^2.0.0
 
 # For information on the generic Dart part of this file, see the
-# following page: https://dart.dev/tools/pub/pubspec
+# following page: https://dart.dev/tools/pub/pubsqpec
+
+dependency_overrides:
+  intl: ^0.17.0
 
 # The following section is specific to Flutter packages.
 flutter:
@@ -99,15 +120,16 @@ flutter:
     - assets/images/logo_sm02.jpg
     - assets/images/logo_sm03.jpg
     - assets/images/logo_sm04.jpg
+    - assets/images/background.jpg
     - assets/images/search.png
     - assets/images/paragraph.png
-    - assets/images/beef_steak.jpeg
-    - assets/images/chicken_nuggets.jpeg
-    - assets/images/chocolate_cake.jpeg
-    - assets/images/pancakes.jpeg
-    - assets/images/pizza.jpeg
-    - assets/images/veggie_tomato_mix.jpeg
-    - assets/images/meatballs.jpg
+    - assets/images/meals/beef_steak.jpeg
+    - assets/images/meals/chicken_nuggets.jpeg
+    - assets/images/meals/chocolate_cake.jpeg
+    - assets/images/meals/pancakes.jpeg
+    - assets/images/meals/pizza.jpeg
+    - assets/images/meals/veggie_tomato_mix.jpeg
+    - assets/images/meals/meatballs.jpg
 
   #   - images/a_dot_burr.jpeg
   #   - images/a_dot_ham.jpeg

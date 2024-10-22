@@ -1,26 +1,202 @@
+import 'dart:io';
+
 import 'package:dios_delices/Screen/CurvedNavigation.dart';
+import 'package:dios_delices/Screen/password/EmailInputScreen.dart';
+import 'package:dios_delices/providers/users_provider.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get/get.dart';
-
+import 'package:image_picker/image_picker.dart';
+import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../Constant/Constant.dart';
 import '../Controller/UiController.dart';
 import 'package:avatar_glow/avatar_glow.dart';
 
-class Login extends StatefulWidget {
+import '../db/database_helper.dart';
+import '../modeles/users.dart';
+import '../utils/toast.dart';
+import 'LocationPage.dart';
+
+
+class Login extends ConsumerStatefulWidget {
   const Login({Key? key}) : super(key: key);
 
   @override
-  State<Login> createState() => _LoginState();
+  ConsumerState<Login> createState() => _LoginState();
 }
 
-class _LoginState extends State<Login> {
+class _LoginState extends ConsumerState<Login> {
+  // Chargement des données locales
+  List<Users> users = [];
+
   TextEditingController nameController = TextEditingController();
   TextEditingController emailController = TextEditingController();
   TextEditingController passwordController = TextEditingController();
 
+  File? _image;
+
   final _formKey = GlobalKey<FormState>();
+
+  bool isLoading = false;
+  bool loginFailed = false;
+
+  // Méthode pour ouvrir l'image picker
+  Future<void> _pickImage() async {
+    final ImagePicker _picker = ImagePicker();
+
+    showModalBottomSheet(
+        context: context,
+        builder: (BuildContext bc) {
+          return SafeArea(
+            child: Wrap(
+              children: <Widget>[
+                ListTile(
+                    leading: Icon(Icons.photo_library),
+                    title: Text('Galerie'),
+                    onTap: () async {
+                      final XFile? image =
+                          await _picker.pickImage(source: ImageSource.gallery);
+                      if (image != null) {
+                        setState(() {
+                          _image = File(image.path);
+                        });
+                      }
+                      Navigator.of(context).pop();
+                    }),
+                ListTile(
+                  leading: Icon(Icons.photo_camera),
+                  title: Text('Caméra'),
+                  onTap: () async {
+                    final XFile? image =
+                        await _picker.pickImage(source: ImageSource.camera);
+                    if (image != null) {
+                      setState(() {
+                        _image = File(image.path);
+                      });
+                    }
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ],
+            ),
+          );
+        });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    Get.put(SimpleUIController());
+    loadData();
+  }
+
+  void loadData() async {
+    List<Users> usersList = await Users.fetchUsersFromDB();
+    setState(() {
+      users = usersList;
+    });
+  }
+
+  Future<void> performLogin() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+
+    try {
+      // Vérification des informations d'identification de l'utilisateur
+      final user = await Users.verifUser(
+        users,
+        nameController.text,
+        passwordController.text,
+      );
+
+      print("user " + user!.userID.toString());
+
+      // Stockage de l'utilisateur dans le state de Riverpod
+      ref.read(usersProvider.notifier).state = user;
+
+      if (user != null) {
+        print("user != null");
+
+        // Créer un objet ParseUser avec les informations de connexion
+        ParseUser parseUser = ParseUser(nameController.text, passwordController.text, null);
+
+        // Sauvegarder l'état de connexion dans SharedPreferences
+        prefs.setBool('isLoggedIn', true);
+        prefs.setInt('loggedUserID', user.userID);
+
+        int? loggedUserID = prefs.getInt('loggedUserID');
+        print("loggedUserID " + loggedUserID.toString());
+
+        if (_image != null) {
+          // Nom unique pour l'image basé sur l'utilisateur
+          try{
+            String fileName = "user_${user.userID}_${DateTime.now().millisecondsSinceEpoch}.jpg";
+            FirebaseStorage storage = FirebaseStorage.instance;
+            Reference ref = storage.ref().child("user_images/$fileName");
+
+            // Téléverser l'image dans Firebase Storage
+            UploadTask uploadTask = ref.putFile(_image!);
+            TaskSnapshot snapshot = await uploadTask.whenComplete(() => {});
+
+            // Récupérer l'URL de l'image téléversée
+            String downloadUrl = await snapshot.ref.getDownloadURL();
+            print("Image URL: $downloadUrl");
+          } catch(e){
+            print("exception " + e.toString());
+          }
+
+        }
+
+        // Si c'est la première connexion, rediriger vers la page de localisation
+        if (user.last_login == null || user.last_login == " ") {
+          Navigator.pushReplacement(
+            context,
+            CupertinoPageRoute(
+              builder: (ctx) => LocationPage(), // Page de localisation
+            ),
+          );
+        } else {
+          // Redirection après connexion réussie
+          Navigator.pushReplacement(
+            context,
+            CupertinoPageRoute(
+              builder: (ctx) => CurvedNavigation(
+                specified_index: 0,
+              ),
+            ),
+          );
+        }
+
+        // Mettre à jour l'état de l'interface utilisateur
+        setState(() {
+          loginFailed = false; // La connexion a réussi
+        });
+      } else {
+        // Si la connexion échoue
+        setState(() {
+          loginFailed = true; // Afficher un message d'erreur
+          prefs.setBool('isLoggedIn', false);
+        });
+        Toast(
+            context,
+            "Erreur : Aucun utilisateur trouvé ou identifiant(s) incorrect(s)",
+            false);
+      }
+
+      setState(() {
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        isLoading = false;
+        loginFailed = true;
+        prefs.setBool('isLoggedIn', false); // En cas d'erreur
+      });
+      Toast(context, e.toString(), false);
+    }
+  }
 
   @override
   void dispose() {
@@ -34,6 +210,7 @@ class _LoginState extends State<Login> {
   Widget build(BuildContext context) {
     var size = MediaQuery.of(context).size;
     SimpleUIController simpleUIController = Get.find<SimpleUIController>();
+
     return GestureDetector(
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
       child: Scaffold(
@@ -52,7 +229,7 @@ class _LoginState extends State<Login> {
     );
   }
 
-  // For large screens
+  // Écran large
   Widget _buildLargeScreen(
     Size size,
     SimpleUIController simpleUIController,
@@ -77,7 +254,7 @@ class _LoginState extends State<Login> {
     );
   }
 
-  // For Small screens
+  // Écran petit
   Widget _buildSmallScreen(
     Size size,
     SimpleUIController simpleUIController,
@@ -90,7 +267,7 @@ class _LoginState extends State<Login> {
     );
   }
 
-  // Main Body
+  // Corps principal
   Widget _buildMainBody(
     Size size,
     SimpleUIController simpleUIController,
@@ -100,21 +277,14 @@ class _LoginState extends State<Login> {
       mainAxisAlignment:
           size.width > 600 ? MainAxisAlignment.center : MainAxisAlignment.start,
       children: [
-        SizedBox(
-          height: 20,
-          child: const DecoratedBox(
-            decoration: const BoxDecoration(color: Colors.white),
-          ),
-        ),
+        SizedBox(height: size.height * 0.1),
         size.width > 600
             ? Container()
             : Center(
                 child: AvatarGlow(
-                  endRadius: 90,
                   duration: Duration(seconds: 2),
                   glowColor: Colors.white24,
                   repeat: true,
-                  repeatPauseDuration: Duration(seconds: 2),
                   startDelay: Duration(seconds: 1),
                   child: Material(
                     elevation: 8.0,
@@ -147,7 +317,7 @@ class _LoginState extends State<Login> {
             key: _formKey,
             child: Column(
               children: [
-                // username or Gmail
+                // Champ username ou email
                 TextFormField(
                   style: kTextFormFieldStyle(),
                   decoration: const InputDecoration(
@@ -158,14 +328,13 @@ class _LoginState extends State<Login> {
                     ),
                   ),
                   controller: nameController,
-                  // The validator receives the text that the user has entered.
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Please enter username';
                     } else if (value.length < 4) {
-                      return 'at least enter 4 characters';
+                      return 'At least enter 4 characters';
                     } else if (value.length > 13) {
-                      return 'maximum character is 13';
+                      return 'Maximum character is 13';
                     }
                     return null;
                   },
@@ -173,7 +342,7 @@ class _LoginState extends State<Login> {
                 SizedBox(
                   height: size.height * 0.02,
                 ),
-                // password
+                // Champ mot de passe
                 Obx(
                   () => TextFormField(
                     style: kTextFormFieldStyle(),
@@ -196,14 +365,13 @@ class _LoginState extends State<Login> {
                         borderRadius: BorderRadius.all(Radius.circular(15)),
                       ),
                     ),
-                    // The validator receives the text that the user has entered.
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Please enter some text';
+                        return 'Please enter a password';
                       } else if (value.length < 7) {
-                        return 'at least enter 6 characters';
+                        return 'At least enter 6 characters';
                       } else if (value.length > 13) {
-                        return 'maximum character is 13';
+                        return 'Maximum character is 13';
                       }
                       return null;
                     },
@@ -212,14 +380,64 @@ class _LoginState extends State<Login> {
                 SizedBox(
                   height: size.height * 0.01,
                 ),
-
-                // Login Button
+                Center(
+                  child: Column(
+                    children: <Widget>[
+                      _image == null
+                          ? const Text(
+                              'Aucune image sélectionnée',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            )
+                          : Image.file(_image!, width: 100, height: 60),
+                      SizedBox(height: 10),
+                      ElevatedButton(
+                        onPressed: _pickImage,
+                        child: const Text(
+                          'Sélectionner une image',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Bouton de connexion
                 loginButton(),
+                SizedBox(
+                  height: size.height * 0.01,
+                ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Visibility(
+                    visible: loginFailed,
+                    // Affiche seulement si la connexion a échoué
+                    child: GestureDetector(
+                      onTap: () {
+                        nameController.clear();
+                        emailController.clear();
+                        passwordController.clear();
+                        _formKey.currentState?.reset();
+                        simpleUIController.isObscure.value = true;
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => EmailInputScreen(
+                                    listusers: users,
+                                  )),
+                        );
+                      },
+                      child: RichText(
+                        text: TextSpan(
+                          text: 'Forgotten password ?',
+                          style: forgottenpasswordTextStyle(size),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
                 SizedBox(
                   height: size.height * 0.03,
                 ),
-
-                // Navigate To Login Screen
+                // Lien vers l'inscription
                 GestureDetector(
                   onTap: () {
                     Navigator.pop(context);
@@ -252,29 +470,47 @@ class _LoginState extends State<Login> {
     );
   }
 
-  // Login Button
+  // Bouton de connexion
   Widget loginButton() {
     return SizedBox(
       width: double.infinity,
       height: 55,
       child: ElevatedButton(
-        style: ButtonStyle(
-          backgroundColor: MaterialStateProperty.all(Colors.red),
-          shape: MaterialStateProperty.all(
-            RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(15),
-            ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.red, // Couleur de fond du bouton
+          foregroundColor: Colors.white, //Couleur du texte
+          textStyle: TextStyle(
+            fontSize: 18, // Taille du texte
+            fontWeight: FontWeight.bold, // (Optionnel) Style de texte en gras
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15), // Bordure du bouton
           ),
         ),
-        onPressed: () {
-          // Validate returns true if the form is valid, or false otherwise.
-          if (_formKey.currentState!.validate()) {
-            Navigator.push(
-                context,
-                CupertinoPageRoute(
-                    builder: (ctx) => CurvedNavigation(
-                          specified_index: 0,
-                        )));
+        onPressed: () async {
+          /*final user = ref.read(usersProvider);
+          if (user == null) {
+            // Gérer le cas où l'utilisateur est nul, peut-être afficher un message d'erreur ou rediriger l'utilisateur.
+            Toast(context, "Erreur : Aucun utilisateur trouvé.", false);
+            return;
+          }
+
+          // Si l'utilisateur n'est pas nul, vous pouvez effectuer des actions en toute sécurité.
+          print("user " + (user as ParseObject).get('userID').toString());
+
+          SharedPreferences prefs = await SharedPreferences.getInstance();
+          prefs.setBool('isLoggedIn', true); // Sauvegarde l'état de connexion
+          prefs.setInt('loggedUserID', user.userID); // Sauvegarder l'ID utilisateur*/
+
+          if (nameController.text == null ||
+              passwordController.text.isEmpty ||
+              nameController.text == null ||
+              passwordController.text.isEmpty) {
+            //await DatabaseHelper.cleanUpDatabase(false);
+            Toast(
+                context, "Erreur : Entrez un login et un mot de passe", false);
+          } else {
+            await performLogin();
           }
         },
         child: const Text('Login'),

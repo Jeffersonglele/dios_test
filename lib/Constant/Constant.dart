@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-TextStyle kLoginTitleStyle(Size size) => GoogleFonts.ubuntu(
-      fontSize: size.height * 0.060,
-      fontWeight: FontWeight.bold,
-    );
+TextStyle kLoginTitleStyle(Size size) => GoogleFonts.lato(
+  fontSize: 48,
+  fontWeight: FontWeight.bold,
+  color: Colors.black
+);
 
 TextStyle bigTitleStyle(Size size) => GoogleFonts.ubuntu(
       fontSize: size.height * 0.045,
@@ -34,6 +35,15 @@ TextStyle kLoginOrSignUpTextStyle(
 ) =>
     GoogleFonts.ubuntu(
       fontSize: size.height * 0.022,
+      fontWeight: FontWeight.w500,
+      color: Colors.red,
+    );
+
+TextStyle forgottenpasswordTextStyle(
+    Size size,
+    ) =>
+    GoogleFonts.ubuntu(
+      fontSize: size.height * 0.019,
       fontWeight: FontWeight.w500,
       color: Colors.red,
     );
