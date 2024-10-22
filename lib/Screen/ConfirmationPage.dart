@@ -6,8 +6,16 @@ class ConfirmationPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Confirmation"),
-      ),
+          leading: IconButton(
+            icon: Icon(Icons.home), // Icône personnalisée (ex: home)
+            onPressed: () {
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => AnimatedSplashScreen()),
+                    (Route<dynamic> route) => false,
+              );
+            },
+          )),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -26,17 +34,29 @@ class ConfirmationPage extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             SizedBox(height: 30),
-            ElevatedButton(
-              onPressed: () {
-                // Retourner à l'écran splash
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (context) => AnimatedSplashScreen()),
-                      (Route<dynamic> route) => false,
-                );
-              },
-              child: Text("Retourner à l'accueil"),
-            ),
+            Center(
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                  textStyle: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                ),
+                onPressed: () async {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (context) => AnimatedSplashScreen()),
+                        (Route<dynamic> route) => false,
+                  );
+                },
+                child: const Text("Retourner à l'accueil"),
+              ),
+            )
           ],
         ),
       ),

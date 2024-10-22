@@ -68,9 +68,6 @@ dependencies:
     sdk: flutter   
   pin_code_fields: ^8.0.1
   image_picker: ^1.1.2
-  firebase_core: ^2.27.0
-  firebase_storage: ^11.6.9
-  firebase_auth: ^4.17.8
   connectivity_plus: ^6.0.3
 
 dev_dependencies:

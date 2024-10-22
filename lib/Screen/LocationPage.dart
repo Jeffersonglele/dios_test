@@ -1,3 +1,4 @@
+import 'package:dios_delices/components/confirm_home.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -84,17 +85,18 @@ class _LocationPageState extends ConsumerState<LocationPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-          leading: IconButton(
-            icon: Icon(Icons.home), // Icône personnalisée (ex: home)
-            onPressed: () {
-              // Navigation vers l'écran de splash lorsqu'on clique sur l'icône
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => AnimatedSplashScreen()),
-                    (Route<dynamic> route) => false, // Supprime toutes les routes précédentes
-              );
-            },
-          )
+        leading: IconButton(
+          icon: Icon(Icons.home), // Custom icon (home icon)
+          onPressed: () {
+            // Show the ConfirmFormDialog when the icon is pressed
+            showDialog(
+              context: context,
+              builder: (BuildContext context) {
+                return ConfirmFormDialog(); // Display the confirmation dialog
+              },
+            );
+          },
+        ),
       ),
       body: Center(
         child: _isLoading

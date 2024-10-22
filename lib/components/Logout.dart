@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart'; // Assurez-vous que Riverpod est bien importé
 
-import 'db/database_helper.dart';
+import '../db/database_helper.dart';
 
 class LogoutFormDialog extends StatefulWidget {
 

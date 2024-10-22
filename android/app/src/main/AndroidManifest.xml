@@ -12,9 +12,6 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.CAMERA"/>
 
-    <!-- Override Firebase minSdkVersion if necessary -->
-    <uses-sdk tools:overrideLibrary="com.google.firebase.auth" />
-
     <application
         android:label="dios_delices"
         android:name="${applicationName}"

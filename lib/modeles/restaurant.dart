@@ -1,4 +1,5 @@
 import 'dart:ffi';
+import 'dart:io';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:hive/hive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -121,38 +122,49 @@ class Restaurant extends HiveObject {
     required String adress,
     required String name,
     DateTime? date_creation,
-    ParseFile? image,
+    ParseFile? image, // ParseFile passed from above
   }) async {
-    // Déterminer le nom de la fonction cloud en fonction de l'opération
-    String functionName = restaurantID == null ? 'add1Restaurant' : 'updateRestaurant';
+    // Determine cloud function name based on operation
+    String functionName =
+        restaurantID == null ? 'add1Restaurant' : 'updateRestaurant';
     var cloudFunction = ParseCloudFunction(functionName);
 
     String imageUrl = "";
 
-    // Sauvegarde de l'image si présente
+    // Upload the image if it's not null
     if (image != null) {
-      print("Uploading image...");
+      print("Uploading file to Parse...");
 
-      // Définir une ACL pour permettre l'accès public (lecture/écriture)
-      ParseACL parseACL = ParseACL();
-      parseACL.setPublicReadAccess(allowed: true);  // Autoriser la lecture publique
-      parseACL.setPublicWriteAccess(allowed: true); // Autoriser l'écriture publique
-
-      // Appliquer l'ACL au fichier
-      image.setACL(parseACL);
-
-      // Sauvegarder l'image
+      // Attempt to save the file to Parse
       final response = await image.save();
+
+      // Handle the response for file upload
       if (response.success && response.result != null) {
+        // Get the URL of the uploaded file
         imageUrl = (response.result as ParseFile).url ?? "";
         print("Image uploaded successfully: $imageUrl");
+
+        // Now save the file reference in the Gallery object in Parse
+        final gallery = ParseObject('Gallery')
+          ..set('file', image); // Ensure the field name is 'file'
+
+        // Save the Gallery object to Parse
+        final galleryResponse = await gallery.save();
+
+        if (galleryResponse.success) {
+          print("File saved successfully in Gallery object.");
+        } else {
+          print(
+              "Error while saving the Gallery object: ${galleryResponse.error?.message}");
+          return "Error while saving the Gallery object: ${galleryResponse.error?.message}";
+        }
       } else {
         print("Erreur lors de l'upload de l'image: ${response.error?.message}");
         return "Erreur lors de l'upload de l'image: ${response.error?.message}";
       }
     }
 
-    // Construire les paramètres pour l'appel cloud
+    // Build parameters for the cloud function call
     var params = <String, dynamic>{
       if (restaurantID != null) 'restaurantID': restaurantID,
       'userID': userID,
@@ -162,17 +174,18 @@ class Restaurant extends HiveObject {
       'name': name,
       'note': note,
       'valid': valid,
-      'image': imageUrl,  // Utiliser l'URL de l'image
+      'image': imageUrl, // Use the URL of the uploaded image
       'date_creation': {
         "__type": "Date",
         "iso": date_creation?.toIso8601String()
       },
     };
 
-    print("params " + params.toString());
+    print("params: " + params.toString());
 
     try {
-      final ParseResponse parseResponse = await cloudFunction.execute(parameters: params);
+      final ParseResponse parseResponse =
+          await cloudFunction.execute(parameters: params);
 
       if (parseResponse.success && parseResponse.result != null) {
         var response = parseResponse.result as Map<String, dynamic>;

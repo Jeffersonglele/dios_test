@@ -278,32 +278,36 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
                           if (user != null) {
                             ParseFile? parseFile;
                             final _image = this._image;
+
                             if (_image != null) {
-                              String fileName = p.basename(_image.path); // Nom du fichier actuel
-                              String extension = p.extension(fileName);  // Extension du fichier (ex: .jpg, .png)
+                              String fileName = p.basename(_image.path); // Get the file name
+                              String extension = p.extension(fileName);  // Get the file extension (.jpg, .png)
 
-                              // Vérifiez si les champs de nom ou l'ID de l'utilisateur ne sont pas vides
+                              // Check if name and user ID are not empty
                               if (_nameController.text.isNotEmpty && user.userID != null) {
-                                String nom_image = _nameController.text + "_" + user.userID.toString();  // Nouveau nom de l'image
-                                String newFileName = "$nom_image$extension";  // Assemble le nom et l'extension
+                                String nom_image = _nameController.text + "_" + user.userID.toString();  // New image name
+                                String newFileName = "$nom_image$extension";  // Combine name and extension
 
-                                // Créer le fichier Parse avec le nouveau nom
-                                parseFile = ParseFile(_image, name: newFileName);
-                                print("parseFile " + parseFile.toString());
+                                // Create the ParseFile with the new name
+                                parseFile = ParseFile(File(_image.path), name: newFileName);
+                                print("parseFile created: " + parseFile.toString());
                               } else {
                                 print("Erreur : nom ou ID utilisateur manquant");
+                                return;
                               }
                             }
 
+                            // Now call the method to manage the restaurant
                             String createResult = await Restaurant.manageRestaurant(
-                                userID: user.userID,
-                                valid: 0,
-                                note: 0.0,
-                                categories: _categoriesController.text,
-                                description: _descriptionController.text,
-                                adress: _addressController.text,
-                                name: _nameController.text,
-                                image: parseFile);
+                              userID: user.userID,
+                              valid: 0,
+                              note: 0.0,
+                              categories: _categoriesController.text,
+                              description: _descriptionController.text,
+                              adress: _addressController.text,
+                              name: _nameController.text,
+                              image: parseFile, // Pass the ParseFile here
+                            );
 
                             if (createResult == "success") {
                               await _sendEmailToAdmin(
@@ -318,8 +322,11 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
                                   builder: (context) => ConfirmationPage(),
                                 ),
                               );
+                            } else {
+                              print("Error: $createResult");
                             }
                           }
+
                         }
                       },
                       child: const Text('Valider'),

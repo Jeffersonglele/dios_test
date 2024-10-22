@@ -1,9 +1,7 @@
 import 'dart:io';
-
 import 'package:dios_delices/Screen/CurvedNavigation.dart';
 import 'package:dios_delices/Screen/password/EmailInputScreen.dart';
 import 'package:dios_delices/providers/users_provider.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,7 +13,6 @@ import '../Constant/Constant.dart';
 import '../Controller/UiController.dart';
 import 'package:avatar_glow/avatar_glow.dart';
 
-import '../db/database_helper.dart';
 import '../modeles/users.dart';
 import '../utils/toast.dart';
 import 'LocationPage.dart';
@@ -129,25 +126,40 @@ class _LoginState extends ConsumerState<Login> {
         int? loggedUserID = prefs.getInt('loggedUserID');
         print("loggedUserID " + loggedUserID.toString());
 
+        /*String imageUrl = "";
+
+        // Check if there is an image to upload
         if (_image != null) {
-          // Nom unique pour l'image basé sur l'utilisateur
-          try{
-            String fileName = "user_${user.userID}_${DateTime.now().millisecondsSinceEpoch}.jpg";
-            FirebaseStorage storage = FirebaseStorage.instance;
-            Reference ref = storage.ref().child("user_images/$fileName");
+          print("Uploading file to Parse...");
 
-            // Téléverser l'image dans Firebase Storage
-            UploadTask uploadTask = ref.putFile(_image!);
-            TaskSnapshot snapshot = await uploadTask.whenComplete(() => {});
+          // Create a ParseFile using the image path
+          ParseFile parseFile = ParseFile(File(_image!.path));
 
-            // Récupérer l'URL de l'image téléversée
-            String downloadUrl = await snapshot.ref.getDownloadURL();
-            print("Image URL: $downloadUrl");
-          } catch(e){
-            print("exception " + e.toString());
+          // Attempt to save the file to Parse
+          final response = await parseFile.save();
+
+          // Handle the file upload response
+          if (response.success && response.result != null) {
+            // Get the URL of the uploaded file
+            imageUrl = (response.result as ParseFile).url ?? "";
+            print("Image uploaded successfully: $imageUrl");
+
+            // Now save the file reference in the Gallery object in Parse
+            final gallery = ParseObject('Gallery')
+              ..set('file', parseFile); // Ensure the field name is 'file'
+
+            // Save the Gallery object
+            final galleryResponse = await gallery.save();
+
+            if (galleryResponse.success) {
+              print("File saved successfully in Gallery object.");
+            } else {
+              print("Error saving the Gallery object: ${galleryResponse.error?.message}");
+            }
+          } else {
+            print("Error uploading the image: ${response.error?.message}");
           }
-
-        }
+        }*/
 
         // Si c'est la première connexion, rediriger vers la page de localisation
         if (user.last_login == null || user.last_login == " ") {
@@ -380,26 +392,6 @@ class _LoginState extends ConsumerState<Login> {
                 SizedBox(
                   height: size.height * 0.01,
                 ),
-                Center(
-                  child: Column(
-                    children: <Widget>[
-                      _image == null
-                          ? const Text(
-                              'Aucune image sélectionnée',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            )
-                          : Image.file(_image!, width: 100, height: 60),
-                      SizedBox(height: 10),
-                      ElevatedButton(
-                        onPressed: _pickImage,
-                        child: const Text(
-                          'Sélectionner une image',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
                 // Bouton de connexion
                 loginButton(),
                 SizedBox(
@@ -488,20 +480,6 @@ class _LoginState extends ConsumerState<Login> {
           ),
         ),
         onPressed: () async {
-          /*final user = ref.read(usersProvider);
-          if (user == null) {
-            // Gérer le cas où l'utilisateur est nul, peut-être afficher un message d'erreur ou rediriger l'utilisateur.
-            Toast(context, "Erreur : Aucun utilisateur trouvé.", false);
-            return;
-          }
-
-          // Si l'utilisateur n'est pas nul, vous pouvez effectuer des actions en toute sécurité.
-          print("user " + (user as ParseObject).get('userID').toString());
-
-          SharedPreferences prefs = await SharedPreferences.getInstance();
-          prefs.setBool('isLoggedIn', true); // Sauvegarde l'état de connexion
-          prefs.setInt('loggedUserID', user.userID); // Sauvegarder l'ID utilisateur*/
-
           if (nameController.text == null ||
               passwordController.text.isEmpty ||
               nameController.text == null ||

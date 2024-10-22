@@ -5,7 +5,7 @@ import 'package:dios_delices/Screen/Settings.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
-import '../Logout.dart';
+import '../components/Logout.dart';
 import 'Cart.dart';
 
 class MyStore extends StatefulWidget {

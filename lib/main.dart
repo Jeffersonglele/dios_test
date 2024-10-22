@@ -1,6 +1,5 @@
 import 'package:dios_delices/Screen/FoodDetails.dart';
 import 'package:dios_delices/Screen/MealsOfACategory.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
@@ -17,14 +16,12 @@ import 'modeles/users.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized(); // S'assure que les widgets sont initialisés avant d'utiliser les services asynchrones
 
-
   // Initialisation de Parse avec les informations de Back4App
   const String keyApplicationId = '9qBeGGwSGOQ1iWOJ1UNUXt40NhgwwgbHJYGpV1zg'; // Application ID Back4App
   const String keyClientKey = 'YKeFfBUqtkZBcEIUKPDtVIbsB5DU1gfBZlb0YFoa'; // Client Key Back4App
   const String keyParseServerUrl = 'https://parseapi.back4app.com'; // Parse server URL
 
   try {
-    await Firebase.initializeApp();
 
     await Parse().initialize(
       keyApplicationId,
@@ -69,4 +66,3 @@ void main() async {
     ),
   );
 }
-
