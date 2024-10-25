@@ -1,5 +1,6 @@
 import 'dart:async';
-import 'package:dios_delices/Screen/Signup.dart';
+import 'package:avatar_glow/avatar_glow.dart';
+import 'package:dios_delices/Screen/authentification/Signup.dart';
 import 'package:dios_delices/modeles/restaurant.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,7 +10,7 @@ import '../Constant/Constant.dart';
 import '../modeles/users.dart';
 
 import '../utils/toast.dart';
-import 'Login.dart';
+import 'authentification/Login.dart';
 
 class AnimatedSplashScreen extends ConsumerStatefulWidget {
   const AnimatedSplashScreen({Key? key}) : super(key: key);
@@ -75,7 +76,7 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
     try {
       // Récupération des données
       await Users.getAllUsersDetails();
-      await Restaurant.getAllRestaurantDetails();
+      await Restaurant.getAllRestaurantsDetails();
 
       setState(() {
         isLoading = false;
@@ -108,17 +109,31 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
           Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
-              CircleAvatar(
-                backgroundImage: AssetImage('assets/images/logo_sm01.jpg'),
-                radius: 75,
+              Center(
+                child: AvatarGlow(
+                  duration: Duration(seconds: 2),
+                  glowColor: Colors.white24,
+                  repeat: true,
+                  startDelay: Duration(seconds: 1),
+                  child: Material(
+                    elevation: 12.0,  // Augmenter l'élévation pour un effet de profondeur
+                    shape: CircleBorder(),
+                    child: CircleAvatar(
+                      backgroundColor: Colors.transparent,
+                      backgroundImage: AssetImage('assets/images/logo_sm01.jpg'),
+                      radius: 100.0,  // Augmenter le rayon pour agrandir l'image
+                    ),
+                  ),
+                ),
               ),
               if (isLoading)
                 Padding(
                   padding: const EdgeInsets.all(20.0),
-                  child: CircularProgressIndicator(), // Indicateur de chargement
+                  child: CircularProgressIndicator(), // Loading indicator
                 ),
             ],
           ),
+
         ],
       ),
     );

@@ -6,8 +6,6 @@ class DatabaseHelper {
   static Future<Users> createUser(Users users) async {
     var usersBox = await Hive.openBox<Users>('users');
     await usersBox.put(users.userID, users);
-    print("user créé");
-    print("users " + users.password.toString());
     return users;
   }
 
@@ -55,7 +53,6 @@ class DatabaseHelper {
   static Future<List<Users>> readAllUserss() async {
     final Box<Users> usersBox = await Hive.openBox<Users>('users');
     List<Users> usersList = usersBox.values.toList();
-    print("usersList reading " + usersList[0].password.toString());
     usersList.sort((a, b) => a.username.compareTo(b.username));
     return usersList;
   }
@@ -69,7 +66,6 @@ class DatabaseHelper {
   static Future<Restaurant> createRestaurant(Restaurant restaurant) async {
     var restaurantBox = await Hive.openBox<Restaurant>('restaurant');
     await restaurantBox.put(restaurant.restaurantID, restaurant);
-    print("restaurant " + restaurant.name.toString());
     return restaurant;
   }
 

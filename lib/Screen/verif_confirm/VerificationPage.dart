@@ -3,11 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../Constant/Constant.dart';
-import '../mails/mails.dart';
-import '../modeles/users.dart';
-import '../utils/toast.dart';
-import 'Login.dart';
+import '../../Constant/Constant.dart';
+import '../../mails/mails.dart';
+import '../../modeles/users.dart';
+import '../../utils/toast.dart';
+import '../authentification/Login.dart';
 
 class VerificationPage extends StatefulWidget {
   final String email;

@@ -1,19 +1,19 @@
-import 'package:dios_delices/Screen/CurvedNavigation.dart';
+import 'package:dios_delices/Screen/curved_navigation/CurvedNavigation.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:email_validator/email_validator.dart';
 import 'package:flutter_pw_validator/flutter_pw_validator.dart';
-import '../Screen/Login.dart';
-import '../Constant/Constant.dart';
-import '../Controller/UiController.dart';
+import 'Login.dart';
+import '../../Constant/Constant.dart';
+import '../../Controller/UiController.dart';
 import 'package:avatar_glow/avatar_glow.dart';
 
-import '../mails/mails.dart';
-import '../modeles/users.dart';
-import '../utils/thousand_separator_input_formatter.dart';
-import 'VerificationPage.dart';
+import '../../mails/mails.dart';
+import '../../modeles/users.dart';
+import '../../utils/thousand_separator_input_formatter.dart';
+import '../verif_confirm/VerificationPage.dart';
 
 class SignUpView extends StatefulWidget {
   const SignUpView({Key? key}) : super(key: key);
@@ -446,13 +446,7 @@ class _SignUpViewState extends State<SignUpView> {
           backgroundColor: MaterialStateProperty.all(Colors.white),
         ),
         onPressed: () {
-          if (_formKey.currentState!.validate()) {
-            Navigator.push(
-              context,
-              CupertinoPageRoute(
-                  builder: (ctx) => CurvedNavigation(specified_index: 0)),
-            );
-          }
+
         },
         child: const Text(''),
       ),

@@ -1,7 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
-import '../Login.dart';
+import '../authentification/Login.dart';
 
 class PasswordChangeSuccessScreen extends StatelessWidget {
 

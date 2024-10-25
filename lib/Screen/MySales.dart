@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:dios_delices/Screen/CurvedNavigation.dart';
+import 'package:dios_delices/Screen/curved_navigation/CurvedNavigation.dart';
 import 'package:dios_delices/Screen/MyStore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

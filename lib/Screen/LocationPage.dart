@@ -10,8 +10,8 @@ import '../db/database_helper.dart';
 import '../modeles/users.dart';
 import '../providers/users_provider.dart';
 import 'AnimatedSplashScreen.dart';
-import 'CurvedNavigation.dart';
-import 'Login.dart';
+import 'curved_navigation/CurvedNavigation.dart';
+import 'authentification/Login.dart';
 import 'StatusSelectionPage.dart';
 
 class LocationPage extends ConsumerStatefulWidget {
@@ -189,7 +189,17 @@ class CountryNotAvailablePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Indisponible")),
+      appBar: AppBar(
+          leading: IconButton(
+            icon: Icon(Icons.home), // Icône personnalisée (ex: home)
+            onPressed: () {
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => AnimatedSplashScreen()),
+                    (Route<dynamic> route) => false,
+              );
+            },
+          )),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

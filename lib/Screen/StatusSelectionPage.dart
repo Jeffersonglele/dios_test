@@ -4,11 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart'; // Importer Riverpod
 
 import '../Constant/Constant.dart';
+import '../components/showConfetti.dart';
 import '../modeles/users.dart';
 import '../providers/users_provider.dart';
 import 'AnimatedSplashScreen.dart';
-import 'CurvedNavigation.dart';
-import 'RestaurantFormPage.dart';
+import 'curved_navigation/CurvedNavigation.dart';
+import 'restaurants/RestaurantFormPage.dart';
 
 class StatusSelectionPage extends ConsumerWidget {
   final String country;
@@ -102,13 +103,20 @@ class StatusSelectionPage extends ConsumerWidget {
                             await Users.updateDerniereConnexion(user.userID);
                             if(status == "Particulier"){
                               //todo : animation bienvenue sur dios délices
-                              // Rediriger vers la page principale
                               Navigator.push(
+                                context,
+                                CupertinoPageRoute(
+                                  builder: (context) => WelcomeScreen(),
+                                ),
+                              );
+
+                              // Rediriger vers la page principale
+                              /*Navigator.push(
                                 context,
                                 CupertinoPageRoute(
                                   builder: (ctx) => CurvedNavigation(specified_index: 0),
                                 ),
-                              );
+                              );*/
                             } else {
                               Navigator.push(
                                 context,

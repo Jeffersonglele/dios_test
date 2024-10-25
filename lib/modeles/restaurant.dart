@@ -1,8 +1,5 @@
-import 'dart:ffi';
-import 'dart:io';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:hive/hive.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../db/database_helper.dart';
 
 part 'restaurant.g.dart';
@@ -39,6 +36,9 @@ class Restaurant extends HiveObject {
   @HiveField(9)
   int valid;
 
+  @HiveField(10)
+  int nb_orders;
+
   Restaurant(
       {required this.restaurantID,
       required this.userID,
@@ -47,6 +47,7 @@ class Restaurant extends HiveObject {
       required this.adress,
       required this.name,
       required this.note,
+      required this.nb_orders,
       required this.image,
       required this.valid,
       required this.date_creation});
@@ -60,6 +61,7 @@ class Restaurant extends HiveObject {
       'adress': adress,
       'name': name,
       'note': note,
+      'nb_orders': nb_orders,
       'valid': valid,
       'image': image,
       'date_creation': date_creation
@@ -72,6 +74,7 @@ class Restaurant extends HiveObject {
         restaurantID: int.tryParse(map['restaurantID']?.toString() ?? '0') ?? 0,
         userID: int.tryParse(map['userID']?.toString() ?? '0') ?? 0,
         valid: int.tryParse(map['valid']?.toString() ?? '0') ?? 0,
+        nb_orders: int.tryParse(map['nb_orders']?.toString() ?? '0') ?? 0,
         note: double.tryParse(map['note']?.toString() ?? '') ?? 0.0,
         categories: map['categories']?.toString() ??
             map['categories']?.toString() ??
@@ -81,8 +84,8 @@ class Restaurant extends HiveObject {
             '',
         adress: map['adress']?.toString() ?? map['adress']?.toString() ?? '',
         name: map['name']?.toString() ?? map['name']?.toString() ?? '',
-        date_creation: map['date_creation'] != null
-            ? DateTime.tryParse(map['date_creation'])
+        date_creation: map['date_creation'] != null && map['date_creation']['iso'] != null
+            ? DateTime.tryParse(map['date_creation']['iso'])
             : null,
         image: map['image']?.toString() ?? '');
   }
@@ -92,6 +95,7 @@ class Restaurant extends HiveObject {
     int? userID,
     double? note,
     int? valid,
+    int? nb_orders,
     String? categories,
     String? description,
     String? adress,
@@ -103,6 +107,7 @@ class Restaurant extends HiveObject {
         restaurantID: restaurantID ?? this.restaurantID,
         userID: userID ?? this.userID,
         note: note ?? this.note,
+        nb_orders: nb_orders ?? this.nb_orders,
         valid: valid ?? this.valid,
         categories: categories ?? this.categories,
         description: description ?? this.description,
@@ -116,6 +121,7 @@ class Restaurant extends HiveObject {
     int? restaurantID,
     required int userID,
     required int valid,
+    required int nb_orders,
     required double note,
     required String categories,
     required String description,
@@ -133,7 +139,6 @@ class Restaurant extends HiveObject {
 
     // Upload the image if it's not null
     if (image != null) {
-      print("Uploading file to Parse...");
 
       // Attempt to save the file to Parse
       final response = await image.save();
@@ -142,7 +147,6 @@ class Restaurant extends HiveObject {
       if (response.success && response.result != null) {
         // Get the URL of the uploaded file
         imageUrl = (response.result as ParseFile).url ?? "";
-        print("Image uploaded successfully: $imageUrl");
 
         // Now save the file reference in the Gallery object in Parse
         final gallery = ParseObject('Gallery')
@@ -154,12 +158,10 @@ class Restaurant extends HiveObject {
         if (galleryResponse.success) {
           print("File saved successfully in Gallery object.");
         } else {
-          print(
-              "Error while saving the Gallery object: ${galleryResponse.error?.message}");
+
           return "Error while saving the Gallery object: ${galleryResponse.error?.message}";
         }
       } else {
-        print("Erreur lors de l'upload de l'image: ${response.error?.message}");
         return "Erreur lors de l'upload de l'image: ${response.error?.message}";
       }
     }
@@ -173,6 +175,7 @@ class Restaurant extends HiveObject {
       'adress': adress,
       'name': name,
       'note': note,
+      'nb_orders': nb_orders,
       'valid': valid,
       'image': imageUrl, // Use the URL of the uploaded image
       'date_creation': {
@@ -180,8 +183,6 @@ class Restaurant extends HiveObject {
         "iso": date_creation?.toIso8601String()
       },
     };
-
-    print("params: " + params.toString());
 
     try {
       final ParseResponse parseResponse =
@@ -192,7 +193,6 @@ class Restaurant extends HiveObject {
         if (response['success'] == false) {
           return "Erreur : ${response['error']}";
         } else {
-          print("Restaurant successfully managed");
           return "success";
         }
       } else {
@@ -268,7 +268,7 @@ class Restaurant extends HiveObject {
     }
   }
 
-  static Future<bool> getAllRestaurantDetails() async {
+  static Future<bool> getAllRestaurantsDetails() async {
     // Créer une instance de ParseCloudFunction
     var cloudFunction = ParseCloudFunction('getAllRestaurants');
 
@@ -283,17 +283,19 @@ class Restaurant extends HiveObject {
           await DatabaseHelper.createRestaurant(restaurant);
         }
       } else {
-        print(
-            'Failed to retrieve restaurant details: ${response.error?.message}');
+        print('Failed to retrieve restaurant details: ${response.error?.message}');
+        return false;
       }
     } catch (e) {
       print('Error calling cloud function: $e');
+      return false;
     }
     return true;
   }
 
-  static Future<List<Restaurant>> fetchRestaurantFromDB() async {
+  static Future<List<Restaurant>> fetchRestaurantsFromDB() async {
     List<Restaurant> restaurantList = await DatabaseHelper.readAllRestaurants();
+    print("fetchRestaurantsFromDB " + restaurantList.toString());
     return restaurantList;
   }
 
@@ -337,21 +339,6 @@ class Restaurant extends HiveObject {
           .firstWhere((restaurant) => restaurant.userID == userID);
     } catch (e) {
       return null;
-    }
-  }
-
-  static Future<bool> checkEmailExists(
-      List<Restaurant> listRestaurants, String name, int userID) async {
-    try {
-      Restaurant restaurant = await listRestaurants.firstWhere((restaurant) =>
-          restaurant.name == name && restaurant.userID == userID);
-      if (restaurant != null) {
-        return true;
-      } else {
-        return false;
-      }
-    } catch (e) {
-      return false;
     }
   }
 }

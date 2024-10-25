@@ -69,6 +69,7 @@ dependencies:
   pin_code_fields: ^8.0.1
   image_picker: ^1.1.2
   connectivity_plus: ^6.0.3
+  confetti: ^0.8.0
 
 dev_dependencies:
   flutter_test:
@@ -76,11 +77,12 @@ dev_dependencies:
   hive_generator: ^2.0.0
   build_runner: ^2.3.3
 
-
 flutter_icons:
-  android: "launcher_icon"
+  android: true
   ios: true
-  image_path: "assets/images/logo.jpg"
+  image_path_ios: "assets/images/logo_sm04.jpg"  # Logo spécifique pour iOS
+  image_path_android: "assets/images/logo_512.png"  # Logo spécifique pour Android
+  adaptive_icon_background: "#FF0000"  # Fond pour l'icône adaptative Android
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -117,6 +119,8 @@ flutter:
     - assets/images/logo_sm02.jpg
     - assets/images/logo_sm03.jpg
     - assets/images/logo_sm04.jpg
+    - assets/images/round_logo.png
+    - assets/images/logo_512.png
     - assets/images/background.jpg
     - assets/images/search.png
     - assets/images/paragraph.png

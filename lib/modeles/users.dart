@@ -1,7 +1,10 @@
+import 'package:flutter/cupertino.dart';
 import 'package:gpassword/gpassword.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:hive/hive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../Screen/curved_navigation/CurvedNavigationAdmin.dart';
+import '../Screen/curved_navigation/CurvedNavigationUser.dart';
 import '../db/database_helper.dart';
 
 part 'users.g.dart';
@@ -84,7 +87,9 @@ class Users extends HiveObject {
         lastname: map['lastname']?.toString() ?? map['lastname']?.toString() ?? '',
         username: map['username']?.toString() ?? map['username']?.toString() ?? '',
         country: map['country']?.toString() ?? map['country']?.toString() ?? '',
-        last_login: map['last_login'] != null ? DateTime.tryParse(map['last_login']) : null,
+        last_login: map['last_login'] != null && map['last_login']['iso'] != null
+            ? DateTime.tryParse(map['last_login']['iso'])
+            : null,
         image: map['image']?.toString() ?? ''
     );
   }
@@ -136,12 +141,10 @@ class Users extends HiveObject {
     String imageUrl = "";
 
     if (image != null) {
-      print("image");
       final response = await image.save();
       if (response.success && response.result != null) {
         imageUrl = (response.result as ParseFile).url ?? "";
       } else {
-        print("image else");
         return "Erreur lors de l'upload de l'image: ${response.error?.message}";
       }
     }
@@ -165,7 +168,6 @@ class Users extends HiveObject {
       'image': imageUrl,
     };
 
-    print("params " + params.toString());
 
     try {
       final ParseResponse parseResponse = await cloudFunction.execute(parameters: params);
@@ -173,10 +175,8 @@ class Users extends HiveObject {
       if (parseResponse.success && parseResponse.result != null) {
         var response = parseResponse.result as Map<String, dynamic>;
         if (response['success'] == false) {
-          print("Erreur : ${response['error']}");
           return "Erreur : ${response['error']}";
         } else {
-          print("else eee");
           // L'ID de l'user est utile pour la mise à jour, pour l'ajout il est généré par le serveur
           int updatedUserID = userID ?? response['userID'];
 
@@ -195,7 +195,6 @@ class Users extends HiveObject {
           );
 
           if (userID == null) {
-            print("createUser");
             await DatabaseHelper.createUser(user);
           } else {
             await DatabaseHelper.updateUser(userID, last_login);
@@ -218,7 +217,7 @@ class Users extends HiveObject {
 
   static Future<String> updateDerniereConnexion(int userID) async {
     // Déterminer le nom de la fonction cloud en fonction de l'opération
-    String functionName = 'updateUsers';
+    String functionName = 'update1User';
     var cloudFunction = ParseCloudFunction(functionName);
 
     DateTime last_login = DateTime.now();
@@ -354,7 +353,6 @@ class Users extends HiveObject {
   static Future<bool> getAllUsersDetails() async {
     // Créer une instance de ParseCloudFunction
     var cloudFunction = ParseCloudFunction('getAllUsers');
-    print("getAllUsersDetails bool");
 
     // Appeler la fonction cloud et attendre la réponse
     try {
@@ -362,18 +360,17 @@ class Users extends HiveObject {
 
       if (response.success) {
         List<dynamic> usersDataList = response.result;
-        print("usersDataList " + usersDataList.toString());
         for (var usersData in usersDataList) {
-          print("var usersData in usersDataList");
           Users user = Users.fromMap(usersData);
-          print("Users.fromMap(usersData) " +  user.password.toString());
           await DatabaseHelper.createUser(user);
         }
       } else {
         print('Failed to retrieve users details: ${response.error?.message}');
+        return false;
       }
     } catch (e) {
       print('Error calling cloud function: $e');
+      return false;
     }
     return true;
   }
@@ -410,9 +407,9 @@ class Users extends HiveObject {
     return null;
   }
 
-  static Users? getUsersByUserId(List<Users> userss, int id) {
+  static Users? getUsersByUserId(List<Users> users, int id) {
     try {
-      return userss.firstWhere((users) => users.userID == id);
+      return users.firstWhere((users) => users.userID == id);
     } catch (e) {
       return null;
     }
@@ -444,6 +441,26 @@ class Users extends HiveObject {
       }
     } catch (e) {
       return false;
+    }
+  }
+
+  static void chooseCurvedNavigation(int userRole, BuildContext context){
+    if (userRole == 1) {
+      // Si l'utilisateur est un administrateur
+      Navigator.pushReplacement(
+        context,
+        CupertinoPageRoute(
+          builder: (context) => CurvedNavigationAdmin(specified_index: 0),
+        ),
+      );
+    } else if(userRole == 3) {
+      // Si l'utilisateur est un utilisateur normal
+      Navigator.pushReplacement(
+        context,
+        CupertinoPageRoute(
+          builder: (context) => CurvedNavigationRestau(specified_index: 0),
+        ),
+      );
     }
   }
 

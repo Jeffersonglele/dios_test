@@ -10,13 +10,13 @@ import 'package:mailer/mailer.dart';
 import 'package:mailer/smtp_server.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:path/path.dart' as p;
-import '../Constant/Constant.dart';
-import '../modeles/users.dart';
-import '../providers/users_provider.dart';
-import '../utils/HashtagTextInputFormatter.dart';
-import '../utils/thousand_separator_input_formatter.dart';
-import 'AnimatedSplashScreen.dart';
-import 'ConfirmationPage.dart';
+import '../../Constant/Constant.dart';
+import '../../modeles/users.dart';
+import '../../providers/users_provider.dart';
+import '../../utils/HashtagTextInputFormatter.dart';
+import '../../utils/thousand_separator_input_formatter.dart';
+import '../AnimatedSplashScreen.dart';
+import '../verif_confirm/ConfirmationPage.dart';
 
 class RestaurantFormPage extends ConsumerStatefulWidget {
   @override
@@ -301,6 +301,7 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
                             String createResult = await Restaurant.manageRestaurant(
                               userID: user.userID,
                               valid: 0,
+                              nb_orders: 0,
                               note: 0.0,
                               categories: _categoriesController.text,
                               description: _descriptionController.text,

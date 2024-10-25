@@ -1,21 +1,19 @@
-import 'dart:io';
-import 'package:dios_delices/Screen/CurvedNavigation.dart';
 import 'package:dios_delices/Screen/password/EmailInputScreen.dart';
 import 'package:dios_delices/providers/users_provider.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get/get.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../Constant/Constant.dart';
-import '../Controller/UiController.dart';
+import '../../Constant/Constant.dart';
+import '../../Controller/UiController.dart';
 import 'package:avatar_glow/avatar_glow.dart';
 
-import '../modeles/users.dart';
-import '../utils/toast.dart';
-import 'LocationPage.dart';
+import '../../WaitRestaurantValidation.dart';
+import '../../modeles/restaurant.dart';
+import '../../modeles/users.dart';
+import '../../utils/toast.dart';
+import '../LocationPage.dart';
 
 
 class Login extends ConsumerStatefulWidget {
@@ -28,60 +26,16 @@ class Login extends ConsumerStatefulWidget {
 class _LoginState extends ConsumerState<Login> {
   // Chargement des données locales
   List<Users> users = [];
+  List<Restaurant> restaus = [];
 
   TextEditingController nameController = TextEditingController();
   TextEditingController emailController = TextEditingController();
   TextEditingController passwordController = TextEditingController();
 
-  File? _image;
-
   final _formKey = GlobalKey<FormState>();
 
   bool isLoading = false;
   bool loginFailed = false;
-
-  // Méthode pour ouvrir l'image picker
-  Future<void> _pickImage() async {
-    final ImagePicker _picker = ImagePicker();
-
-    showModalBottomSheet(
-        context: context,
-        builder: (BuildContext bc) {
-          return SafeArea(
-            child: Wrap(
-              children: <Widget>[
-                ListTile(
-                    leading: Icon(Icons.photo_library),
-                    title: Text('Galerie'),
-                    onTap: () async {
-                      final XFile? image =
-                          await _picker.pickImage(source: ImageSource.gallery);
-                      if (image != null) {
-                        setState(() {
-                          _image = File(image.path);
-                        });
-                      }
-                      Navigator.of(context).pop();
-                    }),
-                ListTile(
-                  leading: Icon(Icons.photo_camera),
-                  title: Text('Caméra'),
-                  onTap: () async {
-                    final XFile? image =
-                        await _picker.pickImage(source: ImageSource.camera);
-                    if (image != null) {
-                      setState(() {
-                        _image = File(image.path);
-                      });
-                    }
-                    Navigator.of(context).pop();
-                  },
-                ),
-              ],
-            ),
-          );
-        });
-  }
 
   @override
   void initState() {
@@ -92,8 +46,11 @@ class _LoginState extends ConsumerState<Login> {
 
   void loadData() async {
     List<Users> usersList = await Users.fetchUsersFromDB();
+    List<Restaurant> restausList = await Restaurant.fetchRestaurantsFromDB();
+
     setState(() {
       users = usersList;
+      restaus = restausList;
     });
   }
 
@@ -108,61 +65,22 @@ class _LoginState extends ConsumerState<Login> {
         passwordController.text,
       );
 
-      print("user " + user!.userID.toString());
-
       // Stockage de l'utilisateur dans le state de Riverpod
       ref.read(usersProvider.notifier).state = user;
 
+      // Si user existe
       if (user != null) {
-        print("user != null");
-
         // Créer un objet ParseUser avec les informations de connexion
-        ParseUser parseUser = ParseUser(nameController.text, passwordController.text, null);
+        // ParseUser parseUser = ParseUser(nameController.text, passwordController.text, null);
 
         // Sauvegarder l'état de connexion dans SharedPreferences
-        prefs.setBool('isLoggedIn', true);
-        prefs.setInt('loggedUserID', user.userID);
+        await prefs.setBool('isLoggedIn', true);
+        await prefs.setInt('loggedUserID', user.userID);
+        await prefs.setInt('currentUser_role', user.roleID);
+        await prefs.setString('currentUser_country', user.country);
 
-        int? loggedUserID = prefs.getInt('loggedUserID');
-        print("loggedUserID " + loggedUserID.toString());
-
-        /*String imageUrl = "";
-
-        // Check if there is an image to upload
-        if (_image != null) {
-          print("Uploading file to Parse...");
-
-          // Create a ParseFile using the image path
-          ParseFile parseFile = ParseFile(File(_image!.path));
-
-          // Attempt to save the file to Parse
-          final response = await parseFile.save();
-
-          // Handle the file upload response
-          if (response.success && response.result != null) {
-            // Get the URL of the uploaded file
-            imageUrl = (response.result as ParseFile).url ?? "";
-            print("Image uploaded successfully: $imageUrl");
-
-            // Now save the file reference in the Gallery object in Parse
-            final gallery = ParseObject('Gallery')
-              ..set('file', parseFile); // Ensure the field name is 'file'
-
-            // Save the Gallery object
-            final galleryResponse = await gallery.save();
-
-            if (galleryResponse.success) {
-              print("File saved successfully in Gallery object.");
-            } else {
-              print("Error saving the Gallery object: ${galleryResponse.error?.message}");
-            }
-          } else {
-            print("Error uploading the image: ${response.error?.message}");
-          }
-        }*/
-
-        // Si c'est la première connexion, rediriger vers la page de localisation
-        if (user.last_login == null || user.last_login == " ") {
+        // Si c'est la première connexion, sauf si c'est un admin rediriger vers la page de localisation
+        if ((user.last_login == null || user.last_login == " ") && user.roleID != 1) {
           Navigator.pushReplacement(
             context,
             CupertinoPageRoute(
@@ -171,14 +89,58 @@ class _LoginState extends ConsumerState<Login> {
           );
         } else {
           // Redirection après connexion réussie
-          Navigator.pushReplacement(
-            context,
-            CupertinoPageRoute(
-              builder: (ctx) => CurvedNavigation(
-                specified_index: 0,
+         // On vérifie le rôle
+          if (user.roleID == 1 ||  user.roleID == 2) {
+            // ajouter connexion
+            await Users.updateDerniereConnexion(user.userID);
+
+            // L'admin ou un particulier peuvent directement accéder à l'appli
+            /*Navigator.pushReplacement(
+              context,
+              CupertinoPageRoute(
+                builder: (ctx) => CurvedNavigation(
+                  specified_index: 0,
+                ),
               ),
-            ),
-          );
+            );*/
+            Users.chooseCurvedNavigation(user.roleID, context);
+
+          } else {
+            // vérifier que le restau a été validé
+            Restaurant? restau = await Restaurant.getRestaurantByUser(restaus, user.userID);
+
+            if (restau != null) {
+              if(restau.valid == 0){
+                setState(() {
+                  loginFailed = true; // Afficher un message d'erreur
+                  prefs.setBool('isLoggedIn', false);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => WaitRestaurantValidation(),
+                    ),
+                  );
+                });
+              } else {
+                // Le restau est validé il peut se connecter
+                await prefs.setInt('currentUser_restau', restau.restaurantID);
+                /*Navigator.pushReplacement(
+                  context,
+                  CupertinoPageRoute(
+                    builder: (ctx) => CurvedNavigation(
+                      specified_index: 0,
+                    ),
+                  ),
+                );*/
+                Users.chooseCurvedNavigation(user.roleID, context);
+              }
+            } else {
+              Toast(
+                  context,
+                  "Erreur : Contactez  les administrateurs.",
+                  false);
+            }
+          }
         }
 
         // Mettre à jour l'état de l'interface utilisateur
@@ -206,7 +168,10 @@ class _LoginState extends ConsumerState<Login> {
         loginFailed = true;
         prefs.setBool('isLoggedIn', false); // En cas d'erreur
       });
-      Toast(context, e.toString(), false);
+      Toast(
+          context,
+          "Erreur : Aucun utilisateur trouvé ou identifiant(s) incorrect(s)",
+          false);
     }
   }
 
