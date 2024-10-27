@@ -9,7 +9,8 @@ import '../../Constant/Constant.dart';
 import '../../Controller/UiController.dart';
 import 'package:avatar_glow/avatar_glow.dart';
 
-import '../../WaitRestaurantValidation.dart';
+import '../restaurants/RestaurantUpdateFormPage.dart';
+import '../restaurants/WaitRestaurantValidation.dart';
 import '../../modeles/restaurant.dart';
 import '../../modeles/users.dart';
 import '../../utils/toast.dart';
@@ -79,6 +80,17 @@ class _LoginState extends ConsumerState<Login> {
         await prefs.setInt('currentUser_role', user.roleID);
         await prefs.setString('currentUser_country', user.country);
 
+        //TODO : enlever
+        Restaurant? restau_tmp = await Restaurant.getRestaurantByUser(restaus, user.userID);
+        if (restau_tmp != null) {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => RestaurantUpdateFormPage(user: user, restaurant: restau_tmp),
+            ),
+          );
+        }
+
         // Si c'est la première connexion, sauf si c'est un admin rediriger vers la page de localisation
         if ((user.last_login == null || user.last_login == " ") && user.roleID != 1) {
           Navigator.pushReplacement(
@@ -95,14 +107,6 @@ class _LoginState extends ConsumerState<Login> {
             await Users.updateDerniereConnexion(user.userID);
 
             // L'admin ou un particulier peuvent directement accéder à l'appli
-            /*Navigator.pushReplacement(
-              context,
-              CupertinoPageRoute(
-                builder: (ctx) => CurvedNavigation(
-                  specified_index: 0,
-                ),
-              ),
-            );*/
             Users.chooseCurvedNavigation(user.roleID, context);
 
           } else {
@@ -121,18 +125,23 @@ class _LoginState extends ConsumerState<Login> {
                     ),
                   );
                 });
-              } else {
+              } else if(restau.valid == 1){
                 // Le restau est validé il peut se connecter
                 await prefs.setInt('currentUser_restau', restau.restaurantID);
-                /*Navigator.pushReplacement(
-                  context,
-                  CupertinoPageRoute(
-                    builder: (ctx) => CurvedNavigation(
-                      specified_index: 0,
-                    ),
-                  ),
-                );*/
                 Users.chooseCurvedNavigation(user.roleID, context);
+              } else {
+                // restau.valid == 2
+                // la validation a échoué, il faut rajouter des informations
+                setState(() {
+                  loginFailed = true; // Afficher un message d'erreur
+                  prefs.setBool('isLoggedIn', false);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => RestaurantUpdateFormPage(user: user, restaurant: restau),
+                    ),
+                  );
+                });
               }
             } else {
               Toast(

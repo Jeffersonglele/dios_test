@@ -203,17 +203,15 @@ class Restaurant extends HiveObject {
     }
   }
 
-  static Future<String> updateRestauranStatus(int restaurantID) async {
+  static Future<String> updateRestauranStatus(int restaurantID, int status) async {
     // Déterminer le nom de la fonction cloud en fonction de l'opération
-    String functionName = 'updateRestaurant';
+    String functionName = 'update1Restaurant';
     var cloudFunction = ParseCloudFunction(functionName);
-
-    int valid = 1; //todo logic
 
     // Construire les paramètres, y compris restaurantID pour la mise à jour
     var params = <String, dynamic>{
       if (restaurantID != null) 'restaurantID': restaurantID,
-      'valid': valid
+      'valid': status
     };
 
     try {
@@ -225,7 +223,7 @@ class Restaurant extends HiveObject {
         if (response['success'] == false) {
           return "Erreur : ${response['error']}";
         } else {
-          await DatabaseHelper.updateRestauranStatus(restaurantID, valid);
+          await DatabaseHelper.updateRestauranStatus(restaurantID, status);
 
           return "success";
         }

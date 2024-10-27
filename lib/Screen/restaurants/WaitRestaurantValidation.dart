@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'Screen/AnimatedSplashScreen.dart';
+import '../AnimatedSplashScreen.dart';
 
 class WaitRestaurantValidation extends StatelessWidget {
   @override

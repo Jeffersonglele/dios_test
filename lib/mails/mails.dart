@@ -36,10 +36,13 @@ Future<String?> sendVerificationEmail(BuildContext context, String email) async 
       ..from = Address(username, 'Dios Délices')
       ..recipients.add(email) // Envoyer à l'utilisateur
       ..subject = 'Votre code de vérification'
-      ..text = message
+      ..text = "$message\n\nPour plus d’informations, n’hésitez pas à nous contacter.\n\n"
+          "Cordialement,\nL’équipe Dios Délices"
       ..html = "<h1>Code de vérification : $verificationCode</h1>"
           "<p>Ce code est valable jusqu'à $formattedExpirationTime. "
-          "Veuillez entrer ce code pour continuer.</p>";
+          "Veuillez entrer ce code pour continuer.</p>"
+          "<p>Pour plus d’informations, n’hésitez pas à nous contacter.<br>"
+          "Cordialement,<br>L’équipe Dios Délices</p>";
 
     // Envoie du message
     await send(messageSending, smtpServer);
