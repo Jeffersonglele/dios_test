@@ -28,8 +28,7 @@ class RestaurantUpdateFormPage extends ConsumerStatefulWidget {
       _RestaurantUpdateFormPageState();
 }
 
-class _RestaurantUpdateFormPageState
-    extends ConsumerState<RestaurantUpdateFormPage> {
+class _RestaurantUpdateFormPageState extends ConsumerState<RestaurantUpdateFormPage> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
@@ -331,8 +330,7 @@ class _RestaurantUpdateFormPageState
                             }
 
                             // Now call the method to manage the restaurant
-                            String createResult =
-                                await Restaurant.manageRestaurant(
+                            String createResult = await Restaurant.manageRestaurant(
                               userID: user.userID,
                               valid: 0,
                               nb_orders: 0,

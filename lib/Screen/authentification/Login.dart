@@ -8,7 +8,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../Constant/Constant.dart';
 import '../../Controller/UiController.dart';
 import 'package:avatar_glow/avatar_glow.dart';
-
 import '../restaurants/RestaurantUpdateFormPage.dart';
 import '../restaurants/WaitRestaurantValidation.dart';
 import '../../modeles/restaurant.dart';
@@ -81,7 +80,7 @@ class _LoginState extends ConsumerState<Login> {
         await prefs.setString('currentUser_country', user.country);
 
         //TODO : enlever
-        Restaurant? restau_tmp = await Restaurant.getRestaurantByUser(restaus, user.userID);
+        /*Restaurant? restau_tmp = await Restaurant.getRestaurantByUser(restaus, user.userID);
         if (restau_tmp != null) {
           await Navigator.push(
             context,
@@ -89,7 +88,7 @@ class _LoginState extends ConsumerState<Login> {
               builder: (context) => RestaurantUpdateFormPage(user: user, restaurant: restau_tmp),
             ),
           );
-        }
+        }*/
 
         // Si c'est la première connexion, sauf si c'est un admin rediriger vers la page de localisation
         if ((user.last_login == null || user.last_login == " ") && user.roleID != 1) {
@@ -102,7 +101,7 @@ class _LoginState extends ConsumerState<Login> {
         } else {
           // Redirection après connexion réussie
          // On vérifie le rôle
-          if (user.roleID == 1 ||  user.roleID == 2) {
+          if (user.roleID == 1 || user.roleID == 2) {
             // ajouter connexion
             await Users.updateDerniereConnexion(user.userID);
 
