@@ -22,33 +22,31 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
   bool showOnlyWaitingForValidation = false;
   String sortBy = 'Nom';
 
-  // Fonction pour envoyer un email au restaurateur
-  Future<bool> _sendEmailToUser(Restaurant restaurant, bool valid) async {
+  Future<bool> _sendEmailToUser(Restaurant restaurant, bool valid, [String? remark]) async {
     Users? user = Users.getUsersByUserId(users, restaurant.userID);
-    String username = 'blandinedupont087@gmail.com'; // Remplacez par votre adresse Gmail
-    String password = 'dtmd pleh ufau vjqd'; // Remplacez par votre mot de passe sécurisé
+    String username = 'blandinedupont087@gmail.com';
+    String password = 'dtmd pleh ufau vjqd';
 
     final smtpServer = gmail(username, password);
 
-    // Définir l'objet et le texte du message en fonction de l'état de validation
     String subject = valid
         ? '🎉 Bienvenue sur Dios Délices - Votre restaurant est validé !'
         : '❌ Mise à jour : Validation de votre restaurant sur Dios Délices';
+
     String messageText = valid
         ? 'Bonjour ${user?.firstname},\n\n'
         'Nous sommes ravis de vous informer que votre restaurant "${restaurant.name}" a été validé. '
         'Vous pouvez maintenant accéder à votre compte pour gérer votre restaurant et recevoir des commandes.\n\n'
         'Cordialement,\nL’équipe Dios Délices'
         : 'Bonjour ${user?.firstname},\n\n'
-        'Nous regrettons de vous informer que votre restaurant "${restaurant.name}" n’a pas été validé suite à notre processus de vérification. '
+        'Nous regrettons de vous informer que votre restaurant "${restaurant.name}" n’a pas été validé suite à notre processus de vérification.\n\n'
+        'Raison du rejet : ${remark ?? "Non spécifiée"}\n\n' // Ajouter la remarque ici
         'Pour plus d’informations, n’hésitez pas à nous contacter.\n\n'
         'Cordialement,\nL’équipe Dios Délices';
 
     final message = Message()
-      ..from = Address('blandinedupont087@gmail.com', 'Dios Délices')
-      // TODO : decommenter
-      //..recipients.add(user?.email) // Assurez-vous que `user?.email` contient l'email de l'utilisateur
-      ..recipients.add('adigbononrodicaa@gmail.com') // Assurez-vous que `user?.email` contient l'email de l'utilisateur
+      ..from = Address(username, 'Dios Délices')
+      ..recipients.add(user?.email ?? 'adigbononrodicaa@gmail.com') // Ajouter l'email du propriétaire
       ..subject = subject
       ..text = messageText;
 
@@ -61,6 +59,7 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
       return false;
     }
   }
+
 
   @override
   void initState() {
@@ -138,36 +137,39 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
                     ),
                   ],
                 ),
-                PopupMenuButton<String>(
-                  onSelected: _sortRestaurants,
-                  itemBuilder: (BuildContext context) {
-                    return {'Nom', 'Note', 'Nombre de commandes'}
-                        .map((String choice) {
-                      return PopupMenuItem<String>(
-                        value: choice,
-                        child: Text(choice),
-                      );
-                    }).toList();
-                  },
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade200,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.sort, color: Colors.black),
-                        SizedBox(width: 5),
-                        Row(
-                          children: [
-                            Text("Trier par ",
-                                style: TextStyle(color: Colors.black)),
-                            Icon(Icons.arrow_drop_down, color: Colors.black),
-                            // Icône de tri
-                          ],
-                        ),
-                      ],
+                Flexible( // Utiliser Flexible pour s'adapter à la largeur de l'écran
+                  child: PopupMenuButton<String>(
+                    onSelected: _sortRestaurants,
+                    itemBuilder: (BuildContext context) {
+                      return {'Nom', 'Note', 'Nombre de commandes'}
+                          .map((String choice) {
+                        return PopupMenuItem<String>(
+                          value: choice,
+                          child: Text(choice),
+                        );
+                      }).toList();
+                    },
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade200,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.sort, color: Colors.black),
+                          SizedBox(width: 5),
+                          Flexible( // Flexible ici pour le texte qui pourrait déborder
+                            child: Text(
+                              "Trier par ",
+                              style: TextStyle(color: Colors.black),
+                              overflow: TextOverflow.ellipsis, // Tronque le texte si nécessaire
+                            ),
+                          ),
+                          Icon(Icons.arrow_drop_down, color: Colors.black),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -226,6 +228,37 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
               title: Text(
                 restaurant.name,
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                overflow: TextOverflow.ellipsis, // Empêche le débordement du nom
+              ),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Hashtags: ${restaurant.categories}",
+                    overflow: TextOverflow.ellipsis, // Empêche le débordement des hashtags
+                  ),
+                  if (restaurant.valid == 1) ...[
+                    SizedBox(height: 5),
+                    Text("Note: ${restaurant.note}"),
+                    Text("Nombre de commandes: ${restaurant.nb_orders}"),
+                  ],
+                ],
+              ),
+            ),
+            /*ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: ClipRRect(
+                borderRadius: BorderRadius.circular(8.0),
+                child: Image.network(
+                  restaurant.image,
+                  fit: BoxFit.cover,
+                  width: 80,
+                  height: 80,
+                ),
+              ),
+              title: Text(
+                restaurant.name,
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
               ),
               subtitle: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -238,7 +271,7 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
                   ],
                 ],
               ),
-            ),
+            ),*/
             if (restaurant.valid != 1)
               Padding(
                 padding: const EdgeInsets.only(left: 12.0, right: 5.0),
@@ -256,7 +289,8 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
                         ),
                         IconButton(
                           icon: Icon(Icons.close, color: Colors.red),
-                          onPressed: () => _rejectRestaurant(restaurant),
+                          onPressed: () => _showRejectDialog(restaurant),
+                          //onPressed: () => _rejectRestaurant(restaurant),
                         ),
                       ],
                     ),
@@ -269,8 +303,50 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
     );
   }
 
+  void _showRejectDialog(Restaurant restaurant) {
+    final TextEditingController remarkController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Rejeter le restaurant'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text("Ajouter une remarque pour l'utilisateur :"),
+              TextField(
+                controller: remarkController,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  hintText: "Saisissez votre remarque ici...",
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('Annuler', style: TextStyle(color: Colors.green),),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _rejectRestaurant(restaurant, remarkController.text);
+              },
+              child: Text('Envoyer', style: TextStyle(color: Colors.red),),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> _validateRestaurant(Restaurant restaurant) async {
-    String updateResult = await Restaurant.updateRestauranStatus(restaurant.restaurantID, 1); // Correction du nom de la méthode
+    String updateResult = await Restaurant.updateRestaurantStatus(restaurant.restaurantID, 1); // Correction du nom de la méthode
     if (updateResult == "success") {
       bool emailSent = await _sendEmailToUser(restaurant, true);
       if (emailSent) {
@@ -286,10 +362,10 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
     }
   }
 
-  Future<void> _rejectRestaurant(Restaurant restaurant) async {
-    String updateResult = await Restaurant.updateRestauranStatus(restaurant.restaurantID, 2); // Correction du nom de la méthode
+  Future<void> _rejectRestaurant(Restaurant restaurant, String remark) async {
+    String updateResult = await Restaurant.updateRestaurantStatus(restaurant.restaurantID, 2); // Statut rejeté
     if (updateResult == "success") {
-      bool emailSent = await _sendEmailToUser(restaurant, false);
+      bool emailSent = await _sendEmailToUser(restaurant, false, remark); // Passer la remarque ici
       if (emailSent) {
         setState(() {
           restaurant.valid = 2;
@@ -302,4 +378,5 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
       Toast(context, "Erreur : $updateResult", false);
     }
   }
+
 }

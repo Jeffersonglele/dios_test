@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 
 class HashtagTextInputFormatter extends StatefulWidget {
+  final Function(List<String>) onHashtagsChanged; // Callback pour notifier les hashtags sélectionnés
+
+  HashtagTextInputFormatter({required this.onHashtagsChanged});
+
   @override
   _HashtagTextInputFormatterState createState() => _HashtagTextInputFormatterState();
 }
@@ -9,21 +13,9 @@ class _HashtagTextInputFormatterState extends State<HashtagTextInputFormatter> {
   final TextEditingController _hashtagController = TextEditingController();
   List<String> _selectedHashtags = [];
 
-  // Liste de hashtags disponibles pour la suggestion
   final List<String> _availableHashtags = [
-    '#crepes',
-    '#africain',
-    '#japonais',
-    '#beignets',
-    '#bubble tea',
-    '#jus',
-    '#vegan',
-    '#salade',
-    '#pizza',
-    '#burger',
-    '#dessert',
-    '#healthy',
-    '#soup',
+    '#crepes', '#africain', '#japonais', '#beignets', '#bubble tea', '#jus',
+    '#vegan', '#salade', '#pizza', '#burger', '#dessert', '#healthy', '#soup',
   ];
 
   @override
@@ -37,7 +29,6 @@ class _HashtagTextInputFormatterState extends State<HashtagTextInputFormatter> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // TextFormField pour afficher les hashtags sélectionnés
         TextFormField(
           controller: _hashtagController,
           readOnly: true,
@@ -46,12 +37,9 @@ class _HashtagTextInputFormatterState extends State<HashtagTextInputFormatter> {
             hintText: 'Sélectionnez des hashtags',
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
           ),
-          onTap: () {
-            _showHashtagSelectionDialog();
-          },
+          onTap: _showHashtagSelectionDialog,
         ),
         const SizedBox(height: 5),
-        // Afficher les hashtags sélectionnés sous forme de chips
         Wrap(
           spacing: 8.0,
           children: _selectedHashtags.map((hashtag) {
@@ -71,12 +59,11 @@ class _HashtagTextInputFormatterState extends State<HashtagTextInputFormatter> {
     );
   }
 
-  // Mettre à jour le contenu du TextFormField avec les hashtags sélectionnés
   void _updateHashtagController() {
     _hashtagController.text = _selectedHashtags.join(' ');
+    widget.onHashtagsChanged(_selectedHashtags); // Appelle le callback pour notifier le parent
   }
 
-  // Ouvrir une boîte de dialogue pour sélectionner des hashtags
   void _showHashtagSelectionDialog() {
     showDialog(
       context: context,
@@ -84,7 +71,6 @@ class _HashtagTextInputFormatterState extends State<HashtagTextInputFormatter> {
         return AlertDialog(
           title: Text('Sélectionnez des hashtags'),
           content: Container(
-            // Limite la hauteur de la liste à 300 pixels pour permettre le défilement
             width: double.maxFinite,
             height: 300.0,
             child: SingleChildScrollView(

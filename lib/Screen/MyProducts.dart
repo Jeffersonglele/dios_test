@@ -99,18 +99,4 @@ class _MyProductsState extends State<MyProducts> {
       ),
     ]);
   }
-
-  Widget invisibleButton() {
-    return SizedBox(
-      width: double.infinity,
-      height: 20,
-      child: ElevatedButton(
-        style: ButtonStyle(
-          backgroundColor: MaterialStateProperty.all(Colors.white),
-        ),
-        onPressed: () {},
-        child: const Text(''),
-      ),
-    );
-  }
 }

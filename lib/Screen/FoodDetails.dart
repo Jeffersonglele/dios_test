@@ -306,22 +306,7 @@ class _FoodDetailsState extends State<FoodDetails> {
             ),
           ),
         ),
-        invisibleButton(theme),
       ],
-    );
-  }
-
-  Widget invisibleButton(ThemeData theme) {
-    return SizedBox(
-      width: double.infinity,
-      height: 20,
-      child: ElevatedButton(
-        style: ButtonStyle(
-          backgroundColor: MaterialStateProperty.all(Colors.white),
-        ),
-        onPressed: () {},
-        child: const Text(''),
-      ),
     );
   }
 

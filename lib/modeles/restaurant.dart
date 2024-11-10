@@ -131,8 +131,7 @@ class Restaurant extends HiveObject {
     ParseFile? image, // ParseFile passed from above
   }) async {
     // Determine cloud function name based on operation
-    String functionName =
-        restaurantID == null ? 'add1Restaurant' : 'updateRestaurant';
+    String functionName = restaurantID == null ? 'add1Restaurant' : 'update1Restaurant';
     var cloudFunction = ParseCloudFunction(functionName);
 
     String imageUrl = "";
@@ -184,6 +183,8 @@ class Restaurant extends HiveObject {
       },
     };
 
+    print("params " + params.toString());
+
     try {
       final ParseResponse parseResponse =
           await cloudFunction.execute(parameters: params);
@@ -203,7 +204,7 @@ class Restaurant extends HiveObject {
     }
   }
 
-  static Future<String> updateRestauranStatus(int restaurantID, int status) async {
+  static Future<String> updateRestaurantStatus(int restaurantID, int status) async {
     // Déterminer le nom de la fonction cloud en fonction de l'opération
     String functionName = 'update1Restaurant';
     var cloudFunction = ParseCloudFunction(functionName);

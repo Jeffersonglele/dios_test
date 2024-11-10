@@ -1,24 +1,21 @@
 import 'dart:convert';
 
-import 'package:dios_delices/Screen/ExploreMeals.dart';
-import 'package:dios_delices/Screen/FoodCategories.dart';
 import 'package:dios_delices/Screen/FoodDetails.dart';
-import 'package:dios_delices/Screen/NearMeMeals.dart';
-import 'package:dios_delices/SearchInput.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-import '../Constant/Constant.dart';
-import '../Controller/UiController.dart';
 
-class Home extends StatefulWidget {
+import '../../Constant/Constant.dart';
+import '../../Controller/UiController.dart';
+
+class HomeMicroRestau extends StatefulWidget {
   @override
-  _HomeState createState() => _HomeState();
+  _HomeMicroRestauState createState() => _HomeMicroRestauState();
 }
 
-class _HomeState extends State<Home> {
+class _HomeMicroRestauState extends State<HomeMicroRestau> {
   @override
   void initState() {
     super.initState();
@@ -89,66 +86,34 @@ class _HomeState extends State<Home> {
       Size size, SimpleUIController simpleUIController, ThemeData theme) {
     return Column(
       children: <Widget>[
-        SearchInput(),
         SizedBox(height: size.height * 0.02),
+        // Date et heure actuelles
         StreamBuilder(
           stream: Stream.periodic(const Duration(seconds: 1)),
           builder: (context, snapshot) {
             DateTime now = DateTime.now();
-            String hour = "${now.hour}:${now.minute}:${now.second}";
-            String parsedHour = DateFormat.jm().format(DateFormat("hh:mm:ss").parse(hour));
+
+            // Format pour l'heure (hh:mm:ss en format français)
+            String parsedHour = DateFormat('HH:mm', 'fr').format(now);
+
+            // Format pour la date avec le mois en français
+            String formattedDate = DateFormat('d MMMM y', 'fr').format(now);
 
             return Row(
               children: [
                 SizedBox(width: 25),
                 Icon(Icons.today),
-                Expanded(
-                  child: Text(
-                    "  ${now.day} ${_getMonthName(now.month)} ${now.year}, $parsedHour",
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                Text(
+                  "  $formattedDate, $parsedHour",
+                  style: TextStyle(fontSize: 16),
                 ),
               ],
             );
           },
         ),
-        SizedBox(height: size.height * 0.03),
-        _buildSectionTitle(size, 'Popular meals'),
-        SizedBox(height: size.height * 0.06),
-        _buildSectionTitle(size, 'Near you', actionText: "See more", onTap: () {
-          Navigator.push(context, CupertinoPageRoute(builder: (ctx) => NearMeMeals()));
-        }),
-        SizedBox(height: size.height * 0.03),
-        _buildMealsGrid(size),
-        SizedBox(height: size.height * 0.05),
-        _buildSectionTitle(size, 'Explore', actionText: "See more", onTap: () {
-          Navigator.push(context, CupertinoPageRoute(builder: (ctx) => ExploreMeals()));
-        }),
-        SizedBox(height: size.height * 0.03),
-        _buildMealsGrid(size),
-        SizedBox(height: size.height * 0.03),
-        ElevatedButton(
-          onPressed: () {
-            Navigator.push(context, CupertinoPageRoute(builder: (ctx) => FoodCategories()));
-          },
-          child: Text(
-            'Show all food categories',
-            style: TextStyle(color: Colors.red),
-          ),
-          style: ElevatedButton.styleFrom(
-            elevation: 5,
-            backgroundColor: Colors.transparent,
-            shadowColor: Colors.transparent.withOpacity(0.1),
-            side: BorderSide(
-              width: 2,
-              color: Colors.red,
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(15),
-            ),
-          ),
-        ),
-        SizedBox(height: 55,)
+        SizedBox(
+          height: 10,
+        )
       ],
     );
   }

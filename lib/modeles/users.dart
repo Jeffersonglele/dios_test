@@ -4,7 +4,7 @@ import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:hive/hive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../Screen/curved_navigation/CurvedNavigationAdmin.dart';
-import '../Screen/curved_navigation/CurvedNavigationUser.dart';
+import '../Screen/curved_navigation/CurvedNavigationRestau.dart';
 import '../db/database_helper.dart';
 
 part 'users.g.dart';
@@ -445,7 +445,8 @@ class Users extends HiveObject {
   }
 
   static void chooseCurvedNavigation(int userRole, BuildContext context){
-    if (userRole == 1) {
+    // TODO : revoir la page pour un super admin
+    if (userRole == 1 || userRole == 4) {
       // Si l'utilisateur est un administrateur
       Navigator.pushReplacement(
         context,

@@ -1,4 +1,5 @@
 import 'package:hive/hive.dart';
+import '../modeles/dish.dart';
 import '../modeles/restaurant.dart';
 import '../modeles/users.dart';
 
@@ -14,9 +15,10 @@ class DatabaseHelper {
     final Users? user = usersBox.get(userID);
 
     if (user != null) {
-      user.last_login = last_login;  // Mettre à jour la date de dernière connexion
-      await usersBox.put(userID, user);  // Sauvegarder l'utilisateur mis à jour
-      return user;  // Retourner l'utilisateur mis à jour
+      user.last_login =
+          last_login; // Mettre à jour la date de dernière connexion
+      await usersBox.put(userID, user); // Sauvegarder l'utilisateur mis à jour
+      return user; // Retourner l'utilisateur mis à jour
     }
 
     return null;
@@ -35,7 +37,8 @@ class DatabaseHelper {
     return null; // Retourner null si l'utilisateur n'est pas trouvé
   }
 
-  static Future<Users?> updateCountryAndRole(int userID, String country, int roleID) async {
+  static Future<Users?> updateCountryAndRole(
+      int userID, String country, int roleID) async {
     final Box<Users> usersBox = await Hive.openBox<Users>('users');
     final Users? user = usersBox.get(userID);
 
@@ -48,7 +51,6 @@ class DatabaseHelper {
 
     return null; // Retourner null si l'utilisateur n'est pas trouvé
   }
-
 
   static Future<List<Users>> readAllUserss() async {
     final Box<Users> usersBox = await Hive.openBox<Users>('users');
@@ -69,8 +71,10 @@ class DatabaseHelper {
     return restaurant;
   }
 
-  static Future<Restaurant?> updateRestauranStatus(int restaurantID, int valid) async {
-    final Box<Restaurant> restaurantBox = await Hive.openBox<Restaurant>('restaurant');
+  static Future<Restaurant?> updateRestauranStatus(
+      int restaurantID, int valid) async {
+    final Box<Restaurant> restaurantBox =
+        await Hive.openBox<Restaurant>('restaurant');
     final Restaurant? restaurant = restaurantBox.get(restaurantID);
 
     if (restaurant != null) {
@@ -83,15 +87,49 @@ class DatabaseHelper {
   }
 
   static Future<List<Restaurant>> readAllRestaurants() async {
-    final Box<Restaurant> restaurantBox = await Hive.openBox<Restaurant>('restaurant');
+    final Box<Restaurant> restaurantBox =
+        await Hive.openBox<Restaurant>('restaurant');
     List<Restaurant> restaurantList = restaurantBox.values.toList();
     restaurantList.sort((a, b) => a.name.compareTo(b.name));
     return restaurantList;
   }
 
   static Future<int> deleteRestaurant(int restaurantID) async {
-    final Box<Restaurant> restaurantBox = await Hive.openBox<Restaurant>('restaurant');
+    final Box<Restaurant> restaurantBox =
+        await Hive.openBox<Restaurant>('restaurant');
     await restaurantBox.delete(restaurantID);
+    return 1;
+  }
+
+  static Future<Dish> createDish(Dish dish) async {
+    var dishBox = await Hive.openBox<Dish>('dish');
+    await dishBox.put(dish.dishID, dish);
+    return dish;
+  }
+
+  static Future<Dish?> updateDishStatus(int dishID, int status) async {
+    final Box<Dish> dishBox = await Hive.openBox<Dish>('dish');
+    final Dish? dish = dishBox.get(dishID);
+
+    if (dish != null) {
+      dish.status = status;
+      await dishBox.put(dishID, dish);
+      return dish;
+    }
+
+    return null;
+  }
+
+  static Future<List<Dish>> readAllDishes() async {
+    final Box<Dish> dishBox = await Hive.openBox<Dish>('dish');
+    List<Dish> dishList = dishBox.values.toList();
+    dishList.sort((a, b) => a.name.compareTo(b.name));
+    return dishList;
+  }
+
+  static Future<int> deleteDish(int dishID) async {
+    final Box<Dish> dishBox = await Hive.openBox<Dish>('dish');
+    await dishBox.delete(dishID);
     return 1;
   }
 

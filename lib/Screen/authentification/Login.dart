@@ -79,19 +79,9 @@ class _LoginState extends ConsumerState<Login> {
         await prefs.setInt('currentUser_role', user.roleID);
         await prefs.setString('currentUser_country', user.country);
 
-        //TODO : enlever
-        /*Restaurant? restau_tmp = await Restaurant.getRestaurantByUser(restaus, user.userID);
-        if (restau_tmp != null) {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => RestaurantUpdateFormPage(user: user, restaurant: restau_tmp),
-            ),
-          );
-        }*/
-
         // Si c'est la première connexion, sauf si c'est un admin rediriger vers la page de localisation
-        if ((user.last_login == null || user.last_login == " ") && user.roleID != 1) {
+        print("user.roleID " + user.roleID.toString());
+        if ((user.last_login == null || user.last_login == " ") && (user.roleID != 1 || user.roleID != 4)) {
           Navigator.pushReplacement(
             context,
             CupertinoPageRoute(
@@ -101,7 +91,7 @@ class _LoginState extends ConsumerState<Login> {
         } else {
           // Redirection après connexion réussie
          // On vérifie le rôle
-          if (user.roleID == 1 || user.roleID == 2) {
+          if (user.roleID == 1 || user.roleID == 2 || user.roleID == 4) {
             // ajouter connexion
             await Users.updateDerniereConnexion(user.userID);
 

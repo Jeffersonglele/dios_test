@@ -11,10 +11,8 @@ import 'package:mailer/smtp_server.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:path/path.dart' as p;
 import '../../Constant/Constant.dart';
-import '../../modeles/users.dart';
 import '../../providers/users_provider.dart';
 import '../../utils/HashtagTextInputFormatter.dart';
-import '../../utils/thousand_separator_input_formatter.dart';
 import '../AnimatedSplashScreen.dart';
 import '../verif_confirm/ConfirmationPage.dart';
 
@@ -28,7 +26,7 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
-  final TextEditingController _categoriesController = TextEditingController();
+  List<String> _selectedHashtags = [];
 
   File? _image;
 
@@ -203,7 +201,13 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
                     },
                   ),
                   SizedBox(height: size.height * 0.02),
-                  HashtagTextInputFormatter(),
+                  HashtagTextInputFormatter(
+                    onHashtagsChanged: (hashtags) {
+                      setState(() {
+                        _selectedHashtags = hashtags; // Mettre à jour les hashtags sélectionnés
+                      });
+                    },
+                  ),
                   SizedBox(height: size.height * 0.02),
                   // Champ pour la description
                   _buildTextField(
@@ -303,7 +307,7 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
                               valid: 0,
                               nb_orders: 0,
                               note: 0.0,
-                              categories: _categoriesController.text,
+                              categories: _selectedHashtags.join(', '),
                               description: _descriptionController.text,
                               adress: _addressController.text,
                               name: _nameController.text,

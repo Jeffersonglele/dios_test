@@ -11,6 +11,7 @@ import 'Constant/Constant.dart';
 import 'Screen/AnimatedSplashScreen.dart';
 import 'package:path_provider/path_provider.dart' as path_provider;
 import 'modeles/restaurant.dart';
+import 'modeles/dish.dart';
 import 'modeles/users.dart';
 import 'package:flutter/services.dart'; // Import pour SystemChrome
 import 'package:intl/date_symbol_data_local.dart';
@@ -48,6 +49,7 @@ void main() async {
   // Enregistre l'adapter Hive pour les utilisateurs
   Hive.registerAdapter(UsersAdapter());
   Hive.registerAdapter(RestaurantAdapter());
+  Hive.registerAdapter(DishAdapter());
 
   runApp(
     ProviderScope( // Encapsule ici le MaterialApp dans le ProviderScope

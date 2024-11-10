@@ -146,23 +146,8 @@ class _FavoritesState extends State<Favorites> {
                     },
                   ),
                 ),
-                invisibleButton(theme),
               ],
             )),
-      ),
-    );
-  }
-
-  Widget invisibleButton(ThemeData theme) {
-    return SizedBox(
-      width: double.infinity,
-      height: 55,
-      child: ElevatedButton(
-        style: ButtonStyle(
-          backgroundColor: MaterialStateProperty.all(Colors.white),
-        ),
-        onPressed: () {},
-        child: const Text(''),
       ),
     );
   }

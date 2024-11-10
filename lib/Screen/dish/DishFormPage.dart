@@ -1,42 +1,35 @@
 import 'dart:io';
-import 'package:avatar_glow/avatar_glow.dart';
-import 'package:dios_delices/modeles/restaurant.dart';
+import 'package:dios_delices/modeles/dish.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:geocoding/geocoding.dart' as geo;
 import 'package:image_picker/image_picker.dart';
-import 'package:mailer/mailer.dart';
-import 'package:mailer/smtp_server.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:path/path.dart' as p;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../Constant/Constant.dart';
-import '../../modeles/users.dart';
 import '../../providers/users_provider.dart';
+import '../../utils/DeviseFormat.dart';
 import '../../utils/HashtagTextInputFormatter.dart';
+import '../../utils/ThousandSeparatorInputFormatter.dart';
 import '../../utils/toast.dart';
-import '../AnimatedSplashScreen.dart';
-import '../verif_confirm/ConfirmationPage.dart';
 
-class RestaurantUpdateFormPage extends ConsumerStatefulWidget {
-  final Users user;
-  final Restaurant restaurant;
-
-  RestaurantUpdateFormPage({required this.user, required this.restaurant});
-
+class DishFormPage extends ConsumerStatefulWidget {
   @override
-  _RestaurantUpdateFormPageState createState() =>
-      _RestaurantUpdateFormPageState();
+  _DishFormPageState createState() => _DishFormPageState();
 }
 
-class _RestaurantUpdateFormPageState
-    extends ConsumerState<RestaurantUpdateFormPage> {
+class _DishFormPageState extends ConsumerState<DishFormPage> {
+  String? country = "";
+  int currentUser_restau = 0;
+
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _addressController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
-  final TextEditingController _categoriesController = TextEditingController();
   List<String> _selectedHashtags = [];
+  final TextEditingController _priceController = TextEditingController();
+  final TextEditingController _nbServingsController = TextEditingController();
+  final TextEditingController _restauIDController = TextEditingController();
 
   File? _image;
 
@@ -83,56 +76,34 @@ class _RestaurantUpdateFormPageState
         });
   }
 
-  // Fonction pour envoyer un email à l'admin avec les infos du restaurant
-  Future<void> _sendEmailToAdmin(
-      String name, String address, String phone) async {
-    String username =
-        'blandinedupont087@gmail.com'; // Remplacez par votre adresse Gmail
-    String password =
-        'dtmd pleh ufau vjqd'; // Remplacez par votre mot de passe sécurisé
-
-    final smtpServer = gmail(username, password);
-
-    final message = Message()
-      ..from = Address('blandinedupont087@gmail.com', 'Dios Délices')
-      ..recipients.add('blandinedupont087@gmail.com') // Envoyer à l'admin
-      ..subject = 'Nouvelle demande de Micro Restaurant'
-      ..text = 'Nom du restaurant: $name\nAdresse: $address\nTéléphone: $phone';
-
-    try {
-      await send(message, smtpServer);
-      print('Email envoyé avec succès');
-    } on MailerException catch (e) {
-      print('Erreur lors de l\'envoi de l\'email: $e');
-    }
+  @override
+  void initState() {
+    super.initState();
+    _initializeData();
   }
 
   @override
   void dispose() {
     _nameController.dispose();
-    _addressController.dispose();
     _descriptionController.dispose();
+    _priceController.dispose();
+    _nbServingsController.dispose();
+    _restauIDController.dispose();
     super.dispose();
   }
 
-  // Méthode pour valider si l'adresse est réelle en utilisant Geocoding
-  Future<bool> _isValidAddress(String value) async {
-    try {
-      List<geo.Location> locations = await geo.locationFromAddress(value);
-      return locations.isNotEmpty;
-    } catch (e) {
-      return false;
-    }
+  void clearFields() {
+    _nameController.clear();
+    _descriptionController.clear();
+    _priceController.clear();
+    _nbServingsController.clear();
+    _restauIDController.clear();
   }
 
-  @override
-  void initState() {
-    super.initState();
-    // Initialisez les champs avec les informations du restaurant
-    _nameController.text = widget.restaurant.name;
-    _addressController.text = widget.restaurant.adress;
-    _descriptionController.text = widget.restaurant.description;
-    _categoriesController.text = widget.restaurant.categories;
+  Future<void> _initializeData() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    country = prefs.getString('currentUser_country');
+    currentUser_restau = prefs.getInt('currentUser_restau')!;
   }
 
   @override
@@ -142,17 +113,7 @@ class _RestaurantUpdateFormPageState
     return GestureDetector(
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
       child: Scaffold(
-        appBar: AppBar(
-            leading: IconButton(
-          icon: Icon(Icons.home), // Icône personnalisée (ex: home)
-          onPressed: () {
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(builder: (context) => AnimatedSplashScreen()),
-              (Route<dynamic> route) => false,
-            );
-          },
-        )),
+        appBar: AppBar(),
         body: SingleChildScrollView(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20.0),
@@ -161,60 +122,25 @@ class _RestaurantUpdateFormPageState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SizedBox(height: size.height * 0.1),
-                  size.width > 600
-                      ? Container()
-                      : Center(
-                          child: AvatarGlow(
-                            duration: Duration(seconds: 2),
-                            glowColor: Colors.white24,
-                            repeat: true,
-                            startDelay: Duration(seconds: 1),
-                            child: Material(
-                              elevation: 8.0,
-                              shape: CircleBorder(),
-                              child: CircleAvatar(
-                                backgroundColor: Colors.transparent,
-                                backgroundImage:
-                                    AssetImage('assets/images/logo_sm01.jpg'),
-                                radius: 50.0,
-                              ),
-                            ),
-                          ),
-                        ),
-                  SizedBox(height: size.height * 0.03),
+                  SizedBox(height: size.height * 0.01),
                   Padding(
                     padding: const EdgeInsets.only(left: 20.0),
                     child: Text(
-                      'Votre restaurant',
+                      'Votre plat',
                       style: kLoginTitleStyle(size),
                     ),
                   ),
                   const SizedBox(height: 10),
-                  // Champs avec valeurs pré-remplies
+                  // Champ pour le nom du dish
                   _buildTextField(
                     controller: _nameController,
-                    hintText: "Nom du restaurant",
-                    icon: Icons.restaurant,
+                    hintText: "Nom du plat",
+                    icon: Icons.dining,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Please enter the name of your restaurant';
+                        return 'Entrez le nom de votre plat';
                       } else if (value.length < 4) {
-                        return 'At least enter 4 characters';
-                      }
-                      return null;
-                    },
-                  ),
-                  SizedBox(height: size.height * 0.02),
-                  _buildTextField(
-                    controller: _addressController,
-                    hintText: "Adresse du restaurant",
-                    icon: Icons.location_city,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter an address';
-                      } else if (value.length < 4) {
-                        return 'At least enter 4 characters';
+                        return 'Au moins 4 caractères';
                       }
                       return null;
                     },
@@ -229,16 +155,94 @@ class _RestaurantUpdateFormPageState
                     },
                   ),
                   SizedBox(height: size.height * 0.02),
+                  // Champ pour le nombre de portions
+                  _buildTextField(
+                    controller: _nbServingsController,
+                    inputFormatters: <TextInputFormatter>[
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(3),
+                      // Limite la saisie à 3 chiffres
+                      ThousandSeparatorInputFormatter(),
+                    ],
+                    hintText: "Nombre de portions",
+                    icon: Icons.people,
+                    keyboardType: TextInputType.number,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Un nombre de portions est requis. Vous pourrez le modifier';
+                      } else if (int.tryParse(value.replaceAll(' ', '')) ==
+                          null) {
+                        return 'Entrez un nombre valide';
+                      }
+                      return null;
+                    },
+                  ),
+                  SizedBox(height: size.height * 0.02),
+                  // Champ pour le prix
+                  country == "France"
+                      ? _buildTextField(
+                          controller: _priceController,
+                          hintText: "Prix du plat (en euro €)",
+                          icon: Icons.money,
+                          keyboardType:
+                              TextInputType.numberWithOptions(decimal: true),
+                          inputFormatters: <TextInputFormatter>[
+                            FilteringTextInputFormatter.allow(
+                                RegExp(r'^\d{0,2}(,\d{0,2})?')),
+                            // Autorise 2 chiffres pour la partie entière et 2 pour la décimale
+                            LengthLimitingTextInputFormatter(5),
+                            // Limite la saisie à 3 chiffres
+                            FrenchFormat(decimalRange: 2)
+                          ],
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Entrez un prix';
+                            } else if (double.tryParse(value
+                                    .replaceAll(' ', '')
+                                    .replaceAll(',', '.')) ==
+                                null) {
+                              return 'Entrez un prix valide';
+                            }
+                            return null;
+                          },
+                        )
+                      : _buildTextField(
+                          controller: _priceController,
+                          hintText: "Prix du plat (en FCFA)",
+                          icon: Icons.money,
+                          keyboardType:
+                              TextInputType.numberWithOptions(decimal: true),
+                          inputFormatters: <TextInputFormatter>[
+                            FilteringTextInputFormatter.digitsOnly,
+                            // Autorise 2 chiffres pour la partie entière et 2 pour la décimale
+                            LengthLimitingTextInputFormatter(5),
+                            // Limite la saisie à 3 chiffres
+                            CFAFormat(),
+                            // Utilise le format CFA,
+                          ],
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Entrez un prix';
+                            } else if (double.tryParse(value
+                                    .replaceAll(' ', '')
+                                    .replaceAll(',', '.')) ==
+                                null) {
+                              return 'Entrez un prix valide';
+                            }
+                            return null;
+                          },
+                        ),
+                  SizedBox(height: size.height * 0.02),
+                  // Champ pour la description
                   _buildTextField(
                     controller: _descriptionController,
-                    hintText: "Description du restaurant",
+                    hintText:
+                        "Description du plat (donnez-nous quelques informations)",
                     keyboardType: TextInputType.multiline,
                     icon: Icons.info,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Please enter a description';
-                      } else if (value.length < 30) {
-                        return 'At least enter 30 characters';
+                        return 'Entrez une description';
                       }
                       return null;
                     },
@@ -249,25 +253,12 @@ class _RestaurantUpdateFormPageState
                   Center(
                     child: Column(
                       children: <Widget>[
-                        _image != null
-                            ? Image.file(
-                                _image!,
-                                width: 100,
-                                height: 60,
-                                fit: BoxFit.cover,
+                        _image == null
+                            ? const Text(
+                                'Aucune image sélectionnée',
+                                style: TextStyle(fontWeight: FontWeight.bold),
                               )
-                            : widget.restaurant.image.isNotEmpty
-                                ? Image.network(
-                                    widget.restaurant.image,
-                                    width: 100,
-                                    height: 60,
-                                    fit: BoxFit.cover,
-                                  )
-                                : const Text(
-                                    'Aucune image sélectionnée',
-                                    style:
-                                        TextStyle(fontWeight: FontWeight.bold),
-                                  ),
+                            : Image.file(_image!, width: 100, height: 60),
                         SizedBox(height: 10),
                         ElevatedButton(
                           onPressed: _pickImage,
@@ -296,18 +287,6 @@ class _RestaurantUpdateFormPageState
                       ),
                       onPressed: () async {
                         if (_formKey.currentState!.validate()) {
-                          final isAddressValid =
-                              await _isValidAddress(_addressController.text);
-
-                          if (!isAddressValid) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text("L'adresse saisie est invalide."),
-                              ),
-                            );
-                            return;
-                          }
-
                           final user = ref.read(usersProvider);
                           if (user != null) {
                             ParseFile? parseFile;
@@ -340,42 +319,39 @@ class _RestaurantUpdateFormPageState
                               }
                             }
 
-                            // Now call the method to manage the restaurant
-                            String createResult =
-                                await Restaurant.manageRestaurant(
-                              restaurantID: widget.restaurant.restaurantID,
+                            String createResult = await Dish.manageDish(
                               userID: user.userID,
-                              valid: 0,
                               nb_orders: 0,
                               note: 0.0,
                               categories: _selectedHashtags.join(', '),
                               description: _descriptionController.text,
-                              adress: _addressController.text,
                               name: _nameController.text,
+                              price: double.tryParse(_priceController.text) ?? 0.0,
+                              nb_servings: int.tryParse(_nbServingsController.text) ?? 0,
+                              restauID: currentUser_restau,
+                              status: 1,
                               image: parseFile,
                             );
 
-                            if (createResult == "success") {
-                              await _sendEmailToAdmin(
-                                _nameController.text,
-                                _addressController.text,
-                                user.telephone.toString(),
-                              );
-
-                              Navigator.push(
+                            Toast(
                                 context,
-                                MaterialPageRoute(
-                                  builder: (context) => ConfirmationPage(),
-                                ),
-                              );
+                                createResult == "success"
+                                    ? "Plat ajouté avec succès"
+                                    : "Erreur : $createResult",
+                                createResult == "success"
+                                    ? true
+                                    : false);
+
+                            if (createResult == "success") {
+                              clearFields();
+                              Navigator.of(context).pop();
                             } else {
-                              Toast(context, "$createResult", false);
                               print("Error: $createResult");
                             }
                           }
                         }
                       },
-                      child: const Text('Mettre à jour'),
+                      child: const Text('Valider'),
                     ),
                   ),
                   SizedBox(height: size.height * 0.2),

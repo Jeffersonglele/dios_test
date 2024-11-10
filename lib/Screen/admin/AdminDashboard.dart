@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../Controller/UiController.dart';
-import 'CountryPage.dart';
+import '../../Controller/UiController.dart';
+import '../CountryPage.dart';
 
 class AdminDashboard extends StatefulWidget {
   @override

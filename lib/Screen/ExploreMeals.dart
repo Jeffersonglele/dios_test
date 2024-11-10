@@ -119,23 +119,9 @@ class _ExploreMealsState extends State<ExploreMeals> {
               SizedBox(
                 height: size.height * 0.03,
               ),
-              invisibleButton(theme),
+              SizedBox(height: 55,)
             ],
           )),
-    );
-  }
-
-  Widget invisibleButton(ThemeData theme) {
-    return SizedBox(
-      width: double.infinity,
-      height: 55,
-      child: ElevatedButton(
-        style: ButtonStyle(
-          backgroundColor: MaterialStateProperty.all(Colors.white),
-        ),
-        onPressed: () {},
-        child: const Text(''),
-      ),
     );
   }
 }

@@ -162,24 +162,10 @@ class _FoodCategoriesState extends State<FoodCategories> {
                   );
                 },
               ),
-              invisibleButton(theme),
+              SizedBox(height: 55,)
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget invisibleButton(ThemeData theme) {
-    return SizedBox(
-      width: double.infinity,
-      height: 55,
-      child: ElevatedButton(
-        style: ButtonStyle(
-          backgroundColor: MaterialStateProperty.all(Colors.white),
-        ),
-        onPressed: () {},
-        child: const Text(''),
       ),
     );
   }

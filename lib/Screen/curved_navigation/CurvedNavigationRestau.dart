@@ -1,28 +1,24 @@
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import '../Home.dart';
-import '../Cart.dart';
-import '../Favorites.dart';
 import '../Menu.dart';
 import '../MyStore.dart';
+import '../micro_restau/HomeMicroRestau.dart';
 
-class CurvedNavigationUser extends StatefulWidget {
+class CurvedNavigationRestau extends StatefulWidget {
   final int specified_index;
 
-  CurvedNavigationUser({required this.specified_index});
+  CurvedNavigationRestau({required this.specified_index});
 
   @override
-  _CurvedNavigationUserState createState() => _CurvedNavigationUserState();
+  _CurvedNavigationRestauState createState() => _CurvedNavigationRestauState();
 }
 
-class _CurvedNavigationUserState extends State<CurvedNavigationUser> {
+class _CurvedNavigationRestauState extends State<CurvedNavigationRestau> {
   late PageController _pageController;
 
   List<Widget> _allTabItems = [
-    Home(),
-    Cart(),
-    Favorites(),
+    HomeMicroRestau(),
     Menu(),
     MyStore(),
   ];
@@ -75,9 +71,7 @@ class _CurvedNavigationUserState extends State<CurvedNavigationUser> {
           animationCurve: Curves.easeInOut,
           items: <Widget>[
             Icon(Icons.home, color: Colors.red),
-            Icon(Icons.shopping_cart, color: Colors.red),
-            Icon(Icons.favorite, color: Colors.red),
-            Icon(Icons.playlist_add_check, color: Colors.red),
+            Icon(Icons.menu_book, color: Colors.red),
             Icon(Icons.storefront, color: Colors.red),
           ],
           onTap: (index) {

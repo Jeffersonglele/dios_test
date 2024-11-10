@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import '../Constant/Constant.dart';
+import '../modeles/dish.dart';
 import '../modeles/users.dart';
 
 import '../utils/toast.dart';
@@ -23,6 +24,7 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
     with SingleTickerProviderStateMixin {
   List<Users> listUsers = [];
   List<Restaurant> listRestaurants = [];
+  List<Dish> listDishes = [];
   bool isLoading = false;
 
   Future<bool> isConnectedToInternet() async {
@@ -77,6 +79,7 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
       // Récupération des données
       await Users.getAllUsersDetails();
       await Restaurant.getAllRestaurantsDetails();
+      await Dish.getAllDishesDetails();
 
       setState(() {
         isLoading = false;
