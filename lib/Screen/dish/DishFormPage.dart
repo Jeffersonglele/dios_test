@@ -135,7 +135,7 @@ class _DishFormPageState extends ConsumerState<DishFormPage> {
                   _buildTextField(
                     controller: _nameController,
                     hintText: "Nom du plat",
-                    icon: Icons.dining,
+                    icon: Icons.restaurant,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Entrez le nom de votre plat';
@@ -165,7 +165,7 @@ class _DishFormPageState extends ConsumerState<DishFormPage> {
                       ThousandSeparatorInputFormatter(),
                     ],
                     hintText: "Nombre de portions",
-                    icon: Icons.people,
+                    icon: Icons.fastfood,
                     keyboardType: TextInputType.number,
                     validator: (value) {
                       if (value == null || value.isEmpty) {

@@ -107,6 +107,27 @@ class DatabaseHelper {
     return dish;
   }
 
+  static Future<Dish?> updateDish(Dish dish) async {
+    final Box<Dish> dishBox = await Hive.openBox<Dish>('dish');
+    final Dish? dish_db = dishBox.get(dish.dishID);
+
+    if (dish_db != null) {
+      dish_db.name = dish.name;
+      dish_db.image = dish.image;
+      dish_db.price = dish.price;
+      dish_db.description = dish.description;
+      dish_db.categories = dish.categories;
+      dish_db.nb_servings = dish.nb_servings;
+      dish_db.status = dish.status;
+      await dishBox.put(dish.dishID, dish_db);
+      print("dish image  " + dish.image.toString());
+      print("dishID image  " + dish_db.image.toString());
+      return dish_db;
+    }
+
+    return null;
+  }
+
   static Future<Dish?> updateDishStatus(int dishID, int status) async {
     final Box<Dish> dishBox = await Hive.openBox<Dish>('dish');
     final Dish? dish = dishBox.get(dishID);
@@ -123,7 +144,9 @@ class DatabaseHelper {
   static Future<List<Dish>> readAllDishes() async {
     final Box<Dish> dishBox = await Hive.openBox<Dish>('dish');
     List<Dish> dishList = dishBox.values.toList();
-    dishList.sort((a, b) => a.name.compareTo(b.name));
+
+    dishList.sort((a, b) => a.note.compareTo(b.note));
+
     return dishList;
   }
 

@@ -10,13 +10,13 @@ class Dish extends HiveObject {
   final int dishID;
 
   @HiveField(1)
-  final String name;
+  String? name;
 
   @HiveField(2)
-  final String categories;
+  String? categories;
 
   @HiveField(3)
-  final String image;
+  String? image;
 
   @HiveField(4)
   final int nb_orders;
@@ -25,16 +25,16 @@ class Dish extends HiveObject {
   final int userID;
 
   @HiveField(6)
-  final double price;
+  double? price;
 
   @HiveField(7)
-  final String description;
+  String? description;
 
   @HiveField(8)
   int? status;
 
   @HiveField(9)
-  final int nb_servings;
+  int? nb_servings;
 
   @HiveField(10)
   final int restauID;
@@ -134,19 +134,19 @@ class Dish extends HiveObject {
     required int restauID,
     required int status,
     ParseFile? image, // ParseFile passed from above
+    String? img_url, // ParseFile passed from above
   }) async {
     String functionName = dishID == null ? 'add1Dish' : 'update1Dish';
     var cloudFunction = ParseCloudFunction(functionName);
 
-    String imageUrl = "";
+    String? imageUrl = "";
 
     if (image != null) {
       final response = await image.save();
       if (response.success && response.result != null) {
-        imageUrl = (response.result as ParseFile).url ?? "";
+        imageUrl = (response.result as ParseFile).url ?? img_url;
 
-        final gallery = ParseObject('Gallery')
-          ..set('file', image);
+        final gallery = ParseObject('Gallery')..set('file', image);
 
         final galleryResponse = await gallery.save();
 
@@ -166,7 +166,7 @@ class Dish extends HiveObject {
       'name': name,
       'note': note,
       'nb_orders': nb_orders,
-      'image': imageUrl,
+      'image': image == null ? img_url : imageUrl,
       'price': price,
       'nb_servings': nb_servings,
       'restauID': restauID,
@@ -175,13 +175,36 @@ class Dish extends HiveObject {
 
     try {
       final ParseResponse parseResponse =
-      await cloudFunction.execute(parameters: params);
+          await cloudFunction.execute(parameters: params);
 
       if (parseResponse.success && parseResponse.result != null) {
         var response = parseResponse.result as Map<String, dynamic>;
         if (response['success'] == false) {
           return "Erreur : ${response['error']}";
         } else {
+          // L'ID du restau est utile pour la mise à jour, pour l'ajout il est généré par le serveur
+          int updatedDishID = dishID ?? response['dishID'];
+
+          Dish dish = Dish(
+              dishID: updatedDishID,
+              nb_orders: nb_orders,
+              note: note,
+              categories: categories,
+              description: description,
+              name: name,
+              image: image == null ? img_url : imageUrl,
+              userID: userID,
+              price: price,
+              nb_servings: nb_servings,
+              restauID: restauID,
+              status: status);
+
+          if (dishID == null) {
+            await DatabaseHelper.createDish(dish);
+          } else {
+            await DatabaseHelper.updateDish(dish);
+          }
+
           return "success";
         }
       } else {
@@ -203,7 +226,7 @@ class Dish extends HiveObject {
 
     try {
       final ParseResponse parseResponse =
-      await cloudFunction.execute(parameters: params);
+          await cloudFunction.execute(parameters: params);
 
       if (parseResponse.success && parseResponse.result != null) {
         var response = parseResponse.result as Map<String, dynamic>;
@@ -229,7 +252,7 @@ class Dish extends HiveObject {
 
     try {
       final ParseResponse parseResponse =
-      await cloudFunction.execute(parameters: params);
+          await cloudFunction.execute(parameters: params);
 
       if (parseResponse.success && parseResponse.result != null) {
         var response = parseResponse.result as Map<String, dynamic>;
@@ -272,7 +295,6 @@ class Dish extends HiveObject {
 
   static Future<List<Dish>> fetchDishesFromDB() async {
     List<Dish> dishList = await DatabaseHelper.readAllDishes();
-    print("fetchDishesFromDB " + dishList.toString());
     return dishList;
   }
 

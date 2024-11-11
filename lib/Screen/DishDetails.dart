@@ -4,23 +4,34 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../Constant/Constant.dart';
 import '../Controller/UiController.dart';
+import '../modeles/dish.dart';
 
-class FoodDetails extends StatefulWidget {
-  static const routeName = '/FoodDetails';
+class DishDetails extends StatefulWidget {
+  static const routeName = '/DishDetails';
 
-  final int meal_id;
+  final int dish_id;
   final int from_page;
 
-  FoodDetails({required this.meal_id, required this.from_page});
+  DishDetails({required this.dish_id, required this.from_page});
 
   @override
-  State<FoodDetails> createState() => _FoodDetailsState();
+  State<DishDetails> createState() => _DishDetailsState();
 }
 
-class _FoodDetailsState extends State<FoodDetails> {
+class _DishDetailsState extends State<DishDetails> {
+  String? country = "";
+  int currentUser_restau = 0;
+  int currentUser_role = 0;
+
+  TextEditingController totalController = TextEditingController();
+
+  List<Dish> dishes = [];
+  late Dish current_dish;
+
   @override
   void dispose() {
     super.dispose();
@@ -29,13 +40,29 @@ class _FoodDetailsState extends State<FoodDetails> {
   @override
   void initState() {
     super.initState();
-    readJson();
-    getCategories();
+    //readJson();
+    //getCategories();
+    loadData();
+  }
+
+  void loadData() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    country = prefs.getString('currentUser_country');
+    currentUser_restau = prefs.getInt('currentUser_restau') ?? 0;
+    currentUser_role = prefs.getInt('currentUser_role') ?? 0;
+
+    // Chargement des données Dish depuis la base de données
+    List<Dish> dishesList = await Dish.fetchDishesFromDB();
+    Dish? dish = await Dish.getDishByDishId(dishesList, widget.dish_id);
+
+    setState(() {
+      dishes = dishesList;
+      current_dish = dish!;
+      print("dishes " + dishes.toString());
+    });
   }
 
   List _items_categories = [];
-  var _category_details = {};
-  var current_food = {};
   List _items = [];
   var number_of_parts = 1;
 
@@ -46,8 +73,7 @@ class _FoodDetailsState extends State<FoodDetails> {
     var size = MediaQuery.of(context).size;
     var theme = Theme.of(context);
 
-    _getFoodDetailsById();
-    _getCategoryDetails();
+    _getDishDetailsById();
 
     return GestureDetector(
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
@@ -105,24 +131,27 @@ class _FoodDetailsState extends State<FoodDetails> {
           height: size.height * 0.06,
         ),
         Container(
-          constraints: new BoxConstraints.expand(height: 300.0, width: 400),
-          padding: new EdgeInsets.only(left: 16.0, bottom: 8.0, right: 16.0),
-          margin: new EdgeInsets.only(left: 16.0, bottom: 8.0, right: 16.0),
-          decoration: new BoxDecoration(
-            image: new DecorationImage(
-              image: new AssetImage(current_food["image"]),
+          constraints: BoxConstraints.expand(height: 300.0, width: 400),
+          padding: EdgeInsets.only(left: 16.0, bottom: 8.0, right: 16.0),
+          margin: EdgeInsets.only(left: 16.0, bottom: 8.0, right: 16.0),
+          decoration: BoxDecoration(
+            image: DecorationImage(
+              image: (current_dish.image != null && current_dish.image!.isNotEmpty)
+                  ? NetworkImage(current_dish.image!)
+                  : AssetImage('assets/images/no_image.png') as ImageProvider,
+              // Cast explicite en ImageProvider
               fit: BoxFit.cover,
             ),
             borderRadius: BorderRadius.all(Radius.circular(30)),
           ),
-          child: new Stack(
+          child: Stack(
             children: <Widget>[
-              new Positioned(
+              Positioned(
                 right: 0.0,
                 top: 5,
                 child: Container(
                   width: 60,
-                  decoration: new BoxDecoration(
+                  decoration: BoxDecoration(
                     borderRadius: BorderRadius.all(Radius.circular(15)),
                     color: Colors.white,
                   ),
@@ -146,14 +175,19 @@ class _FoodDetailsState extends State<FoodDetails> {
           children: [
             SizedBox(width: 25),
             Text(
-              current_food["meal_name"],
+              current_dish.name ?? "",
               style: kLoginSubtitleStyle3(size),
             ),
             Spacer(),
             Text(
-              current_food["price"].toString() + " " + current_food["currency"],
+              current_dish.price.toString() +
+                  " " +
+                  (country == "France" ? "€" : 'FCFA'),
               style: TextStyle(
-                  color: Colors.red, fontWeight: FontWeight.bold, fontSize: 20),
+                color: Colors.red,
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+              ),
             ),
             SizedBox(width: 20),
           ],
@@ -168,7 +202,7 @@ class _FoodDetailsState extends State<FoodDetails> {
             ),
             Expanded(
               child: Text(
-                current_food["description"],
+                current_dish.description ?? "",
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis, // and this
               ),
@@ -266,8 +300,7 @@ class _FoodDetailsState extends State<FoodDetails> {
                   ),
                   InkWell(
                       onTap: () {
-                        if (number_of_parts <
-                            current_food["number_of_servings"]) {
+                        if (number_of_parts < (current_dish.nb_servings ?? 0)) {
                           setState(() {
                             number_of_parts = number_of_parts + 1;
                           });
@@ -310,12 +343,12 @@ class _FoodDetailsState extends State<FoodDetails> {
     );
   }
 
-  _getFoodDetailsById() async {
-    var id = widget.meal_id;
+  _getDishDetailsById() async {
+    var id = widget.dish_id;
     for (var i = 0, j = _items.length; i < j; i++) {
       if (_items[i]["id"] == id) {
         setState(() {
-          current_food = _items[i];
+          current_dish = _items[i];
         });
       }
     }
@@ -323,7 +356,7 @@ class _FoodDetailsState extends State<FoodDetails> {
 
   Future<void> readJson() async {
     final String response =
-        await rootBundle.loadString('assets/static_data/Meals.json');
+        await rootBundle.loadString('assets/static_data/Dishes.json');
     final data = await json.decode(response);
 
     setState(() {
@@ -333,21 +366,21 @@ class _FoodDetailsState extends State<FoodDetails> {
 
   Future<void> getCategories() async {
     final String response =
-        await rootBundle.loadString('assets/static_data/FoodCategories.json');
+        await rootBundle.loadString('assets/static_data/DishCategories.json');
     final data = await json.decode(response);
     setState(() {
       _items_categories = data["items"];
     });
   }
 
-  _getCategoryDetails() async {
-    var id = widget.meal_id;
+/*_getCategoryDetails() async {
+    var id = widget.dish_id;
     for (var i = 0, j = _items_categories.length; i < j; i++) {
-      if (_items_categories[i]["id"] == current_food["category_id"]) {
+      if (_items_categories[i]["id"] == current_dish["category_id"]) {
         setState(() {
           _category_details = _items_categories[i];
         });
       }
     }
-  }
+  }*/
 }

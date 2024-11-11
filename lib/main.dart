@@ -1,4 +1,4 @@
-import 'package:dios_delices/Screen/FoodDetails.dart';
+import 'package:dios_delices/Screen/DishDetails.dart';
 import 'package:dios_delices/Screen/MealsOfACategory.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -64,7 +64,7 @@ void main() async {
           ANIMATED_SPLASH: (BuildContext context) => AnimatedSplashScreen(),
           SIGNUP_SCREEN: (BuildContext context) => SignUpView(),
           LOGIN: (BuildContext context) => Login(),
-          FOOD_DETAILS: (BuildContext context) => FoodDetails(from_page: 0, meal_id: 0),
+          FOOD_DETAILS: (BuildContext context) => DishDetails(from_page: 0, dish_id: 0),
           MEALS_OF_A_CATEGORY: (BuildContext context) => MealsOfACategory(category_id: 0),
         },
         initialRoute: "/",

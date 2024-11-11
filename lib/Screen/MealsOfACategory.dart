@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:dios_delices/Screen/FoodCategories.dart';
-import 'package:dios_delices/Screen/FoodDetails.dart';
+import 'package:dios_delices/Screen/DishDetails.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -113,9 +113,9 @@ class _MealsOfACategoryState extends State<MealsOfACategory> {
                           Navigator.push(
                               context,
                               CupertinoPageRoute(
-                                  builder: (ctx) => FoodDetails(
+                                  builder: (ctx) => DishDetails(
                                       from_page: 4,
-                                      meal_id: _meals_of_category[index]
+                                      dish_id: _meals_of_category[index]
                                           ["id"])))
                         },
                         child: Card(

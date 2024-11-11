@@ -80,7 +80,6 @@ class _LoginState extends ConsumerState<Login> {
         await prefs.setString('currentUser_country', user.country);
 
         // Si c'est la première connexion, sauf si c'est un admin rediriger vers la page de localisation
-        print("user.roleID " + user.roleID.toString());
         if ((user.last_login == null || user.last_login == " ") && (user.roleID != 1 || user.roleID != 4)) {
           Navigator.pushReplacement(
             context,
@@ -90,7 +89,7 @@ class _LoginState extends ConsumerState<Login> {
           );
         } else {
           // Redirection après connexion réussie
-         // On vérifie le rôle
+          // On vérifie le rôle
           if (user.roleID == 1 || user.roleID == 2 || user.roleID == 4) {
             // ajouter connexion
             await Users.updateDerniereConnexion(user.userID);

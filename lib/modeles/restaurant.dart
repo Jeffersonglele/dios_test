@@ -194,6 +194,26 @@ class Restaurant extends HiveObject {
         if (response['success'] == false) {
           return "Erreur : ${response['error']}";
         } else {
+          // L'ID du restau est utile pour la mise à jour, pour l'ajout il est généré par le serveur
+          int updatedRestauID = restaurantID ?? response['restaurantID'];
+
+          Restaurant restaurant = Restaurant(restaurantID: updatedRestauID,
+            userID: userID,
+            valid: valid,
+            nb_orders: nb_orders,
+            note: note,
+            categories: categories,
+            description: description,
+            adress: adress,
+            name: name,
+            image: imageUrl, date_creation: date_creation,
+          );
+
+          if (restaurantID == null) {
+            await DatabaseHelper.createRestaurant(restaurant);
+          } else {
+            //await DatabaseHelper.updateRestaurant(restaurantID, mot_de_passe_crypte, derniere_connexion);
+          }
           return "success";
         }
       } else {

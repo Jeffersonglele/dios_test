@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:dios_delices/Screen/FoodDetails.dart';
+import 'package:dios_delices/Screen/DishDetails.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -74,9 +74,9 @@ class _FavoritesState extends State<Favorites> {
                                 Navigator.push(
                                     context,
                                     CupertinoPageRoute(
-                                        builder: (ctx) => FoodDetails(
+                                        builder: (ctx) => DishDetails(
                                             from_page: 5,
-                                            meal_id: _items[index]["id"])))
+                                            dish_id: _items[index]["id"])))
                               },
                           child: Column(
                             children: [

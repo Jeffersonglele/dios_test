@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:dios_delices/Screen/ExploreMeals.dart';
 import 'package:dios_delices/Screen/FoodCategories.dart';
-import 'package:dios_delices/Screen/FoodDetails.dart';
+import 'package:dios_delices/Screen/DishDetails.dart';
 import 'package:dios_delices/Screen/NearMeMeals.dart';
 import 'package:dios_delices/SearchInput.dart';
 import 'package:flutter/cupertino.dart';
@@ -196,7 +196,7 @@ class _HomeState extends State<Home> {
             onTap: () => Navigator.push(
               context,
               CupertinoPageRoute(
-                builder: (ctx) => FoodDetails(from_page: 1, meal_id: _items[index]["id"]),
+                builder: (ctx) => DishDetails(from_page: 1, dish_id: _items[index]["id"]),
               ),
             ),
             child: Card(

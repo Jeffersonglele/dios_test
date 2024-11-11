@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:dios_delices/Screen/FoodDetails.dart';
+import 'package:dios_delices/Screen/DishDetails.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -161,7 +161,7 @@ class _HomeMicroRestauState extends State<HomeMicroRestau> {
             onTap: () => Navigator.push(
               context,
               CupertinoPageRoute(
-                builder: (ctx) => FoodDetails(from_page: 1, meal_id: _items[index]["id"]),
+                builder: (ctx) => DishDetails(from_page: 1, dish_id: _items[index]["id"]),
               ),
             ),
             child: Card(

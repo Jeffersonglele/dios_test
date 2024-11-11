@@ -1,4 +1,4 @@
-import 'package:dios_delices/Screen/FoodDetails.dart';
+import 'package:dios_delices/Screen/DishDetails.dart';
 import 'package:dios_delices/Screen/dish/DishFormPage.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../Constant/Constant.dart';
 import '../Controller/UiController.dart';
 import '../modeles/dish.dart';
+import 'micro_restau/DishDetailsMicroRestau.dart';
 
 class Menu extends StatefulWidget {
   @override
@@ -16,11 +17,12 @@ class Menu extends StatefulWidget {
 class _MenuState extends State<Menu> {
   String? country = "";
   int currentUser_restau = 0;
+  int currentUser_role = 0;
 
   TextEditingController totalController = TextEditingController();
 
   List<Dish> dishes = [];
-  List<Dish> filteredDishes = []; // Change Map to Dish to directly hold Dish objects
+  List<Dish> filteredDishes = [];
 
   @override
   void dispose() {
@@ -38,6 +40,7 @@ class _MenuState extends State<Menu> {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     country = prefs.getString('currentUser_country');
     currentUser_restau = prefs.getInt('currentUser_restau') ?? 0;
+    currentUser_role = prefs.getInt('currentUser_role') ?? 0;
 
     // Chargement des données Dish depuis la base de données
     List<Dish> dishesList = await Dish.fetchDishesFromDB();
@@ -113,12 +116,22 @@ class _MenuState extends State<Menu> {
                     final dish = filteredDishes[index]; // Access filteredDishes
                     return GestureDetector(
                       onTap: () {
+                        /*Navigator.push(
+                          context,
+                          CupertinoPageRoute(
+                            builder: (ctx) => DishDetails(
+                              from_page: 2,
+                              dish_id: dish.dishID, // Passer l'ID du plat
+                            ),
+                          ),
+                        );*/
+
                         Navigator.push(
                           context,
                           CupertinoPageRoute(
-                            builder: (ctx) => FoodDetails(
+                            builder: (ctx) => DishDetailsMicroRestau(
                               from_page: 2,
-                              meal_id: dish.dishID, // Passer l'ID du plat
+                              dish_id: dish.dishID, // Passer l'ID du plat
                             ),
                           ),
                         );
@@ -132,10 +145,9 @@ class _MenuState extends State<Menu> {
                                 Container(
                                   height: 200.0,
                                   child: Ink.image(
-                                    image: dish.image != null && dish.image.isNotEmpty
-                                        ? NetworkImage(dish.image)
-                                        : AssetImage('assets/images/placeholder.png')
-                                    as ImageProvider,
+                                    image: (dish.image != null && dish.image!.isNotEmpty)
+                                        ? NetworkImage(dish.image!)
+                                        : AssetImage('assets/images/no_image.png') as ImageProvider,
                                     fit: BoxFit.cover,
                                   ),
                                 ),
@@ -143,7 +155,7 @@ class _MenuState extends State<Menu> {
                                   padding: EdgeInsets.all(16.0),
                                   alignment: Alignment.centerLeft,
                                   child: Text(
-                                    dish.name,
+                                    dish.name ?? "",
                                     style: kLoginSubtitleStyle3(size),
                                   ),
                                 ),
