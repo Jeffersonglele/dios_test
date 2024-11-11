@@ -1,29 +1,27 @@
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
+import 'package:dios_delices/Screen/HomeUser.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import '../Home.dart';
 import '../Cart.dart';
 import '../Favorites.dart';
-import '../Menu.dart';
 import '../MyStore.dart';
 
-class CurvedNavigationUser extends StatefulWidget {
+class CurvedNavigationUserAfr extends StatefulWidget {
   final int specified_index;
 
-  CurvedNavigationUser({required this.specified_index});
+  CurvedNavigationUserAfr({required this.specified_index});
 
   @override
-  _CurvedNavigationUserState createState() => _CurvedNavigationUserState();
+  _CurvedNavigationUserAfrState createState() => _CurvedNavigationUserAfrState();
 }
 
-class _CurvedNavigationUserState extends State<CurvedNavigationUser> {
+class _CurvedNavigationUserAfrState extends State<CurvedNavigationUserAfr> {
   late PageController _pageController;
 
   List<Widget> _allTabItems = [
-    Home(),
+    HomeUser(),
     Cart(),
     Favorites(),
-    Menu(),
     MyStore(),
   ];
 
@@ -46,17 +44,6 @@ class _CurvedNavigationUserState extends State<CurvedNavigationUser> {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Scaffold(
-        appBar: AppBar(
-          leading: IconButton(
-            icon: Icon(Icons.home), // Icône personnalisée (ex: home)
-            onPressed: () {
-              setState(() {
-                _activePage = 0; // Change l'index pour revenir à la page 1 (Home)
-                _pageController.jumpToPage(0); // Synchroniser avec le PageController
-              });
-            },
-          ),
-        ),
         body: PageView(
           controller: _pageController,
           onPageChanged: (index) {
@@ -77,7 +64,6 @@ class _CurvedNavigationUserState extends State<CurvedNavigationUser> {
             Icon(Icons.home, color: Colors.red),
             Icon(Icons.shopping_cart, color: Colors.red),
             Icon(Icons.favorite, color: Colors.red),
-            Icon(Icons.playlist_add_check, color: Colors.red),
             Icon(Icons.storefront, color: Colors.red),
           ],
           onTap: (index) {

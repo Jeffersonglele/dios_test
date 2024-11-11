@@ -1,3 +1,4 @@
+import 'package:dios_delices/Screen/curved_navigation/CurvedNavigationUserAfr.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:gpassword/gpassword.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
@@ -5,6 +6,7 @@ import 'package:hive/hive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../Screen/curved_navigation/CurvedNavigationAdmin.dart';
 import '../Screen/curved_navigation/CurvedNavigationRestau.dart';
+import '../Screen/curved_navigation/CurvedNavigationUserFrance.dart';
 import '../db/database_helper.dart';
 
 part 'users.g.dart';
@@ -444,7 +446,7 @@ class Users extends HiveObject {
     }
   }
 
-  static void chooseCurvedNavigation(int userRole, BuildContext context){
+  static void chooseCurvedNavigation(int userRole, String country, BuildContext context){
     // TODO : revoir la page pour un super admin
     if (userRole == 1 || userRole == 4) {
       // Si l'utilisateur est un administrateur
@@ -455,13 +457,30 @@ class Users extends HiveObject {
         ),
       );
     } else if(userRole == 3) {
-      // Si l'utilisateur est un utilisateur normal
+      // Si l'utilisateur est un micro restau
       Navigator.pushReplacement(
         context,
         CupertinoPageRoute(
           builder: (context) => CurvedNavigationRestau(specified_index: 0),
         ),
       );
+    } else if(userRole == 2) {
+      // Si l'utilisateur est un utilisateur normal
+      if(country == "France"){
+        Navigator.pushReplacement(
+          context,
+          CupertinoPageRoute(
+            builder: (context) => CurvedNavigationUserFrance(specified_index: 0),
+          ),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          CupertinoPageRoute(
+            builder: (context) => CurvedNavigationUserAfr(specified_index: 0),
+          ),
+        );
+      }
     }
   }
 

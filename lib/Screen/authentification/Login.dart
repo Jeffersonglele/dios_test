@@ -95,7 +95,7 @@ class _LoginState extends ConsumerState<Login> {
             await Users.updateDerniereConnexion(user.userID);
 
             // L'admin ou un particulier peuvent directement accéder à l'appli
-            Users.chooseCurvedNavigation(user.roleID, context);
+            Users.chooseCurvedNavigation(user.roleID, user.country, context);
 
           } else {
             // vérifier que le restau a été validé
@@ -116,7 +116,7 @@ class _LoginState extends ConsumerState<Login> {
               } else if(restau.valid == 1){
                 // Le restau est validé il peut se connecter
                 await prefs.setInt('currentUser_restau', restau.restaurantID);
-                Users.chooseCurvedNavigation(user.roleID, context);
+                Users.chooseCurvedNavigation(user.roleID, user.country, context);
               } else {
                 // restau.valid == 2
                 // la validation a échoué, il faut rajouter des informations

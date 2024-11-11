@@ -5,6 +5,7 @@ import 'package:dios_delices/Screen/FoodCategories.dart';
 import 'package:dios_delices/Screen/DishDetails.dart';
 import 'package:dios_delices/Screen/NearMeMeals.dart';
 import 'package:dios_delices/SearchInput.dart';
+import 'package:dios_delices/utils/DateTime.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -13,12 +14,12 @@ import 'package:intl/intl.dart';
 import '../Constant/Constant.dart';
 import '../Controller/UiController.dart';
 
-class Home extends StatefulWidget {
+class HomeUser extends StatefulWidget {
   @override
-  _HomeState createState() => _HomeState();
+  _HomeUserState createState() => _HomeUserState();
 }
 
-class _HomeState extends State<Home> {
+class _HomeUserState extends State<HomeUser> {
   @override
   void initState() {
     super.initState();
@@ -91,37 +92,15 @@ class _HomeState extends State<Home> {
       children: <Widget>[
         SearchInput(),
         SizedBox(height: size.height * 0.02),
-        StreamBuilder(
-          stream: Stream.periodic(const Duration(seconds: 1)),
-          builder: (context, snapshot) {
-            DateTime now = DateTime.now();
-            String hour = "${now.hour}:${now.minute}:${now.second}";
-            String parsedHour = DateFormat.jm().format(DateFormat("hh:mm:ss").parse(hour));
-
-            return Row(
-              children: [
-                SizedBox(width: 25),
-                Icon(Icons.today),
-                Expanded(
-                  child: Text(
-                    "  ${now.day} ${_getMonthName(now.month)} ${now.year}, $parsedHour",
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-        SizedBox(height: size.height * 0.03),
-        _buildSectionTitle(size, 'Popular meals'),
+        DateTimeDisplay(),
         SizedBox(height: size.height * 0.06),
-        _buildSectionTitle(size, 'Near you', actionText: "See more", onTap: () {
+        _buildSectionTitle(size, 'Près de chez vous', actionText: "Voir plus", onTap: () {
           Navigator.push(context, CupertinoPageRoute(builder: (ctx) => NearMeMeals()));
         }),
         SizedBox(height: size.height * 0.03),
         _buildMealsGrid(size),
         SizedBox(height: size.height * 0.05),
-        _buildSectionTitle(size, 'Explore', actionText: "See more", onTap: () {
+        _buildSectionTitle(size, 'Explore', actionText: "Voir plus", onTap: () {
           Navigator.push(context, CupertinoPageRoute(builder: (ctx) => ExploreMeals()));
         }),
         SizedBox(height: size.height * 0.03),
@@ -157,7 +136,7 @@ class _HomeState extends State<Home> {
     return Row(
       children: [
         SizedBox(width: 25),
-        Text(title, style: bigTitleStyle(size)),
+        Text(title, style: kLoginSubtitleStyle(size)),
         if (actionText != null)
           Spacer(),
         if (onTap != null)
@@ -172,6 +151,7 @@ class _HomeState extends State<Home> {
               ),
             ),
           ),
+        SizedBox(width: 25),
       ],
     );
   }
@@ -224,13 +204,5 @@ class _HomeState extends State<Home> {
       ),
     )
         : Container();
-  }
-
-  String _getMonthName(int month) {
-    List<String> monthNames = [
-      "January", "February", "March", "April", "May", "June",
-      "July", "August", "September", "October", "November", "December"
-    ];
-    return monthNames.elementAt(month - 1);
   }
 }

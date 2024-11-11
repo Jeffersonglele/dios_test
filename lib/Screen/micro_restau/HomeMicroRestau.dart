@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 
 import '../../Constant/Constant.dart';
 import '../../Controller/UiController.dart';
+import '../../utils/DateTime.dart';
 
 class HomeMicroRestau extends StatefulWidget {
   @override
@@ -88,29 +89,7 @@ class _HomeMicroRestauState extends State<HomeMicroRestau> {
       children: <Widget>[
         SizedBox(height: size.height * 0.02),
         // Date et heure actuelles
-        StreamBuilder(
-          stream: Stream.periodic(const Duration(seconds: 1)),
-          builder: (context, snapshot) {
-            DateTime now = DateTime.now();
-
-            // Format pour l'heure (hh:mm:ss en format français)
-            String parsedHour = DateFormat('HH:mm', 'fr').format(now);
-
-            // Format pour la date avec le mois en français
-            String formattedDate = DateFormat('d MMMM y', 'fr').format(now);
-
-            return Row(
-              children: [
-                SizedBox(width: 25),
-                Icon(Icons.today),
-                Text(
-                  "  $formattedDate, $parsedHour",
-                  style: TextStyle(fontSize: 16),
-                ),
-              ],
-            );
-          },
-        ),
+        DateTimeDisplay(),
         SizedBox(
           height: 10,
         )
@@ -189,13 +168,5 @@ class _HomeMicroRestauState extends State<HomeMicroRestau> {
       ),
     )
         : Container();
-  }
-
-  String _getMonthName(int month) {
-    List<String> monthNames = [
-      "January", "February", "March", "April", "May", "June",
-      "July", "August", "September", "October", "November", "December"
-    ];
-    return monthNames.elementAt(month - 1);
   }
 }

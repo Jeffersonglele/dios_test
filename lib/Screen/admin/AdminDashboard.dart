@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../Controller/UiController.dart';
+import '../../utils/DateTime.dart';
 import '../CountryPage.dart';
 
 class AdminDashboard extends StatefulWidget {
@@ -93,29 +94,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         children: [
           SizedBox(height: size.height * 0.02),
           // Date et heure actuelles
-          StreamBuilder(
-            stream: Stream.periodic(const Duration(seconds: 1)),
-            builder: (context, snapshot) {
-              DateTime now = DateTime.now();
-
-              // Format pour l'heure (hh:mm:ss en format français)
-              String parsedHour = DateFormat('HH:mm', 'fr').format(now);
-
-              // Format pour la date avec le mois en français
-              String formattedDate = DateFormat('d MMMM y', 'fr').format(now);
-
-              return Row(
-                children: [
-                  SizedBox(width: 25),
-                  Icon(Icons.today),
-                  Text(
-                    "  $formattedDate, $parsedHour",
-                    style: TextStyle(fontSize: 16),
-                  ),
-                ],
-              );
-            },
-          ),
+          DateTimeDisplay(),
           SizedBox(height: size.height * 0.03),
 
           // Section Utilisateurs

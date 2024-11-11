@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'AdminDashboard.dart';
 import 'Cart.dart';
 import 'Favorites.dart';
-import 'Home.dart';
+import 'HomeUser.dart';
 import 'Menu.dart';
 import 'MyStore.dart';
 

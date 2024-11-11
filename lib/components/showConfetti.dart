@@ -28,9 +28,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       // Récupérer le rôle de l'utilisateur depuis SharedPreferences
       SharedPreferences prefs = await SharedPreferences.getInstance();
       int userRole = prefs.getInt('currentUser_role') ?? 0;
+      String userCountry = prefs.getString('currentUser_country') ?? "France";
 
       // Rediriger vers la bonne page en fonction du rôle de l'utilisateur
-      Users.chooseCurvedNavigation(userRole, context);
+      Users.chooseCurvedNavigation(userRole, userCountry, context);
     });
   }
 
