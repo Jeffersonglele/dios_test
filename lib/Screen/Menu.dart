@@ -10,12 +10,14 @@ import '../modeles/dish.dart';
 import 'micro_restau/DishDetailsMicroRestau.dart';
 
 class Menu extends StatefulWidget {
+
   @override
   _MenuState createState() => _MenuState();
 }
 
 class _MenuState extends State<Menu> {
   String? country = "";
+  int currentUser_id = 0;
   int currentUser_restau = 0;
   int currentUser_role = 0;
 
@@ -131,7 +133,7 @@ class _MenuState extends State<Menu> {
                           CupertinoPageRoute(
                             builder: (ctx) => DishDetailsMicroRestau(
                               from_page: 2,
-                              dish_id: dish.dishID, // Passer l'ID du plat
+                              dish_id: dish.dishID, dish_restau: currentUser_restau,
                             ),
                           ),
                         );

@@ -29,7 +29,7 @@ class WaitRestaurantValidation extends StatelessWidget {
             ),
             SizedBox(height: 20),
             Text(
-              "Vous recevrez un mail si votre idée de micro-restaurant est acceptée.",
+              "Vous recevrez un mail si votre idée de restaurant est acceptée.",
               style: TextStyle(fontSize: 16),
               textAlign: TextAlign.center,
             ),

@@ -7,6 +7,7 @@ import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../Constant/Constant.dart';
 import '../../modeles/dish.dart';
+import '../../providers/cart_provider.dart' as cartProvider;
 import '../../providers/users_provider.dart';
 import '../../utils/DeviseFormat.dart';
 import '../../utils/HashtagTextInputFormatter.dart';
@@ -14,13 +15,17 @@ import '../../utils/stars.dart';
 import '../../utils/toast.dart';
 import 'package:path/path.dart' as p;
 
+import '../Cart.dart' as screenCart;
+
+
 class DishDetailsMicroRestau extends ConsumerStatefulWidget {
   static const routeName = '/DishDetailsMicroRestau';
 
   final int dish_id;
   final int from_page;
+  final int dish_restau;
 
-  DishDetailsMicroRestau({required this.dish_id, required this.from_page});
+  DishDetailsMicroRestau({required this.dish_id, required this.from_page, required this.dish_restau});
 
   @override
   _DishDetailsMicroRestauState createState() => _DishDetailsMicroRestauState();
@@ -29,8 +34,10 @@ class DishDetailsMicroRestau extends ConsumerStatefulWidget {
 class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau> {
   final _formKey = GlobalKey<FormState>();
   String? country = "";
+  int currentUser_id = 0;
   int currentUser_restau = 0;
   int currentUser_role = 0;
+  String currentUser_country = "";
 
   bool isEditMode = false;
   File? selectedImage;
@@ -50,6 +57,8 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
 
   Dish? current_dish;
 
+  int selectedQuantity = 1; // Default value
+
   @override
   void initState() {
     super.initState();
@@ -61,6 +70,8 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
     country = prefs.getString('currentUser_country');
     currentUser_restau = prefs.getInt('currentUser_restau') ?? 0;
     currentUser_role = prefs.getInt('currentUser_role') ?? 0;
+    currentUser_id = prefs.getInt('loggedUserID') ?? 0;
+    currentUser_country = prefs.getString('currentUser_country') ?? "France";
 
     List<Dish> dishesList = await Dish.fetchDishesFromDB();
     Dish? dish = await Dish.getDishByDishId(dishesList, widget.dish_id);
@@ -111,6 +122,8 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
   @override
   Widget build(BuildContext context) {
     var size = MediaQuery.of(context).size;
+
+    final cartNotifier = ref.read(cartProvider.cartStateProvider.notifier);
 
     if (current_dish == null) {
       return Center(child: CircularProgressIndicator());
@@ -295,6 +308,46 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
                     ),
                   ),
                   SizedBox(height: size.height * 0.02),
+
+                  if(currentUser_role == 2)
+                   Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 25.0),
+                      child: Row(
+                        children: [
+                          StarRating(rating: double.parse(noteController.text)),
+                          Spacer(),
+                          DropdownButton<int>(
+                            value: selectedQuantity, // The currently selected value
+                            onChanged: (int? newValue) {
+                              if (newValue != null) {
+                                setState(() {
+                                  selectedQuantity = newValue; // Update the selected value
+                                });
+                              }
+                            },
+                            items: List.generate(
+                              current_dish!.nb_servings ?? 5,
+                                  (index) => DropdownMenuItem<int>(
+                                value: index + 1,
+                                child: Text(
+                                  "${index + 1}",
+                                  style: TextStyle(fontSize: 16),
+                                ),
+                              ),
+                            ),
+                            dropdownColor: Colors.white, // Optional: Set the dropdown background color
+                            style: TextStyle(
+                              color: Colors.black, // Text color
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      )
+
+                   ),
+
+
+                  if(currentUser_role != 2)
                   Row(
                     children: [
                       SizedBox(width: 25),
@@ -409,6 +462,7 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
                     ],
                   ),
                   SizedBox(height: size.height * 0.05),
+                  if(currentUser_role != 2)
                   Center(
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -507,6 +561,49 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
                       ],
                     ),
                   ),
+                  if(currentUser_role == 2 && (currentUser_restau !=  widget.dish_restau))
+                    Center(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 10.0),
+                            child: ElevatedButton(
+                              onPressed: () {
+                                cartNotifier.addToCart(
+                                  current_dish?.name ?? "Plat",
+                                  current_dish?.price ?? 0.0,
+                                  current_dish?.image ?? '',
+                                  selectedQuantity,
+                                  current_dish?.nb_servings ?? 0,
+                                  currentUser_country ?? "France",
+                                  currentUser_id,
+                                  widget.dish_restau
+                                );
+
+                                Toast(context, "Le plat ${current_dish?.name} a été ajouté au panier !", true);
+
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => screenCart.Cart(),
+                                  ),
+                                );
+                              },
+                              child: Text('Ajouter au panier', style: TextStyle(color: Colors.white)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.black,
+                                foregroundColor: Colors.white,
+                                textStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(15),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   SizedBox(height: size.height * 0.05),
                 ],
               ),

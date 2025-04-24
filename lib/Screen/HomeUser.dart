@@ -4,15 +4,21 @@ import 'package:dios_delices/Screen/ExploreMeals.dart';
 import 'package:dios_delices/Screen/FoodCategories.dart';
 import 'package:dios_delices/Screen/DishDetails.dart';
 import 'package:dios_delices/Screen/NearMeMeals.dart';
+import 'package:dios_delices/Screen/restaurants/RestaurantDetails.dart';
 import 'package:dios_delices/SearchInput.dart';
+import 'package:dios_delices/modeles/address.dart';
 import 'package:dios_delices/utils/DateTime.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../Constant/Constant.dart';
 import '../Controller/UiController.dart';
+import '../modeles/restaurant.dart';
+import '../modeles/users.dart';
+import 'dart:math';
 
 class HomeUser extends StatefulWidget {
   @override
@@ -23,19 +29,105 @@ class _HomeUserState extends State<HomeUser> {
   @override
   void initState() {
     super.initState();
-    readJson();
+    loadData();
   }
 
-  List _items = [];
+  List<Map<String, dynamic>> filteredRestaurants = [];
+  List<Users> users = [];
+  List<Restaurant> restaus = [];
+  List<Address> addresses = [];
+
+  int current_userID = 0;
+  int current_user_role = 0;
+  int current_user_restau = 0;
+
   SimpleUIController simpleUIController = Get.put(SimpleUIController());
 
-  Future<void> readJson() async {
-    final String response =
-    await rootBundle.loadString('assets/static_data/Meals.json');
-    final data = await json.decode(response);
+  void loadData() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    int userID = prefs.getInt('loggedUserID') ?? 0;
+    int userRole = prefs.getInt('currentUser_role') ?? 0;
+    int userRestauID = prefs.getInt('currentUser_restau') ?? 0;
+
+    List<Users> usersList = await Users.fetchUsersFromDB();
+    List<Restaurant> restausList = await Restaurant.fetchRestaurantsFromDB();
+    List<Address> addressesList = await Address.fetchAddressesFromDB();
+
     setState(() {
-      _items = data["items"];
+      current_userID = userID;
+      current_user_role = userRole;
+      current_user_restau = userRestauID;
+
+      users = usersList;
+      restaus = restausList;
+      addresses = addressesList;
     });
+    await _filterRestaurants();
+  }
+
+  Future<void> _filterRestaurants() async {
+    // 📍 Adresse de l'utilisateur connecté (objectID = current_userID, type utilisateur)
+    for(var a in addresses){
+      if(a.objectID == current_userID){
+        Address userAddress = a;
+
+        const double maxDistanceKm = 10.0;
+        List<Restaurant> nearbyRestaurants = [];
+
+        for (var restau in restaus) {
+          // ✅ Exclure restaus de l'utilisateur ou sans utilisateur associé
+          if (restau.userID == 0 || restau.userID == current_userID) continue;
+
+          print("restau.userID " + restau.userID.toString());
+          // 📍 Adresse du restaurant (objectID = restau.userID, type = 1 pour restau)
+          Address? restauAddress = Address.getAddressByObject(addresses, "User", restau.userID);
+          print("restauAddress " + restauAddress.toString());
+
+          if (restauAddress == null) continue;
+
+          try {
+            // 🧭 Conversion lat/lon
+            double userLat = double.parse(userAddress.lat ?? "");
+            double userLon = double.parse(userAddress.long ?? "");
+            double restauLat = double.parse(restauAddress.lat ?? "");
+            double restauLon = double.parse(restauAddress.long ?? "");
+
+            double distance = _calculateDistance(userLat, userLon, restauLat, restauLon);
+
+            if (distance <= maxDistanceKm) {
+              nearbyRestaurants.add(restau);
+            }
+          } catch (e) {
+            print("Erreur de parsing des coordonnées : $e");
+          }
+        }
+
+        setState(() {
+          restaus = nearbyRestaurants;
+        });
+      }
+    }
+  }
+
+  double _calculateDistance(
+      double lat1, double lon1, double lat2, double lon2) {
+    const double earthRadius = 6371; // Rayon de la Terre en kilomètres
+
+    double dLat = _degToRad(lat2 - lat1);
+    double dLon = _degToRad(lon2 - lon1);
+
+    double a = sin(dLat / 2) * sin(dLat / 2) +
+        cos(_degToRad(lat1)) *
+            cos(_degToRad(lat2)) *
+            sin(dLon / 2) *
+            sin(dLon / 2);
+    double c = 2 * atan2(sqrt(a), sqrt(1 - a));
+
+    return earthRadius * c;
+  }
+
+  double _degToRad(double deg) {
+    return deg * (pi / 180);
   }
 
   @override
@@ -94,21 +186,24 @@ class _HomeUserState extends State<HomeUser> {
         SizedBox(height: size.height * 0.02),
         DateTimeDisplay(),
         SizedBox(height: size.height * 0.06),
-        _buildSectionTitle(size, 'Près de chez vous', actionText: "Voir plus", onTap: () {
-          Navigator.push(context, CupertinoPageRoute(builder: (ctx) => NearMeMeals()));
+        _buildSectionTitle(size, 'Restaurants près de chez vous', actionText: "Voir plus",
+            onTap: () {
+          Navigator.push(
+              context, CupertinoPageRoute(builder: (ctx) => NearMeMeals()));
         }),
         SizedBox(height: size.height * 0.03),
         _buildMealsGrid(size),
         SizedBox(height: size.height * 0.05),
-        _buildSectionTitle(size, 'Explore', actionText: "Voir plus", onTap: () {
-          Navigator.push(context, CupertinoPageRoute(builder: (ctx) => ExploreMeals()));
-        }),
-        SizedBox(height: size.height * 0.03),
-        _buildMealsGrid(size),
+        _buildSectionTitle(size, 'Plats près de chez vous', actionText: "Voir plus",
+            onTap: () {
+              Navigator.push(
+                  context, CupertinoPageRoute(builder: (ctx) => NearMeMeals()));
+            }),
         SizedBox(height: size.height * 0.03),
         ElevatedButton(
           onPressed: () {
-            Navigator.push(context, CupertinoPageRoute(builder: (ctx) => FoodCategories()));
+            Navigator.push(context,
+                CupertinoPageRoute(builder: (ctx) => FoodCategories()));
           },
           child: Text(
             'Show all food categories',
@@ -127,18 +222,20 @@ class _HomeUserState extends State<HomeUser> {
             ),
           ),
         ),
-        SizedBox(height: 55,)
+        SizedBox(
+          height: 55,
+        )
       ],
     );
   }
 
-  Widget _buildSectionTitle(Size size, String title, {String? actionText, void Function()? onTap}) {
+  Widget _buildSectionTitle(Size size, String title,
+      {String? actionText, void Function()? onTap}) {
     return Row(
       children: [
         SizedBox(width: 25),
-        Text(title, style: kLoginSubtitleStyle(size)),
-        if (actionText != null)
-          Spacer(),
+        Text(title, style: kLoginSubtitleStyle5(size)),
+        if (actionText != null) Spacer(),
         if (onTap != null)
           GestureDetector(
             onTap: onTap,
@@ -157,52 +254,56 @@ class _HomeUserState extends State<HomeUser> {
   }
 
   Widget _buildMealsGrid(Size size) {
-    return _items.isNotEmpty
+    return restaus.isNotEmpty
         ? Container(
-      height: 200,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: GridView.builder(
-        shrinkWrap: true,
-        physics: NeverScrollableScrollPhysics(),
-        gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-          maxCrossAxisExtent: 200,
-          childAspectRatio: 3 / 4.5,
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 20,
-        ),
-        itemCount: 3,
-        itemBuilder: (BuildContext ctx, index) {
-          return GestureDetector(
-            onTap: () => Navigator.push(
-              context,
-              CupertinoPageRoute(
-                builder: (ctx) => DishDetails(from_page: 1, dish_id: _items[index]["id"]),
+            height: 200,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: GridView.builder(
+              shrinkWrap: true,
+              physics: NeverScrollableScrollPhysics(),
+              gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                maxCrossAxisExtent: 200,
+                childAspectRatio: 3 / 4.5,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 20,
               ),
-            ),
-            child: Card(
-              clipBehavior: Clip.antiAlias,
-              child: Column(
-                children: [
-                  Image.asset(
-                    _items[index]["image"],
-                    height: 100,
-                    width: 120,
-                    fit: BoxFit.cover,
-                  ),
-                  ListTile(
-                    title: Text(_items[index]["meal_name"]),
-                    subtitle: Text(
-                      "${_items[index]["price"]} ${_items[index]["currency"]}",
-                      style: TextStyle(color: Colors.red.withOpacity(0.6)),
+              itemCount: restaus.length > 5 ? 5 : restaus.length,
+              itemBuilder: (BuildContext ctx, index) {
+                return GestureDetector(
+                  onTap: () => Navigator.push(
+                    context,
+                    CupertinoPageRoute(
+                      builder: (ctx) => RestaurantDetails(
+                          restaurant_id: restaus[index].restaurantID),
                     ),
                   ),
-                ],
-              ),
+                  child: Card(
+                    clipBehavior: Clip.antiAlias,
+                    child: Column(
+                      children: [
+                        SizedBox(
+                          height: 2,
+                        ),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          // ⬅️ ajuste ici le degré d'arrondi
+                          child: Image.network(
+                            restaus[index].image,
+                            height: 150,
+                            width: 170,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        ListTile(
+                          title: Text(restaus[index].name),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
             ),
-          );
-        },
-      ),
-    )
+          )
         : Container();
   }
 }

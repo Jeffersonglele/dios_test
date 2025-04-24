@@ -1,10 +1,14 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:email_validator/email_validator.dart';
 import 'package:flutter_pw_validator/flutter_pw_validator.dart';
-import '../../utils/ThousandSeparatorInputFormatter.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../utils/toast.dart';
 import 'Login.dart';
 import '../../Constant/Constant.dart';
 import '../../Controller/UiController.dart';
@@ -32,6 +36,26 @@ class _SignUpViewState extends State<SignUpView> {
   final TextEditingController passwordConfirmController =
       TextEditingController();
 
+  TextEditingController locationController = TextEditingController();
+
+  XFile? imageXFile;
+  final ImagePicker _picker = ImagePicker();
+  Position? position;
+  String completeAddress = "";
+
+  String _selectedCountry = "France";
+  final Map<String, String> _countryCodes = {
+    "France": "+33",
+    "Bénin": "+229",
+    "Côte d'Ivoire": "+225"
+  };
+
+  final Map<String, int> _phoneNumberLengths = {
+    "France": 10,
+    "Bénin": 10,
+    "Côte d'Ivoire": 8
+  };
+
   final GlobalKey<FlutterPwValidatorState> validatorKey =
       GlobalKey<FlutterPwValidatorState>();
 
@@ -57,7 +81,6 @@ class _SignUpViewState extends State<SignUpView> {
     super.initState();
     Get.put(SimpleUIController()); // Initialisation du contrôleur
   }
-
 
   @override
   void dispose() {
@@ -154,7 +177,7 @@ class _SignUpViewState extends State<SignUpView> {
         Padding(
           padding: const EdgeInsets.only(left: 20.0),
           child: Text(
-            'Sign Up',
+            'Inscription',
             style: kLoginTitleStyle(
                 size), // Assurez-vous que cette fonction est bien appelée ici
           ),
@@ -169,7 +192,7 @@ class _SignUpViewState extends State<SignUpView> {
                 // Champ pour le prénom
                 _buildTextField(
                   controller: firstnameController,
-                  hintText: 'First Name',
+                  hintText: 'firstname'.tr,
                   icon: Icons.person,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -184,7 +207,7 @@ class _SignUpViewState extends State<SignUpView> {
                 // Champ pour le nom
                 _buildTextField(
                   controller: lastnameController,
-                  hintText: 'Last Name',
+                  hintText: 'lastname'.tr,
                   icon: Icons.person,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -223,7 +246,55 @@ class _SignUpViewState extends State<SignUpView> {
                   },
                 ),
                 SizedBox(height: size.height * 0.02),
-                _buildTextField(
+                Row(
+                  children: [
+                    SizedBox(
+                      width: 100,
+                      child: DropdownButton<String>(
+                        value: _selectedCountry,
+                        onChanged: (String? newValue) {
+                          setState(() {
+                            _selectedCountry = newValue!;
+                          });
+                        },
+                        items: _countryCodes.keys.map((String country) {
+                          return DropdownMenuItem<String>(
+                            value: country,
+                            child: Text("${_countryCodes[country]}"),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _telephone_Controller,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly
+                        ],
+                        decoration: InputDecoration(
+                          hintText: "Numéro de téléphone",
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(15)),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return "Veuillez entrer un numéro";
+                          }
+                          int requiredLength =
+                              _phoneNumberLengths[_selectedCountry]!;
+                          if (value.length != requiredLength) {
+                            return "Le numéro doit contenir $requiredLength chiffres";
+                          }
+                          return null;
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: size.height * 0.02),
+                /*_buildTextField(
                   controller: _telephone_Controller,
                   keyboardType: TextInputType.number,
                   inputFormatters: <TextInputFormatter>[
@@ -241,7 +312,7 @@ class _SignUpViewState extends State<SignUpView> {
                     return null;
                   },
                 ),
-                SizedBox(height: size.height * 0.02),
+                SizedBox(height: size.height * 0.02),*/
                 // Champ pour le mot de passe
                 Obx(() => _buildPasswordField(
                       controller: passwordController,
@@ -303,6 +374,13 @@ class _SignUpViewState extends State<SignUpView> {
                       .leading, // Place la checkbox à gauche
                 ),
                 SizedBox(height: size.height * 0.02),
+                /*ElevatedButton.icon(
+                  onPressed: getCurrentLocation,
+                  icon: const Icon(Icons.location_on, color: Colors.white),
+                  label: const Text('Get My Current Location', style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.orangeAccent),
+                ),
+                SizedBox(height: size.height * 0.02),*/
                 // Bouton de sign up
                 signUpButton(theme),
                 SizedBox(height: size.height * 0.03),
@@ -327,13 +405,32 @@ class _SignUpViewState extends State<SignUpView> {
                     ),
                   ),
                 ),
-                SizedBox(height: 55,)
+                SizedBox(
+                  height: 55,
+                )
               ],
             ),
           ),
         ),
       ],
     );
+  }
+
+  Future<void> getCurrentLocation() async {
+    LocationPermission permission = await Geolocator.requestPermission();
+    Position newPosition = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high);
+    position = newPosition;
+
+    List<Placemark> placeMarks =
+        await placemarkFromCoordinates(position!.latitude, position!.longitude);
+    Placemark pMarks = placeMarks[0];
+
+    completeAddress = '${pMarks.subThoroughfare} ${pMarks.thoroughfare}, '
+        '${pMarks.subLocality} ${pMarks.locality}, '
+        '${pMarks.subAdministrativeArea}, ${pMarks.administrativeArea} ${pMarks.postalCode}, ${pMarks.country}';
+
+    locationController.text = completeAddress;
   }
 
   // Méthode pour créer un champ de texte réutilisable
@@ -343,7 +440,8 @@ class _SignUpViewState extends State<SignUpView> {
     required IconData icon,
     String? Function(String?)? validator,
     TextInputType? keyboardType, // Ajout du keyboardType optionnel
-    List<TextInputFormatter>? inputFormatters, // Ajout des inputFormatters optionnels
+    List<TextInputFormatter>?
+        inputFormatters, // Ajout des inputFormatters optionnels
   }) {
     return TextFormField(
       controller: controller,
@@ -353,8 +451,10 @@ class _SignUpViewState extends State<SignUpView> {
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
       ),
       validator: validator,
-      keyboardType: keyboardType, // Utilisation du keyboardType passé en paramètre
-      inputFormatters: inputFormatters, // Utilisation des inputFormatters passés en paramètre
+      keyboardType: keyboardType,
+      // Utilisation du keyboardType passé en paramètre
+      inputFormatters:
+          inputFormatters, // Utilisation des inputFormatters passés en paramètre
     );
   }
 
@@ -402,35 +502,52 @@ class _SignUpViewState extends State<SignUpView> {
         ),
         onPressed: () async {
           if (_formKey.currentState!.validate()) {
-            String? verificationCode;
-            DateTime codeGenerationTime;
-
-            verificationCode = await sendVerificationEmail(context, emailController.text);
-            codeGenerationTime = DateTime.now();
-
             String encryptedPassword = await Users.encryptPassword(passwordController.text);
 
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => VerificationPage(
-                    verificationCode: verificationCode,
-                    codeGenerationTime: codeGenerationTime,
+            dynamic result = await Users.manageUser(
+              roleID: 2,
+              password: passwordController.text,
+              password_crypte: encryptedPassword,
+              firstname: firstnameController.text,
+              lastname: lastnameController.text,
+              username: usernameController.text,
+              email: emailController.text,
+              telephone: int.parse(_telephone_Controller.text),
+              status: '',
+              identity: '',
+              addressID: 0,
+            );
+
+            if (result is int) { // Vérifie si la réponse est bien un userID
+              int userID = result;
+              SharedPreferences prefs = await SharedPreferences.getInstance();
+              await prefs.setBool('userVerified', true);
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => VerificationPage(
+                    userID: userID, // Envoie l'ID de l'utilisateur
                     email: emailController.text,
-                    roleID: 2, //c'est la création de compte pour un utilisateur lambda
+                    roleID: 2,
                     password: passwordController.text,
                     password_crypte: encryptedPassword,
                     firstname: firstnameController.text,
                     lastname: lastnameController.text,
                     username: usernameController.text,
-                    telephone: int.tryParse(_telephone_Controller.text.replaceAll(' ', '')) ?? 0)
-              ),
-            );
+                    telephone: int.tryParse(_telephone_Controller.text.replaceAll(' ', '')) ?? 0,
+                    indicatif: _countryCodes[_selectedCountry] ?? '',
+                  ),
+                ),
+              );
+            } else {
+              Toast(context, "Erreur : $result", false);
+            }
           } else {
             print("Form contains errors");
           }
         },
-        child: const Text('Sign up'),
+        child: Text('signup'.tr),
       ),
     );
   }
@@ -443,5 +560,6 @@ class _SignUpViewState extends State<SignUpView> {
     emailController.clear();
     passwordController.clear();
     passwordConfirmController.clear();
+    _telephone_Controller.clear();
   }
 }

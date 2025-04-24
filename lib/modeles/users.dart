@@ -46,6 +46,15 @@ class Users extends HiveObject {
   @HiveField(10)
   String country;
 
+  @HiveField(11)
+  String status;
+
+  @HiveField(12)
+  String identity;
+
+  @HiveField(13)
+  int addressID;
+
   Users({
     required this.userID,
     required this.roleID,
@@ -58,8 +67,10 @@ class Users extends HiveObject {
     required this.image,
     required this.telephone,
     required this.country,
+    required this.status,
+    required this.identity,
+    required this.addressID,
   });
-
 
   Map<String, dynamic> toMap() {
     return {
@@ -73,57 +84,69 @@ class Users extends HiveObject {
       'last_login': last_login?.toIso8601String(),
       'image': image,
       'country': country,
-      'telephone': telephone
+      'telephone': telephone,
+      'status': status,
+      'identity': identity,
+      'addressID': addressID,
     };
   }
 
-  // Implement a method to create a Users from a Map
   factory Users.fromMap(Map<String, dynamic> map) {
     return Users(
-        userID: int.tryParse(map['userID']?.toString() ?? '0') ?? 0,
-        roleID: int.tryParse(map['roleID']?.toString() ?? '0') ?? 0,
-        telephone: int.tryParse(map['telephone']?.toString() ?? '0') ?? 0,
-        email: map['email']?.toString() ?? map['email']?.toString() ?? '',
-        firstname: map['firstname']?.toString() ?? map['firstname']?.toString() ?? '',
-        password: map['password']?.toString() ?? map['password']?.toString() ?? '',
-        lastname: map['lastname']?.toString() ?? map['lastname']?.toString() ?? '',
-        username: map['username']?.toString() ?? map['username']?.toString() ?? '',
-        country: map['country']?.toString() ?? map['country']?.toString() ?? '',
-        last_login: map['last_login'] != null && map['last_login']['iso'] != null
-            ? DateTime.tryParse(map['last_login']['iso'])
-            : null,
-        image: map['image']?.toString() ?? ''
+      userID: int.tryParse(map['userID']?.toString() ?? '0') ?? 0,
+      roleID: int.tryParse(map['roleID']?.toString() ?? '0') ?? 0,
+      telephone: int.tryParse(map['telephone']?.toString() ?? '0') ?? 0,
+      email: map['email']?.toString() ?? '',
+      firstname: map['firstname']?.toString() ?? '',
+      lastname: map['lastname']?.toString() ?? '',
+      username: map['username']?.toString() ?? '',
+      password: map['password']?.toString() ?? '',
+      country: map['country']?.toString() ?? '',
+      status: map['status']?.toString() ?? '',
+      identity: map['identity']?.toString() ?? '',
+      addressID: int.tryParse(map['addressID']?.toString() ?? '0') ?? 0,
+      last_login: map['last_login'] != null && map['last_login']['iso'] != null
+          ? DateTime.tryParse(map['last_login']['iso'])
+          : null,
+      image: map['image']?.toString() ?? '',
     );
   }
 
-  Users copy(
-      {int? userID,
-        int? roleID,
-        int? telephone,
-        String? password,
-        String? email,
-        String? firstname,
-        String? lastname,
-        String? username,
-        DateTime? last_login,
-        String? image,
-      }) {
+  Users copy({
+    int? userID,
+    int? roleID,
+    int? telephone,
+    String? password,
+    String? email,
+    String? firstname,
+    String? lastname,
+    String? username,
+    DateTime? last_login,
+    String? image,
+    String? country,
+    String? status,
+    String? identity,
+    int? addressID,
+  }) {
     return Users(
-        userID: userID ?? this.userID,
-        roleID: roleID ?? this.roleID,
-        telephone: telephone ?? this.telephone,
-        password: password ?? this.password,
-        firstname: firstname ?? this.firstname,
-        lastname: lastname ?? this.lastname,
-        username: username ?? this.username,
-        email: email ?? this.email,
-        last_login: last_login ?? this.last_login,
-        country: country ?? this.country,
-        image: image ?? this.image
+      userID: userID ?? this.userID,
+      roleID: roleID ?? this.roleID,
+      telephone: telephone ?? this.telephone,
+      password: password ?? this.password,
+      firstname: firstname ?? this.firstname,
+      lastname: lastname ?? this.lastname,
+      username: username ?? this.username,
+      email: email ?? this.email,
+      last_login: last_login ?? this.last_login,
+      image: image ?? this.image,
+      country: country ?? this.country,
+      status: status ?? this.status,
+      identity: identity ?? this.identity,
+      addressID: addressID ?? this.addressID,
     );
   }
 
-  static Future<String> manageUser({
+  static Future<dynamic> manageUser({
     int? userID,
     required int roleID,
     required int telephone,
@@ -133,10 +156,12 @@ class Users extends HiveObject {
     required String lastname,
     required String email,
     required String username,
+    required String status,
+    required String identity,
+    required int addressID,
     DateTime? last_login,
     ParseFile? image,
   }) async {
-    // Déterminer le nom de la fonction cloud en fonction de l'opération
     String functionName = userID == null ? 'add1User' : 'updateUser';
     var cloudFunction = ParseCloudFunction(functionName);
 
@@ -151,7 +176,6 @@ class Users extends HiveObject {
       }
     }
 
-    // Construire les paramètres, y compris userID pour la mise à jour
     var params = <String, dynamic>{
       if (userID != null) 'userID': userID,
       'roleID': roleID,
@@ -163,13 +187,70 @@ class Users extends HiveObject {
       'password': password,
       'telephone': telephone,
       'password_crypte': password_crypte,
-      'last_login': {
-        "__type": "Date",
-        "iso": last_login?.toIso8601String()
-      },
+      'last_login': {"__type": "Date", "iso": last_login?.toIso8601String()},
       'image': imageUrl,
+      'status': status,
+      'identity': identity,
+      'addressID': addressID,
     };
 
+    final ParseResponse parseResponse =
+    await cloudFunction.execute(parameters: params);
+
+    if (parseResponse.success && parseResponse.result != null) {
+      var response = parseResponse.result as Map<String, dynamic>;
+      if (response['success'] == false) {
+        return "Erreur : ${response['error']}";
+      } else {
+        return response['userID']; // Retourne l'ID de l'utilisateur créé
+      }
+    } else {
+      return "Erreur lors de l'appel de la fonction cloud : ${parseResponse.error?.message}";
+    }
+  }
+
+  static Future<String> updateStatus(int userID, String status) async {
+    // Déterminer le nom de la fonction cloud en fonction de l'opération
+    String functionName = 'update1User';
+    var cloudFunction = ParseCloudFunction(functionName);
+
+    // Construire les paramètres, y compris userID pour la mise à jour
+    var params = <String, dynamic>{
+      if (userID != null) 'userID': userID,
+      'status': status
+    };
+
+    try {
+      final ParseResponse parseResponse =
+      await cloudFunction.execute(parameters: params);
+
+      if (parseResponse.success && parseResponse.result != null) {
+        var response = parseResponse.result as Map<String, dynamic>;
+        if (response['success'] == false) {
+          return "Erreur : ${response['error']}";
+        } else {
+          await DatabaseHelper.updateUserStatus(userID, status);
+
+          return "success";
+        }
+      } else {
+        return "Erreur lors de l'appel de la fonction cloud : ${parseResponse.error?.message}";
+      }
+    } catch (e) {
+      return "Exception lors de l'appel de la fonction cloud : $e";
+    }
+  }
+
+  static Future<String> updateIdentity(int userID, String identity) async {
+    // Déterminer le nom de la fonction cloud en fonction de l'opération
+    String functionName = 'update1User';
+    var cloudFunction = ParseCloudFunction(functionName);
+
+    // Construire les paramètres, y compris userID pour la mise à jour
+    var params = <String, dynamic>{
+      if (userID != null) 'userID': userID,
+      'identity': identity
+    };
 
     try {
       final ParseResponse parseResponse = await cloudFunction.execute(parameters: params);
@@ -179,40 +260,14 @@ class Users extends HiveObject {
         if (response['success'] == false) {
           return "Erreur : ${response['error']}";
         } else {
-          // L'ID de l'user est utile pour la mise à jour, pour l'ajout il est généré par le serveur
-          int updatedUserID = userID ?? response['userID'];
-
-          Users user = Users(
-              userID: updatedUserID,
-              roleID: roleID,
-              telephone: telephone,
-              username: username,
-              firstname: firstname,
-              lastname: lastname,
-              email: email,
-              country: "",
-              password: password_crypte,
-              last_login: last_login,
-              image: imageUrl
-          );
-
-          if (userID == null) {
-            await DatabaseHelper.createUser(user);
-          } else {
-            await DatabaseHelper.updateUser(userID, last_login);
-          }
-
-          SharedPreferences prefs = await SharedPreferences.getInstance();
-          prefs.setBool('userCreated', true);  // Sauvegarde l'état de création
+          await DatabaseHelper.updateUserIdentity(userID, identity);
 
           return "success";
         }
       } else {
-        print("Erreur lors de l'appel de la fonction cloud : ${parseResponse.error?.message}");
         return "Erreur lors de l'appel de la fonction cloud : ${parseResponse.error?.message}";
       }
     } catch (e) {
-      print("Exception lors de l'appel de la fonction cloud : $e");
       return "Exception lors de l'appel de la fonction cloud : $e";
     }
   }
@@ -227,22 +282,18 @@ class Users extends HiveObject {
     // Construire les paramètres, y compris userID pour la mise à jour
     var params = <String, dynamic>{
       if (userID != null) 'userID': userID,
-      'last_login': {
-        "__type": "Date",
-        "iso": last_login?.toIso8601String()
-      }
+      'last_login': {"__type": "Date", "iso": last_login?.toIso8601String()}
     };
 
     try {
       final ParseResponse parseResponse =
-      await cloudFunction.execute(parameters: params);
+          await cloudFunction.execute(parameters: params);
 
       if (parseResponse.success && parseResponse.result != null) {
         var response = parseResponse.result as Map<String, dynamic>;
         if (response['success'] == false) {
           return "Erreur : ${response['error']}";
         } else {
-
           await DatabaseHelper.updateUser(userID, last_login);
 
           return "success";
@@ -268,7 +319,7 @@ class Users extends HiveObject {
 
     try {
       final ParseResponse parseResponse =
-      await cloudFunction.execute(parameters: params);
+          await cloudFunction.execute(parameters: params);
 
       if (parseResponse.success && parseResponse.result != null) {
         var response = parseResponse.result as Map<String, dynamic>;
@@ -288,7 +339,8 @@ class Users extends HiveObject {
     }
   }
 
-  static Future<String> updateCountryAndRole(int userID, String country, int roleID) async {
+  static Future<String> updateCountryAndRole(
+      int userID, String country, int roleID) async {
     // Déterminer le nom de la fonction cloud en fonction de l'opération
     String functionName = 'update1User';
     var cloudFunction = ParseCloudFunction(functionName);
@@ -302,7 +354,7 @@ class Users extends HiveObject {
 
     try {
       final ParseResponse parseResponse =
-      await cloudFunction.execute(parameters: params);
+          await cloudFunction.execute(parameters: params);
 
       if (parseResponse.success && parseResponse.result != null) {
         var response = parseResponse.result as Map<String, dynamic>;
@@ -329,7 +381,8 @@ class Users extends HiveObject {
     };
 
     try {
-      final ParseResponse parseResponse = await cloudFunction.execute(parameters: params);
+      final ParseResponse parseResponse =
+          await cloudFunction.execute(parameters: params);
 
       if (parseResponse.success && parseResponse.result != null) {
         var response = parseResponse.result as Map<String, dynamic>;
@@ -392,15 +445,21 @@ class Users extends HiveObject {
     return gPassword.encryptPassword(password: password);
   }
 
-  static Future<Users?> verifUser(List<Users> listUsers, String usernameOrEmail, String password) async {
+  static Future<Users?> verifUser(
+      List<Users> listUsers, String usernameOrEmail, String password) async {
     // Crypter le mot de passe avant de le comparer
     String passwordCrypte = await encryptPassword(password);
 
+    print("passwordCrypte " + passwordCrypte);
+
     // Chercher l'accès correspondant au username ou email
     for (final user in listUsers) {
-      if ((user.username == usernameOrEmail || user.email == usernameOrEmail) && user.password == passwordCrypte) {
+      if ((user.username.trim().toLowerCase() == usernameOrEmail.trim().toLowerCase() ||
+          user.email.trim().toLowerCase() == usernameOrEmail.trim().toLowerCase()) &&
+          user.password.trim() == passwordCrypte.trim()) {
+
         if (user != null) {
-          return user;  // Retourner l'utilisateur si trouvé
+          return user; // Retourner l'utilisateur si trouvé
         }
       }
     }
@@ -411,7 +470,7 @@ class Users extends HiveObject {
 
   static Users? getUsersByUserId(List<Users> users, int id) {
     try {
-      return users.firstWhere((users) => users.userID == id);
+      return users.firstWhere((user) => user.userID == id);
     } catch (e) {
       return null;
     }
@@ -433,7 +492,8 @@ class Users extends HiveObject {
     }
   }
 
-  static Future<bool> checkEmailExists(List<Users> listUsers, String email) async {
+  static Future<bool> checkEmailExists(
+      List<Users> listUsers, String email) async {
     try {
       Users user = await listUsers.firstWhere((users) => users.email == email);
       if (user != null) {
@@ -446,7 +506,8 @@ class Users extends HiveObject {
     }
   }
 
-  static void chooseCurvedNavigation(int userRole, String country, BuildContext context){
+  static void chooseCurvedNavigation(
+      int userRole, String country, BuildContext context) {
     // TODO : revoir la page pour un super admin
     if (userRole == 1 || userRole == 4) {
       // Si l'utilisateur est un administrateur
@@ -456,21 +517,22 @@ class Users extends HiveObject {
           builder: (context) => CurvedNavigationAdmin(specified_index: 0),
         ),
       );
-    } else if(userRole == 3) {
-      // Si l'utilisateur est un micro restau
+    } else if (userRole == 3) {
+      // Si l'utilisateur est un restau
       Navigator.pushReplacement(
         context,
         CupertinoPageRoute(
           builder: (context) => CurvedNavigationRestau(specified_index: 0),
         ),
       );
-    } else if(userRole == 2) {
+    } else if (userRole == 2) {
       // Si l'utilisateur est un utilisateur normal
-      if(country == "France"){
+      if (country == "France") {
         Navigator.pushReplacement(
           context,
           CupertinoPageRoute(
-            builder: (context) => CurvedNavigationUserFrance(specified_index: 0),
+            builder: (context) =>
+                CurvedNavigationUserFrance(specified_index: 0),
           ),
         );
       } else {
@@ -483,7 +545,4 @@ class Users extends HiveObject {
       }
     }
   }
-
 }
-
-

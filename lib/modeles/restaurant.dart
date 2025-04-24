@@ -351,11 +351,9 @@ class Restaurant extends HiveObject {
     }
   }
 
-  static Restaurant? getRestaurantByUser(
-      List<Restaurant> listRestaurants, int userID) {
+  static Restaurant? getRestaurantByUser(List<Restaurant> listRestaurants, int userID) {
     try {
-      return listRestaurants
-          .firstWhere((restaurant) => restaurant.userID == userID);
+      return listRestaurants.firstWhere((restaurant) => restaurant.userID == userID);
     } catch (e) {
       return null;
     }

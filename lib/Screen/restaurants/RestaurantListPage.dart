@@ -4,6 +4,7 @@ import 'package:mailer/smtp_server/gmail.dart';
 import '../../modeles/restaurant.dart';
 import '../../modeles/users.dart';
 import '../../utils/toast.dart';
+import 'RestaurantDetails.dart';
 
 class RestaurantListPage extends StatefulWidget {
   final String country;
@@ -187,8 +188,7 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
                       child: ListView.builder(
                         itemCount: filteredRestaurants.length,
                         itemBuilder: (context, index) {
-                          Restaurant restaurant =
-                              filteredRestaurants[index]["restaurant"];
+                          Restaurant restaurant = filteredRestaurants[index]["restaurant"];
                           Users user = filteredRestaurants[index]["user"];
 
                           if (showOnlyWaitingForValidation && restaurant.valid == 1) {
@@ -244,6 +244,13 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
                   ],
                 ],
               ),
+              trailing: Icon(Icons.chevron_right),
+              onTap: () => {
+                Navigator.push(context,
+                    MaterialPageRoute(builder: (context) => RestaurantDetails(restaurant_id: restaurant.restaurantID)
+                    )
+                )
+              },
             ),
             /*ListTile(
               contentPadding: EdgeInsets.zero,

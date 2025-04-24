@@ -1,17 +1,17 @@
 import 'dart:async';
 import 'package:avatar_glow/avatar_glow.dart';
 import 'package:dios_delices/Screen/authentification/Signup.dart';
+import 'package:dios_delices/modeles/address.dart';
 import 'package:dios_delices/modeles/restaurant.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
-import '../Constant/Constant.dart';
 import '../modeles/dish.dart';
+import '../modeles/identity.dart';
 import '../modeles/users.dart';
 
 import '../utils/toast.dart';
-import 'authentification/Login.dart';
 
 class AnimatedSplashScreen extends ConsumerStatefulWidget {
   const AnimatedSplashScreen({Key? key}) : super(key: key);
@@ -80,6 +80,8 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
       await Users.getAllUsersDetails();
       await Restaurant.getAllRestaurantsDetails();
       await Dish.getAllDishesDetails();
+      await Address.getAllAdressesDetails();
+      await Identity.getAllIdentitiesDetails();
 
       setState(() {
         isLoading = false;

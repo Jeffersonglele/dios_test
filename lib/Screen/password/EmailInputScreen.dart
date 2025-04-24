@@ -1,7 +1,6 @@
 import 'package:avatar_glow/avatar_glow.dart';
 import 'package:email_validator/email_validator.dart';
 import 'package:flutter/material.dart';
-
 import '../../Constant/Constant.dart';
 import '../../modeles/users.dart';
 import 'PasswordResetScreen.dart';

@@ -47,11 +47,6 @@ Future<String?> sendVerificationEmail(BuildContext context, String email) async 
     // Envoie du message
     await send(messageSending, smtpServer);
 
-    // Affiche un message de succès
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Code de vérification envoyé à $email")),
-    );
-
     // Retourne le code généré pour validation plus tard
     return verificationCode;
   } on MailerException catch (e) {

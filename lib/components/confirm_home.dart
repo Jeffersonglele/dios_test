@@ -49,7 +49,7 @@ class _ConfirmFormDialogState extends State<ConfirmFormDialog> {
                     padding: const EdgeInsets.all(8),
                     child: Center(
                       child: Text(
-                        "L'enregistrement de votre restaurant sera annulé.",
+                        "L'enregistrement sera annulé.",
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
                     ),

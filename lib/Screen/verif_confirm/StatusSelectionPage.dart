@@ -3,22 +3,26 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart'; // Importer Riverpod
 
-import '../Constant/Constant.dart';
-import '../components/showConfetti.dart';
-import '../modeles/users.dart';
-import '../providers/users_provider.dart';
-import 'AnimatedSplashScreen.dart';
-import 'curved_navigation/CurvedNavigation.dart';
-import 'restaurants/RestaurantFormPage.dart';
+import '../../Constant/Constant.dart';
+import '../../components/showConfetti.dart';
+import '../../modeles/restaurant.dart';
+import '../../modeles/users.dart';
+import '../../providers/users_provider.dart';
+import '../AnimatedSplashScreen.dart';
+import 'StartIdentityVerification.dart';
+import '../curved_navigation/CurvedNavigation.dart';
+import '../restaurants/RestaurantFormPage.dart';
 
 class StatusSelectionPage extends ConsumerWidget {
   final String country;
+  final int objectID;
+  final int user_roleID;
 
-  StatusSelectionPage({required this.country});
+  StatusSelectionPage({required this.country, required this.objectID, required this.user_roleID});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    List<String> statusOptions = ["Particulier", "Micro restaurant"];
+    List<String> statusOptions = ["Particulier", "Restaurateur"];
     var size = MediaQuery.of(context).size;
 
     return Scaffold(
@@ -95,34 +99,35 @@ class StatusSelectionPage extends ConsumerWidget {
                         onPressed: () async {
                           int roleID = status == "Particulier" ? 2 : 3;
 
+                          //créer un restaurant pour l'utilisateur pour des questions de base de données
+
                           // Récupérer l'utilisateur du Provider
                           final user = ref.read(usersProvider);
 
+                          if(roleID == 2){
+                            print("créer le restau du particulier");
+                            String createResult = await Restaurant.manageRestaurant(
+                              userID: user!.userID,
+                              valid: 1,
+                              nb_orders: 0,
+                              note: 0.0,
+                              categories: "",
+                              description: "",
+                              adress: "",
+                              name: ""
+                            );
+                            print("createResult restau " + createResult);
+                          }
+
                           if (user != null) {
                             await Users.updateCountryAndRole(user.userID, country, roleID);
-                            await Users.updateDerniereConnexion(user.userID);
-                            if(status == "Particulier"){
-                              //todo : animation bienvenue sur dios délices
-                              Navigator.push(
-                                context,
-                                CupertinoPageRoute(
-                                  builder: (context) => WelcomeScreen(),
-                                ),
-                              );
+                            Navigator.push(
+                              context,
+                              CupertinoPageRoute(
+                                builder: (context) => StartIdentityVerification(objectID: objectID, user_roleID: roleID,),
+                              ),
+                            );
 
-                              // Rediriger vers la page principale
-                              /*Navigator.push(
-                                context,
-                                CupertinoPageRoute(
-                                  builder: (ctx) => CurvedNavigation(specified_index: 0),
-                                ),
-                              );*/
-                            } else {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (context) => RestaurantFormPage()),
-                              );
-                            }
                           } else {
                             // Gérer le cas où l'utilisateur n'est pas trouvé
                             print("Utilisateur non trouvé.");

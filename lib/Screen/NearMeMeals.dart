@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:dios_delices/Screen/restaurants/RestaurantDetails.dart';
 import 'package:dios_delices/modeles/restaurant.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -39,17 +40,59 @@ class _NearMeMealsState extends State<NearMeMeals> {
 
   Future<Position?> _getUserLocation() async {
     try {
-      return await _determinePosition();
+      // TODO decommenter return await _determinePosition();
+      return Position(
+          latitude: 44.8315, // Latitude pour 17 rue Forestier, 33800 Bordeaux
+          longitude: -0.5716, // Longitude pour 17 rue Forestier, 33800 Bordeaux
+          timestamp: DateTime.now(),
+          accuracy: 0.0,
+          altitude: 0.0,
+          heading: 0.0,
+          speed: 0.0,
+          speedAccuracy: 0.0,
+          altitudeAccuracy: 0.0,
+          headingAccuracy: 0.0);
     } catch (e) {
       print('Erreur de localisation: $e');
       return null;
     }
   }
 
-  Future<Map<String, double>> _getCoordinatesFromAddress(String address) async {
-    // Construisez l'URL pour la requête API
+  Future<String?> getCountryFromCoordinates(Position position) async {
     final url = Uri.parse(
-        'https://maps.googleapis.com/maps/api/geocode/json?address=${Uri.encodeComponent(address)}&key=$googleApiKey');
+      'https://maps.googleapis.com/maps/api/geocode/json?latlng=${position.latitude},${position.longitude}&key=$googleApiKey',
+    );
+
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+
+        if (data['status'] == 'OK' && data['results'].isNotEmpty) {
+          // Parcourir les résultats pour trouver le pays
+          for (var component in data['results'][0]['address_components']) {
+            if (component['types'].contains('country')) {
+              return component['long_name']; // Nom complet du pays
+            }
+          }
+        }
+      } else {
+        print("Erreur API: ${response.statusCode} - ${response.body}");
+      }
+    } catch (e) {
+      print("Erreur lors de la récupération du pays : $e");
+    }
+
+    return null; // Retourne null si le pays n'a pas pu être récupéré
+  }
+
+  Future<Map<String, double>> _getCoordinatesFromAddress(String address, String postalCode) async {
+    // Combinez l'adresse et le code postal
+    final fullAddress = "$address, $postalCode";
+
+    // Construisez l'URL avec l'adresse complète
+    final url = Uri.parse(
+        'https://maps.googleapis.com/maps/api/geocode/json?address=${Uri.encodeComponent(fullAddress)}&key=$googleApiKey');
 
     print("Requête envoyée à l'API Google: $url");
 
@@ -68,7 +111,7 @@ class _NearMeMealsState extends State<NearMeMeals> {
             'longitude': location['lng'],
           };
         } else {
-          print("Adresse introuvable ou réponse vide: $address");
+          print("Adresse introuvable ou réponse vide: $fullAddress");
         }
       } else {
         print("Erreur API: ${response.statusCode} - ${response.body}");
@@ -93,25 +136,43 @@ class _NearMeMealsState extends State<NearMeMeals> {
 
     for (var restaurant in restaurantsList) {
       final adress = "${restaurant.adress}, ${country}";
-      final coordinates = await _getCoordinatesFromAddress(adress);
+      final postalCode = "33800"; //todo enlever cette ligne
+      //final postalCode = restaurant.postalCode; // Supposons que le modèle Restaurant inclut un code postal
 
-      final distance = Geolocator.distanceBetween(
-        userPosition.latitude,
-        userPosition.longitude,
-        coordinates['latitude']!,
-        coordinates['longitude']!,
-      );
+      print("userPosition.latitude " + userPosition.latitude.toString());
+      print("userPosition.longitude " + userPosition.longitude.toString());
+      String? userCountry = await getCountryFromCoordinates(userPosition);
+      print("Pays de l'utilisateur : $userCountry");
 
-      if (distance <= 3000) { // Filtrer les restaurants dans un rayon de 3 km
-        filteredRestaurants.add({
-          'name': restaurant.name,
-          //'meal_name': restaurant.meal_name,
-          //'price': restaurant.price,
-          //'currency': restaurant.currency,
-          'image': restaurant.image,
-          'distance': distance,
-        });
+      try {
+        final coordinates = await _getCoordinatesFromAddress(adress, postalCode);
+        final distance = Geolocator.distanceBetween(
+          userPosition.latitude,
+          userPosition.longitude,
+          coordinates['latitude']!,
+          coordinates['longitude']!,
+        );
+
+        print("distance " + distance.toString());
+
+        if (distance <= 3000) {
+          filteredRestaurants.add({
+            'restaurantID': restaurant.restaurantID ,
+            'image': restaurant.image ?? 'assets/images/default.png', // Image par défaut
+            'name': restaurant.name ?? 'Nom indisponible',       // Nom par défaut
+            //'currency': restaurant.currency ?? '€',                  // Devise par défaut
+            'distance': distance,
+          });
+          filteredRestaurants.add({
+            'name': restaurant.name ?? 'Nom indisponible',       // Nom par défaut
+            //'currency': restaurant.currency ?? '€',                  // Devise par défaut
+            'distance': distance,
+          });
+        }
+      } catch (e) {
+        print("Erreur lors du calcul de la distance : $e");
       }
+
     }
 
     setState(() {
@@ -122,34 +183,56 @@ class _NearMeMealsState extends State<NearMeMeals> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(),
-      body: ListView.builder(
+      appBar: AppBar(
+        title: Text('Restaurants à proximité'),
+      ),
+      body: _nearbyRestaurants.isEmpty
+          ? Center(
+        child: Text(
+          'Aucun restaurant à proximité trouvé.',
+          style: TextStyle(fontSize: 16, color: Colors.grey),
+        ),
+      ) // Message si aucun restaurant
+          : ListView.builder(
         itemCount: _nearbyRestaurants.length,
         itemBuilder: (context, index) {
           final restaurant = _nearbyRestaurants[index];
           return Card(
             child: Column(
               children: [
-                Image.asset(
-                  restaurant["image"],
-                  height: 200,
-                  width: 300,
-                  fit: BoxFit.fitWidth,
-                ),
+                buildImage(restaurant["image"]),
                 ListTile(
-                  title: Text(restaurant["meal_name"]),
+                  title: Text(
+                    restaurant["name"] ?? "Nom indisponible",
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 25),
+                  ),
                   subtitle: Text(
-                    "${restaurant["price"]} ${restaurant["currency"]} - ${restaurant["distance"].toStringAsFixed(2)} m",
+                    "Situé à ${(restaurant["distance"] ?? 0.0).toStringAsFixed(2)} m",
                     style: TextStyle(color: Colors.red.withOpacity(0.6)),
                   ),
+                  trailing: Icon(Icons.chevron_right), // Chevron droit
+                  onTap: () {
+                    print("restaurant " + restaurant.toString());
+                    print("restaurant.restaurantID " + restaurant["restaurantID"].toString()); // Utilisation de ["restaurantID"]
+
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => RestaurantDetails(
+                          restaurant_id: restaurant["restaurantID"],
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
           );
         },
-      ),
+      ), // Liste des restaurants si disponible
     );
   }
+
 }
 
 // Fonction pour obtenir la position actuelle avec gestion des permissions
@@ -175,4 +258,33 @@ Future<Position?> _determinePosition() async {
   }
 
   return await Geolocator.getCurrentPosition();
+}
+
+
+Widget buildImage(String? imageUrl) {
+  // Vérifie si le lien est une URL valide
+  if (imageUrl != null && Uri.tryParse(imageUrl)?.hasAbsolutePath == true) {
+    return Image.network(
+      imageUrl,
+      height: 200,
+      width: 300,
+      fit: BoxFit.fitWidth,
+      errorBuilder: (context, error, stackTrace) {
+        return Image.asset(
+          'assets/images/no_image.png', // Image par défaut si le chargement échoue
+          height: 200,
+          width: 300,
+          fit: BoxFit.fitWidth,
+        );
+      },
+    );
+  } else {
+    // Si ce n'est pas une URL valide, utilisez une image locale
+    return Image.asset(
+      'assets/images/no_image.png',
+      height: 200,
+      width: 300,
+      fit: BoxFit.fitWidth,
+    );
+  }
 }

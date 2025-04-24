@@ -1,5 +1,8 @@
 import 'package:hive/hive.dart';
+import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
+import '../modeles/address.dart';
 import '../modeles/dish.dart';
+import '../modeles/identity.dart';
 import '../modeles/restaurant.dart';
 import '../modeles/users.dart';
 
@@ -18,6 +21,32 @@ class DatabaseHelper {
       user.last_login =
           last_login; // Mettre à jour la date de dernière connexion
       await usersBox.put(userID, user); // Sauvegarder l'utilisateur mis à jour
+      return user; // Retourner l'utilisateur mis à jour
+    }
+
+    return null;
+  }
+
+  static Future<Users?> updateUserStatus(int userID, String status) async {
+    final Box<Users> usersBox = await Hive.openBox<Users>('users');
+    final Users? user = usersBox.get(userID);
+
+    if (user != null) {
+      user.status = status;
+      await usersBox.put(userID, user);
+      return user; // Retourner l'utilisateur mis à jour
+    }
+
+    return null;
+  }
+
+  static Future<Users?> updateUserIdentity(int userID, String identity) async {
+    final Box<Users> usersBox = await Hive.openBox<Users>('users');
+    final Users? user = usersBox.get(userID);
+
+    if (user != null) {
+      user.identity = identity;
+      await usersBox.put(userID, user);
       return user; // Retourner l'utilisateur mis à jour
     }
 
@@ -91,7 +120,8 @@ class DatabaseHelper {
         await Hive.openBox<Restaurant>('restaurant');
     List<Restaurant> restaurantList = restaurantBox.values.toList();
     restaurantList.sort((a, b) => a.name.compareTo(b.name));
-    return restaurantList;
+
+    return restaurantList.isNotEmpty ? restaurantList : [];
   }
 
   static Future<int> deleteRestaurant(int restaurantID) async {
@@ -154,6 +184,113 @@ class DatabaseHelper {
     final Box<Dish> dishBox = await Hive.openBox<Dish>('dish');
     await dishBox.delete(dishID);
     return 1;
+  }
+
+  static Future<List<Address>> readAllAddresses() async {
+    final Box<Address> addressBox = await Hive.openBox<Address>('address');
+    List<Address> addressList = addressBox.values.toList();
+    return addressList;
+  }
+
+  static Future<Address> createAddress(Address address) async {
+    var addressBox = await Hive.openBox<Address>('address');
+    await addressBox.put(address.addressID, address);
+    return address;
+  }
+
+  static Future<void> addAddress(Address address) async {
+    print("function addAddress");
+    var addressBox = await Hive.openBox<Address>('address');
+
+    if (address.objectID != null) {
+      await addressBox.put(address.objectID, address);
+    } else {
+      // Enregistre sans clé spécifique (Hive assigne un ID auto)
+      await addressBox.add(address);
+    }
+  }
+
+  /// 🔹 **Supprimer une Adresse dans Hive**
+  static Future<void> deleteAddress(int addressID) async {
+    var addressBox = await Hive.openBox<Address>('address');
+    await addressBox.delete(addressID);
+  }
+
+  /// 🔹 **Enregistrer toutes les adresses récupérées depuis Back4App**
+  static Future<void> saveAllAddresses(List<Address> addresses) async {
+    var addressBox = await Hive.openBox<Address>('address');
+    await addressBox.clear(); // Supprime les anciennes données
+    for (var address in addresses) {
+      await addressBox.put(address.objectID, address);
+    }
+  }
+
+  /// 🔹 **Récupérer toutes les adresses depuis Hive**
+  static Future<List<Address>> getAllAddresses() async {
+    var addressBox = await Hive.openBox<Address>('address');
+    return addressBox.values.toList();
+  }
+
+  static Future<List<Identity>> readAllIdentities() async {
+    final Box<Identity> identitiesBox = await Hive.openBox<Identity>('identity');
+    List<Identity> identitiesList = identitiesBox.values.toList();
+    return identitiesList;
+  }
+
+  static Future<void> createIdentity(Identity identity) async {
+    final box = await Hive.openBox<Identity>('identity');
+    await box.put(identity.identityID, identity);
+  }
+
+
+  static Future<Identity?> updateIdentity(Identity identity) async {
+    final Box<Identity> identityBox = await Hive.openBox<Identity>('identity');
+    final Identity? identity_db = identityBox.get(identity.identityID);
+
+    if (identity_db != null) {
+      identity_db.photo = identity.photo;
+      identity_db.piece_identite = identity.piece_identite;
+      await identityBox.put(identity.identityID, identity_db);
+      return identity_db;
+    }
+
+    return null;
+  }
+
+  // ajouter une identité
+  static Future<void> addIdentity(Identity identity) async {
+    print("function addIdentity");
+    var identityBox = await Hive.openBox<Identity>('identity');
+
+    if (identity.identityID != null) {
+      print("identity.identityID != null");
+      await identityBox.put(identity.identityID, identity);
+    } else {
+      print("else identity.identityID != null");
+    // Enregistre sans clé spécifique (Hive assigne un ID auto)
+      await identityBox.add(identity);
+    }
+  }
+
+  /// 🔹 **Supprimer une Adresse dans Hive**
+  static Future<void> deleteIdentity(int identityID) async {
+    var identityBox = await Hive.openBox<Identity>('identity');
+    await identityBox.delete(identityID);
+  }
+
+  /// 🔹 **Enregistrer toutes les adresses récupérées depuis Back4App**
+  static Future<void> saveAllIdentities(List<Identity> identities) async {
+    var identityBox = await Hive.openBox<Identity>('identity');
+    await identityBox.clear(); // Supprime les anciennes données
+    for (var identity in identities) {
+      await identityBox.put(identity.identityID, identity);
+    }
+  }
+
+  /// 🔹 **Récupérer toutes les identités depuis Hive**
+  static Future<List<Identity>> getAllIdentities() async {
+    var identityBox = await Hive.openBox<Identity>('identity');
+    return identityBox.values.toList();
   }
 
   Future closeHiveBox() async {

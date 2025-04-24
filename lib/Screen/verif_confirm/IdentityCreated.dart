@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../AnimatedSplashScreen.dart';
 
-class ConfirmationPage extends StatelessWidget {
+class IdentityCreated extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -29,7 +29,7 @@ class ConfirmationPage extends StatelessWidget {
             ),
             SizedBox(height: 20),
             Text(
-              "Vous serez contacté si votre idée de restaurant est acceptée.",
+              "Vous recevrez un mail lorsque nos administrateurs auront examiné vos informations.",
               style: TextStyle(fontSize: 16),
               textAlign: TextAlign.center,
             ),

@@ -20,7 +20,7 @@ class DishFormPage extends ConsumerStatefulWidget {
 }
 
 class _DishFormPageState extends ConsumerState<DishFormPage> {
-  String? country = "";
+  String country = "";
   int currentUser_restau = 0;
 
   final _formKey = GlobalKey<FormState>();
@@ -102,8 +102,9 @@ class _DishFormPageState extends ConsumerState<DishFormPage> {
 
   Future<void> _initializeData() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    country = prefs.getString('currentUser_country');
+    country = prefs.getString('currentUser_country')!;
     currentUser_restau = prefs.getInt('currentUser_restau')!;
+    print("country " + country);
   }
 
   @override

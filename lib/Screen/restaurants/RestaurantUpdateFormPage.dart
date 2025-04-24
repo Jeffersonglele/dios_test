@@ -96,7 +96,7 @@ class _RestaurantUpdateFormPageState
     final message = Message()
       ..from = Address('blandinedupont087@gmail.com', 'Dios Délices')
       ..recipients.add('blandinedupont087@gmail.com') // Envoyer à l'admin
-      ..subject = 'Nouvelle demande de Micro Restaurant'
+      ..subject = 'Nouvelle demande de Restaurant'
       ..text = 'Nom du restaurant: $name\nAdresse: $address\nTéléphone: $phone';
 
     try {

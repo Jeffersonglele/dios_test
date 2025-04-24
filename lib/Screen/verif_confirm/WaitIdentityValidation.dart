@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../AnimatedSplashScreen.dart';
 
-class ConfirmationPage extends StatelessWidget {
+class WaitIdentityValidation extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -23,13 +23,13 @@ class ConfirmationPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Text(
-              "Votre demande a bien été prise en compte.",
+              "Votre identité n'a pas encore été validée.",
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
             SizedBox(height: 20),
             Text(
-              "Vous serez contacté si votre idée de restaurant est acceptée.",
+              "Vous recevrez un mail lorsque nos administrateurs auront examiné vos informations.",
               style: TextStyle(fontSize: 16),
               textAlign: TextAlign.center,
             ),
