@@ -16,6 +16,9 @@ import 'modeles/restaurant.dart';
 import 'modeles/dish.dart';
 import 'modeles/address.dart';
 import 'modeles/users.dart';
+import 'modeles/moyen_paiement.dart';
+import 'modeles/commande.dart';
+import 'modeles/ligne_commande.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:get/get.dart';
@@ -57,6 +60,9 @@ void main() async {
   Hive.registerAdapter(DishAdapter());
   Hive.registerAdapter(AddressAdapter());
   Hive.registerAdapter(IdentityAdapter());
+  Hive.registerAdapter(CommandeAdapter());
+  Hive.registerAdapter(MoyenPaiementAdapter());
+  Hive.registerAdapter(LigneCommandeAdapter());
 
   Stripe.publishableKey =
       'pk_test_51Qj31pENxCrc0ZmbmKeHf4HU8kI0ha1ee9hj7VGkgd16U5nmM7mJ3k4SyLGV4cwAhfCsvqgdgGffMLVsQRDXKbzA00D2w1iGG0';

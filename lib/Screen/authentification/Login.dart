@@ -190,7 +190,13 @@ class _LoginState extends ConsumerState<Login> {
                   // on vérifie que le resto est enregistré et validé
                   _handleRestaurantValidation(user, prefs);
                 } else {
-                  // il peut se connecter
+                  // il peut se connecter ; tous les users qui ne sont pas des admins ont un restau
+                  if(user.roleID == 2) {
+                    Restaurant? restau = await Restaurant.getRestaurantByUser(restaus, user.userID);
+                    await prefs.setInt('currentUser_restau', restau!.restaurantID);
+                    print("abcd " + user.userID.toString());
+                    print("currentUser_restau connexion " + restau.restaurantID.toString());
+                  }
                   print("resto enregistré et connexion");
                   firstLogin(user);
                 }

@@ -25,7 +25,7 @@ TextStyle kLoginSubtitleStyle4(Size size) => GoogleFonts.ubuntu(
     fontSize: size.height * 0.020, fontWeight: FontWeight.bold);
 
 TextStyle kLoginSubtitleStyle5(Size size) =>
-    GoogleFonts.ubuntu(fontSize: 21);
+    GoogleFonts.ubuntu(fontSize: 18);
 
 TextStyle kLoginTermsAndPrivacyStyle(Size size) =>
     GoogleFonts.ubuntu(fontSize: 15, color: Colors.grey, height: 1.5);

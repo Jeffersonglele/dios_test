@@ -1,9 +1,6 @@
-import 'dart:convert';
-
-import 'package:dios_delices/Screen/ExploreMeals.dart';
 import 'package:dios_delices/Screen/FoodCategories.dart';
-import 'package:dios_delices/Screen/DishDetails.dart';
 import 'package:dios_delices/Screen/NearMeMeals.dart';
+import 'package:dios_delices/Screen/restaurants/NearMeRestaurants.dart';
 import 'package:dios_delices/Screen/restaurants/RestaurantDetails.dart';
 import 'package:dios_delices/SearchInput.dart';
 import 'package:dios_delices/modeles/address.dart';
@@ -12,7 +9,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../Constant/Constant.dart';
 import '../Controller/UiController.dart';
@@ -66,27 +62,30 @@ class _HomeUserState extends State<HomeUser> {
   }
 
   Future<void> _filterRestaurants() async {
-    // 📍 Adresse de l'utilisateur connecté (objectID = current_userID, type utilisateur)
-    for(var a in addresses){
-      if(a.objectID == current_userID){
+    print("_filterRestaurants");
+    for (var a in addresses) {
+      if (a.objectID == current_userID) {
         Address userAddress = a;
 
         const double maxDistanceKm = 10.0;
         List<Restaurant> nearbyRestaurants = [];
 
         for (var restau in restaus) {
-          // ✅ Exclure restaus de l'utilisateur ou sans utilisateur associé
-          if (restau.userID == 0 || restau.userID == current_userID) continue;
+          print("restau " + restau.restaurantID.toString());
+          // 🔥 1. Récupérer l'utilisateur du restaurant
+          Users? associatedUser = Users.getUsersByUserId(users, restau.userID);
 
-          print("restau.userID " + restau.userID.toString());
-          // 📍 Adresse du restaurant (objectID = restau.userID, type = 1 pour restau)
+          // 🔥 2. Vérifier si c'est le restau de l'user
+          if (associatedUser == null || restau.userID == current_userID) {
+            continue; // ❌ Exclure ce restaurant
+          }
+
+          // 🔥 3. Chercher l'adresse du restaurant
           Address? restauAddress = Address.getAddressByObject(addresses, "User", restau.userID);
-          print("restauAddress " + restauAddress.toString());
 
           if (restauAddress == null) continue;
 
           try {
-            // 🧭 Conversion lat/lon
             double userLat = double.parse(userAddress.lat ?? "");
             double userLon = double.parse(userAddress.long ?? "");
             double restauLat = double.parse(restauAddress.lat ?? "");
@@ -189,13 +188,14 @@ class _HomeUserState extends State<HomeUser> {
         _buildSectionTitle(size, 'Restaurants près de chez vous', actionText: "Voir plus",
             onTap: () {
           Navigator.push(
-              context, CupertinoPageRoute(builder: (ctx) => NearMeMeals()));
+              context, CupertinoPageRoute(builder: (ctx) => NearMeRestaurants()));
         }),
         SizedBox(height: size.height * 0.03),
         _buildMealsGrid(size),
         SizedBox(height: size.height * 0.05),
         _buildSectionTitle(size, 'Plats près de chez vous', actionText: "Voir plus",
             onTap: () {
+              print("NearMeMeals");
               Navigator.push(
                   context, CupertinoPageRoute(builder: (ctx) => NearMeMeals()));
             }),
@@ -288,10 +288,20 @@ class _HomeUserState extends State<HomeUser> {
                           borderRadius: BorderRadius.circular(12),
                           // ⬅️ ajuste ici le degré d'arrondi
                           child: Image.network(
-                            restaus[index].image,
+                            (restaus[index].image != null && restaus[index].image!.trim().isNotEmpty)
+                                ? restaus[index].image!
+                                : "https://parsefiles.back4app.com/9qBeGGwSGOQ1iWOJ1UNUXt40NhgwwgbHJYGpV1zg/4f636282d677d999cd624580cdec2ff7_no_image.png",
                             height: 150,
                             width: 170,
                             fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Image.asset(
+                                'assets/images/no_image.png',
+                                height: 150,
+                                width: 170,
+                                fit: BoxFit.cover,
+                              );
+                            },
                           ),
                         ),
                         ListTile(

@@ -331,30 +331,38 @@ class _UserDetailsState extends ConsumerState<UserDetails> {
                             contentPadding: EdgeInsets.zero,
                             leading: ClipRRect(
                               borderRadius: BorderRadius.circular(8.0),
-                              child: Image.network(
-                                current_user_restaurant?.image ?? "https://parsefiles.back4app.com/9qBeGGwSGOQ1iWOJ1UNUXt40NhgwwgbHJYGpV1zg/4f636282d677d999cd624580cdec2ff7_no_image.png",
-                                fit: BoxFit.cover,
-                                width: 80,
-                                height: 80,
+                              child: SizedBox(
+                                width: 60,
+                                height: 60,
+                                child: Image.network(
+                                  current_user_restaurant?.image ??
+                                      "https://parsefiles.back4app.com/9qBeGGwSGOQ1iWOJ1UNUXt40NhgwwgbHJYGpV1zg/4f636282d677d999cd624580cdec2ff7_no_image.png",
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Image.asset('assets/images/no_image.png', fit: BoxFit.cover);
+                                  },
+                                ),
                               ),
                             ),
                             title: Text(
-                              current_user_restaurant!.name,
+                              current_user_restaurant?.name ?? "Nom non défini",
                               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                              overflow: TextOverflow.ellipsis, // Empêche le débordement du nom
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-
-                              ],
+                            subtitle: Text(
+                              current_user_restaurant?.categories ?? "",
+                              overflow: TextOverflow.ellipsis,
                             ),
                             trailing: Icon(Icons.chevron_right),
-                            onTap: () => {
-                              Navigator.push(context,
-                                  MaterialPageRoute(builder: (context) => RestaurantDetails(restaurant_id: current_user_restaurant!.restaurantID,)
-                                  )
-                              )
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => RestaurantDetails(
+                                    restaurant_id: current_user_restaurant!.restaurantID,
+                                  ),
+                                ),
+                              );
                             },
                           ),
 

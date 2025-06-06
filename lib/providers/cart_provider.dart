@@ -9,28 +9,29 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
 
   double total = 0.0;
 
-  Future<void> addToCart(String name, double price, String image, int quantity, int maxServings, String country, int user_id, int restau_id) async {
+  Future<void> addToCart(
+      String name,
+      double price,
+      String image,
+      int quantity,
+      int maxServings,
+      String country,
+      int user_id,
+      int restau_id, {
+        Map<int, String>? selectedChoices,
+        double optionPrice = 0.0,
+      }) async {
     final existingIndex = state.indexWhere((item) => item['meal']['meal_name'] == name);
 
-    // Récupérer les utilisateurs et les restaurants depuis la base de données
-    List<Users> usersList = await Users.fetchUsersFromDB(); // À implémenter pour récupérer les utilisateurs
-    List<Restaurant> restaurantsList = await Restaurant.fetchRestaurantsFromDB(); // À implémenter pour récupérer les restaurants
+    List<Users> usersList = await Users.fetchUsersFromDB();
+    List<Restaurant> restaurantsList = await Restaurant.fetchRestaurantsFromDB();
 
-    // Récupérer l'utilisateur actuel
     Users? currentUser = Users.getUsersByUserId(usersList, user_id);
-    print("currentUser " + currentUser!.email);
-    if (currentUser == null) {
-      //Toast(context, "Utilisateur non trouvé", false);
-      return;
-    }
-
-    // Récupérer le restaurant
     Restaurant? restaurant = Restaurant.getRestaurantByRestaurantId(restaurantsList, restau_id);
-    print("restaurant " + restaurant!.name);
-    if (restaurant == null) {
-      // Toast(context, "Restaurant non trouvé", false);
-      return;
-    }
+
+    if (currentUser == null || restaurant == null) return;
+
+    double finalPrice = price;
 
     if (existingIndex != -1) {
       state[existingIndex]['order']['quantity'] += quantity;
@@ -43,14 +44,28 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
         {
           "meal": {
             "meal_name": name,
-            "price": price,
+            "price": finalPrice,
             "image": image,
             "number_of_servings": maxServings,
-            "country": country
+            "country": country,
+            "options": selectedChoices ?? {},
           },
           "order": {
             "quantity": quantity,
           },
+          "optionPrice": optionPrice,
+          "optionDetails": selectedChoices != null
+              ? selectedChoices.map((index, value) {
+                print("selectedChoices " + selectedChoices.toString());
+            final match = RegExp(r'^(.*?)\s*\(([\d.,]+)\)$').firstMatch(value);
+            final name = match?.group(1)?.trim() ?? value;
+            final priceStr = match?.group(2)?.replaceAll(',', '.');
+            return MapEntry(index, {
+              'name': name,
+              'price': priceStr != null ? double.tryParse(priceStr) ?? 0.0 : 0.0
+            });
+          })
+              : {},
           "user": {
             "email": currentUser.email ?? "email inconnu",
             "firstname": currentUser.firstname ?? "Prénom inconnu",
@@ -61,7 +76,8 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
         },
       ];
     }
-    total += price * quantity;
+
+    total += finalPrice * quantity;
   }
 
   void removeFromCart(int index) {
@@ -79,15 +95,17 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
     final oldQuantity = item['order']['quantity'];
     final price = item['meal']['price'];
 
-    // Update the item's quantity
+    final quantityDiff = newQuantity - oldQuantity;
+
+    // On ne touche pas à optionPrice ici !
+    total += price * quantityDiff;
+
     state[index]['order']['quantity'] = newQuantity;
 
-    // Recalculate the total
-    total += price * (newQuantity - oldQuantity);
-
-    // Notify listeners
-    state = List.from(state); // Create a new list to trigger the UI update
+    // Déclencher la mise à jour de l’UI
+    state = List.from(state);
   }
+
 
 }
 

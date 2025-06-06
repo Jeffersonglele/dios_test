@@ -256,9 +256,9 @@ class _RestaurantUpdateFormPageState
                                 height: 60,
                                 fit: BoxFit.cover,
                               )
-                            : widget.restaurant.image.isNotEmpty
+                            : widget.restaurant.image!.isNotEmpty
                                 ? Image.network(
-                                    widget.restaurant.image,
+                                    widget.restaurant.image ?? "https://parsefiles.back4app.com/9qBeGGwSGOQ1iWOJ1UNUXt40NhgwwgbHJYGpV1zg/4f636282d677d999cd624580cdec2ff7_no_image.png",
                                     width: 100,
                                     height: 60,
                                     fit: BoxFit.cover,

@@ -41,6 +41,8 @@ class _UserIdentityRejectedState extends ConsumerState<UserIdentityRejected> {
   File? _userPhoto;
   File? _identityFile;
 
+  bool isLoading = true;
+
   // 📸 Prendre une photo de l'utilisateur avec la caméra
   Future<void> _takePhoto() async {
     final ImagePicker picker = ImagePicker();
@@ -246,7 +248,9 @@ class _UserIdentityRejectedState extends ConsumerState<UserIdentityRejected> {
                 SizedBox(height: 40),
 
                 // 🔘 Valider
-                Center(
+                isLoading
+                    ? Center(child: CircularProgressIndicator())
+                    : Center(
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.red,
@@ -306,7 +310,10 @@ class _UserIdentityRejectedState extends ConsumerState<UserIdentityRejected> {
                               widget.objectID, "En attente");
                           if (updateIdentity == "success") {
                             // si c'est un resto on va l'enregistrer d'abord
-                            if (widget.user_roleID == 3) {
+                            setState(() {
+                              isLoading = false;
+                            });
+                            /*if (widget.user_roleID == 3) {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -319,7 +326,7 @@ class _UserIdentityRejectedState extends ConsumerState<UserIdentityRejected> {
                                   builder: (context) => IdentityCreated(),
                                 ),
                               );
-                            }
+                            }*/
                           }
                         } else {
                           setState(() {
@@ -333,7 +340,7 @@ class _UserIdentityRejectedState extends ConsumerState<UserIdentityRejected> {
                         }
                       }
                     },
-                    child: Text("Valider"),
+                    child: Text("VALIDER"),
                   ),
                 ),
 

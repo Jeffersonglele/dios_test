@@ -219,7 +219,7 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
               leading: ClipRRect(
                 borderRadius: BorderRadius.circular(8.0),
                 child: Image.network(
-                  restaurant.image,
+                  restaurant.image ?? "https://parsefiles.back4app.com/9qBeGGwSGOQ1iWOJ1UNUXt40NhgwwgbHJYGpV1zg/4f636282d677d999cd624580cdec2ff7_no_image.png",
                   fit: BoxFit.cover,
                   width: 80,
                   height: 80,

@@ -28,7 +28,7 @@ class Restaurant extends HiveObject {
   final double note;
 
   @HiveField(7)
-  final String image;
+  final String? image;
 
   @HiveField(8)
   DateTime? date_creation;
@@ -128,11 +128,14 @@ class Restaurant extends HiveObject {
     required String adress,
     required String name,
     DateTime? date_creation,
-    ParseFile? image, // ParseFile passed from above
+    ParseFile? image,
+    String? img_url,
   }) async {
     // Determine cloud function name based on operation
     String functionName = restaurantID == null ? 'add1Restaurant' : 'update1Restaurant';
     var cloudFunction = ParseCloudFunction(functionName);
+
+    print("functionName " + functionName);
 
     String imageUrl = "";
 
@@ -206,13 +209,14 @@ class Restaurant extends HiveObject {
             description: description,
             adress: adress,
             name: name,
-            image: imageUrl, date_creation: date_creation,
+            image: image == null ? img_url : imageUrl,
+            date_creation: date_creation,
           );
 
           if (restaurantID == null) {
             await DatabaseHelper.createRestaurant(restaurant);
           } else {
-            //await DatabaseHelper.updateRestaurant(restaurantID, mot_de_passe_crypte, derniere_connexion);
+            await DatabaseHelper.updateRestaurant(restaurant);
           }
           return "success";
         }
@@ -244,7 +248,7 @@ class Restaurant extends HiveObject {
         if (response['success'] == false) {
           return "Erreur : ${response['error']}";
         } else {
-          await DatabaseHelper.updateRestauranStatus(restaurantID, status);
+          await DatabaseHelper.updateRestaurantStatus(restaurantID, status);
 
           return "success";
         }

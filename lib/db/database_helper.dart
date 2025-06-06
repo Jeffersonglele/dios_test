@@ -1,8 +1,11 @@
 import 'package:hive/hive.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import '../modeles/address.dart';
+import '../modeles/commande.dart';
 import '../modeles/dish.dart';
 import '../modeles/identity.dart';
+import '../modeles/ligne_commande.dart';
+import '../modeles/moyen_paiement.dart';
 import '../modeles/restaurant.dart';
 import '../modeles/users.dart';
 
@@ -100,7 +103,19 @@ class DatabaseHelper {
     return restaurant;
   }
 
-  static Future<Restaurant?> updateRestauranStatus(
+  static Future<Restaurant> updateRestaurant(Restaurant restaurant) async {
+    final restaurantBox = await Hive.openBox<Restaurant>('restaurant');
+
+    // Vérifie si l'ID existe déjà
+    if (restaurantBox.containsKey(restaurant.restaurantID)) {
+      await restaurantBox.put(restaurant.restaurantID, restaurant);
+      return restaurant;
+    } else {
+      throw Exception("Le restaurant avec l'ID ${restaurant.restaurantID} n'existe pas.");
+    }
+  }
+
+  static Future<Restaurant?> updateRestaurantStatus(
       int restaurantID, int valid) async {
     final Box<Restaurant> restaurantBox =
         await Hive.openBox<Restaurant>('restaurant');
@@ -146,6 +161,9 @@ class DatabaseHelper {
       dish_db.image = dish.image;
       dish_db.price = dish.price;
       dish_db.description = dish.description;
+      dish_db.option1 = dish.option1;
+      dish_db.option2 = dish.option2;
+      dish_db.option3 = dish.option3;
       dish_db.categories = dish.categories;
       dish_db.nb_servings = dish.nb_servings;
       dish_db.status = dish.status;
@@ -292,6 +310,56 @@ class DatabaseHelper {
     var identityBox = await Hive.openBox<Identity>('identity');
     return identityBox.values.toList();
   }
+
+  static Future<MoyenPaiement> createMoyenPaiement(MoyenPaiement moyen) async {
+    final box = await Hive.openBox<MoyenPaiement>('moyen_paiement');
+    await box.put(moyen.idMoyen, moyen);
+    return moyen;
+  }
+
+  static Future<List<MoyenPaiement>> readAllMoyensPaiement() async {
+    final box = await Hive.openBox<MoyenPaiement>('moyen_paiement');
+    return box.values.toList();
+  }
+
+  static Future<void> deleteMoyenPaiement(int idMoyen) async {
+    final box = await Hive.openBox<MoyenPaiement>('moyen_paiement');
+    await box.delete(idMoyen);
+  }
+
+  static Future<Commande> createCommande(Commande commande) async {
+    final box = await Hive.openBox<Commande>('commande');
+    await box.put(commande.commandeID, commande);
+    return commande;
+  }
+
+  static Future<List<Commande>> readAllCommandes() async {
+    final box = await Hive.openBox<Commande>('commande');
+    return box.values.toList();
+  }
+
+  static Future<void> deleteCommande(int commandeID) async {
+    final box = await Hive.openBox<Commande>('commande');
+    await box.delete(commandeID);
+  }
+
+  static Future<LigneCommande> createLigneCommande(LigneCommande ligne) async {
+    final box = await Hive.openBox<LigneCommande>('ligne_commande');
+    await box.put(ligne.ligneID, ligne);
+    return ligne;
+  }
+
+
+  static Future<List<LigneCommande>> readLignesCommande(int commandeID) async {
+    final box = await Hive.openBox<LigneCommande>('ligne_commande');
+    return box.values.where((ligne) => ligne.commandeID == commandeID).toList();
+  }
+
+  static Future<void> deleteLigneCommande(int ligneID) async {
+    final box = await Hive.openBox<LigneCommande>('ligne_commande');
+    await box.delete(ligneID);
+  }
+
 
   Future closeHiveBox() async {
     await Hive

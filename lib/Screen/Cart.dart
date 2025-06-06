@@ -80,20 +80,41 @@ class Cart extends ConsumerWidget {
                                 height: 50,
                               ),
                               title: Text(item["meal"]["meal_name"]),
-                              subtitle: Row(
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    "${item["meal"]["price"].toString()} ${item["meal"]["country"] == 'France' ? '€' : 'FCFA'}",
+                                    "${item["meal"]["price"].toStringAsFixed(2)} ${item["meal"]["country"] == 'France' ? '€' : 'FCFA'}",
                                   ),
-                                  Spacer(),
-                                  CountStepper(
-                                    iconColor: Colors.black,
-                                    defaultValue: item["order"]["quantity"],
-                                    max: item["meal"]["number_of_servings"],
-                                    min: 1,
-                                    onPressed: (value) {
-                                      cartNotifier.updateQuantity(index, value);
-                                    },
+                                  if (item["meal"]["options"] != null && item["meal"]["options"] is Map)
+                                    ...item["meal"]["options"].entries.map<Widget>((entry) {
+                                      final rawValue = entry.value.toString(); // <- très important
+                                      print("Cart option rawValue: $rawValue");
+
+                                      final match = RegExp(r'^(.*?)\s*\(([\d.,]+)\s*(€|FCFA)?\)$').firstMatch(rawValue);
+
+                                      final name = match?.group(1)?.trim() ?? rawValue;
+                                      final price = match?.group(2);
+                                      final devise = match?.group(3) ?? (item["meal"]["country"] == 'France' ? '€' : 'FCFA');
+
+                                      return Text(
+                                        "Option ${int.tryParse(entry.key.toString()) != null ? int.parse(entry.key.toString()) + 1 : entry.key} : $name"
+                                            "${price != null ? ' +$price $devise' : ''}",
+                                        style: TextStyle(fontSize: 13, fontStyle: FontStyle.italic),
+                                      );
+                                    }).toList(),
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: CountStepper(
+                                      iconColor: Colors.black,
+                                      defaultValue: item["order"]["quantity"],
+                                      max: item["meal"]["number_of_servings"],
+                                      min: 1,
+                                      onPressed: (value) {
+                                        cartNotifier.updateQuantity(
+                                            index, value);
+                                      },
+                                    ),
                                   ),
                                 ],
                               ),
@@ -142,18 +163,15 @@ class Cart extends ConsumerWidget {
                         Text(
                           cartItems.isNotEmpty
                               ? cartItems
-                                      .fold(
-                                        0.0,
-                                        (previousValue, item) =>
-                                            previousValue +
-                                            (item['meal']['price'] *
-                                                item['order']['quantity']),
-                                      )
-                                      .toStringAsFixed(2) +
-                                  (cartItems.first["meal"]["country"] ==
-                                          'France'
-                                      ? ' €'
-                                      : ' FCFA')
+                              .fold(
+                            0.0,
+                                (previousValue, item) =>
+                            previousValue +
+                                (item['meal']['price'] * item['order']['quantity']) +
+                                (item['optionPrice'] ?? 0), // Ne pas multiplier
+                          )
+                              .toStringAsFixed(2) +
+                              (cartItems.first["meal"]["country"] == 'France' ? ' €' : ' FCFA')
                               : "0.00",
                           style: TextStyle(fontSize: 20, color: Colors.red),
                         ),
@@ -232,7 +250,6 @@ class Cart extends ConsumerWidget {
           merchantDisplayName: 'Votre Boutique',
         ),
       );
-      print("1 mmm");
 
       await stripe.Stripe.instance.presentPaymentSheet();
 
@@ -247,7 +264,8 @@ class Cart extends ConsumerWidget {
           return {
             'email': item['user']['email'],
             'description': item['meal']['meal_name'],
-            'price': item['meal']['price'] * item['order']['quantity'],
+            'price': (item['meal']['price'] * item['order']['quantity']) +
+                (item['optionPrice'] ?? 0),
           };
         }).toList(),
       );

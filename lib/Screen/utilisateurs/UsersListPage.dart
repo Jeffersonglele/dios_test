@@ -83,6 +83,7 @@ class _UsersListPageState extends State<UsersListPage> {
     for (var user in users) {
       Identity? identity = await Identity.getIdentityByUserId(identities, user.userID);
       if (identity != null && user.country == widget.country) {
+        print(user.userID.toString());
         setState(() {
           filteredUsers.add({"user": user, "identity": identity});
         });

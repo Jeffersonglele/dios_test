@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:dios_delices/modeles/restaurant.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -38,6 +39,7 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
   int currentUser_restau = 0;
   int currentUser_role = 0;
   String currentUser_country = "";
+  bool restau_de_luser_connecte = false;
 
   bool isEditMode = false;
   File? selectedImage;
@@ -46,6 +48,9 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
   TextEditingController nameController = TextEditingController();
   TextEditingController priceController = TextEditingController();
   TextEditingController descriptionController = TextEditingController();
+  final TextEditingController _option1Controller = TextEditingController();
+  final TextEditingController _option2Controller = TextEditingController();
+  final TextEditingController _option3Controller = TextEditingController();
   TextEditingController nbOrdersController = TextEditingController();
   TextEditingController nbServingsController = TextEditingController();
   TextEditingController noteController = TextEditingController();
@@ -56,8 +61,15 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
   List<String> _selectedHashtagsFromDatabase = [];
 
   Dish? current_dish;
+  Restaurant? current_dish_restau;
 
   int selectedQuantity = 1; // Default value
+
+  List<TextEditingController> _optionControllers = [
+    TextEditingController(),
+    TextEditingController(),
+    TextEditingController(),
+  ];
 
   @override
   void initState() {
@@ -78,6 +90,12 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
 
     setState(() {
       current_dish = dish;
+
+      if(currentUser_restau == dish?.restauID){
+        restau_de_luser_connecte =  true;
+        print("restau_de_luser_connecte " + restau_de_luser_connecte.toString());
+      }
+
       if (current_dish != null) {
         nameController.text = current_dish!.name!;
         priceController.text = current_dish!.price.toString();
@@ -90,7 +108,32 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
 
         _selectedHashtags = current_dish!.categories!.split(', ');
         _selectedHashtagsFromDatabase = _selectedHashtags;
+
+        List<String?> options = [
+          current_dish!.option1,
+          current_dish!.option2,
+          current_dish!.option3,
+        ];
+
+        for (int i = 0; i < options.length; i++) {
+          _optionControllers[i].text = options[i] ?? "";
+        }
       }
+    });
+  }
+
+  void _removeOption(int index) {
+    setState(() {
+      // Supprime le contenu à l'index donné
+      _optionControllers[index].clear();
+
+      // Décale les options suivantes
+      for (int i = index; i < 2; i++) {
+        _optionControllers[i].text = _optionControllers[i + 1].text;
+      }
+
+      // Vide la dernière option
+      _optionControllers[2].clear();
     });
   }
 
@@ -108,6 +151,9 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
     return selectedImage != null ||
         nameController.text != current_dish!.name ||
         descriptionController.text != current_dish!.description ||
+        _optionControllers[0].text != (current_dish!.option1 ?? "") ||
+        _optionControllers[1].text != (current_dish!.option2 ?? "") ||
+        _optionControllers[2].text != (current_dish!.option3 ?? "") ||
         priceController.text != current_dish!.price.toString() ||
         nbServingsController.text != current_dish!.nb_servings.toString() ||
         _selectedHashtags.join(', ') != current_dish!.categories ||
@@ -308,8 +354,29 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
                     ),
                   ),
                   SizedBox(height: size.height * 0.02),
-
-                  if(currentUser_role == 2)
+                  currentUser_role == 4 || restau_de_luser_connecte ?
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 25.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("Options :", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        ..._buildEditableOptions()
+                      ],
+                    ),
+                  ) :
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 25.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("Sélectionnez vos options :", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        ..._buildSelectableOptions(current_dish!)
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: size.height * 0.02),
+                  if(currentUser_role == 2 && !restau_de_luser_connecte)
                    Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 25.0),
                       child: Row(
@@ -347,7 +414,7 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
                    ),
 
 
-                  if(currentUser_role != 2)
+                  if(currentUser_role != 2 || restau_de_luser_connecte)
                   Row(
                     children: [
                       SizedBox(width: 25),
@@ -462,7 +529,7 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
                     ],
                   ),
                   SizedBox(height: size.height * 0.05),
-                  if(currentUser_role != 2)
+                  if(currentUser_role != 2 || restau_de_luser_connecte)
                   Center(
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -517,6 +584,9 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
                                       note: current_dish!.note,
                                       categories: _selectedHashtags.join(', '),
                                       description: descriptionController.text,
+                                      option1: _optionControllers[0].text,
+                                      option2: _optionControllers[1].text,
+                                      option3: _optionControllers[2].text,
                                       name: nameController.text,
                                       price: double.tryParse(priceController.text) ?? 0.0,
                                       nb_servings: int.tryParse(nbServingsController.text) ?? 0,
@@ -561,7 +631,7 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
                       ],
                     ),
                   ),
-                  if(currentUser_role == 2 && (currentUser_restau !=  widget.dish_restau))
+                  if(currentUser_role == 2 && !restau_de_luser_connecte)
                     Center(
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -570,15 +640,63 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
                             padding: const EdgeInsets.symmetric(horizontal: 10.0),
                             child: ElevatedButton(
                               onPressed: () {
+                                List<String?> options = [current_dish!.option1, current_dish!.option2, current_dish!.option3];
+                                for (int i = 0; i < options.length; i++) {
+                                  String? opt = options[i];
+                                  if (opt != null && opt.trim().isNotEmpty) {
+                                    if (!selectedChoices.containsKey(i)) {
+                                      Toast(context, "Veuillez sélectionner un choix pour l'option ${i + 1}", false);
+                                      return;
+                                    }
+                                  }
+                                }
+
+                                print("options " + options.toString());
+
+                                // Calcul du prix final
+                                double prixPlat = current_dish?.price ?? 0.0;
+                                double prixTotalOptions = 0.0;
+
+                                Map<int, String> displayChoices = {};
+
+                                for (int i = 0; i < options.length; i++) {
+                                  String? opt = options[i];
+                                  String? selectedChoice = selectedChoices[i];
+
+                                  if (opt == null || opt.trim().isEmpty || selectedChoice == null || selectedChoice == "Aucun choix") {
+                                    continue;
+                                  }
+
+                                  List<String> parts = opt.split(':');
+                                  if (parts.length <= 1) continue;
+
+                                  List<String> choixList = parts[1].split('/').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+                                  String prixStr = choixList.isNotEmpty ? choixList.last : '';
+                                  prixStr = prixStr.replaceAll(',', '.');
+
+                                  double? prix = double.tryParse(prixStr);
+                                  print("prix dsd " + prix.toString());
+
+                                  if (prix != null) {
+                                    prixTotalOptions += prix;
+
+                                    selectedChoices[i] = "$selectedChoice (${prix.toStringAsFixed(2)} ${country == 'France' ? '€' : 'FCFA'})";
+                                  }
+                                }
+
+                                print("prixTotalOptions " +prixTotalOptions.toString());
+
                                 cartNotifier.addToCart(
                                   current_dish?.name ?? "Plat",
-                                  current_dish?.price ?? 0.0,
+                                  prixPlat,
                                   current_dish?.image ?? '',
                                   selectedQuantity,
                                   current_dish?.nb_servings ?? 0,
-                                  currentUser_country ?? "France",
+                                  currentUser_country,
                                   currentUser_id,
-                                  widget.dish_restau
+                                  widget.dish_restau,
+                                  selectedChoices: selectedChoices,
+                                  optionPrice: prixTotalOptions,
                                 );
 
                                 Toast(context, "Le plat ${current_dish?.name} a été ajouté au panier !", true);
@@ -610,6 +728,256 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  List<Widget> _buildOptionsDisplay(Dish dish) {
+    List<String?> options = [dish.option1, dish.option2, dish.option3];
+    List<Widget> widgets = [];
+
+    for (var opt in options) {
+      if (opt != null && opt.trim().isNotEmpty) {
+        var parts = opt.split(':');
+        String nomOption = parts.first.trim();
+        String choixStr = parts.length > 1 ? parts[1].trim() : "";
+        List<String> choixList = choixStr.split('/').map((e) => e.trim()).toList();
+        String? prix = choixList.length > 3 ? choixList[3] : null;
+        List<String> choix = choixList.take(3).toList(); // max 3 choix
+
+
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(nomOption,
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                SizedBox(height: 4),
+                Wrap(
+                  spacing: 10,
+                  children: choix
+                      .where((c) => c.isNotEmpty)
+                      .map((c) => Chip(label: Text(c)))
+                      .toList(),
+                ),
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                "Prix de l'option : $prix ${country == "France" ? "€" : "FCFA"}",
+                style: TextStyle(fontSize: 14, fontStyle: FontStyle.italic),
+              ))
+              ],
+            ),
+          ),
+        );
+      }
+    }
+
+    if (widgets.isEmpty) {
+      widgets.add(Text("Aucune option définie."));
+    }
+
+    return widgets;
+  }
+
+  List<Widget> _buildEditableOptions() {
+    List<Widget> widgets = [];
+
+    for (int i = 0; i < _optionControllers.length; i++) {
+      String fullText = _optionControllers[i].text;
+      if (fullText.trim().isEmpty) continue;
+
+      String displayText = fullText;
+
+      try {
+        List<String> parts = fullText.split(':');
+        String nom = parts[0].trim();
+        List<String> choixList = parts.length > 1
+            ? parts[1].split('/').map((e) => e.trim()).toList()
+            : [];
+
+        String? prix = "";
+        String choixDisplay = "";
+
+        if (choixList.isNotEmpty) {
+          prix = choixList.last; // dernier = prix
+          List<String> choix = choixList.sublist(0, choixList.length - 1);
+          choixDisplay = choix.join(' / ');
+        }
+
+        displayText = "$nom: $choixDisplay";
+
+        if (prix != null && prix.isNotEmpty) {
+          displayText += " / $prix ${country == "France" ? "€" : "FCFA"}";
+        }
+      } catch (_) {
+        displayText = fullText;
+      }
+
+      widgets.add(
+        ListTile(
+          title: Text(displayText),
+          trailing: isEditMode
+              ? Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: Icon(Icons.edit),
+                onPressed: () => _showOptionDialog(optionIndex: i),
+              ),
+              IconButton(
+                icon: Icon(Icons.delete),
+                onPressed: () => _removeOption(i),
+              ),
+            ],
+          )
+              : null,
+        ),
+      );
+    }
+
+    return widgets;
+  }
+
+  Map<int, String> selectedChoices = {}; // indexOption -> choix sélectionné
+
+  List<Widget> _buildSelectableOptions(Dish dish) {
+    List<String?> options = [dish.option1, dish.option2, dish.option3];
+    List<Widget> widgets = [];
+
+    for (int i = 0; i < options.length; i++) {
+      String? opt = options[i];
+      if (opt == null || opt.trim().isEmpty) continue;
+
+      var parts = opt.split(':');
+      String title = parts.first.trim();
+      List<String> choixList = parts.length > 1
+          ? parts[1].split('/').map((e) => e.trim()).toList()
+          : [];
+
+      String? prixOption;
+      List<String> vraisChoix = [];
+
+      if (choixList.isNotEmpty) {
+        prixOption = choixList.last;
+        vraisChoix = choixList.sublist(0, choixList.length - 1);
+      }
+
+      vraisChoix = ['Aucun choix', ...vraisChoix.where((c) => c.isNotEmpty)];
+
+      widgets.add(Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: TextStyle(fontWeight: FontWeight.w600)),
+          if (prixOption != null && prixOption.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Text(
+                "Prix de l'option : $prixOption ${country == "France" ? "€" : "FCFA"}",
+                style: TextStyle(fontSize: 14, fontStyle: FontStyle.italic),
+              ),
+            ),
+          ...vraisChoix.map((c) {
+            return RadioListTile<String>(
+              title: Text(c),
+              value: c,
+              groupValue: selectedChoices[i],
+              onChanged: (val) {
+                setState(() {
+                  selectedChoices[i] = val!;
+                });
+              },
+            );
+          }).toList(),
+          SizedBox(height: 10),
+        ],
+      ));
+    }
+
+    return widgets;
+  }
+
+  void _showOptionDialog({required int optionIndex}) {
+    final existing = _optionControllers[optionIndex].text;
+
+    List<String> parts = existing.split(": ");
+    String nomInitial = parts.length > 1 ? parts[0] : "";
+    List<String> sousParts = parts.length > 1 ? parts[1].split("/") : [];
+
+    TextEditingController nomController = TextEditingController(text: nomInitial);
+    TextEditingController choix1Controller = TextEditingController(text: sousParts.isNotEmpty ? sousParts[0].trim() : "");
+    TextEditingController choix2Controller = TextEditingController(text: sousParts.length > 1 ? sousParts[1].trim() : "");
+    TextEditingController choix3Controller = TextEditingController(text: sousParts.length > 2 ? sousParts[2].trim() : "");
+    TextEditingController prixController = TextEditingController(
+      text: sousParts.length > 3 ? sousParts[3].trim() : "",
+    );
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("Option ${optionIndex + 1}"),
+        content: SingleChildScrollView(
+          child: Column(
+            children: [
+              TextField(
+                controller: nomController,
+                decoration: InputDecoration(labelText: "Nom de l'option"),
+              ),
+              TextField(
+                controller: choix1Controller,
+                decoration: InputDecoration(labelText: "Choix 1"),
+              ),
+              TextField(
+                controller: choix2Controller,
+                decoration: InputDecoration(labelText: "Choix 2"),
+              ),
+              TextField(
+                controller: choix3Controller,
+                decoration: InputDecoration(labelText: "Choix 3"),
+              ),
+              TextField(
+                controller: prixController,
+                keyboardType: TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'^\d{0,3}(,\d{0,2})?$')),
+                  LengthLimitingTextInputFormatter(6), // Par exemple : "999,99"
+                ],
+                decoration: InputDecoration(labelText: "Prix de l'option (format 00,00)"),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            child: Text("Annuler"),
+            onPressed: () => Navigator.pop(context),
+          ),
+          TextButton(
+            child: Text("Valider"),
+            onPressed: () {
+              String nom = nomController.text.trim();
+              String c1 = choix1Controller.text.trim();
+              String c2 = choix2Controller.text.trim();
+              String c3 = choix3Controller.text.trim();
+              String prix = prixController.text.trim();
+
+              if (nom.isEmpty || c1.isEmpty || prix.isEmpty) {
+                Toast(context, "Nom, choix 1 et prix sont obligatoires", false);
+                return;
+              }
+
+              String result = "$nom: $c1 / $c2 / $c3 / $prix";
+
+              setState(() {
+                _optionControllers[optionIndex].text = result;
+              });
+
+              Navigator.pop(context);
+            },
+          ),
+        ],
       ),
     );
   }

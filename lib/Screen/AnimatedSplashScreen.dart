@@ -2,6 +2,9 @@ import 'dart:async';
 import 'package:avatar_glow/avatar_glow.dart';
 import 'package:dios_delices/Screen/authentification/Signup.dart';
 import 'package:dios_delices/modeles/address.dart';
+import 'package:dios_delices/modeles/commande.dart';
+import 'package:dios_delices/modeles/ligne_commande.dart';
+import 'package:dios_delices/modeles/moyen_paiement.dart';
 import 'package:dios_delices/modeles/restaurant.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -82,6 +85,9 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
       await Dish.getAllDishesDetails();
       await Address.getAllAdressesDetails();
       await Identity.getAllIdentitiesDetails();
+      await MoyenPaiement.getAllMoyensPaiement();
+      await Commande.getAllCommandes();
+      await LigneCommande.getAllLignesCommande();
 
       setState(() {
         isLoading = false;

@@ -31,7 +31,29 @@ class _DishFormPageState extends ConsumerState<DishFormPage> {
   final TextEditingController _nbServingsController = TextEditingController();
   final TextEditingController _restauIDController = TextEditingController();
 
+  List<TextEditingController> _optionControllers = [
+    TextEditingController(),
+    TextEditingController(),
+    TextEditingController(),
+  ];
+
   File? _image;
+
+  void _removeOption(int index) {
+    setState(() {
+      // Supprime le contenu à l'index donné
+      _optionControllers[index].clear();
+
+      // Décale les options suivantes
+      for (int i = index; i < 2; i++) {
+        _optionControllers[i].text = _optionControllers[i + 1].text;
+      }
+
+      // Vide la dernière option
+      _optionControllers[2].clear();
+    });
+  }
+
 
   // Méthode pour ouvrir l'image picker
   Future<void> _pickImage() async {
@@ -209,7 +231,7 @@ class _DishFormPageState extends ConsumerState<DishFormPage> {
                         )
                       : _buildTextField(
                           controller: _priceController,
-                          hintText: "Prix du plat (en FCFA)",
+                          hintText: "Prix du plat",
                           icon: Icons.money,
                           keyboardType:
                               TextInputType.numberWithOptions(decimal: true),
@@ -248,6 +270,58 @@ class _DishFormPageState extends ConsumerState<DishFormPage> {
                       return null;
                     },
                     maxLines: null,
+                  ),
+                  SizedBox(height: size.height * 0.02),
+                  ElevatedButton(
+                    onPressed: () {
+                      int firstEmptyIndex = _optionControllers.indexWhere((c) => c.text.isEmpty);
+                      if (firstEmptyIndex == -1) {
+                        Toast(context, "Vous ne pouvez ajouter que 3 options", false);
+                      } else {
+                        _showOptionDialog(optionIndex: firstEmptyIndex);
+                      }
+                    },
+                    child: Text("+ Ajouter une option"),
+                  ),
+                  SizedBox(height: size.height * 0.02),
+                  Column(
+                    children: List.generate(3, (index) {
+                      if (_optionControllers[index].text.isEmpty) return SizedBox();
+
+                      // EXTRACT DISPLAYABLE DATA
+                      String displayText = _optionControllers[index].text;
+                      try {
+                        List<String> parts = displayText.split(':');
+                        String nom = parts[0].trim();
+                        List<String> choixList = parts.length > 1 ? parts[1].split('/').map((e) => e.trim()).toList() : [];
+                        String? prix = choixList.length > 3 ? choixList.last : null;
+                        List<String> choix = choixList.length > 3 ? choixList.sublist(0, choixList.length - 1) : choixList;
+
+                        displayText = "$nom: ${choix.join(' / ')}";
+                        if (prix != null && prix.isNotEmpty) {
+                          displayText += " / $prix ${country == "France" ? "€" : "FCFA"}";
+                        }
+                      } catch (_) {
+                        // fallback, laisse tel quel
+                      }
+
+                      return ListTile(
+                        title: Text(displayText),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: Icon(Icons.edit),
+                              onPressed: () => _showOptionDialog(optionIndex: index),
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.delete),
+                              onPressed: () => _removeOption(index),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
                   ),
                   SizedBox(height: size.height * 0.02),
                   // Sélection de l'image
@@ -326,6 +400,9 @@ class _DishFormPageState extends ConsumerState<DishFormPage> {
                               note: 0.0,
                               categories: _selectedHashtags.join(', '),
                               description: _descriptionController.text,
+                              option1: _optionControllers[0].text,
+                              option2: _optionControllers[1].text,
+                              option3: _optionControllers[2].text,
                               name: _nameController.text,
                               price: double.tryParse(_priceController.text) ?? 0.0,
                               nb_servings: int.tryParse(_nbServingsController.text) ?? 0,
@@ -361,6 +438,87 @@ class _DishFormPageState extends ConsumerState<DishFormPage> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  void _showOptionDialog({required int optionIndex}) {
+    final existing = _optionControllers[optionIndex].text;
+
+    List<String> parts = existing.split(": ");
+    String nomInitial = parts.length > 1 ? parts[0] : "";
+    List<String> choixParts = parts.length > 1 ? parts[1].split("/") : ["", "", "", ""];
+
+    TextEditingController nomController = TextEditingController(text: nomInitial);
+    TextEditingController choix1Controller = TextEditingController(text: choixParts.isNotEmpty ? choixParts[0].trim() : "");
+    TextEditingController choix2Controller = TextEditingController(text: choixParts.length > 1 ? choixParts[1].trim() : "");
+    TextEditingController choix3Controller = TextEditingController(text: choixParts.length > 2 ? choixParts[2].trim() : "");
+    TextEditingController prixController = TextEditingController(text: choixParts.length > 3 ? choixParts[3].trim() : "");
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("Option ${optionIndex + 1}"),
+        content: SingleChildScrollView(
+          child: Column(
+            children: [
+              TextField(
+                controller: nomController,
+                decoration: InputDecoration(labelText: "Nom de l'option"),
+              ),
+              TextField(
+                controller: choix1Controller,
+                decoration: InputDecoration(labelText: "Choix 1"),
+              ),
+              TextField(
+                controller: choix2Controller,
+                decoration: InputDecoration(labelText: "Choix 2"),
+              ),
+              TextField(
+                controller: choix3Controller,
+                decoration: InputDecoration(labelText: "Choix 3"),
+              ),
+              TextField(
+                controller: prixController,
+                keyboardType: TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'^\d{0,3}(,\d{0,2})?$')),
+                  LengthLimitingTextInputFormatter(6), // Par exemple : "999,99"
+                ],
+                decoration: InputDecoration(labelText: "Prix de l'option (format 00,00)"),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            child: Text("Annuler"),
+            onPressed: () => Navigator.pop(context),
+          ),
+          TextButton(
+            child: Text("Valider"),
+            onPressed: () {
+              String nom = nomController.text.trim();
+              String c1 = choix1Controller.text.trim();
+              String c2 = choix2Controller.text.trim();
+              String c3 = choix3Controller.text.trim();
+              String prix = prixController.text.trim();
+
+              if (nom.isEmpty || c1.isEmpty || prix.isEmpty) {
+                Toast(context, "Nom, choix 1 et prix sont obligatoires", false);
+                return;
+              }
+
+              String result = "$nom: $c1 / $c2 / $c3 / $prix";
+
+              setState(() {
+                _optionControllers[optionIndex].text = result;
+              });
+
+              Navigator.pop(context);
+            },
+          ),
+        ],
       ),
     );
   }

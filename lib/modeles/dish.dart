@@ -42,11 +42,23 @@ class Dish extends HiveObject {
   @HiveField(11)
   final double note;
 
+  @HiveField(12)
+  String? option1;
+
+  @HiveField(13)
+  String? option2;
+
+  @HiveField(14)
+  String? option3;
+
   Dish({
     required this.dishID,
     required this.userID,
     required this.categories,
     required this.description,
+    required this.option1,
+    required this.option2,
+    required this.option3,
     required this.name,
     required this.note,
     required this.nb_orders,
@@ -63,6 +75,9 @@ class Dish extends HiveObject {
       'userID': userID,
       'categories': categories,
       'description': description,
+      'option1': option1,
+      'option2': option2,
+      'option3': option3,
       'name': name,
       'note': note,
       'nb_orders': nb_orders,
@@ -82,6 +97,9 @@ class Dish extends HiveObject {
       note: double.tryParse(map['note']?.toString() ?? '') ?? 0.0,
       categories: map['categories']?.toString() ?? '',
       description: map['description']?.toString() ?? '',
+      option1: map['option1']?.toString() ?? '',
+      option2: map['option2']?.toString() ?? '',
+      option3: map['option3']?.toString() ?? '',
       name: map['name']?.toString() ?? '',
       image: map['image']?.toString() ?? '',
       price: double.tryParse(map['price']?.toString() ?? '0') ?? 0.0,
@@ -98,6 +116,9 @@ class Dish extends HiveObject {
     int? nb_orders,
     String? categories,
     String? description,
+    String? option1,
+    String? option2,
+    String? option3,
     String? name,
     String? image,
     double? price,
@@ -112,6 +133,9 @@ class Dish extends HiveObject {
       nb_orders: nb_orders ?? this.nb_orders,
       categories: categories ?? this.categories,
       description: description ?? this.description,
+      option1: option1 ?? this.option1,
+      option2: option2 ?? this.option2,
+      option3: option3 ?? this.option3,
       name: name ?? this.name,
       image: image ?? this.image,
       price: price ?? this.price,
@@ -128,13 +152,16 @@ class Dish extends HiveObject {
     required double note,
     required String categories,
     required String description,
+    required String option1,
+    required String option2,
+    required String option3,
     required String name,
     required double price,
     required int nb_servings,
     required int restauID,
     required int status,
-    ParseFile? image, // ParseFile passed from above
-    String? img_url, // ParseFile passed from above
+    ParseFile? image,
+    String? img_url,
   }) async {
     String functionName = dishID == null ? 'add1Dish' : 'update1Dish';
     var cloudFunction = ParseCloudFunction(functionName);
@@ -163,6 +190,9 @@ class Dish extends HiveObject {
       'userID': userID,
       'categories': categories,
       'description': description,
+      'option1': option1,
+      'option2': option2,
+      'option3': option3,
       'name': name,
       'note': note,
       'nb_orders': nb_orders,
@@ -191,6 +221,9 @@ class Dish extends HiveObject {
               note: note,
               categories: categories,
               description: description,
+              option1: option1,
+              option2: option2,
+              option3: option3,
               name: name,
               image: image == null ? img_url : imageUrl,
               userID: userID,
@@ -233,7 +266,7 @@ class Dish extends HiveObject {
         if (response['success'] == false) {
           return "Erreur : ${response['error']}";
         } else {
-          await DatabaseHelper.updateRestauranStatus(dishID, status);
+          await DatabaseHelper.updateRestaurantStatus(dishID, status);
           return "success";
         }
       } else {

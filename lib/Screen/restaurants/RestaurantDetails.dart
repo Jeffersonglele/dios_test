@@ -36,6 +36,7 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
   int currentUser_role = 0;
   int currentUser_id = 0;
   String currentUser_country = "";
+  bool restau_de_luser_connecte = false;
 
   bool isEditMode = false;
   File? selectedImage;
@@ -91,8 +92,14 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
 
       // Mise à jour de l'état
       setState(() {
+        currentUser_restau = prefs.getInt('currentUser_restau') ?? 0;
+
         current_restaurant = restaurant;
         dishes = filteredDishes;
+
+        if (currentUser_restau == current_restaurant?.restaurantID) {
+          restau_de_luser_connecte = true;
+        }
 
         if (current_restaurant != null) {
           nameController.text = current_restaurant!.name!;
@@ -228,10 +235,10 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
                             left: 16.0, bottom: 8.0, right: 16.0),
                         decoration: BoxDecoration(
                           image: DecorationImage(
-                            image: current_restaurant?.image != null
+                            image: (current_restaurant?.image != null &&
+                                current_restaurant!.image!.trim().isNotEmpty)
                                 ? NetworkImage(current_restaurant!.image!)
-                                : AssetImage('assets/images/no_image.png')
-                                    as ImageProvider,
+                                : AssetImage('assets/images/no_image.png') as ImageProvider,
                             fit: BoxFit.cover,
                           ),
                           borderRadius: BorderRadius.all(Radius.circular(30)),
@@ -262,81 +269,16 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
                           ],
                         ),
                       ),
-                      SizedBox(height: 8),
-                      /* Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(Icons.star, color: Colors.orange, size: 18),
-                                    SizedBox(width: 4),
-                                    Text(
-                                      "${current_restaurant?.note ?? 0} (${current_restaurant?.nb_orders ?? 0}+ notes)",
-                                      style: TextStyle(fontSize: 14),
-                                    ),
-                                  ],
-                                ),
-                                SizedBox(width: 16),
-                                Text(
-                                  "Frais de livraison : ${current_restaurant?.deliveryFee?.toStringAsFixed(2) ?? "0.00"} €",
-                                  style: TextStyle(fontSize: 14),
-                                ),
-                                SizedBox(width: 16),
-                                GestureDetector(
-                                  onTap: () {
-                                    _showRestaurantInfoDialog(context);
-                                  },
-                                  child: Row(
-                                    children: [
-                                      Icon(Icons.info, color: Colors.blue, size: 18),
-                                      SizedBox(width: 4),
-                                      Text(
-                                        "Informations",
-                                        style: TextStyle(
-                                          color: Colors.blue,
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  ChoiceChip(
-                                    label: Text("Livraison"),
-                                    selected: true,
-                                    onSelected: (selected) {
-                                      // Logique pour "Livraison"
-                                    },
-                                  ),
-                                  ChoiceChip(
-                                    label: Text("À emporter"),
-                                    selected: false,
-                                    onSelected: (selected) {
-                                      // Logique pour "À emporter"
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              "Appuyez pour consulter les horaires, les informations, etc.",
-                              style: TextStyle(fontSize: 12, color: Colors.grey),
-                            ),
-                          ],
+                      if (isEditMode)
+                        Positioned(
+                          bottom: 10,
+                          right: 10,
+                          child: IconButton(
+                            icon: Icon(Icons.camera_alt, color: Colors.white),
+                            onPressed: _pickImage,
+                          ),
                         ),
-                      ),*/
+                      SizedBox(height: 8),
                       SizedBox(height: size.height * 0.02),
                     ],
                   ),
@@ -344,8 +286,18 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
                   Row(
                     children: [
                       SizedBox(width: 25),
-                      Text(current_restaurant?.name ?? "",
-                          style: kLoginSubtitleStyle3(size)),
+                      isEditMode
+                          ? Flexible(
+                              flex: 3,
+                              child: _buildTextField(
+                                controller: nameController,
+                                hintText: "Nom du plat",
+                                maxLines: 2,
+                                icon: Icons.restaurant,
+                              ),
+                            )
+                          : Text(current_restaurant?.name ?? "",
+                              style: kLoginSubtitleStyle3(size)),
                       Spacer(),
                       Text(
                         "${country == "France" ? "€" : 'FCFA'}",
@@ -361,17 +313,40 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
                   Row(
                     children: [
                       SizedBox(width: 25),
-                      Expanded(
-                        child: Text(
-                          current_restaurant?.description ?? "",
-                          maxLines: 5,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
+                      isEditMode
+                          ? Flexible(
+                              child: _buildTextField(
+                                controller: descriptionController,
+                                hintText: "Description du restaurant",
+                                maxLines: 3,
+                                icon: Icons.description,
+                              ),
+                            )
+                          : Expanded(
+                              child: Text(
+                                current_restaurant?.description ?? "",
+                                maxLines: 5,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
                       SizedBox(width: 20),
                     ],
                   ),
                   SizedBox(height: size.height * 0.02),
+                  if (isEditMode)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 25.0),
+                      child: HashtagTextInputFormatter(
+                        initialHashtags: _selectedHashtagsFromDatabase,
+                        onHashtagsChanged: (hashtags) {
+                          setState(() {
+                            _selectedHashtags = hashtags;
+                            categoriesController.text =
+                                _selectedHashtags.join(', ');
+                          });
+                        },
+                      ),
+                    ),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 25.0),
                     child: Text(
@@ -380,7 +355,9 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
                     ),
                   ),
                   SizedBox(height: size.height * 0.02),
-                  currentUser_role == 1 || currentUser_role == 4
+                  currentUser_role == 1 ||
+                          currentUser_role == 4 ||
+                          restau_de_luser_connecte
                       ? Row(
                           children: [
                             SizedBox(width: 25),
@@ -424,22 +401,6 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
                                   DataRow(cells: [
                                     DataCell(
                                       Text(
-                                        'Portions disponibles',
-                                        style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold),
-                                      ),
-                                    ),
-                                    DataCell(
-                                      Text(
-                                        nbServingsController.text,
-                                        style: TextStyle(fontSize: 16),
-                                      ),
-                                    ),
-                                  ]),
-                                  DataRow(cells: [
-                                    DataCell(
-                                      Text(
                                         'Note',
                                         style: TextStyle(
                                             fontSize: 16,
@@ -471,12 +432,21 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
                                       ),
                                     ),
                                     DataCell(
-                                      Text(
-                                        isAvailable
-                                            ? "Disponible"
-                                            : "Indisponible",
-                                        style: TextStyle(fontSize: 16),
-                                      ),
+                                      isEditMode
+                                          ? Switch(
+                                              value: isAvailable,
+                                              onChanged: (value) {
+                                                setState(() {
+                                                  isAvailable = value;
+                                                });
+                                              },
+                                            )
+                                          : Text(
+                                              isAvailable
+                                                  ? "Disponible"
+                                                  : "Indisponible",
+                                              style: TextStyle(fontSize: 16),
+                                            ),
                                     ),
                                   ]),
                                   DataRow(cells: [
@@ -618,7 +588,9 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
                                       ),
                                     ),
                                     if (currentUser_role == 2) Spacer(),
-                                    if (currentUser_role == 2)
+                                    /*if (currentUser_role == 2 &&
+                                        current_restaurant?.restaurantID !=
+                                            currentUser_restau)
                                       Tooltip(
                                         message: "Ajouter au panier",
                                         child: GestureDetector(
@@ -627,14 +599,13 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
                                                 dish.name ?? "Plat",
                                                 dish.price ?? 0.0,
                                                 dish.image ?? '',
-                                                1, // Quantité par défaut
+                                                1,
+                                                // Quantité par défaut
                                                 dish.nb_servings ?? 0,
                                                 // Nombre de portions max
-                                                currentUser_country ??
-                                                    "France",
-                                              currentUser_id,
-                                              widget.restaurant_id
-                                            );
+                                                currentUser_country ?? "France",
+                                                currentUser_id,
+                                                widget.restaurant_id);
                                             Toast(
                                                 context,
                                                 "Le plat ${dish?.name} a été ajouté au panier !",
@@ -664,7 +635,7 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
                                             ),
                                           ),
                                         ),
-                                      ),
+                                      ),*/
                                   ],
                                 ),
                               ],
@@ -675,42 +646,110 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
                     ),
                   ),
                   SizedBox(height: 8),
-                  if(currentUser_id == widget.restaurant_id && currentUser_role == 3)
-                  Center(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 10.0),
-                          child: ElevatedButton(
-                            onPressed: () async {
-                              print("modifier");
-                              setState(() {
-                                nameController.text =
-                                    current_restaurant?.name ?? "";
-                                descriptionController.text =
-                                    current_restaurant?.description ?? "";
-                                nbServingsController.text =
-                                    current_restaurant!.nb_orders.toString();
-                                isAvailable = current_restaurant!.valid == 1;
-                              });
-                            },
-                            child: Text('Modifier',
-                                style: TextStyle(color: Colors.white)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red,
-                              foregroundColor: Colors.white,
-                              textStyle: TextStyle(
-                                  fontSize: 18, fontWeight: FontWeight.bold),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(15),
+                  if (currentUser_role == 3 || restau_de_luser_connecte)
+                    Center(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (isEditMode) ...[
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 10.0),
+                              child: ElevatedButton(
+                                onPressed: () {
+                                  setState(() {
+                                    nameController.text =
+                                        current_restaurant?.name ?? "";
+                                    descriptionController.text =
+                                        current_restaurant?.description ?? "";
+                                    nbServingsController.text =
+                                        current_restaurant!.nb_orders
+                                            .toString();
+                                    isAvailable =
+                                        current_restaurant!.valid == 1;
+                                    isEditMode = false;
+                                  });
+                                },
+                                child: Text('Annuler',
+                                    style: TextStyle(color: Colors.white)),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.grey,
+                                  foregroundColor: Colors.white,
+                                  textStyle: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(15),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                          Padding(
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 10.0),
+                            child: ElevatedButton(
+                              onPressed: () async {
+                                if (isEditMode) {
+                                  // Tu es en mode édition, donc tu valides
+                                  if (_formKey.currentState?.validate() ?? false) {
+                                    final user = ref.read(usersProvider);
+                                    if (user != null) {
+                                      ParseFile? parseFile;
+                                      if (hasNewImage()) {
+                                        String fileName = p.basename(selectedImage!.path);
+                                        String extension = p.extension(fileName);
+                                        String newFileName = "${nameController.text}_${user.userID}$extension";
+                                        parseFile = ParseFile(File(selectedImage!.path), name: newFileName);
+                                      }
+
+                                      String result = await Restaurant.manageRestaurant(
+                                        restaurantID: current_restaurant!.restaurantID,
+                                        userID: user.userID,
+                                        categories: _selectedHashtags.join(', '),
+                                        description: descriptionController.text,
+                                        adress: addressController.text,
+                                        name: nameController.text,
+                                        note: current_restaurant!.note,
+                                        nb_orders: current_restaurant!.nb_orders,
+                                        valid: isAvailable ? 1 : 0,
+                                        date_creation: current_restaurant?.date_creation,
+                                        image: parseFile,
+                                        img_url: current_restaurant?.image,
+                                      );
+
+                                      if (result == "success") {
+                                        Toast(context, "Restaurant mis à jour", true);
+                                        // recharge les données localement
+                                        await loadData();
+                                      } else {
+                                        Toast(context, "Erreur : $result", false);
+                                      }
+                                    }
+                                  }
+                                }
+
+                                // Quoi qu'il arrive, on repasse en mode affichage
+                                setState(() {
+                                  isEditMode = !isEditMode;
+                                });
+                              },
+                              child: Text(isEditMode ? 'Valider' : 'Modifier',
+                                  style: TextStyle(color: Colors.white)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                                foregroundColor: Colors.white,
+                                textStyle: TextStyle(
+                                    fontSize: 18, fontWeight: FontWeight.bold),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(15),
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
                   SizedBox(height: size.height * 0.05),
                 ],
               ),
@@ -720,6 +759,29 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
       ),
     );
   }
+}
+
+Widget _buildTextField({
+  required TextEditingController controller,
+  required String hintText,
+  required IconData icon,
+  String? Function(String?)? validator,
+  TextInputType? keyboardType,
+  List<TextInputFormatter>? inputFormatters,
+  int? maxLines = 1,
+}) {
+  return TextFormField(
+    controller: controller,
+    decoration: InputDecoration(
+      prefixIcon: Icon(icon),
+      hintText: hintText,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+    ),
+    validator: validator,
+    keyboardType: keyboardType,
+    inputFormatters: inputFormatters,
+    maxLines: maxLines,
+  );
 }
 
 Widget buildImage(String? imageUrl) {

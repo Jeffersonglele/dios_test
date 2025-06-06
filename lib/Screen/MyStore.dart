@@ -1,7 +1,9 @@
 import 'package:dios_delices/Screen/Settings.dart';
+import 'package:dios_delices/Screen/restaurants/RestaurantDetails.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import '../components/Logout.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MyStore extends StatefulWidget {
   @override
@@ -14,20 +16,52 @@ class _MyStoreState extends State<MyStore> {
   @override
   void initState() {
     super.initState();
+    loadRestaurantID();
 
-    // Filtrer les sections pour ne garder que "Settings" et "Logout"
     sections = [
       {
+        "icon": Icons.restaurant,
+        "description": "Mon restaurant",
+        "page": null, // page à mettre après récupération de l'ID
+      },
+      {
+        "icon": Icons.fastfood_rounded,
+        "description": "Mes commandes",
+        //"page": ,
+      },
+      {
         "icon": Icons.settings,
-        "description": "Settings",
+        "description": "Paramètres",
         "page": Settings(),
       },
       {
         "icon": Icons.logout,
-        "description": "LOGOUT",
+        "description": "DÉCONNEXION",
         "page": null,
       },
     ];
+  }
+
+  int? _restaurantID;
+
+  Future<void> loadRestaurantID() async {
+    final prefs = await SharedPreferences.getInstance();
+    final currentUserRestau = prefs.getInt('currentUser_restau');
+
+    print("currentUser_restau $currentUserRestau");
+
+    if (currentUserRestau != null) {
+      setState(() {
+        _restaurantID = currentUserRestau;
+        sections[0]["page"] = RestaurantDetails(restaurant_id: currentUserRestau);
+      });
+    } else {
+      print("Aucun restaurantID valide trouvé dans SharedPreferences.");
+      setState(() {
+        // Soit on désactive le bouton, soit on met une page vide
+        sections[0]["page"] = null;
+      });
+    }
   }
 
   @override
@@ -85,7 +119,20 @@ class _MyStoreState extends State<MyStore> {
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           ElevatedButton(
-                            onPressed: () {},
+                            onPressed: () {
+                              if (sections[index]["page"] != null) {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (BuildContext context) => sections[index]["page"],
+                                  ),
+                                );
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text("Aucune donnée de restaurant disponible.")),
+                                );
+                              }
+                            },
                             child: Icon(sections[index]["icon"], color: Colors.white),
                             style: ElevatedButton.styleFrom(
                               shape: CircleBorder(),
@@ -98,7 +145,7 @@ class _MyStoreState extends State<MyStore> {
                             sections[index]["description"],
                             style: TextStyle(
                               color: Colors.black,
-                              fontSize: 30,
+                              fontSize: 27,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
