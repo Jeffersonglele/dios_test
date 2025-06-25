@@ -145,6 +145,11 @@ class _LocationPageState extends ConsumerState<LocationPage> {
     try {
       // 🔹 Convertir l'adresse en coordonnées GPS
       List<Location> locations = await locationFromAddress("$fullAddress, $city, $state");
+      if (locations.isEmpty) {
+        Toast(context, "Adresse introuvable. Veuillez vérifier l'exactitude.", false);
+        return;
+      }
+
       double lat = locations.first.latitude;
       double long = locations.first.longitude;
 

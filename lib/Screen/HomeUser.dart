@@ -62,9 +62,8 @@ class _HomeUserState extends State<HomeUser> {
   }
 
   Future<void> _filterRestaurants() async {
-    print("_filterRestaurants");
     for (var a in addresses) {
-      if (a.objectID == current_userID) {
+      if (a.objectID == current_userID && a.object == "User") {
         Address userAddress = a;
 
         const double maxDistanceKm = 10.0;

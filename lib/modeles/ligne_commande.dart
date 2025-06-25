@@ -8,10 +8,10 @@ part 'ligne_commande.g.dart';
 @HiveType(typeId: 12)
 class LigneCommande extends HiveObject {
   @HiveField(0)
-  final int ligneID;
+  final String ligneID;
 
   @HiveField(1)
-  int commandeID;
+  String commandeID;
 
   @HiveField(2)
   int platID;
@@ -55,8 +55,8 @@ class LigneCommande extends HiveObject {
   };
 
   static Future<String> manageLigneCommande({
-    int? ligneID,
-    required int commandeID,
+    String? ligneID,
+    required String commandeID,
     required int platID,
     required int quantite,
     required double prixUnitaire,
@@ -78,7 +78,7 @@ class LigneCommande extends HiveObject {
       final response = await cloudFunction.execute(parameters: params);
       if (response.success && response.result != null) {
         final result = response.result as Map<String, dynamic>;
-        final int id = ligneID ?? result['ligneID'];
+        final String id = ligneID ?? result['ligneID'];
 
         final ligne = LigneCommande(
           ligneID: id,

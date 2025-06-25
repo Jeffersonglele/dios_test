@@ -50,6 +50,7 @@ class Address extends HiveObject {
     return {
       'object': object,
       'objectID': objectID,
+      'addressID': addressID,
       'numero': numero,
       'city': city,
       'state': state,
@@ -145,9 +146,13 @@ class Address extends HiveObject {
   }
 
   /// 🔹 **Supprimer une Adresse sur Back4App et Hive**
-  static Future<String> deleteAddress(int addressID) async {
+  static Future<String> deleteAddress({required int addressID, required String object, required int objectID, }) async {
     var cloudFunction = ParseCloudFunction('deleteAddress');
-    var params = <String, dynamic>{'addressID': addressID};
+    var params = <String, dynamic>{
+      'addressID': addressID,
+      'object': object,
+      'objectID': objectID
+    };
 
     try {
       final ParseResponse parseResponse = await cloudFunction.execute(parameters: params);

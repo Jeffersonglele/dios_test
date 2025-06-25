@@ -10,6 +10,7 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
   double total = 0.0;
 
   Future<void> addToCart(
+      int mealID,
       String name,
       double price,
       String image,
@@ -20,6 +21,7 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
       int restau_id, {
         Map<int, String>? selectedChoices,
         double optionPrice = 0.0,
+        List<String?>? rawOptions,
       }) async {
     final existingIndex = state.indexWhere((item) => item['meal']['meal_name'] == name);
 
@@ -43,6 +45,7 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
         ...state,
         {
           "meal": {
+            "mealID": mealID,
             "meal_name": name,
             "price": finalPrice,
             "image": image,
@@ -56,22 +59,36 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
           "optionPrice": optionPrice,
           "optionDetails": selectedChoices != null
               ? selectedChoices.map((index, value) {
-                print("selectedChoices " + selectedChoices.toString());
-            final match = RegExp(r'^(.*?)\s*\(([\d.,]+)\)$').firstMatch(value);
-            final name = match?.group(1)?.trim() ?? value;
-            final priceStr = match?.group(2)?.replaceAll(',', '.');
+            // 🔹 Récupère le titre de l’option (ex: "Toppings")
+            String title = "";
+            if (rawOptions != null && index < rawOptions.length && rawOptions[index] != null) {
+              final parts = rawOptions[index]!.split(':');
+              if (parts.isNotEmpty) title = parts.first.trim();
+            }
+
+            // 🔹 Extraire nom & prix depuis le choix formaté (ex: "Nutella (1.3 €)")
+            final priceMatch = RegExp(r'([\d.,]+)').firstMatch(value);
+            final nameMatch = RegExp(r'^(.*?)\s*\(').firstMatch(value);
+
+            final name = nameMatch?.group(1)?.trim() ?? value;
+            final priceStr = priceMatch?.group(1)?.replaceAll(',', '.');
+            final price = priceStr != null ? double.tryParse(priceStr) ?? 0.0 : 0.0;
+
             return MapEntry(index, {
-              'name': name,
-              'price': priceStr != null ? double.tryParse(priceStr) ?? 0.0 : 0.0
+              'title': title,   // ✅ nom de l'option (Sucre, Toppings...)
+              'name': name,     // ✅ choix fait (Nutella, 10%, Oui...)
+              'price': price,   // ✅ prix numérique
             });
           })
               : {},
           "user": {
             "email": currentUser.email ?? "email inconnu",
             "firstname": currentUser.firstname ?? "Prénom inconnu",
+            "user_id": user_id,
           },
           "restaurant": {
             "name": restaurant.name ?? "Restaurant inconnu",
+            "restau_id": restau_id,
           },
         },
       ];

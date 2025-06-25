@@ -39,13 +39,4 @@ class AddressNotifier extends StateNotifier<List<Address>> {
       state = [...state, address];
     }
   }
-
-  /// 🔹 Supprimer une adresse
-  Future<void> deleteAddress(int addressID) async {
-    var result = await Address.deleteAddress(addressID);
-
-    if (result == "success") {
-      state = state.where((a) => a.objectID != addressID).toList();
-    }
-  }
 }

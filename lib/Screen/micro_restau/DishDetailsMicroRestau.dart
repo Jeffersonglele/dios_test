@@ -651,13 +651,9 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
                                   }
                                 }
 
-                                print("options " + options.toString());
-
                                 // Calcul du prix final
                                 double prixPlat = current_dish?.price ?? 0.0;
                                 double prixTotalOptions = 0.0;
-
-                                Map<int, String> displayChoices = {};
 
                                 for (int i = 0; i < options.length; i++) {
                                   String? opt = options[i];
@@ -675,7 +671,6 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
                                   prixStr = prixStr.replaceAll(',', '.');
 
                                   double? prix = double.tryParse(prixStr);
-                                  print("prix dsd " + prix.toString());
 
                                   if (prix != null) {
                                     prixTotalOptions += prix;
@@ -684,9 +679,9 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
                                   }
                                 }
 
-                                print("prixTotalOptions " +prixTotalOptions.toString());
-
+                                print("current_dish!.dishID " + current_dish!.dishID.toString());
                                 cartNotifier.addToCart(
+                                  current_dish!.dishID,
                                   current_dish?.name ?? "Plat",
                                   prixPlat,
                                   current_dish?.image ?? '',
@@ -697,6 +692,7 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
                                   widget.dish_restau,
                                   selectedChoices: selectedChoices,
                                   optionPrice: prixTotalOptions,
+                                  rawOptions: options,
                                 );
 
                                 Toast(context, "Le plat ${current_dish?.name} a été ajouté au panier !", true);
@@ -841,11 +837,12 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
     return widgets;
   }
 
-  Map<int, String> selectedChoices = {}; // indexOption -> choix sélectionné
+  Map<int, String> selectedChoices = {};
 
   List<Widget> _buildSelectableOptions(Dish dish) {
     List<String?> options = [dish.option1, dish.option2, dish.option3];
     List<Widget> widgets = [];
+    print("options " + options.toString());
 
     for (int i = 0; i < options.length; i++) {
       String? opt = options[i];
