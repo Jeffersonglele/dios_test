@@ -203,24 +203,23 @@ class _CartState extends ConsumerState<Cart> {
                                       item["optionDetails"] != null &&
                                       item["optionDetails"] is Map)
                                     ...item["meal"]["options"].entries.map<Widget>((entry) {
-                                      final rawValue = entry.value.toString();
-                                      final optionIndex = entry.key;
 
+                                      final optionIndex = entry.key;
                                       final optionInfo = item["optionDetails"][optionIndex];
                                       final title = optionInfo != null && optionInfo["title"] != null
                                           ? optionInfo["title"]
-                                          : "Option ${optionIndex + 1}";
+                                          : "Option 1";
+                                      final name = optionInfo != null && optionInfo["name"] != null
+                                          ? optionInfo["name"]
+                                          : entry.value.toString();
+                                      final price = optionInfo != null && optionInfo["price"] != null
+                                          ? optionInfo["price"]
+                                          : 0.0;
+                                      print("price ddd " + price.toString());
 
-                                      final match = RegExp(r'^(.*?)\s*\(([\d.,]+)\s*(€|FCFA)?\)$')
-                                          .firstMatch(rawValue);
-
-                                      final name = match?.group(1)?.trim() ?? rawValue;
-                                      final price = match?.group(2);
-                                      final devise = match?.group(3) ??
-                                          (item["meal"]["country"] == 'France' ? '€' : 'FCFA');
-
+                                      final devise = (item["meal"]["country"] == 'France' ? '€' : 'FCFA');
                                       return Text(
-                                        "$title : $name${price != null ? ' +$price $devise' : ''}",
+                                        "$title : $name${(price != null && price > 0) ? ' +${price.toStringAsFixed(2)} $devise' : ''}",
                                         style: TextStyle(fontSize: 13, fontStyle: FontStyle.italic),
                                       );
                                     }).toList(),

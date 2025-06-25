@@ -674,8 +674,7 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
 
                                   if (prix != null) {
                                     prixTotalOptions += prix;
-
-                                    selectedChoices[i] = "$selectedChoice (${prix.toStringAsFixed(2)} ${country == 'France' ? '€' : 'FCFA'})";
+                                    selectedChoices[i] = selectedChoice; // juste le nom, sans prix
                                   }
                                 }
 

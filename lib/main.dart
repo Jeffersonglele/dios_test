@@ -45,6 +45,8 @@ void main() async {
       keyParseServerUrl,
       clientKey: keyClientKey,
       autoSendSessionId: true,
+      liveQueryUrl: 'wss://9qBeGGwSGOQ1iWOJ1UNUXt40NhgwwgbHJYGpV1zg.b4a.io',
+      debug: true,
     );
     print('Parse initialized successfully');
   } catch (e) {

@@ -67,12 +67,21 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
             }
 
             // 🔹 Extraire nom & prix depuis le choix formaté (ex: "Nutella (1.3 €)")
-            final priceMatch = RegExp(r'([\d.,]+)').firstMatch(value);
-            final nameMatch = RegExp(r'^(.*?)\s*\(').firstMatch(value);
+            //final priceMatch = RegExp(r'([\d.,]+)').firstMatch(value);
+            //final nameMatch = RegExp(r'^(.*?)\s*\(').firstMatch(value);
 
-            final name = nameMatch?.group(1)?.trim() ?? value;
-            final priceStr = priceMatch?.group(1)?.replaceAll(',', '.');
-            final price = priceStr != null ? double.tryParse(priceStr) ?? 0.0 : 0.0;
+            String priceStr = '';
+            if (rawOptions != null && index < rawOptions.length && rawOptions[index] != null) {
+              final parts = rawOptions[index]!.split(':');
+              if (parts.length > 1) {
+                final choixList = parts[1].split('/').map((e) => e.trim()).toList();
+                if (choixList.isNotEmpty) {
+                  priceStr = choixList.last.replaceAll(',', '.');
+                }
+              }
+            }
+            final price = double.tryParse(priceStr) ?? 0.0;
+            final name = value; // juste le nom du choix
 
             return MapEntry(index, {
               'title': title,   // ✅ nom de l'option (Sucre, Toppings...)

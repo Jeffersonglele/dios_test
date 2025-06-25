@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import '../components/Logout.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'UserOrdersPage.dart';
+
 class MyStore extends StatefulWidget {
   @override
   _MyStoreState createState() => _MyStoreState();
@@ -22,12 +24,12 @@ class _MyStoreState extends State<MyStore> {
       {
         "icon": Icons.restaurant,
         "description": "Mon restaurant",
-        "page": null, // page à mettre après récupération de l'ID
+        "page": null,
       },
       {
         "icon": Icons.fastfood_rounded,
         "description": "Mes commandes",
-        //"page": ,
+        "page": UserOrdersPage(),
       },
       {
         "icon": Icons.settings,

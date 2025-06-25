@@ -255,7 +255,7 @@ class _HomeUserState extends State<HomeUser> {
   Widget _buildMealsGrid(Size size) {
     return restaus.isNotEmpty
         ? Container(
-            height: 200,
+            height: 220,
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: GridView.builder(
               shrinkWrap: true,
@@ -304,7 +304,10 @@ class _HomeUserState extends State<HomeUser> {
                           ),
                         ),
                         ListTile(
-                          title: Text(restaus[index].name),
+                          title: Text(
+                            restaus[index].name,
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
                         ),
                       ],
                     ),
