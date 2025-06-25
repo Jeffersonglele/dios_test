@@ -23,6 +23,7 @@ import 'package:flutter/services.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:get/get.dart';
 import 'utils/translations.dart';
+import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -69,6 +70,8 @@ void main() async {
   Stripe.publishableKey =
       'pk_test_51Qj31pENxCrc0ZmbmKeHf4HU8kI0ha1ee9hj7VGkgd16U5nmM7mJ3k4SyLGV4cwAhfCsvqgdgGffMLVsQRDXKbzA00D2w1iGG0';
   await Stripe.instance.applySettings();
+
+  await NotificationService.initialize();
 
   runApp(MyApp());
 }
