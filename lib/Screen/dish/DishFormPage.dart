@@ -6,9 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:path/path.dart' as p;
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../Constant/Constant.dart';
 import '../../providers/users_provider.dart';
+import '../../services/session_service.dart';
 import '../../utils/DeviseFormat.dart';
 import '../../utils/HashtagTextInputFormatter.dart';
 import '../../utils/ThousandSeparatorInputFormatter.dart';
@@ -123,10 +123,9 @@ class _DishFormPageState extends ConsumerState<DishFormPage> {
   }
 
   Future<void> _initializeData() async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    country = prefs.getString('currentUser_country')!;
-    currentUser_restau = prefs.getInt('currentUser_restau')!;
-    print("country " + country);
+    final session = await SessionService.readSession();
+    country = session.country;
+    currentUser_restau = session.restaurantId ?? 0;
   }
 
   @override

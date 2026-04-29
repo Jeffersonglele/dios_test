@@ -1,19 +1,10 @@
-import 'dart:async';
-import 'package:avatar_glow/avatar_glow.dart';
-import 'package:dios_delices/Screen/authentification/Signup.dart';
-import 'package:dios_delices/modeles/address.dart';
-import 'package:dios_delices/modeles/commande.dart';
-import 'package:dios_delices/modeles/ligne_commande.dart';
-import 'package:dios_delices/modeles/moyen_paiement.dart';
-import 'package:dios_delices/modeles/restaurant.dart';
-import 'package:flutter/cupertino.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
-import '../modeles/dish.dart';
-import '../modeles/identity.dart';
-import '../modeles/users.dart';
-
+import 'dart:async';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:dios_delices/Screen/authentification/Signup.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../services/app_bootstrap_service.dart';
+import '../theme/app_theme.dart';
 import '../utils/toast.dart';
 
 class AnimatedSplashScreen extends ConsumerStatefulWidget {
@@ -25,51 +16,59 @@ class AnimatedSplashScreen extends ConsumerStatefulWidget {
 
 class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
     with SingleTickerProviderStateMixin {
-  List<Users> listUsers = [];
-  List<Restaurant> listRestaurants = [];
-  List<Dish> listDishes = [];
   bool isLoading = false;
+  bool showContent = false;
 
   Future<bool> isConnectedToInternet() async {
-    var connectivityResult = await (Connectivity().checkConnectivity());
-    return connectivityResult != ConnectivityResult.none;
+    final connectivityResults = await Connectivity().checkConnectivity();
+    return !connectivityResults.contains(ConnectivityResult.none);
   }
 
-  var _visible = true;
   late AnimationController animationController;
-  late Animation<double> animation;
+  late Animation<double> logoScale;
+  late Animation<double> logoOpacity;
+  late Animation<Offset> contentSlide;
 
   @override
   void initState() {
     super.initState();
 
-    // Initialisation de l'animation
-    animationController = new AnimationController(
-        vsync: this, duration: new Duration(seconds: 4));
-    animation = new CurvedAnimation(parent: animationController, curve: Curves.easeOut);
+    animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    );
 
-    animation.addListener(() => this.setState(() {}));
+    final curved = CurvedAnimation(
+      parent: animationController,
+      curve: Curves.easeOutCubic,
+    );
+
+    logoScale = Tween<double>(begin: 0.84, end: 1).animate(curved);
+    logoOpacity = Tween<double>(begin: 0.3, end: 1).animate(curved);
+    contentSlide = Tween<Offset>(
+      begin: const Offset(0, 0.08),
+      end: Offset.zero,
+    ).animate(curved);
+
     animationController.forward();
-
-    // Démarrage de l'animation
-    setState(() {
-      _visible = !_visible;
+    Future<void>.delayed(const Duration(milliseconds: 220), () {
+      if (mounted) {
+        setState(() {
+          showContent = true;
+        });
+      }
     });
-
-    // Démarrer la récupération des données après 3 secondes (animation terminée)
     startTime();
   }
 
-  // Fonction pour commencer un timer de 3 secondes avant de récupérer les données
-  startTime() async {
-    var _duration = new Duration(seconds: 3);
-    return new Timer(_duration, getData); // Appelle performLogin après le délai
+  void startTime() {
+    const splashDelay = Duration(milliseconds: 2300);
+    Timer(splashDelay, getData);
   }
 
-  // Fonction pour récupérer les données et naviguer vers la bonne page
   Future<void> getData() async {
-    // Vérifie la connexion internet
     if (!(await isConnectedToInternet())) {
+      if (!mounted) return;
       Toast(context, "Connectez-vous à internet pour continuer", false);
       return;
     }
@@ -79,72 +78,186 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
     });
 
     try {
-      // Récupération des données
-      await Users.getAllUsersDetails();
-      await Restaurant.getAllRestaurantsDetails();
-      await Dish.getAllDishesDetails();
-      await Address.getAllAdressesDetails();
-      await Identity.getAllIdentitiesDetails();
-      await MoyenPaiement.getAllMoyensPaiement();
-      await Commande.getAllCommandes();
-      await LigneCommande.getAllLignesCommande();
+      await AppBootstrapService.syncInitialData();
 
+      if (!mounted) return;
       setState(() {
         isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         isLoading = false;
       });
       Toast(context, e.toString(), false);
+      return;
     }
-    Navigator.push(context, CupertinoPageRoute(builder: (ctx) => const SignUpView()));
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 700),
+        reverseTransitionDuration: const Duration(milliseconds: 450),
+        pageBuilder: (_, animation, __) => FadeTransition(
+          opacity: animation,
+          child: const SignUpView(),
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    animationController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       body: Stack(
         fit: StackFit.expand,
-        children: <Widget>[
-          // Ajout de l'image de fond
-          Container(
+        children: [
+          const DecoratedBox(
             decoration: BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('assets/images/background.jpg'), // Votre image de fond
-                fit: BoxFit.cover, // Ajustement de l'image pour couvrir tout l'écran
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFFFF8F3),
+                  Color(0xFFF7E3D4),
+                  Color(0xFFE9B894),
+                ],
               ),
             ),
           ),
-          // Les éléments par-dessus l'image de fond
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              Center(
-                child: AvatarGlow(
-                  duration: Duration(seconds: 2),
-                  glowColor: Colors.white24,
-                  repeat: true,
-                  startDelay: Duration(seconds: 1),
-                  child: Material(
-                    elevation: 12.0,  // Augmenter l'élévation pour un effet de profondeur
-                    shape: CircleBorder(),
-                    child: CircleAvatar(
-                      backgroundColor: Colors.transparent,
-                      backgroundImage: AssetImage('assets/images/logo_sm01.jpg'),
-                      radius: 100.0,  // Augmenter le rayon pour agrandir l'image
+          Positioned(
+            top: -80,
+            right: -30,
+            child: Container(
+              width: 220,
+              height: 220,
+              decoration: const BoxDecoration(
+                color: Color(0x33C84C2F),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          Positioned(
+            left: -90,
+            bottom: -40,
+            child: Container(
+              width: 240,
+              height: 240,
+              decoration: const BoxDecoration(
+                color: Color(0x22F2B15A),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  AnimatedOpacity(
+                    duration: const Duration(milliseconds: 800),
+                    opacity: showContent ? 1 : 0,
+                    child: Text(
+                      'Dios Délices',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        letterSpacing: 0.3,
+                      ),
                     ),
                   ),
-                ),
+                  const Spacer(),
+                  Center(
+                    child: FadeTransition(
+                      opacity: logoOpacity,
+                      child: ScaleTransition(
+                        scale: logoScale,
+                        child: Container(
+                          padding: const EdgeInsets.all(18),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.72),
+                            borderRadius: BorderRadius.circular(36),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x1F000000),
+                                blurRadius: 30,
+                                offset: Offset(0, 16),
+                              ),
+                            ],
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.7),
+                            ),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(26),
+                            child: Image.asset(
+                              'assets/images/round_logo.png',
+                              width: 132,
+                              height: 132,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 34),
+                  SlideTransition(
+                    position: contentSlide,
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 700),
+                      opacity: showContent ? 1 : 0,
+                      child: Column(
+                        children: [
+                          Text(
+                            'La cuisine de quartier, plus chaleureuse et plus simple.',
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.headlineMedium?.copyWith(
+                              fontSize: 32,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          Text(
+                            'Découvrez, commandez et gérez vos micro-restaurants avec une expérience plus fluide.',
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.bodyLarge?.copyWith(
+                              color: AppColors.inkMuted,
+                              height: 1.5,
+                            ),
+                          ),
+                          const SizedBox(height: 30),
+                          if (isLoading)
+                            Column(
+                              children: [
+                                const SizedBox(
+                                  width: 34,
+                                  height: 34,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 3,
+                                  ),
+                                ),
+                                const SizedBox(height: 14),
+                                Text(
+                                  'Préparation de votre expérience…',
+                                  style: theme.textTheme.bodyMedium,
+                                ),
+                              ],
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                ],
               ),
-              if (isLoading)
-                Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: CircularProgressIndicator(), // Loading indicator
-                ),
-            ],
+            ),
           ),
-
         ],
       ),
     );

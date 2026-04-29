@@ -4,11 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:get/get.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../Constant/Constant.dart';
 import '../Controller/UiController.dart';
 import '../modeles/dish.dart';
+import '../services/favorites_service.dart';
+import '../services/session_service.dart';
 
 class DishDetails extends StatefulWidget {
   static const routeName = '/DishDetails';
@@ -26,14 +27,17 @@ class _DishDetailsState extends State<DishDetails> {
   String? country = "";
   int currentUser_restau = 0;
   int currentUser_role = 0;
+  bool isLoading = true;
+  bool isFavorite = false;
 
   TextEditingController totalController = TextEditingController();
 
   List<Dish> dishes = [];
-  late Dish current_dish;
+  Dish? current_dish;
 
   @override
   void dispose() {
+    totalController.dispose();
     super.dispose();
   }
 
@@ -46,20 +50,24 @@ class _DishDetailsState extends State<DishDetails> {
   }
 
   void loadData() async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    country = prefs.getString('currentUser_country');
-    currentUser_restau = prefs.getInt('currentUser_restau') ?? 0;
-    currentUser_role = prefs.getInt('currentUser_role') ?? 0;
+    final session = await SessionService.readSession();
+    country = session.country;
+    currentUser_restau = session.restaurantId ?? 0;
+    currentUser_role = session.role.id;
 
     // Chargement des données Dish depuis la base de données
     List<Dish> dishesList = await Dish.fetchDishesFromDB();
-    Dish? dish = await Dish.getDishByDishId(dishesList, widget.dish_id);
+    Dish? dish = Dish.getDishByDishId(dishesList, widget.dish_id);
 
+    if (!mounted || dish == null) return;
     setState(() {
       dishes = dishesList;
-      current_dish = dish!;
-      print("dishes " + dishes.toString());
+      current_dish = dish;
+      isLoading = false;
     });
+    isFavorite = await FavoritesService.isDishFavorite(widget.dish_id);
+    if (!mounted) return;
+    setState(() {});
   }
 
   List _items_categories = [];
@@ -73,7 +81,11 @@ class _DishDetailsState extends State<DishDetails> {
     var size = MediaQuery.of(context).size;
     var theme = Theme.of(context);
 
-    _getDishDetailsById();
+    if (isLoading || current_dish == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
 
     return GestureDetector(
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
@@ -136,8 +148,8 @@ class _DishDetailsState extends State<DishDetails> {
           margin: EdgeInsets.only(left: 16.0, bottom: 8.0, right: 16.0),
           decoration: BoxDecoration(
             image: DecorationImage(
-              image: (current_dish.image != null && current_dish.image!.isNotEmpty)
-                  ? NetworkImage(current_dish.image!)
+              image: (current_dish!.image != null && current_dish!.image!.isNotEmpty)
+                  ? NetworkImage(current_dish!.image!)
                   : AssetImage('assets/images/no_image.png') as ImageProvider,
               // Cast explicite en ImageProvider
               fit: BoxFit.cover,
@@ -157,11 +169,13 @@ class _DishDetailsState extends State<DishDetails> {
                   ),
                   child: IconButton(
                     icon: Icon(
-                      Icons.favorite_border_outlined,
+                      isFavorite
+                          ? Icons.favorite
+                          : Icons.favorite_border_outlined,
                     ),
                     iconSize: 30,
-                    color: Colors.black,
-                    onPressed: () {},
+                    color: isFavorite ? Colors.pink : Colors.black,
+                    onPressed: _toggleFavorite,
                   ),
                 ),
               ),
@@ -175,12 +189,12 @@ class _DishDetailsState extends State<DishDetails> {
           children: [
             SizedBox(width: 25),
             Text(
-              current_dish.name ?? "",
+              current_dish!.name ?? "",
               style: kLoginSubtitleStyle3(size),
             ),
             Spacer(),
             Text(
-              current_dish.price.toString() +
+              current_dish!.price.toString() +
                   " " +
                   (country == "France" ? "€" : 'FCFA'),
               style: TextStyle(
@@ -202,7 +216,7 @@ class _DishDetailsState extends State<DishDetails> {
             ),
             Expanded(
               child: Text(
-                current_dish.description ?? "",
+                current_dish!.description ?? "",
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis, // and this
               ),
@@ -300,7 +314,7 @@ class _DishDetailsState extends State<DishDetails> {
                   ),
                   InkWell(
                       onTap: () {
-                        if (number_of_parts < (current_dish.nb_servings ?? 0)) {
+                        if (number_of_parts < (current_dish!.nb_servings ?? 0)) {
                           setState(() {
                             number_of_parts = number_of_parts + 1;
                           });
@@ -343,15 +357,12 @@ class _DishDetailsState extends State<DishDetails> {
     );
   }
 
-  _getDishDetailsById() async {
-    var id = widget.dish_id;
-    for (var i = 0, j = _items.length; i < j; i++) {
-      if (_items[i]["id"] == id) {
-        setState(() {
-          current_dish = _items[i];
-        });
-      }
-    }
+  Future<void> _toggleFavorite() async {
+    final nextValue = await FavoritesService.toggleDishFavorite(widget.dish_id);
+    if (!mounted) return;
+    setState(() {
+      isFavorite = nextValue;
+    });
   }
 
   Future<void> readJson() async {

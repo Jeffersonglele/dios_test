@@ -9,11 +9,11 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../Constant/Constant.dart';
 import '../Controller/UiController.dart';
 import '../modeles/restaurant.dart';
 import '../modeles/users.dart';
+import '../services/session_service.dart';
 import 'dart:math';
 
 class HomeUser extends StatefulWidget {
@@ -40,19 +40,16 @@ class _HomeUserState extends State<HomeUser> {
   SimpleUIController simpleUIController = Get.put(SimpleUIController());
 
   void loadData() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    int userID = prefs.getInt('loggedUserID') ?? 0;
-    int userRole = prefs.getInt('currentUser_role') ?? 0;
-    int userRestauID = prefs.getInt('currentUser_restau') ?? 0;
+    final session = await SessionService.readSession();
 
     List<Users> usersList = await Users.fetchUsersFromDB();
     List<Restaurant> restausList = await Restaurant.fetchRestaurantsFromDB();
     List<Address> addressesList = await Address.fetchAddressesFromDB();
 
     setState(() {
-      current_userID = userID;
-      current_user_role = userRole;
-      current_user_restau = userRestauID;
+      current_userID = session.userId;
+      current_user_role = session.role.id;
+      current_user_restau = session.restaurantId ?? 0;
 
       users = usersList;
       restaus = restausList;

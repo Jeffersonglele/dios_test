@@ -2,14 +2,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../modeles/restaurant.dart';
 import '../modeles/users.dart';
-import '../utils/toast.dart';
 
 class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
   CartNotifier() : super([]);
 
   double total = 0.0;
 
-  Future<void> addToCart(
+  List<Map<String, dynamic>> get items => List.unmodifiable(state);
+
+  Future<String> addToCart(
       int mealID,
       String name,
       double price,
@@ -31,9 +32,16 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
     Users? currentUser = Users.getUsersByUserId(usersList, user_id);
     Restaurant? restaurant = Restaurant.getRestaurantByRestaurantId(restaurantsList, restau_id);
 
-    if (currentUser == null || restaurant == null) return;
+    if (currentUser == null || restaurant == null) return 'error';
 
     double finalPrice = price;
+
+    if (state.isNotEmpty) {
+      final existingRestaurantId = state.first['restaurant']['restau_id'];
+      if (existingRestaurantId != restau_id) {
+        return 'different_restaurant';
+      }
+    }
 
     if (existingIndex != -1) {
       state[existingIndex]['order']['quantity'] += quantity;
@@ -98,12 +106,16 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
           "restaurant": {
             "name": restaurant.name ?? "Restaurant inconnu",
             "restau_id": restau_id,
+            "delivery_fee": restaurant.deliveryFee,
+            "opening_hours": restaurant.openingHours,
+            "is_open": restaurant.isOpen,
           },
         },
       ];
     }
 
     total += finalPrice * quantity;
+    return 'success';
   }
 
   void removeFromCart(int index) {

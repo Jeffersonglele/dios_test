@@ -1,0 +1,467 @@
+[
+  {
+    "className": "_User",
+    "fields": {
+      "objectId": { "type": "String" },
+      "createdAt": { "type": "Date" },
+      "updatedAt": { "type": "Date" },
+      "ACL": { "type": "ACL" },
+      "username": { "type": "String" },
+      "password": { "type": "String" },
+      "email": { "type": "String" },
+      "emailVerified": { "type": "Boolean" },
+      "authData": { "type": "Object" },
+      "firstname": { "type": "String", "required": false },
+      "lastname": { "type": "String", "required": false },
+      "telephone": { "type": "Number", "required": false },
+      "userID": { "type": "Number", "required": false },
+      "image": { "type": "String", "required": false }
+    },
+    "classLevelPermissions": {
+      "find": { "*": true },
+      "count": { "*": true },
+      "get": { "*": true },
+      "create": { "*": true },
+      "update": { "*": true },
+      "delete": { "*": true },
+      "addField": { "*": true },
+      "protectedFields": { "*": [] }
+    },
+    "indexes": {
+      "_id_": { "_id": 1 },
+      "username_1": { "username": 1 },
+      "email_1": { "email": 1 }
+    }
+  },
+  {
+    "className": "_Role",
+    "fields": {
+      "objectId": { "type": "String" },
+      "createdAt": { "type": "Date" },
+      "updatedAt": { "type": "Date" },
+      "ACL": { "type": "ACL" },
+      "name": { "type": "String" },
+      "users": { "type": "Relation", "targetClass": "_User" },
+      "roles": { "type": "Relation", "targetClass": "_Role" }
+    },
+    "classLevelPermissions": {
+      "find": { "*": true },
+      "count": { "*": true },
+      "get": { "*": true },
+      "create": { "*": true },
+      "update": { "*": true },
+      "delete": { "*": true },
+      "addField": { "*": true },
+      "protectedFields": { "*": [] }
+    },
+    "indexes": {
+      "_id_": { "_id": 1 },
+      "name_1": { "name": 1 }
+    }
+  },
+  {
+    "className": "Users",
+    "fields": {
+      "objectId": { "type": "String" },
+      "createdAt": { "type": "Date" },
+      "updatedAt": { "type": "Date" },
+      "ACL": { "type": "ACL" },
+      "userID": { "type": "Number" },
+      "firstname": { "type": "String", "required": false },
+      "lastname": { "type": "String", "required": false },
+      "username": { "type": "String", "required": false },
+      "email": { "type": "String", "required": false },
+      "password": { "type": "String", "required": false },
+      "telephone": { "type": "Number", "required": false },
+      "roleID": { "type": "Number", "required": false },
+      "country": { "type": "String", "required": false },
+      "status": { "type": "String", "required": false },
+      "identity": { "type": "String", "required": false },
+      "addressID": { "type": "Number", "required": false },
+      "last_login": { "type": "Date", "required": false },
+      "image": { "type": "String", "required": false }
+    },
+    "classLevelPermissions": {
+      "find": { "*": true },
+      "count": { "*": true },
+      "get": { "*": true },
+      "create": { "*": true },
+      "update": { "*": true },
+      "delete": { "*": true },
+      "addField": { "*": true },
+      "protectedFields": { "*": [] }
+    },
+    "indexes": {
+      "_id_": { "_id": 1 },
+      "userID_1": { "userID": 1 },
+      "firstname_1": { "firstname": 1 },
+      "email_1_telephone_1_username_1": {
+        "email": 1,
+        "telephone": 1,
+        "username": 1
+      }
+    }
+  },
+  {
+    "className": "Role",
+    "fields": {
+      "objectId": { "type": "String" },
+      "createdAt": { "type": "Date" },
+      "updatedAt": { "type": "Date" },
+      "ACL": { "type": "ACL" },
+      "roleID": { "type": "Number", "required": false },
+      "name": { "type": "String", "required": false },
+      "nb_users": { "type": "Number", "required": false },
+      "nb_waiting": { "type": "Number", "required": false }
+    },
+    "classLevelPermissions": {
+      "find": { "*": true },
+      "count": { "*": true },
+      "get": { "*": true },
+      "create": { "*": true },
+      "update": { "*": true },
+      "delete": { "*": true },
+      "addField": { "*": true },
+      "protectedFields": { "*": [] }
+    },
+    "indexes": {
+      "_id_": { "_id": 1 },
+      "roleID_1": { "roleID": 1 }
+    }
+  },
+  {
+    "className": "Gallery",
+    "fields": {
+      "objectId": { "type": "String" },
+      "createdAt": { "type": "Date" },
+      "updatedAt": { "type": "Date" },
+      "ACL": { "type": "ACL" },
+      "file": { "type": "File" },
+      "nom": { "type": "String", "required": false }
+    },
+    "classLevelPermissions": {
+      "find": { "*": true },
+      "count": { "*": true },
+      "get": { "*": true },
+      "create": { "*": true },
+      "update": { "*": true },
+      "delete": { "*": true },
+      "addField": { "*": true },
+      "protectedFields": { "*": [] }
+    },
+    "indexes": {
+      "_id_": { "_id": 1 }
+    }
+  },
+  {
+    "className": "Restaurant",
+    "fields": {
+      "objectId": { "type": "String" },
+      "createdAt": { "type": "Date" },
+      "updatedAt": { "type": "Date" },
+      "ACL": { "type": "ACL" },
+      "restaurantID": { "type": "Number", "required": false },
+      "userID": { "type": "Number", "required": false },
+      "categories": { "type": "String", "required": false },
+      "description": { "type": "String", "required": false },
+      "adress": { "type": "String", "required": false },
+      "addressID": { "type": "Number", "required": false },
+      "name": { "type": "String", "required": false },
+      "note": { "type": "Number", "required": false },
+      "image": { "type": "String", "required": false },
+      "date_creation": { "type": "Date", "required": false },
+      "valid": { "type": "Number", "required": false },
+      "nb_orders": { "type": "Number", "required": false },
+      "openingHours": { "type": "String", "required": false },
+      "deliveryFee": { "type": "Number", "required": false },
+      "isOpen": { "type": "Number", "required": false },
+      "professionalType": { "type": "String", "required": false },
+      "trainingCompleted": { "type": "Boolean", "required": false },
+      "reviewRemark": { "type": "String", "required": false }
+    },
+    "classLevelPermissions": {
+      "find": { "*": true },
+      "count": { "*": true },
+      "get": { "*": true },
+      "create": { "*": true },
+      "update": { "*": true },
+      "delete": { "*": true },
+      "addField": { "*": true },
+      "protectedFields": { "*": [] }
+    },
+    "indexes": {
+      "_id_": { "_id": 1 },
+      "restaurantID_1": { "restaurantID": 1 },
+      "userID_1": { "userID": 1 },
+      "name_1": { "name": 1 }
+    }
+  },
+  {
+    "className": "Dish",
+    "fields": {
+      "objectId": { "type": "String" },
+      "createdAt": { "type": "Date" },
+      "updatedAt": { "type": "Date" },
+      "ACL": { "type": "ACL" },
+      "dishID": { "type": "Number", "required": false },
+      "userID": { "type": "Number", "required": false },
+      "restauID": { "type": "Number", "required": false },
+      "name": { "type": "String", "required": false },
+      "categories": { "type": "String", "required": false },
+      "image": { "type": "String", "required": false },
+      "nb_orders": { "type": "Number", "required": false },
+      "price": { "type": "Number", "required": false },
+      "description": { "type": "String", "required": false },
+      "nb_servings": { "type": "Number", "required": false },
+      "status": { "type": "Number", "required": false },
+      "note": { "type": "Number", "required": false },
+      "option1": { "type": "String", "required": false },
+      "option2": { "type": "String", "required": false },
+      "option3": { "type": "String", "required": false }
+    },
+    "classLevelPermissions": {
+      "find": { "*": true },
+      "count": { "*": true },
+      "get": { "*": true },
+      "create": { "*": true },
+      "update": { "*": true },
+      "delete": { "*": true },
+      "addField": { "*": true },
+      "protectedFields": { "*": [] }
+    },
+    "indexes": {
+      "_id_": { "_id": 1 },
+      "dishID_1": { "dishID": 1 },
+      "restauID_1_name_1": { "restauID": 1, "name": 1 }
+    }
+  },
+  {
+    "className": "Comment",
+    "fields": {
+      "objectId": { "type": "String" },
+      "createdAt": { "type": "Date" },
+      "updatedAt": { "type": "Date" },
+      "ACL": { "type": "ACL" },
+      "commentID": { "type": "Number", "required": false },
+      "userID": { "type": "Number", "required": false },
+      "target": { "type": "Number", "required": false },
+      "targetID": { "type": "Number", "required": false },
+      "description": { "type": "String", "required": false }
+    },
+    "classLevelPermissions": {
+      "find": { "*": true },
+      "count": { "*": true },
+      "get": { "*": true },
+      "create": { "*": true },
+      "update": { "*": true },
+      "delete": { "*": true },
+      "addField": { "*": true },
+      "protectedFields": { "*": [] }
+    },
+    "indexes": {
+      "_id_": { "_id": 1 },
+      "commentID_1": { "commentID": 1 },
+      "target_1_targetID_1": { "target": 1, "targetID": 1 }
+    }
+  },
+  {
+    "className": "Adress",
+    "fields": {
+      "objectId": { "type": "String" },
+      "createdAt": { "type": "Date" },
+      "updatedAt": { "type": "Date" },
+      "ACL": { "type": "ACL" },
+      "addressID": { "type": "Number", "required": true },
+      "object": { "type": "String", "required": false },
+      "objectID": { "type": "Number", "required": false },
+      "numero": { "type": "Number", "required": false },
+      "city": { "type": "String", "required": false },
+      "state": { "type": "String", "required": false },
+      "country": { "type": "String", "required": false },
+      "fullAddress": { "type": "String", "required": false },
+      "lat": { "type": "String", "required": false },
+      "long": { "type": "String", "required": false }
+    },
+    "classLevelPermissions": {
+      "find": { "*": true },
+      "count": { "*": true },
+      "get": { "*": true },
+      "create": { "*": true },
+      "update": { "*": true },
+      "delete": { "*": true },
+      "addField": { "*": true },
+      "protectedFields": { "*": [] }
+    },
+    "indexes": {
+      "_id_": { "_id": 1 },
+      "addressID_1": { "addressID": 1 },
+      "lat_1_long_1_object_1_objectID_1": {
+        "lat": 1,
+        "long": 1,
+        "object": 1,
+        "objectID": 1
+      }
+    }
+  },
+  {
+    "className": "Identity",
+    "fields": {
+      "objectId": { "type": "String" },
+      "createdAt": { "type": "Date" },
+      "updatedAt": { "type": "Date" },
+      "ACL": { "type": "ACL" },
+      "identityID": { "type": "Number", "required": false },
+      "userID": { "type": "Number", "required": false },
+      "piece_identite": { "type": "String", "required": false },
+      "photo": { "type": "String", "required": false },
+      "status": { "type": "String", "required": false },
+      "remark": { "type": "String", "required": false }
+    },
+    "classLevelPermissions": {
+      "find": { "*": true },
+      "count": { "*": true },
+      "get": { "*": true },
+      "create": { "*": true },
+      "update": { "*": true },
+      "delete": { "*": true },
+      "addField": { "*": true },
+      "protectedFields": { "*": [] }
+    },
+    "indexes": {
+      "_id_": { "_id": 1 },
+      "identityID_1": { "identityID": 1 },
+      "userID_1": { "userID": 1 }
+    }
+  },
+  {
+    "className": "MoyenPaiement",
+    "fields": {
+      "objectId": { "type": "String" },
+      "createdAt": { "type": "Date" },
+      "updatedAt": { "type": "Date" },
+      "ACL": { "type": "ACL" },
+      "idMoyen": { "type": "Number", "required": false },
+      "id_moyen_paiement": { "type": "String", "required": false },
+      "nom": { "type": "String", "required": false },
+      "libelle": { "type": "String", "required": false },
+      "userID": { "type": "Number", "required": false },
+      "stripe_pm_id": { "type": "String", "required": false },
+      "brand": { "type": "String", "required": false },
+      "last4": { "type": "Number", "required": false },
+      "exp_month": { "type": "Number", "required": false },
+      "exp_year": { "type": "Number", "required": false },
+      "type": { "type": "String", "required": false },
+      "is_default": { "type": "Boolean", "required": false }
+    },
+    "classLevelPermissions": {
+      "find": { "*": true },
+      "count": { "*": true },
+      "get": { "*": true },
+      "create": { "*": true },
+      "update": { "*": true },
+      "delete": { "*": true },
+      "addField": { "*": true },
+      "protectedFields": { "*": [] }
+    },
+    "indexes": {
+      "_id_": { "_id": 1 },
+      "idMoyen_1": { "idMoyen": 1 },
+      "id_moyen_paiement_1": { "id_moyen_paiement": 1 },
+      "stripe_pm_id_1": { "stripe_pm_id": 1 }
+    }
+  },
+  {
+    "className": "Commande",
+    "fields": {
+      "objectId": { "type": "String" },
+      "createdAt": { "type": "Date" },
+      "updatedAt": { "type": "Date" },
+      "ACL": { "type": "ACL" },
+      "commandeID": { "type": "Number", "required": false },
+      "id_commande": { "type": "String", "required": false },
+      "userID": { "type": "Number", "required": false },
+      "id_user": { "type": "Number", "required": false },
+      "restauID": { "type": "Number", "required": false },
+      "id_restau": { "type": "Number", "required": false },
+      "restaurateurID": { "type": "Number", "required": false },
+      "id_restaurateur": { "type": "Number", "required": false },
+      "moyenPaiementID": { "type": "Number", "required": false },
+      "id_moyen_paiement": { "type": "String", "required": false },
+      "fraisLivraison": { "type": "Number", "required": false },
+      "frais_livraison": { "type": "Number", "required": false },
+      "reduction": { "type": "Number", "required": false },
+      "reduction_globale": { "type": "Number", "required": false },
+      "dateCommande": { "type": "Date", "required": false },
+      "date_commande": { "type": "Date", "required": false },
+      "heure": { "type": "String", "required": false },
+      "addressID": { "type": "Number", "required": false },
+      "id_adresse_livraison": { "type": "Number", "required": false },
+      "note": { "type": "Number", "required": false },
+      "commentaire": { "type": "String", "required": false },
+      "status": { "type": "String", "required": false },
+      "statut": { "type": "String", "required": false },
+      "statut_commande": { "type": "String", "required": false },
+      "currency": { "type": "String", "required": false },
+      "promo_code": { "type": "String", "required": false },
+      "deliveryMode": { "type": "String", "required": false },
+      "subtotalAmount": { "type": "Number", "required": false },
+      "totalAmount": { "type": "Number", "required": false }
+    },
+    "classLevelPermissions": {
+      "find": { "*": true },
+      "count": { "*": true },
+      "get": { "*": true },
+      "create": { "*": true },
+      "update": { "*": true },
+      "delete": { "*": true },
+      "addField": { "*": true },
+      "protectedFields": { "*": [] }
+    },
+    "indexes": {
+      "_id_": { "_id": 1 },
+      "commandeID_1": { "commandeID": 1 },
+      "id_commande_1": { "id_commande": 1 },
+      "date_commande_1": { "date_commande": 1 },
+      "userID_1_restauID_1": { "userID": 1, "restauID": 1 }
+    }
+  },
+  {
+    "className": "LigneCommande",
+    "fields": {
+      "objectId": { "type": "String" },
+      "createdAt": { "type": "Date" },
+      "updatedAt": { "type": "Date" },
+      "ACL": { "type": "ACL" },
+      "ligneID": { "type": "String", "required": false },
+      "id_ligne_commande": { "type": "String", "required": false },
+      "commandeID": { "type": "String", "required": false },
+      "id_commande": { "type": "String", "required": false },
+      "platID": { "type": "Number", "required": false },
+      "id_plat": { "type": "Number", "required": false },
+      "quantite": { "type": "Number", "required": false },
+      "prixUnitaire": { "type": "Number", "required": false },
+      "prix_unitaire": { "type": "Number", "required": false },
+      "reduction": { "type": "Number", "required": false },
+      "note": { "type": "Number", "required": false },
+      "commentaire": { "type": "String", "required": false },
+      "options": { "type": "Object", "required": false }
+    },
+    "classLevelPermissions": {
+      "find": { "*": true },
+      "count": { "*": true },
+      "get": { "*": true },
+      "create": { "*": true },
+      "update": { "*": true },
+      "delete": { "*": true },
+      "addField": { "*": true },
+      "protectedFields": { "*": [] }
+    },
+    "indexes": {
+      "_id_": { "_id": 1 },
+      "ligneID_1": { "ligneID": 1 },
+      "id_ligne_commande_1": { "id_ligne_commande": 1 },
+      "commandeID_1": { "commandeID": 1 },
+      "id_commande_1": { "id_commande": 1 }
+    }
+  }
+]

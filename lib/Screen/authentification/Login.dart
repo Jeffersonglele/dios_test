@@ -4,20 +4,20 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get/get.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:avatar_glow/avatar_glow.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../Constant/Constant.dart';
 import '../../Controller/UiController.dart';
 import '../../components/showConfetti.dart';
+import '../../core/app_role.dart';
 import '../../modeles/restaurant.dart';
 import '../../modeles/users.dart';
+import '../../services/session_service.dart';
 import '../../utils/toast.dart';
-import '../LocationPage.dart';
 import '../restaurants/RestaurantFormPage.dart';
 import '../verif_confirm/StartAddressSaving.dart';
 import '../verif_confirm/StatusSelectionPage.dart';
-import '../password/EmailInputScreen.dart';
 import '../restaurants/RestaurantUpdateFormPage.dart';
 import '../restaurants/WaitRestaurantValidation.dart';
 import '../verif_confirm/VerificationPage.dart';
@@ -82,8 +82,8 @@ class _LoginState extends ConsumerState<Login> {
     }
   }*/
   Future<void> checkVerificationStatus() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    bool isVerified = prefs.getBool('userVerified') ?? false;
+    final prefs = await SharedPreferences.getInstance();
+    final bool isVerified = prefs.getBool('userVerified') ?? false;
 
     // Vérifier si les données nécessaires sont bien présentes avant de continuer
     int? userID = prefs.getInt('userID');
@@ -144,32 +144,33 @@ class _LoginState extends ConsumerState<Login> {
   }
 
   Future<void> performLogin() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-
     try {
-      final user = await Users.verifUser(users, nameController.text, passwordController.text);
+      final user = await Users.verifUser(
+        users,
+        nameController.text,
+        passwordController.text,
+      );
       ref.read(usersProvider.notifier).state = user;
 
       // l'user existe
       if (user != null) {
-        print("user trouvé");
-        await prefs.setBool('isLoggedIn', true);
-        await prefs.setInt('loggedUserID', user.userID);
-        await prefs.setInt('currentUser_role', user.roleID);
-        await prefs.setString('currentUser_country', user.country);
+        final role = AppRole.fromId(user.roleID);
+        await SessionService.saveUserSession(
+          userId: user.userID,
+          role: role,
+          country: user.country,
+        );
 
         // si c'est un admin ou un super admin il se connecte directement
-        if(user.roleID == 1 || user.roleID == 4){
-          print("admin ou super admin");
+        if (role.isAdmin) {
           firstLogin(user);
         } else {
           // l'email et le téléphone ont été vérifiés
           if (user.status == "Verified") {
-            _handleApprovedUser(user, prefs);
+            _handleApprovedUser(user);
 
             // l'user n'a pas d'adresse
-            if (user.country == null) {
-              print("country not existing");
+            if (user.country.trim().isEmpty) {
               Navigator.pushReplacement(
                 context,
                 CupertinoPageRoute(
@@ -181,34 +182,33 @@ class _LoginState extends ConsumerState<Login> {
 
             } else {
               // l'user a une adresse
-              print("country existing");
-
               // l'identité a été vérifiée
-              if(user.identity == "Verified") {
+              if (user.identity == "Verified") {
                 //si c'est un resto
-                if(user.roleID == 3) {
+                if (role.isProfessional) {
                   // on vérifie que le resto est enregistré et validé
-                  _handleRestaurantValidation(user, prefs);
+                  _handleRestaurantValidation(user);
                 } else {
                   // il peut se connecter ; tous les users qui ne sont pas des admins ont un restau
-                  if(user.roleID == 2) {
-                    Restaurant? restau = await Restaurant.getRestaurantByUser(restaus, user.userID);
-                    await prefs.setInt('currentUser_restau', restau!.restaurantID);
-                    print("abcd " + user.userID.toString());
-                    print("currentUser_restau connexion " + restau.restaurantID.toString());
+                  if (role.isIndividual) {
+                    final restau = await Restaurant.getRestaurantByUser(
+                      restaus,
+                      user.userID,
+                    );
+                    if (restau != null) {
+                      await SessionService.setRestaurantId(restau.restaurantID);
+                    }
                   }
-                  print("resto enregistré et connexion");
                   firstLogin(user);
                 }
-
-              } else if(user.identity == "En attente"){
+              } else if (user.identity == "En attente") {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) => WaitIdentityValidation(),
                   ),
                 );
-              } else if(user.identity == "Rejected"){
+              } else if (user.identity == "Rejected") {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -229,21 +229,18 @@ class _LoginState extends ConsumerState<Login> {
             _redirectToVerification(user);
           }
         }
-
       } else {
-        print("user non trouvé");
-        _handleLoginFailure(prefs);
+        _handleLoginFailure();
       }
     } catch (e) {
-      print("catch " + e.toString());
-      _handleLoginFailure(prefs);
+      _handleLoginFailure();
     }
   }
 
-  void _handleApprovedUser(Users user, SharedPreferences prefs) async {
+  void _handleApprovedUser(Users user) async {
     // si l'utilisateur ne s'est jamais connecté et s'il n'est ni un admin ni un super admin
-    if ((user.last_login == null || user.last_login == " ") &&
-        (user.roleID != 1 || user.roleID != 4)) {
+    final role = AppRole.fromId(user.roleID);
+    if (user.last_login == null && !role.isAdmin) {
       Navigator.pushReplacement(
         context,
         CupertinoPageRoute(
@@ -262,23 +259,20 @@ class _LoginState extends ConsumerState<Login> {
     }
   }
 
-  void _handleRestaurantValidation(Users user, SharedPreferences prefs) async {
-    Restaurant? restau = await Restaurant.getRestaurantByUser(restaus, user.userID);
-    print("_handleRestaurantValidation");
+  void _handleRestaurantValidation(Users user) async {
+    final restau = await Restaurant.getRestaurantByUser(restaus, user.userID);
 
     if (restau != null) {
       // le restau n'est pas encore validé
       if (restau.valid == 0) {
-        print("restau.valid == 0");
-        _redirectToWaitValidation(prefs);
+        _redirectToWaitValidation();
       } else if (restau.valid == 1) {
         // le restau est validé il peut se connecter
-        await prefs.setInt('currentUser_restau', restau.restaurantID);
-        print("resto validé et connexion");
+        await SessionService.setRestaurantId(restau.restaurantID);
         firstLogin(user);
       } else {
         // il y a des erreurs dans le formulaire
-        _redirectToRestaurantUpdate(user, restau, prefs);
+        _redirectToRestaurantUpdate(user, restau);
       }
     } else {
       // on va enregistrer le restau
@@ -291,8 +285,6 @@ class _LoginState extends ConsumerState<Login> {
   }
 
   void _redirectToVerification(Users user) {
-    print("before verif");
-    print("emailController.text " + user.email);
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -312,20 +304,17 @@ class _LoginState extends ConsumerState<Login> {
     );
   }
 
-  void _redirectToWaitValidation(SharedPreferences prefs) {
+  void _redirectToWaitValidation() {
     setState(() {
       loginFailed = true;
-      prefs.setBool('isLoggedIn', false);
       Navigator.push(context,
           MaterialPageRoute(builder: (context) => WaitRestaurantValidation()));
     });
   }
 
-  void _redirectToRestaurantUpdate(
-      Users user, Restaurant restau, SharedPreferences prefs) {
+  void _redirectToRestaurantUpdate(Users user, Restaurant restau) {
     setState(() {
       loginFailed = true;
-      prefs.setBool('isLoggedIn', false);
       Navigator.push(
           context,
           MaterialPageRoute(
@@ -334,11 +323,10 @@ class _LoginState extends ConsumerState<Login> {
     });
   }
 
-  void _handleLoginFailure(SharedPreferences prefs) {
+  void _handleLoginFailure() {
     setState(() {
       isLoading = false;
       loginFailed = true;
-      prefs.setBool('isLoggedIn', false);
     });
     Toast(context, "Erreur : Identifiant(s) incorrect(s)", false);
   }
@@ -357,7 +345,7 @@ class _LoginState extends ConsumerState<Login> {
   }
 
   Future<void> firstLogin(Users user) async {
-    if(user.last_login == null || user.last_login == " "){
+    if (user.last_login == null) {
       Navigator.push(
         context,
         CupertinoPageRoute(
@@ -633,11 +621,8 @@ class _LoginState extends ConsumerState<Login> {
           ),
         ),
         onPressed: () async {
-          if (nameController.text == null ||
-              passwordController.text.isEmpty ||
-              nameController.text == null ||
+          if (nameController.text.trim().isEmpty ||
               passwordController.text.isEmpty) {
-            //await DatabaseHelper.cleanUpDatabase(false);
             Toast(
                 context, "Erreur : Entrez un login et un mot de passe", false);
           } else {

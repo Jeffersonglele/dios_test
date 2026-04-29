@@ -6,12 +6,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_stripe/flutter_stripe.dart' as stripe;
 import 'package:mailer/mailer.dart';
 import 'package:mailer/smtp_server/gmail.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../modeles/commande.dart';
 import '../modeles/restaurant.dart';
 import '../modeles/users.dart';
 import '../modeles/address.dart' as delivery;
 import '../providers/cart_provider.dart';
 import '../providers/selected_delivery.dart';
+import '../services/commande_api.dart';
+import '../services/promo_service.dart';
+import '../services/session_service.dart';
 import '../utils/toast.dart';
 import 'package:http/http.dart' as http;
 import 'order_tracking_page.dart';
@@ -23,10 +26,21 @@ class Cart extends ConsumerStatefulWidget {
 }
 
 class _CartState extends ConsumerState<Cart> {
+  final TextEditingController _promoCodeController = TextEditingController();
+
+  PromoApplication? _appliedPromo;
+  bool _isSubmittingPayment = false;
+
   @override
   void initState() {
     super.initState();
     loadData();
+  }
+
+  @override
+  void dispose() {
+    _promoCodeController.dispose();
+    super.dispose();
   }
 
   delivery.Address? selectedAddress;
@@ -39,31 +53,30 @@ class _CartState extends ConsumerState<Cart> {
   int current_user_role = 0;
 
   void loadData() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    int userID = prefs.getInt('loggedUserID') ?? 0;
-
+    final session = await SessionService.readSession();
     List<delivery.Address> addressesList = await delivery.Address.fetchAddressesFromDB();
 
     setState(() {
       addresses = addressesList;
-      current_userID = userID;
+      current_userID = session.userId;
+      current_user_role = session.role.id;
     });
     await _filterAddresses();
   }
 
   Future<void> _filterAddresses() async {
-    print("_filterAddresses");
-    List<Map<String, dynamic>> user_adresses = [];
+    final List<Map<String, dynamic>> userAddresses = [];
 
     for (var a in addresses) {
       if (a.objectID == current_userID &&
           (a.object == "Livraison" || a.object == "User")) {
-        user_adresses.add(a.toJson());
-        setState(() {
-          filteredAddresses = user_adresses;
-        });
+        userAddresses.add(a.toJson());
       }
     }
+
+    setState(() {
+      filteredAddresses = userAddresses;
+    });
   }
 
   Future<void> refreshAddresses() async {
@@ -75,17 +88,83 @@ class _CartState extends ConsumerState<Cart> {
     await _filterAddresses();
   }
 
-  double calculateDeliveryFee(delivery.Address? address) {
-    if (address == null) return 0.0;
-
-    // Exemple : tarif selon ville
-    if (address.city?.toLowerCase() == "paris") {
-      return 5.0;
-    } else if (address.city?.toLowerCase() == "lyon") {
-      return 3.5;
-    } else {
-      return 7.0; // par défaut
+  double calculateDeliveryFee(List<Map<String, dynamic>> cartItems) {
+    if (cartItems.isEmpty) {
+      return 0.0;
     }
+
+    final restaurant = cartItems.first['restaurant'] as Map<String, dynamic>?;
+    final fee = restaurant?['delivery_fee'];
+    if (fee is num) {
+      return fee.toDouble();
+    }
+
+    return double.tryParse(fee?.toString() ?? '0') ?? 0.0;
+  }
+
+  String _countryFromCart(List<Map<String, dynamic>> cartItems) {
+    if (cartItems.isEmpty) {
+      return 'France';
+    }
+    return cartItems.first['meal']['country']?.toString() ?? 'France';
+  }
+
+  String _currencyCodeFromCountry(String country) {
+    return country == 'France' ? 'eur' : 'xof';
+  }
+
+  String _currencySymbolFromCountry(String country) {
+    return country == 'France' ? '€' : 'FCFA';
+  }
+
+  double _lineTotal(Map<String, dynamic> item) {
+    final unitPrice = (item['meal']['price'] as num?)?.toDouble() ?? 0.0;
+    final quantity = (item['order']['quantity'] as num?)?.toInt() ?? 0;
+    final optionPrice = (item['optionPrice'] as num?)?.toDouble() ?? 0.0;
+    return (unitPrice + optionPrice) * quantity;
+  }
+
+  double _calculateSubtotal(List<Map<String, dynamic>> cartItems) {
+    return cartItems.fold<double>(0.0, (sum, item) => sum + _lineTotal(item));
+  }
+
+  int _stripeAmountFromTotal(double totalAmount, String currencyCode) {
+    if (currencyCode == 'eur') {
+      return (totalAmount * 100).round();
+    }
+    return totalAmount.round();
+  }
+
+  String _formatAmount(double amount, String currencyCode, String currencySymbol) {
+    if (currencyCode == 'eur') {
+      return "${amount.toStringAsFixed(2)} $currencySymbol";
+    }
+    return "${amount.round()} $currencySymbol";
+  }
+
+  void _applyPromoCode({
+    required List<Map<String, dynamic>> cartItems,
+    required double deliveryFee,
+  }) {
+    final subtotal = _calculateSubtotal(cartItems);
+    final promo = PromoService.applyCode(
+      rawCode: _promoCodeController.text,
+      subtotal: subtotal,
+      deliveryFee: deliveryFee,
+    );
+
+    if (promo == null) {
+      setState(() {
+        _appliedPromo = null;
+      });
+      Toast(context, "Code promo invalide.", false);
+      return;
+    }
+
+    setState(() {
+      _appliedPromo = promo;
+    });
+    Toast(context, "Code promo appliqué : ${promo.description}", true);
   }
 
   @override
@@ -112,31 +191,27 @@ class _CartState extends ConsumerState<Cart> {
       }
     }
 
-    double calculateDeliveryFee(delivery.Address? address) {
-      if (address == null) return 0.0;
-      switch (address.city?.toLowerCase()) {
-        case 'paris':
-          return 5.0;
-        case 'lyon':
-          return 3.5;
-        default:
-          return 7.0;
-      }
-    }
+    final country = _countryFromCart(cartItems);
+    final currencyCode = _currencyCodeFromCountry(country);
+    final currencySymbol = _currencySymbolFromCountry(country);
 
     double deliveryFee = selectedOption == "En Livraison"
-        ? calculateDeliveryFee(selectedAddress)
+        ? calculateDeliveryFee(cartItems)
         : 0.0;
 
-    double cartTotal = cartItems.fold(0.0, (sum, item) {
-      double itemTotal = item['meal']['price'] * item['order']['quantity'];
-      double optionPrice = item['optionPrice'] ?? 0;
-      if (item['meal']['country'] != 'France') {
-        itemTotal /= 655.957;
-        optionPrice /= 655.957;
-      }
-      return sum + itemTotal + optionPrice;
-    });
+    final cartTotal = _calculateSubtotal(cartItems);
+    final effectivePromo = _appliedPromo == null
+        ? null
+        : PromoService.applyCode(
+            rawCode: _appliedPromo!.code,
+            subtotal: cartTotal,
+            deliveryFee: deliveryFee,
+          );
+    final reductionAmount = effectivePromo?.discountAmount ?? 0.0;
+    final payableTotal = (cartTotal + deliveryFee - reductionAmount).clamp(
+      0.0,
+      double.infinity,
+    );
 
     return Scaffold(
       appBar: AppBar(title: Text('Votre Panier')),
@@ -196,7 +271,11 @@ class _CartState extends ConsumerState<Cart> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    "${item["meal"]["price"].toStringAsFixed(2)} ${item["meal"]["country"] == 'France' ? '€' : 'FCFA'}",
+                                    _formatAmount(
+                                      (item["meal"]["price"] as num).toDouble(),
+                                      currencyCode,
+                                      currencySymbol,
+                                    ),
                                   ),
                                   if (item["meal"]["options"] != null &&
                                       item["meal"]["options"] is Map &&
@@ -217,7 +296,7 @@ class _CartState extends ConsumerState<Cart> {
                                           : 0.0;
                                       print("price ddd " + price.toString());
 
-                                      final devise = (item["meal"]["country"] == 'France' ? '€' : 'FCFA');
+                                      final devise = currencySymbol;
                                       return Text(
                                         "$title : $name${(price != null && price > 0) ? ' +${price.toStringAsFixed(2)} $devise' : ''}",
                                         style: TextStyle(fontSize: 13, fontStyle: FontStyle.italic),
@@ -257,7 +336,13 @@ class _CartState extends ConsumerState<Cart> {
                               Text("Frais de livraison",
                                   style:
                                       TextStyle(fontWeight: FontWeight.bold)),
-                              Text("$deliveryFee €"),
+                              Text(
+                                _formatAmount(
+                                  deliveryFee,
+                                  currencyCode,
+                                  currencySymbol,
+                                ),
+                              ),
                             ],
                           ),
                         ],
@@ -325,55 +410,120 @@ class _CartState extends ConsumerState<Cart> {
                           Text("Frais de livraison :",
                               style: TextStyle(
                                   fontSize: 16, fontWeight: FontWeight.w500)),
-                          Text("${deliveryFee.toStringAsFixed(2)} €",
+                          Text(
+                              _formatAmount(
+                                deliveryFee,
+                                currencyCode,
+                                currencySymbol,
+                              ),
                               style: TextStyle(fontSize: 16)),
                         ],
                       ),
                     ],
                     Divider(),
+                    SizedBox(height: 12),
+                    Text(
+                      "Code promo",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _promoCodeController,
+                            textCapitalization: TextCapitalization.characters,
+                            decoration: InputDecoration(
+                              hintText: "Ex: BIENVENUE10",
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: cartItems.isEmpty
+                              ? null
+                              : () => _applyPromoCode(
+                                    cartItems: cartItems,
+                                    deliveryFee: deliveryFee,
+                                  ),
+                          child: Text("Appliquer"),
+                        ),
+                      ],
+                    ),
+                    if (effectivePromo != null) ...[
+                      SizedBox(height: 8),
+                      Text(
+                        "${effectivePromo.code} : ${effectivePromo.description}",
+                        style: TextStyle(
+                          color: Colors.green[700],
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                     SizedBox(height: 20),
-                    selectedOption == 'En Livraison'
-                        ? Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                "Total avec livraison ",
-                                style: TextStyle(
-                                    fontSize: 20, fontWeight: FontWeight.bold),
-                              ),
-                              Text(
-                                (cartItems.isNotEmpty
-                                        ? (cartTotal + deliveryFee)
-                                            .toStringAsFixed(2)
-                                        : "0.00") +
-                                    (cartItems.first["meal"]["country"] ==
-                                            'France'
-                                        ? ' €'
-                                        : ' FCFA'),
-                                style:
-                                TextStyle(fontSize: 20, color: Colors.red),
-                              ),
-                            ],
-                          )
-                        : Row(
+                    Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          "Total sans livraison ",
+                          "Sous-total",
                           style: TextStyle(
                               fontSize: 20, fontWeight: FontWeight.bold),
                         ),
                         Text(
-                          (cartItems.isNotEmpty
-                              ? (cartTotal)
-                              .toStringAsFixed(2)
-                              : "0.00") +
-                              (cartItems.first["meal"]["country"] ==
-                                  'France'
-                                  ? ' €'
-                                  : ' FCFA'),
-                          style:
-                          TextStyle(fontSize: 20, color: Colors.red),
+                          _formatAmount(cartTotal, currencyCode, currencySymbol),
+                          style: TextStyle(fontSize: 20, color: Colors.red),
+                        ),
+                      ],
+                    ),
+                    if (effectivePromo != null) ...[
+                      SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "Réduction",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            "- ${_formatAmount(reductionAmount, currencyCode, currencySymbol)}",
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: Colors.green[700],
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          selectedOption == 'En Livraison'
+                              ? "Total avec livraison"
+                              : "Total sans livraison",
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          _formatAmount(
+                            payableTotal,
+                            currencyCode,
+                            currencySymbol,
+                          ),
+                          style: TextStyle(fontSize: 20, color: Colors.red),
                         ),
                       ],
                     ),
@@ -391,98 +541,147 @@ class _CartState extends ConsumerState<Cart> {
                             borderRadius: BorderRadius.circular(15),
                           ),
                         ),
-                        onPressed: cartItems.isNotEmpty
+                        onPressed: cartItems.isNotEmpty && !_isSubmittingPayment
                             ? () async {
-                          final totalAmount = cartItems.fold(
-                            0.0,
-                                (sum, item) {
-                              double itemTotal = item['meal']['price'] * item['order']['quantity'];
-                              double optionPrice = item['optionPrice'] ?? 0;
-                              if (item['meal']['country'] != 'France') {
-                                itemTotal /= 655.957;
-                                optionPrice /= 655.957;
-                              }
-                              return sum + itemTotal + optionPrice;
-                            },
-                          ) + deliveryFee;
-
-                          final paymentIntentResponse = await http.post(
-                            Uri.parse('https://dios-delices-backend.vercel.app/api/create-payment-intent'),
-                            body: jsonEncode({
-                              'amount': (totalAmount * 100).round(), // cents
-                              'currency': 'eur',
-                            }),
-                            headers: {'Content-Type': 'application/json'},
-                          );
-
-                          if (paymentIntentResponse.statusCode != 200) {
-                            Toast(context, "Erreur de paiement", false);
+                          if (selectedOption == "En Livraison" &&
+                              selectedAddress == null) {
+                            Toast(
+                              context,
+                              "Choisissez une adresse de livraison avant de payer.",
+                              false,
+                            );
                             return;
                           }
 
-                          final paymentIntentData = jsonDecode(paymentIntentResponse.body);
+                          setState(() {
+                            _isSubmittingPayment = true;
+                          });
 
-                          await stripe.Stripe.instance.initPaymentSheet(
-                            paymentSheetParameters: stripe.SetupPaymentSheetParameters(
-                              paymentIntentClientSecret: paymentIntentData['clientSecret'],
-                              merchantDisplayName: 'Dios Délices',
-                            ),
-                          );
+                          try {
+                            final paymentIntentResponse = await http.post(
+                              Uri.parse(
+                                'https://dios-delices-backend.vercel.app/api/create-payment-intent',
+                              ),
+                              body: jsonEncode({
+                                'amount': _stripeAmountFromTotal(
+                                  payableTotal,
+                                  currencyCode,
+                                ),
+                                'currency': currencyCode,
+                              }),
+                              headers: {'Content-Type': 'application/json'},
+                            );
 
-                          await stripe.Stripe.instance.presentPaymentSheet();
+                            if (paymentIntentResponse.statusCode != 200) {
+                              Toast(context, "Erreur de paiement", false);
+                              return;
+                            }
 
-                          final updatedIntent = await stripe.Stripe.instance.retrievePaymentIntent(
-                            paymentIntentData['clientSecret'],
-                          );
+                            final paymentIntentData = jsonDecode(
+                              paymentIntentResponse.body,
+                            );
 
-                          final pmId = updatedIntent.paymentMethodId;
+                            await stripe.Stripe.instance.initPaymentSheet(
+                              paymentSheetParameters:
+                                  stripe.SetupPaymentSheetParameters(
+                                paymentIntentClientSecret:
+                                    paymentIntentData['clientSecret'],
+                                merchantDisplayName: 'Dios Délices',
+                              ),
+                            );
 
-                          if (pmId == null || pmId.isEmpty) {
-                            print("❌ Erreur : moyen de paiement non trouvé dans le PaymentIntent mis à jour");
-                            Toast(context, "Erreur : aucun moyen de paiement détecté.", false);
-                            return;
+                            await stripe.Stripe.instance.presentPaymentSheet();
+
+                            final updatedIntent = await stripe.Stripe.instance
+                                .retrievePaymentIntent(
+                              paymentIntentData['clientSecret'],
+                            );
+
+                            final pmId = updatedIntent.paymentMethodId;
+
+                            if (pmId == null || pmId.isEmpty) {
+                              Toast(
+                                context,
+                                "Erreur : aucun moyen de paiement détecté.",
+                                false,
+                              );
+                              return;
+                            }
+
+                            final paymentMethodDetails =
+                                await fetchStripePaymentMethodDetails(pmId);
+
+                            final id_moyen_paiement = await createMoyenPaiement(
+                              paymentMethodDetails,
+                              cartItems.first['user']['user_id'],
+                            );
+
+                            if (id_moyen_paiement == null) {
+                              Toast(
+                                context,
+                                "Erreur paiement: moyen de paiement non enregistré",
+                                false,
+                              );
+                              return;
+                            }
+
+                            final commandeId = await createOrder(
+                              cartItems,
+                              deliveryFee,
+                              selectedOption == "En Livraison"
+                                  ? selectedAddress?.addressID
+                                  : null,
+                              id_moyen_paiement,
+                              ref,
+                              currencyCode: currencyCode,
+                              reduction: reductionAmount,
+                              promoCode: effectivePromo?.code,
+                            );
+
+                            if (commandeId == null) {
+                              Toast(
+                                context,
+                                "Impossible de créer la commande.",
+                                false,
+                              );
+                              return;
+                            }
+
+                            await updateOrderStatus(commandeId, "Payée");
+                            await Commande.refreshLocalCommandes();
+
+                            Toast(context, "Commande validée avec succès", true);
+                            cartNotifier.clearCart();
+
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => OrderConfirmationPage(
+                                  commandeId: commandeId,
+                                ),
+                              ),
+                            );
+                          } catch (e) {
+                            Toast(
+                              context,
+                              "Paiement échoué. Veuillez réessayer.",
+                              false,
+                            );
+                          } finally {
+                            if (mounted) {
+                              setState(() {
+                                _isSubmittingPayment = false;
+                              });
+                            }
                           }
-
-                          final paymentMethodDetails = await fetchStripePaymentMethodDetails(pmId);
-
-
-                          // ✅ ENREGISTRER moyen de paiement
-                          final id_moyen_paiement = await createMoyenPaiement(
-                            paymentMethodDetails,
-                            cartItems.first['user']['user_id'],
-                          );
-
-                          if (id_moyen_paiement == null) {
-                            Toast(context, "Erreur paiement: moyen de paiement non enregistré", false);
-                            return;
-                          }
-
-                          final commandeId = await createOrder(
-                            cartItems,
-                            deliveryFee,
-                            selectedOption == "En Livraison" ? selectedAddress?.addressID : null,
-                            id_moyen_paiement,
-                            ref,
-                          );
-
-                          if (commandeId == null) {
-                            Toast(context, "Impossible de créer la commande.", false);
-                            return;
-                          }
-
-                          await updateOrderStatus(commandeId, "Payée");
-
-                          Toast(context, "Commande validée avec succès", true);
-                          cartNotifier.clearCart();
-
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(builder: (context) => OrderConfirmationPage()),
-                          );
                         }
                             : null,
 
-                        child: const Text('Procéder au paiement'),
+                        child: Text(
+                          _isSubmittingPayment
+                              ? 'Paiement en cours...'
+                              : 'Procéder au paiement',
+                        ),
                       ),
                     ),
                   ],
@@ -508,31 +707,18 @@ class _CartState extends ConsumerState<Cart> {
   Future<void> makePayment(BuildContext context, CartNotifier cartNotifier,
       double totalAmount, String commandeId) async {
     try {
-      final List<dynamic> cartItems = cartNotifier.state;
-
-      double totalInEur = cartItems.fold(0.0, (previousValue, item) {
-        double itemTotal = item["meal"]["price"] * item["order"]["quantity"];
-
-        // Conversion optionPrice si présente
-        double optionPrice = item["optionPrice"] ?? 0;
-        if (item["meal"]["country"] != "France") {
-          itemTotal /= 655.957;
-          optionPrice /= 655.957;
-        }
-
-        itemTotal += optionPrice;
-
-        return previousValue + itemTotal;
-      });
-
-      int amountInCents = (totalInEur * 100).round();
+      final List<dynamic> cartItems = cartNotifier.items;
+      final country = _countryFromCart(List<Map<String, dynamic>>.from(cartItems));
+      final currencyCode = _currencyCodeFromCountry(country);
+      final totalCart = _calculateSubtotal(List<Map<String, dynamic>>.from(cartItems));
+      final amount = _stripeAmountFromTotal(totalCart, currencyCode);
 
       final response = await http.post(
         Uri.parse(
             'https://dios-delices-backend.vercel.app/api/create-payment-intent'),
         body: jsonEncode({
-          'amount': amountInCents,
-          'currency': 'eur',
+          'amount': amount,
+          'currency': currencyCode,
         }),
         headers: {'Content-Type': 'application/json'},
       );
@@ -568,6 +754,7 @@ class _CartState extends ConsumerState<Cart> {
           }
 
           await updateOrderStatus(commandeId, "Payée");
+          await Commande.refreshLocalCommandes();
         } catch (e) {
           print("⛔ Abandon suite à échec updateOrderStatus : $e");
           Toast(context, "Erreur de mise à jour de la commande.", false);
@@ -588,7 +775,11 @@ class _CartState extends ConsumerState<Cart> {
         cartNotifier.clearCart();
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => OrderConfirmationPage()),
+          MaterialPageRoute(
+            builder: (context) => OrderConfirmationPage(
+              commandeId: commandeId,
+            ),
+          ),
         );
       });
     } catch (e) {
@@ -696,7 +887,16 @@ class _CartState extends ConsumerState<Cart> {
     }
   }
 
-  Future<String?> createOrder(List<dynamic> cartItems, double deliveryFee, int? id_adresse_livraison, String? id_moyen_paiement, WidgetRef ref) async {
+  Future<String?> createOrder(
+    List<dynamic> cartItems,
+    double deliveryFee,
+    int? id_adresse_livraison,
+    String? id_moyen_paiement,
+    WidgetRef ref, {
+    required String currencyCode,
+    required double reduction,
+    String? promoCode,
+  }) async {
     List<Restaurant> restaurantsList =
         await Restaurant.fetchRestaurantsFromDB();
     final userId = cartItems.first['user']['user_id'];
@@ -704,24 +904,18 @@ class _CartState extends ConsumerState<Cart> {
     final current_restaurant =
         Restaurant.getRestaurantByRestaurantId(restaurantsList, restaurantId);
 
-    final totalAmount = cartItems.fold(
+    final subtotal = _calculateSubtotal(List<Map<String, dynamic>>.from(cartItems));
+    final totalAmount = (subtotal + deliveryFee - reduction).clamp(
       0.0,
-          (sum, item) {
-        double itemTotal = item['meal']['price'] * item['order']['quantity'];
-        double optionPrice = item['optionPrice'] ?? 0;
-        if (item['meal']['country'] != 'France') {
-          itemTotal /= 655.957;
-          optionPrice /= 655.957;
-        }
-        return sum + itemTotal + optionPrice;
-      },
-    ) + deliveryFee; // ✅ Ajout des frais de livraison
+      double.infinity,
+    );
 
     final items = cartItems.map((item) {
       return {
         "id_plat": item["meal"]["mealID"],
         "quantite": item["order"]["quantity"],
         "prix": item["meal"]["price"],
+        "reduction": reduction,
         "frais_livraison": deliveryFee,
         if (id_moyen_paiement != null) "moyen_paiement_id": id_moyen_paiement,
         if (id_adresse_livraison != null) "id_adresse_livraison": id_adresse_livraison,
@@ -741,10 +935,13 @@ class _CartState extends ConsumerState<Cart> {
       "userId": userId,
       "restaurantId": restaurantId,
       "id_restaurateur": current_restaurant?.userID,
+      "currency": currencyCode,
       "frais_livraison": deliveryFee,
+      "reduction": reduction,
       "totalAmount": totalAmount,
       "id_moyen_paiement": id_moyen_paiement,
       "items": items,
+      if (promoCode != null) "promo_code": promoCode,
       if (id_adresse_livraison != null) "id_adresse_livraison": id_adresse_livraison,
     };
 
@@ -759,6 +956,7 @@ class _CartState extends ConsumerState<Cart> {
 
     if (response.statusCode == 201) {
       final data = jsonDecode(response.body);
+      await Commande.refreshLocalCommandes();
       return data['commandeId'];
     } else {
       print("Erreur lors de la création de commande : ${response.body}");
@@ -767,23 +965,15 @@ class _CartState extends ConsumerState<Cart> {
   }
 
   Future<void> updateOrderStatus(String commandeId, String status) async {
-    final response = await http.put(
-      Uri.parse(
-          "https://dios-delices-backend.vercel.app/api/update-order-status?id=$commandeId"),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({"status": status}),
-    );
-
-    if (response.statusCode == 200) {
-      print("✅ Statut de la commande mis à jour");
-    } else {
-      print("❌ Erreur mise à jour statut : ${response.body}");
-      throw Exception("Échec mise à jour statut commande");
-    }
+    await CommandeApi.updateOrderStatus(commandeId, status);
   }
 }
 
 class OrderConfirmationPage extends StatelessWidget {
+  final String commandeId;
+
+  const OrderConfirmationPage({super.key, required this.commandeId});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -828,7 +1018,11 @@ class OrderConfirmationPage extends StatelessWidget {
               onPressed: () {
                 Navigator.pushReplacement(
                   context,
-                  MaterialPageRoute(builder: (context) => OrderTrackingPage()),
+                  MaterialPageRoute(
+                    builder: (context) => OrderTrackingPage(
+                      highlightedCommandeId: commandeId,
+                    ),
+                  ),
                 );
               },
               child: const Text('Suivre ma commande'),

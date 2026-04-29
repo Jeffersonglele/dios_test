@@ -36,6 +36,9 @@ class _RestaurantUpdateFormPageState
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _categoriesController = TextEditingController();
+  final TextEditingController _openingHoursController = TextEditingController();
+  final TextEditingController _deliveryFeeController = TextEditingController();
+  bool _isOpen = true;
   List<String> _selectedHashtags = [];
 
   File? _image;
@@ -112,6 +115,9 @@ class _RestaurantUpdateFormPageState
     _nameController.dispose();
     _addressController.dispose();
     _descriptionController.dispose();
+    _categoriesController.dispose();
+    _openingHoursController.dispose();
+    _deliveryFeeController.dispose();
     super.dispose();
   }
 
@@ -133,6 +139,9 @@ class _RestaurantUpdateFormPageState
     _addressController.text = widget.restaurant.adress;
     _descriptionController.text = widget.restaurant.description;
     _categoriesController.text = widget.restaurant.categories;
+    _openingHoursController.text = widget.restaurant.openingHours;
+    _deliveryFeeController.text = widget.restaurant.deliveryFee.toStringAsFixed(2);
+    _isOpen = widget.restaurant.isOpen == 1;
   }
 
   @override
@@ -245,6 +254,51 @@ class _RestaurantUpdateFormPageState
                     maxLines: null,
                   ),
                   SizedBox(height: size.height * 0.02),
+                  _buildTextField(
+                    controller: _openingHoursController,
+                    hintText: "Horaires d'ouverture (ex: 09:00 - 20:00)",
+                    icon: Icons.access_time,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return "Entrez les horaires d'ouverture";
+                      }
+                      return null;
+                    },
+                  ),
+                  SizedBox(height: size.height * 0.02),
+                  _buildTextField(
+                    controller: _deliveryFeeController,
+                    hintText: "Frais de livraison",
+                    icon: Icons.delivery_dining,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: <TextInputFormatter>[
+                      FilteringTextInputFormatter.allow(RegExp(r'^\d+[.,]?\d{0,2}$')),
+                    ],
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Entrez les frais de livraison';
+                      }
+                      final normalized = value.replaceAll(',', '.');
+                      if (double.tryParse(normalized) == null) {
+                        return 'Entrez un montant valide';
+                      }
+                      return null;
+                    },
+                  ),
+                  SizedBox(height: size.height * 0.02),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text("Restaurant actuellement ouvert"),
+                    value: _isOpen,
+                    activeColor: Colors.green,
+                    onChanged: (value) {
+                      setState(() {
+                        _isOpen = value;
+                      });
+                    },
+                  ),
+                  SizedBox(height: size.height * 0.02),
                   // Sélection de l'image
                   Center(
                     child: Column(
@@ -345,13 +399,18 @@ class _RestaurantUpdateFormPageState
                                 await Restaurant.manageRestaurant(
                               restaurantID: widget.restaurant.restaurantID,
                               userID: user.userID,
-                              valid: 0,
-                              nb_orders: 0,
-                              note: 0.0,
+                              valid: widget.restaurant.valid,
+                              nb_orders: widget.restaurant.nb_orders,
+                              note: widget.restaurant.note,
                               categories: _selectedHashtags.join(', '),
                               description: _descriptionController.text,
                               adress: _addressController.text,
                               name: _nameController.text,
+                              openingHours: _openingHoursController.text.trim(),
+                              deliveryFee: double.parse(
+                                _deliveryFeeController.text.replaceAll(',', '.'),
+                              ),
+                              isOpen: _isOpen ? 1 : 0,
                               image: parseFile,
                             );
 

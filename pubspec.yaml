@@ -36,7 +36,7 @@ dependencies:
   cupertino_icons: ^1.0.2
   english_words: ^4.0.0
   flutter_launcher_icons: ^0.10.0
-  google_fonts: ^4.0.4  # Version compatible
+  google_fonts: ^8.1.0
   lottie: ^1.4.2
   get: ^4.6.5
   email_validator: ^2.1.17
@@ -55,24 +55,24 @@ dependencies:
   flutter_riverpod: ^2.4.10
   gpassword: ^0.0.1
   path: ^1.8.3
-  http: ^0.13.5
+  http: ^1.2.0
   mailer: ^6.1.0
   path_provider: ^2.1.2
   hive: ^2.2.3
   hive_flutter: ^1.1.0
-  parse_server_sdk_flutter: ^9.0.0
+  parse_server_sdk_flutter: ^10.7.0
   geolocator: ^9.0.2
   geocoding: ^2.0.0
-  twilio_flutter: ^0.0.9
+  twilio_flutter: ^0.9.0
   file_picker: ^6.1.1
   cached_network_image: ^3.3.1
-  syncfusion_flutter_pdfviewer: ^20.4.54
+  syncfusion_flutter_pdfviewer: ^33.2.4
 
   flutter_localizations: 
     sdk: flutter   
   pin_code_fields: ^8.0.1
   image_picker: ^1.1.2
-  connectivity_plus: ^6.0.3
+  connectivity_plus: ^7.1.1
   confetti: ^0.8.0
   multi_select_flutter: ^4.1.3
   flutter_stripe: ^11.4.0
@@ -82,27 +82,24 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_lints: ^2.0.0
   hive_generator: ^2.0.0
   build_runner: ^2.3.3
 
 flutter_icons:
   android: true
   ios: true
-  image_path_ios: "assets/images/logo_sm04.jpg"  # Logo spécifique pour iOS
-  image_path_android: "assets/images/logo_512.png"  # Logo spécifique pour Android
-  adaptive_icon_background: "#FF0000"  # Fond pour l'icône adaptative Android
-
-  # The "flutter_lints" package below contains a set of recommended lints to
-  # encourage good coding practices. The lint set provided by the package is
-  # activated in the `analysis_options.yaml` file located at the root of your
-  # package. See that file for information about deactivating specific lint
-  # rules and activating additional ones.
-  flutter_lints: ^2.0.0
+  image_path_ios: "assets/images/round_logo.png"
+  image_path_android: "assets/images/round_logo.png"
+  adaptive_icon_background: "#FFF4EC"
+  remove_alpha_ios: true
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubsqpec
 
 dependency_overrides:
+  file_picker:
+    path: third_party/file_picker_fixed
   intl: ^0.17.0
 
 # The following section is specific to Flutter packages.

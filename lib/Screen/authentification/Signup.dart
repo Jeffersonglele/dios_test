@@ -330,12 +330,8 @@ class _SignUpViewState extends State<SignUpView> {
                   specialCharCount: 1,
                   width: 400,
                   height: 150,
-                  onSuccess: () {
-                    print("MATCHED");
-                  },
-                  onFail: () {
-                    print("NOT MATCHED");
-                  },
+                  onSuccess: () {},
+                  onFail: () {},
                 ),
                 SizedBox(height: size.height * 0.03),
                 // Champ pour confirmer le mot de passe

@@ -352,7 +352,9 @@ class DatabaseHelper {
 
   static Future<List<LigneCommande>> readLignesCommande(int commandeID) async {
     final box = await Hive.openBox<LigneCommande>('ligne_commande');
-    return box.values.where((ligne) => ligne.commandeID == commandeID).toList();
+    return box.values
+        .where((ligne) => ligne.commandeID == commandeID.toString())
+        .toList();
   }
 
   static Future<void> deleteLigneCommande(int ligneID) async {

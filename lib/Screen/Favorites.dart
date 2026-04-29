@@ -1,154 +1,203 @@
-import 'dart:convert';
-
 import 'package:dios_delices/Screen/DishDetails.dart';
+import 'package:dios_delices/Screen/restaurants/RestaurantDetails.dart';
+import 'package:dios_delices/modeles/dish.dart';
+import 'package:dios_delices/modeles/restaurant.dart';
+import 'package:dios_delices/services/favorites_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-
-import 'package:get/get.dart';
-
-import '../Constant/Constant.dart';
-import '../Controller/UiController.dart';
 
 class Favorites extends StatefulWidget {
-  const Favorites({Key? key}) : super(key: key);
+  const Favorites({super.key});
 
   @override
   State<Favorites> createState() => _FavoritesState();
 }
 
 class _FavoritesState extends State<Favorites> {
-  @override
-  void dispose() {
-    super.dispose();
-  }
+  bool isLoading = true;
+  List<Restaurant> favoriteRestaurants = [];
+  List<Dish> favoriteDishes = [];
 
   @override
   void initState() {
     super.initState();
-    readJson();
+    _loadFavorites();
   }
 
-  List _items = [];
-  var _is_liked = true;
-  SimpleUIController simpleUIController = Get.put(SimpleUIController());
+  Future<void> _loadFavorites() async {
+    final restaurantIds = await FavoritesService.getFavoriteRestaurantIds();
+    final dishIds = await FavoritesService.getFavoriteDishIds();
+    final restaurants = await Restaurant.fetchRestaurantsFromDB();
+    final dishes = await Dish.fetchDishesFromDB();
 
-  Future<void> readJson() async {
-    final String response =
-        await rootBundle.loadString('assets/static_data/Meals.json');
-    final data = await json.decode(response);
+    if (!mounted) return;
     setState(() {
-      _items = data["items"];
+      favoriteRestaurants = restaurants
+          .where((restaurant) => restaurantIds.contains(restaurant.restaurantID))
+          .toList();
+      favoriteDishes =
+          dishes.where((dish) => dishIds.contains(dish.dishID)).toList();
+      isLoading = false;
     });
+  }
+
+  Future<void> _removeRestaurant(int restaurantId) async {
+    await FavoritesService.toggleRestaurantFavorite(restaurantId);
+    await _loadFavorites();
+  }
+
+  Future<void> _removeDish(int dishId) async {
+    await FavoritesService.toggleDishFavorite(dishId);
+    await _loadFavorites();
   }
 
   @override
   Widget build(BuildContext context) {
-    var size = MediaQuery.of(context).size;
-    var theme = Theme.of(context);
-
-    return new WillPopScope(
-      onWillPop: () async => false,
-      child: GestureDetector(
-        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
-        child: Scaffold(
-            backgroundColor: Colors.white,
-            resizeToAvoidBottomInset: false,
-            body: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: size.width > 600
-                  ? MainAxisAlignment.center
-                  : MainAxisAlignment.start,
-              children: [
-                SizedBox(
-                  height: size.height * 0.06,
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: RefreshIndicator(
+          onRefresh: _loadFavorites,
+          child: isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 40, 16, 24),
+                  children: [
+                    const Text(
+                      'Mes favoris',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Retrouvez ici vos restaurants et plats préférés.',
+                    ),
+                    const SizedBox(height: 20),
+                    _buildRestaurantSection(),
+                    const SizedBox(height: 20),
+                    _buildDishSection(),
+                  ],
                 ),
-                Flexible(
-                  child: ListView.builder(
-                    scrollDirection: Axis.vertical,
-                    shrinkWrap: true,
-                    itemCount: _items.length,
-                    itemBuilder: (context, index) {
-                      return GestureDetector(
-                          onTap: () => {
-                                Navigator.push(
-                                    context,
-                                    CupertinoPageRoute(
-                                        builder: (ctx) => DishDetails(
-                                            from_page: 5,
-                                            dish_id: _items[index]["id"])))
-                              },
-                          child: Column(
-                            children: [
-                              Card(
-                                elevation: 4.0,
-                                child: Column(
-                                  children: [
-                                    Container(
-                                      height: 200.0,
-                                      child: Ink.image(
-                                        image: AssetImage(
-                                          _items[index]["image"],
-                                        ),
-                                        fit: BoxFit.cover,
-                                      ),
-                                    ),
-                                    Container(
-                                      padding: EdgeInsets.all(16.0),
-                                      alignment: Alignment.centerLeft,
-                                      child: Text(
-                                        _items[index]["meal_name"],
-                                        style: kLoginSubtitleStyle3(size),
-                                      ),
-                                    ),
-                                    Row(
-                                      children: [
-                                        SizedBox(
-                                          width: 15,
-                                        ),
-                                        Text(
-                                          _items[index]["price"].toString() +
-                                              " " +
-                                              _items[index]["currency"],
-                                          style: TextStyle(
-                                              color: Colors.red,
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 20),
-                                        ),
-                                        Spacer(),
-                                        IconButton(
-                                          onPressed: () async {
-                                            setState(() {
-                                              _is_liked = !_is_liked;
-                                            });
-                                          },
-                                          icon: Icon(
-                                            _is_liked
-                                                ? Icons.favorite
-                                                : Icons.favorite_border,
-                                            color: Colors.pink,
-                                            size: 40,
-                                          ),
-                                        ),
-                                        SizedBox(
-                                          width: 15,
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              SizedBox(
-                                height: 50,
-                              )
-                            ],
-                          ));
-                    },
-                  ),
-                ),
-              ],
-            )),
+        ),
       ),
+    );
+  }
+
+  Widget _buildRestaurantSection() {
+    return _FavoriteSection(
+      title: 'Restaurants favoris',
+      emptyMessage: "Aucun restaurant en favori pour l'instant.",
+      children: favoriteRestaurants
+          .map(
+            (restaurant) => Card(
+              child: ListTile(
+                leading: const CircleAvatar(
+                  backgroundColor: Color(0xFFFFE1DC),
+                  child: Icon(Icons.storefront, color: Colors.red),
+                ),
+                title: Text(restaurant.name),
+                subtitle: Text(
+                  '${restaurant.openingHours} | Livraison ${restaurant.deliveryFee.toStringAsFixed(2)}',
+                ),
+                trailing: IconButton(
+                  onPressed: () => _removeRestaurant(restaurant.restaurantID),
+                  icon: const Icon(Icons.favorite, color: Colors.pink),
+                ),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    CupertinoPageRoute(
+                      builder: (context) => RestaurantDetails(
+                        restaurant_id: restaurant.restaurantID,
+                      ),
+                    ),
+                  ).then((_) => _loadFavorites());
+                },
+              ),
+            ),
+          )
+          .toList(),
+    );
+  }
+
+  Widget _buildDishSection() {
+    return _FavoriteSection(
+      title: 'Plats favoris',
+      emptyMessage: "Aucun plat en favori pour l'instant.",
+      children: favoriteDishes
+          .map(
+            (dish) => Card(
+              child: ListTile(
+                leading: const CircleAvatar(
+                  backgroundColor: Color(0xFFFFF2E6),
+                  child: Icon(Icons.restaurant_menu, color: Colors.deepOrange),
+                ),
+                title: Text(dish.name ?? 'Plat'),
+                subtitle: Text(
+                  '${dish.price?.toStringAsFixed(2) ?? '0.00'} | ${dish.categories ?? ''}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                trailing: IconButton(
+                  onPressed: () => _removeDish(dish.dishID),
+                  icon: const Icon(Icons.favorite, color: Colors.pink),
+                ),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    CupertinoPageRoute(
+                      builder: (context) => DishDetails(
+                        from_page: 5,
+                        dish_id: dish.dishID,
+                      ),
+                    ),
+                  ).then((_) => _loadFavorites());
+                },
+              ),
+            ),
+          )
+          .toList(),
+    );
+  }
+}
+
+class _FavoriteSection extends StatelessWidget {
+  const _FavoriteSection({
+    required this.title,
+    required this.emptyMessage,
+    required this.children,
+  });
+
+  final String title;
+  final String emptyMessage;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        if (children.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8F5F2),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Text(emptyMessage),
+          )
+        else
+          ...children,
+      ],
     );
   }
 }

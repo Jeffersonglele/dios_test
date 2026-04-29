@@ -538,7 +538,7 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 10.0),
                             child: ElevatedButton(
-                              onPressed: () {
+                              onPressed: () async {
                                 setState(() {
                                   nameController.text = current_dish?.name ?? "";
                                   priceController.text = current_dish!.price.toString();
@@ -639,7 +639,7 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 10.0),
                             child: ElevatedButton(
-                              onPressed: () {
+                              onPressed: () async {
                                 List<String?> options = [current_dish!.option1, current_dish!.option2, current_dish!.option3];
                                 for (int i = 0; i < options.length; i++) {
                                   String? opt = options[i];
@@ -679,7 +679,7 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
                                 }
 
                                 print("current_dish!.dishID " + current_dish!.dishID.toString());
-                                cartNotifier.addToCart(
+                                final addResult = await cartNotifier.addToCart(
                                   current_dish!.dishID,
                                   current_dish?.name ?? "Plat",
                                   prixPlat,
@@ -693,6 +693,24 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
                                   optionPrice: prixTotalOptions,
                                   rawOptions: options,
                                 );
+
+                                if (addResult == 'different_restaurant') {
+                                  Toast(
+                                    context,
+                                    "Le panier ne peut contenir que des plats d'un seul restaurant.",
+                                    false,
+                                  );
+                                  return;
+                                }
+
+                                if (addResult != 'success') {
+                                  Toast(
+                                    context,
+                                    "Impossible d'ajouter ce plat au panier.",
+                                    false,
+                                  );
+                                  return;
+                                }
 
                                 Toast(context, "Le plat ${current_dish?.name} a été ajouté au panier !", true);
 

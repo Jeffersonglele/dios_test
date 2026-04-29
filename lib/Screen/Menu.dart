@@ -3,10 +3,10 @@ import 'package:dios_delices/Screen/dish/DishFormPage.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../Constant/Constant.dart';
 import '../Controller/UiController.dart';
 import '../modeles/dish.dart';
+import '../services/session_service.dart';
 import 'micro_restau/DishDetailsMicroRestau.dart';
 
 class Menu extends StatefulWidget {
@@ -39,10 +39,10 @@ class _MenuState extends State<Menu> {
   }
 
   void loadData() async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    country = prefs.getString('currentUser_country');
-    currentUser_restau = prefs.getInt('currentUser_restau') ?? 0;
-    currentUser_role = prefs.getInt('currentUser_role') ?? 0;
+    final session = await SessionService.readSession();
+    country = session.country;
+    currentUser_restau = session.restaurantId ?? 0;
+    currentUser_role = session.role.id;
 
     // Chargement des données Dish depuis la base de données
     List<Dish> dishesList = await Dish.fetchDishesFromDB();

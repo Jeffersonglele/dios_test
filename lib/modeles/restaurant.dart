@@ -39,6 +39,15 @@ class Restaurant extends HiveObject {
   @HiveField(10)
   int nb_orders;
 
+  @HiveField(11)
+  final String openingHours;
+
+  @HiveField(12)
+  final double deliveryFee;
+
+  @HiveField(13)
+  final int isOpen;
+
   Restaurant(
       {required this.restaurantID,
       required this.userID,
@@ -50,7 +59,10 @@ class Restaurant extends HiveObject {
       required this.nb_orders,
       required this.image,
       required this.valid,
-      required this.date_creation});
+      required this.date_creation,
+      this.openingHours = '09:00 - 20:00',
+      this.deliveryFee = 0.0,
+      this.isOpen = 1});
 
   Map<String, dynamic> toMap() {
     return {
@@ -64,7 +76,10 @@ class Restaurant extends HiveObject {
       'nb_orders': nb_orders,
       'valid': valid,
       'image': image,
-      'date_creation': date_creation
+      'date_creation': date_creation,
+      'openingHours': openingHours,
+      'deliveryFee': deliveryFee,
+      'isOpen': isOpen,
     };
   }
 
@@ -87,7 +102,11 @@ class Restaurant extends HiveObject {
         date_creation: map['date_creation'] != null && map['date_creation']['iso'] != null
             ? DateTime.tryParse(map['date_creation']['iso'])
             : null,
-        image: map['image']?.toString() ?? '');
+        image: map['image']?.toString() ?? '',
+        openingHours: map['openingHours']?.toString() ?? '09:00 - 20:00',
+        deliveryFee:
+            double.tryParse(map['deliveryFee']?.toString() ?? '0') ?? 0.0,
+        isOpen: int.tryParse(map['isOpen']?.toString() ?? '1') ?? 1);
   }
 
   Restaurant copy({
@@ -102,6 +121,9 @@ class Restaurant extends HiveObject {
     String? name,
     DateTime? date_creation,
     String? image,
+    String? openingHours,
+    double? deliveryFee,
+    int? isOpen,
   }) {
     return Restaurant(
         restaurantID: restaurantID ?? this.restaurantID,
@@ -114,7 +136,10 @@ class Restaurant extends HiveObject {
         adress: adress ?? this.adress,
         name: name ?? this.name,
         date_creation: date_creation ?? this.date_creation,
-        image: image ?? this.image);
+        image: image ?? this.image,
+        openingHours: openingHours ?? this.openingHours,
+        deliveryFee: deliveryFee ?? this.deliveryFee,
+        isOpen: isOpen ?? this.isOpen);
   }
 
   static Future<String> manageRestaurant({
@@ -127,6 +152,9 @@ class Restaurant extends HiveObject {
     required String description,
     required String adress,
     required String name,
+    String openingHours = '09:00 - 20:00',
+    double deliveryFee = 0.0,
+    int isOpen = 1,
     DateTime? date_creation,
     ParseFile? image,
     String? img_url,
@@ -180,6 +208,9 @@ class Restaurant extends HiveObject {
       'nb_orders': nb_orders,
       'valid': valid,
       'image': imageUrl, // Use the URL of the uploaded image
+      'openingHours': openingHours,
+      'deliveryFee': deliveryFee,
+      'isOpen': isOpen,
       'date_creation': {
         "__type": "Date",
         "iso": date_creation?.toIso8601String()
@@ -211,6 +242,9 @@ class Restaurant extends HiveObject {
             name: name,
             image: image == null ? img_url : imageUrl,
             date_creation: date_creation,
+            openingHours: openingHours,
+            deliveryFee: deliveryFee,
+            isOpen: isOpen,
           );
 
           if (restaurantID == null) {
@@ -318,7 +352,6 @@ class Restaurant extends HiveObject {
 
   static Future<List<Restaurant>> fetchRestaurantsFromDB() async {
     List<Restaurant> restaurantList = await DatabaseHelper.readAllRestaurants();
-    print("fetchRestaurantsFromDB " + restaurantList.toString());
     return restaurantList;
   }
 

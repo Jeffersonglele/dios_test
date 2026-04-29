@@ -266,7 +266,7 @@ class Dish extends HiveObject {
         if (response['success'] == false) {
           return "Erreur : ${response['error']}";
         } else {
-          await DatabaseHelper.updateRestaurantStatus(dishID, status);
+          await DatabaseHelper.updateDishStatus(dishID, status);
           return "success";
         }
       } else {

@@ -1,11 +1,8 @@
 import 'package:dios_delices/Screen/AnimatedSplashScreen.dart';
-import 'package:dios_delices/providers/users_provider.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart'; // Assurez-vous que Riverpod est bien importé
-
 import '../db/database_helper.dart';
+import '../services/session_service.dart';
 
 class LogoutFormDialog extends StatefulWidget {
 
@@ -74,12 +71,7 @@ class _LogoutFormDialogState extends State<LogoutFormDialog> {
                             backgroundColor: Colors.red,
                           ),
                           onPressed: () async {
-                            final prefs = await SharedPreferences.getInstance();
-                            await prefs.clear(); // Efface toutes les préférences
-
-                            // Réinitialise les fournisseurs
-                            // widget.ref.invalidate(usersProvider); // Invalide le fournisseur
-
+                            await SessionService.clearAll();
                             await DatabaseHelper.cleanUpDatabase(true); // Nettoie la base de données
 
                             // Retour à l'écran de démarrage

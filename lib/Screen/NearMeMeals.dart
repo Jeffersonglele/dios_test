@@ -1,290 +1,233 @@
-import 'dart:convert';
-import 'package:dios_delices/Screen/restaurants/RestaurantDetails.dart';
-import 'package:dios_delices/modeles/restaurant.dart';
+import 'package:dios_delices/Screen/DishDetails.dart';
+import 'package:dios_delices/services/nearby_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:get/get.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:http/http.dart' as http;
-
-import '../Controller/UiController.dart';
 
 class NearMeMeals extends StatefulWidget {
-  const NearMeMeals({Key? key}) : super(key: key);
+  const NearMeMeals({super.key});
 
   @override
   State<NearMeMeals> createState() => _NearMeMealsState();
 }
 
 class _NearMeMealsState extends State<NearMeMeals> {
-  List _nearbyRestaurants = [];
-  String googleApiKey = 'AIzaSyDbNMAeiSEuFBhS0rpObu1wBk8V3Xx33LA'; // Remplacez par votre clé API Google
-  SimpleUIController simpleUIController = Get.put(SimpleUIController());
-
-  String? country = "";
-  int currentUser_role = 0;
+  final TextEditingController _searchController = TextEditingController();
+  List<NearbyDishResult> _allDishes = [];
+  List<NearbyDishResult> _visibleDishes = [];
+  bool _isLoading = true;
+  bool _openRestaurantsOnly = false;
+  double _maxDistanceKm = 10;
 
   @override
   void initState() {
     super.initState();
-    fetchNearbyRestaurants();
+    _loadNearbyDishes();
+    _searchController.addListener(_applyFilters);
   }
 
-  Future<void> fetchNearbyRestaurants() async {
-    Position? userPosition = await _getUserLocation();
-    if (userPosition != null) {
-      await loadData(userPosition);
-    }
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
-  Future<Position?> _getUserLocation() async {
-    try {
-      // TODO decommenter return await _determinePosition();
-      return Position(
-          latitude: 44.8315, // Latitude pour 17 rue Forestier, 33800 Bordeaux
-          longitude: -0.5716, // Longitude pour 17 rue Forestier, 33800 Bordeaux
-          timestamp: DateTime.now(),
-          accuracy: 0.0,
-          altitude: 0.0,
-          heading: 0.0,
-          speed: 0.0,
-          speedAccuracy: 0.0,
-          altitudeAccuracy: 0.0,
-          headingAccuracy: 0.0);
-    } catch (e) {
-      print('Erreur de localisation: $e');
-      return null;
-    }
-  }
+  Future<void> _loadNearbyDishes() async {
+    setState(() {
+      _isLoading = true;
+    });
 
-  Future<String?> getCountryFromCoordinates(Position position) async {
-    final url = Uri.parse(
-      'https://maps.googleapis.com/maps/api/geocode/json?latlng=${position.latitude},${position.longitude}&key=$googleApiKey',
+    final dishes = await NearbyService.getNearbyDishes(
+      maxDistanceKm: _maxDistanceKm,
+      openRestaurantsOnly: _openRestaurantsOnly,
     );
 
-    try {
-      final response = await http.get(url);
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-
-        if (data['status'] == 'OK' && data['results'].isNotEmpty) {
-          // Parcourir les résultats pour trouver le pays
-          for (var component in data['results'][0]['address_components']) {
-            if (component['types'].contains('country')) {
-              return component['long_name']; // Nom complet du pays
-            }
-          }
-        }
-      } else {
-        print("Erreur API: ${response.statusCode} - ${response.body}");
-      }
-    } catch (e) {
-      print("Erreur lors de la récupération du pays : $e");
-    }
-
-    return null; // Retourne null si le pays n'a pas pu être récupéré
-  }
-
-  Future<Map<String, double>> _getCoordinatesFromAddress(String address, String postalCode) async {
-    // Combinez l'adresse et le code postal
-    final fullAddress = "$address, $postalCode";
-
-    // Construisez l'URL avec l'adresse complète
-    final url = Uri.parse(
-        'https://maps.googleapis.com/maps/api/geocode/json?address=${Uri.encodeComponent(fullAddress)}&key=$googleApiKey');
-
-    print("Requête envoyée à l'API Google: $url");
-
-    try {
-      // Envoyez la requête GET
-      final response = await http.get(url);
-
-      if (response.statusCode == 200) {
-        final jsonResponse = json.decode(response.body);
-
-        // Vérifiez que les résultats contiennent des données de géolocalisation
-        if (jsonResponse['status'] == 'OK' && jsonResponse['results'].isNotEmpty) {
-          final location = jsonResponse['results'][0]['geometry']['location'];
-          return {
-            'latitude': location['lat'],
-            'longitude': location['lng'],
-          };
-        } else {
-          print("Adresse introuvable ou réponse vide: $fullAddress");
-        }
-      } else {
-        print("Erreur API: ${response.statusCode} - ${response.body}");
-      }
-    } catch (e) {
-      print("Erreur lors de l'appel de l'API Geocoding: $e");
-    }
-
-    // Retourne des valeurs par défaut en cas d'échec
-    return {'latitude': 0.0, 'longitude': 0.0};
-  }
-
-  Future<void> loadData(Position userPosition) async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    // todo enelver : country = prefs.getString('currentUser_country');
-    country = "France";
-    currentUser_role = prefs.getInt('currentUser_role') ?? 0;
-
-    List<Restaurant> restaurantsList = await Restaurant.fetchRestaurantsFromDB();
-
-    List filteredRestaurants = [];
-
-    for (var restaurant in restaurantsList) {
-      final adress = "${restaurant.adress}, ${country}";
-      final postalCode = "33800"; //todo enlever cette ligne
-      //final postalCode = restaurant.postalCode; // Supposons que le modèle Restaurant inclut un code postal
-
-      print("userPosition.latitude " + userPosition.latitude.toString());
-      print("userPosition.longitude " + userPosition.longitude.toString());
-      String? userCountry = await getCountryFromCoordinates(userPosition);
-      print("Pays de l'utilisateur : $userCountry");
-
-      try {
-        final coordinates = await _getCoordinatesFromAddress(adress, postalCode);
-        final distance = Geolocator.distanceBetween(
-          userPosition.latitude,
-          userPosition.longitude,
-          coordinates['latitude']!,
-          coordinates['longitude']!,
-        );
-
-        print("distance " + distance.toString());
-
-        if (distance <= 3000) {
-          filteredRestaurants.add({
-            'restaurantID': restaurant.restaurantID ,
-            'image': restaurant.image ?? 'assets/images/default.png', // Image par défaut
-            'name': restaurant.name ?? 'Nom indisponible',       // Nom par défaut
-            //'currency': restaurant.currency ?? '€',                  // Devise par défaut
-            'distance': distance,
-          });
-          filteredRestaurants.add({
-            'name': restaurant.name ?? 'Nom indisponible',       // Nom par défaut
-            //'currency': restaurant.currency ?? '€',                  // Devise par défaut
-            'distance': distance,
-          });
-        }
-      } catch (e) {
-        print("Erreur lors du calcul de la distance : $e");
-      }
-
-    }
-
+    if (!mounted) return;
     setState(() {
-      _nearbyRestaurants = filteredRestaurants;
+      _allDishes = dishes;
+      _isLoading = false;
     });
+    _applyFilters();
+  }
+
+  void _applyFilters() {
+    final query = _searchController.text.trim().toLowerCase();
+    final filtered = _allDishes.where((result) {
+      final haystack =
+          '${result.dish.name} ${result.dish.categories} ${result.restaurant.name}'
+              .toLowerCase();
+      return query.isEmpty || haystack.contains(query);
+    }).toList();
+
+    if (!mounted) return;
+    setState(() {
+      _visibleDishes = filtered;
+    });
+  }
+
+  Future<void> _updateDistance(double distanceKm) async {
+    setState(() {
+      _maxDistanceKm = distanceKm;
+    });
+    await _loadNearbyDishes();
+  }
+
+  Future<void> _updateOpenOnly(bool value) async {
+    setState(() {
+      _openRestaurantsOnly = value;
+    });
+    await _loadNearbyDishes();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Restaurants à proximité'),
+        title: const Text('Plats à proximité'),
       ),
-      body: _nearbyRestaurants.isEmpty
-          ? Center(
-        child: Text(
-          'Aucun restaurant à proximité trouvé.',
-          style: TextStyle(fontSize: 16, color: Colors.grey),
-        ),
-      ) // Message si aucun restaurant
-          : ListView.builder(
-        itemCount: _nearbyRestaurants.length,
-        itemBuilder: (context, index) {
-          final restaurant = _nearbyRestaurants[index];
-          return Card(
-            child: Column(
+      body: RefreshIndicator(
+        onRefresh: _loadNearbyDishes,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+          children: [
+            TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Rechercher un plat ou un restaurant',
+                prefixIcon: const Icon(Icons.search),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
               children: [
-                buildImage(restaurant["image"]),
-                ListTile(
-                  title: Text(
-                    restaurant["name"] ?? "Nom indisponible",
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 25),
-                  ),
-                  subtitle: Text(
-                    "Situé à ${(restaurant["distance"] ?? 0.0).toStringAsFixed(2)} m",
-                    style: TextStyle(color: Colors.red.withOpacity(0.6)),
-                  ),
-                  trailing: Icon(Icons.chevron_right), // Chevron droit
-                  onTap: () {
-                    print("restaurant " + restaurant.toString());
-                    print("restaurant.restaurantID " + restaurant["restaurantID"].toString()); // Utilisation de ["restaurantID"]
-
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => RestaurantDetails(
-                          restaurant_id: restaurant["restaurantID"],
-                        ),
-                      ),
-                    );
-                  },
+                _FilterChip(
+                  label: '5 km',
+                  selected: _maxDistanceKm == 5,
+                  onTap: () => _updateDistance(5),
+                ),
+                _FilterChip(
+                  label: '10 km',
+                  selected: _maxDistanceKm == 10,
+                  onTap: () => _updateDistance(10),
+                ),
+                _FilterChip(
+                  label: '20 km',
+                  selected: _maxDistanceKm == 20,
+                  onTap: () => _updateDistance(20),
+                ),
+                FilterChip(
+                  label: const Text('Restos ouverts'),
+                  selected: _openRestaurantsOnly,
+                  onSelected: _updateOpenOnly,
                 ),
               ],
             ),
-          );
-        },
-      ), // Liste des restaurants si disponible
+            const SizedBox(height: 16),
+            if (_isLoading)
+              const Center(child: CircularProgressIndicator())
+            else if (_visibleDishes.isEmpty)
+              const Padding(
+                padding: EdgeInsets.only(top: 48),
+                child: Center(
+                  child: Text('Aucun plat trouvé avec ces filtres.'),
+                ),
+              )
+            else
+              ..._visibleDishes.map(
+                (result) => Card(
+                  margin: const EdgeInsets.only(bottom: 14),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.all(12),
+                    leading: _DishAvatar(imageUrl: result.dish.image),
+                    title: Text(
+                      result.dish.name ?? 'Plat',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 4),
+                        Text(result.restaurant.name),
+                        Text(
+                          '${result.distanceKm.toStringAsFixed(2)} km | ${result.dish.nb_servings ?? 0} portions',
+                        ),
+                        Text(
+                          '${result.dish.price?.toStringAsFixed(2) ?? '0.00'} | ${result.dish.categories ?? ''}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        CupertinoPageRoute(
+                          builder: (context) => DishDetails(
+                            from_page: 0,
+                            dish_id: result.dish.dishID,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
-
 }
 
-// Fonction pour obtenir la position actuelle avec gestion des permissions
-Future<Position?> _determinePosition() async {
-  LocationPermission permission;
+class _FilterChip extends StatelessWidget {
+  const _FilterChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
 
-  bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-  if (!serviceEnabled) {
-    return Future.error('Le service de localisation est désactivé.');
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) => onTap(),
+    );
   }
+}
 
-  permission = await Geolocator.checkPermission();
-  if (permission == LocationPermission.denied) {
-    permission = await Geolocator.requestPermission();
-    if (permission == LocationPermission.denied) {
-      return Future.error('Les permissions de localisation sont refusées');
+class _DishAvatar extends StatelessWidget {
+  const _DishAvatar({required this.imageUrl});
+
+  final String? imageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasImage = imageUrl != null && imageUrl!.trim().isNotEmpty;
+    if (!hasImage) {
+      return const CircleAvatar(
+        radius: 28,
+        child: Icon(Icons.restaurant_menu),
+      );
     }
-  }
 
-  if (permission == LocationPermission.deniedForever) {
-    return Future.error(
-        'Les permissions de localisation sont refusées définitivement');
-  }
-
-  return await Geolocator.getCurrentPosition();
-}
-
-
-Widget buildImage(String? imageUrl) {
-  // Vérifie si le lien est une URL valide
-  if (imageUrl != null && Uri.tryParse(imageUrl)?.hasAbsolutePath == true) {
-    return Image.network(
-      imageUrl,
-      height: 200,
-      width: 300,
-      fit: BoxFit.fitWidth,
-      errorBuilder: (context, error, stackTrace) {
-        return Image.asset(
-          'assets/images/no_image.png', // Image par défaut si le chargement échoue
-          height: 200,
-          width: 300,
-          fit: BoxFit.fitWidth,
-        );
-      },
-    );
-  } else {
-    // Si ce n'est pas une URL valide, utilisez une image locale
-    return Image.asset(
-      'assets/images/no_image.png',
-      height: 200,
-      width: 300,
-      fit: BoxFit.fitWidth,
+    return CircleAvatar(
+      radius: 28,
+      backgroundImage: NetworkImage(imageUrl!),
+      onBackgroundImageError: (_, __) {},
+      child: hasImage ? null : const Icon(Icons.restaurant_menu),
     );
   }
 }

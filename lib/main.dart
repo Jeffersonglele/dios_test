@@ -1,9 +1,9 @@
 import 'package:dios_delices/Screen/DishDetails.dart';
 import 'package:dios_delices/Screen/MealsOfACategory.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
-import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'Screen/authentification/Signup.dart';
@@ -23,7 +23,9 @@ import 'package:flutter/services.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:get/get.dart';
 import 'utils/translations.dart';
+import 'config/app_config.dart';
 import 'services/notification_service.dart';
+import 'theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,22 +38,20 @@ void main() async {
     overlays: [SystemUiOverlay.top],
   );
 
-  const String keyApplicationId = '9qBeGGwSGOQ1iWOJ1UNUXt40NhgwwgbHJYGpV1zg';
-  const String keyClientKey = 'YKeFfBUqtkZBcEIUKPDtVIbsB5DU1gfBZlb0YFoa';
-  const String keyParseServerUrl = 'https://parseapi.back4app.com';
-
   try {
     await Parse().initialize(
-      keyApplicationId,
-      keyParseServerUrl,
-      clientKey: keyClientKey,
+      AppConfig.parseApplicationId,
+      AppConfig.parseServerUrl,
+      clientKey: AppConfig.parseClientKey,
       autoSendSessionId: true,
-      liveQueryUrl: 'wss://9qBeGGwSGOQ1iWOJ1UNUXt40NhgwwgbHJYGpV1zg.b4a.io',
-      debug: true,
+      liveQueryUrl: AppConfig.parseLiveQueryUrl,
+      debug: kDebugMode && AppConfig.enableParseDebugLogs,
     );
-    print('Parse initialized successfully');
+    if (kDebugMode && AppConfig.enableVerboseAppLogs) {
+      debugPrint('Parse initialized successfully');
+    }
   } catch (e) {
-    print('Failed to initialize Parse: $e');
+    debugPrint('Failed to initialize Parse: $e');
   }
 
   final appDocumentDirectory =
@@ -67,8 +67,7 @@ void main() async {
   Hive.registerAdapter(MoyenPaiementAdapter());
   Hive.registerAdapter(LigneCommandeAdapter());
 
-  Stripe.publishableKey =
-      'pk_test_51Qj31pENxCrc0ZmbmKeHf4HU8kI0ha1ee9hj7VGkgd16U5nmM7mJ3k4SyLGV4cwAhfCsvqgdgGffMLVsQRDXKbzA00D2w1iGG0';
+  Stripe.publishableKey = AppConfig.stripePublishableKey;
   await Stripe.instance.applySettings();
 
   await NotificationService.initialize();
@@ -77,26 +76,26 @@ void main() async {
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return ProviderScope(
       child: GetMaterialApp(
         title: 'Dios Délices Vendeur',
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          primarySwatch: Colors.red,
-        ),
+        theme: AppTheme.light(),
         home: SafeArea(
           child:
-              AnimatedSplashScreen(), // Assure que tous les écrans démarrent avec SafeArea
+              const AnimatedSplashScreen(), // Assure que tous les écrans démarrent avec SafeArea
         ),
         translations: MyTranslations(), // <--- ajoute cette ligne
         locale: Get.deviceLocale, // <--- détecte automatiquement la langue
-        fallbackLocale: Locale('en', 'US'),
+        fallbackLocale: const Locale('en', 'US'),
         routes: <String, WidgetBuilder>{
-          ANIMATED_SPLASH: (BuildContext context) => AnimatedSplashScreen(),
-          SIGNUP_SCREEN: (BuildContext context) => SignUpView(),
-          LOGIN: (BuildContext context) => Login(),
+          ANIMATED_SPLASH: (BuildContext context) => const AnimatedSplashScreen(),
+          SIGNUP_SCREEN: (BuildContext context) => const SignUpView(),
+          LOGIN: (BuildContext context) => const Login(),
           FOOD_DETAILS: (BuildContext context) =>
               DishDetails(from_page: 0, dish_id: 0),
           MEALS_OF_A_CATEGORY: (BuildContext context) =>

@@ -26,6 +26,10 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
+  final TextEditingController _openingHoursController =
+      TextEditingController(text: '09:00 - 20:00');
+  final TextEditingController _deliveryFeeController =
+      TextEditingController(text: '0');
   List<String> _selectedHashtags = [];
 
   File? _image;
@@ -102,6 +106,8 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
     _nameController.dispose();
     _addressController.dispose();
     _descriptionController.dispose();
+    _openingHoursController.dispose();
+    _deliveryFeeController.dispose();
     super.dispose();
   }
 
@@ -227,6 +233,39 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
                     maxLines: null,
                   ),
                   SizedBox(height: size.height * 0.02),
+                  _buildTextField(
+                    controller: _openingHoursController,
+                    hintText: "Horaires d'ouverture (ex: 09:00 - 20:00)",
+                    icon: Icons.access_time,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return "Entrez les horaires d'ouverture";
+                      }
+                      return null;
+                    },
+                  ),
+                  SizedBox(height: size.height * 0.02),
+                  _buildTextField(
+                    controller: _deliveryFeeController,
+                    hintText: "Frais de livraison",
+                    icon: Icons.delivery_dining,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: <TextInputFormatter>[
+                      FilteringTextInputFormatter.allow(RegExp(r'^\d+[.,]?\d{0,2}$')),
+                    ],
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Entrez les frais de livraison';
+                      }
+                      final normalized = value.replaceAll(',', '.');
+                      if (double.tryParse(normalized) == null) {
+                        return 'Entrez un montant valide';
+                      }
+                      return null;
+                    },
+                  ),
+                  SizedBox(height: size.height * 0.02),
                   // Sélection de l'image
                   Center(
                     child: Column(
@@ -311,6 +350,11 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
                               description: _descriptionController.text,
                               adress: _addressController.text,
                               name: _nameController.text,
+                              openingHours: _openingHoursController.text.trim(),
+                              deliveryFee: double.parse(
+                                _deliveryFeeController.text.replaceAll(',', '.'),
+                              ),
+                              isOpen: 1,
                               image: parseFile, // Pass the ParseFile here
                             );
 

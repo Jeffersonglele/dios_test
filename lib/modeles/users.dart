@@ -495,12 +495,8 @@ class Users extends HiveObject {
   static Future<bool> checkEmailExists(
       List<Users> listUsers, String email) async {
     try {
-      Users user = await listUsers.firstWhere((users) => users.email == email);
-      if (user != null) {
-        return true;
-      } else {
-        return false;
-      }
+      listUsers.firstWhere((users) => users.email == email);
+      return true;
     } catch (e) {
       return false;
     }

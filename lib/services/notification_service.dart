@@ -1,7 +1,10 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+import '../config/app_config.dart';
+import '../core/app_role.dart';
+import 'session_service.dart';
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _localNotifications =
@@ -35,11 +38,15 @@ class NotificationService {
       onDidReceiveNotificationResponse: _onNotificationTapped,
     );
 
-    print('Service de notifications initialisé');
+    if (kDebugMode && AppConfig.enableVerboseAppLogs) {
+      debugPrint('Service de notifications initialisé');
+    }
   }
 
   static void _onNotificationTapped(NotificationResponse response) {
-    print('Notification tapée: ${response.payload}');
+    if (kDebugMode && AppConfig.enableVerboseAppLogs) {
+      debugPrint('Notification tapée: ${response.payload}');
+    }
     // Ici vous pouvez naviguer vers une page spécifique
     // Par exemple, vers la page des commandes du restaurateur
   }
@@ -129,7 +136,11 @@ class NotificationService {
       );
 
       if (response.statusCode == 200) {
-        print('Notification de commande envoyée au restaurateur $restaurateurId');
+        if (kDebugMode && AppConfig.enableVerboseAppLogs) {
+          debugPrint(
+            'Notification de commande envoyée au restaurateur $restaurateurId',
+          );
+        }
 
         // Afficher aussi une notification locale pour confirmation
         await _showLocalNotification(
@@ -137,21 +148,25 @@ class NotificationService {
           body: 'Commande de $totalAmount€ chez $restaurantName',
         );
       } else {
-        print('Erreur lors de l\'envoi de la notification: ${response.body}');
+        debugPrint(
+          'Erreur lors de l\'envoi de la notification: ${response.body}',
+        );
       }
     } catch (e) {
-      print('Erreur lors de l\'envoi de la notification: $e');
+      debugPrint('Erreur lors de l\'envoi de la notification: $e');
     }
   }
 
   // Méthode pour s'abonner aux notifications (pour les restaurateurs)
   static Future<void> subscribeToRestaurantNotifications() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final userId = prefs.getInt('loggedUserID');
-      final userRole = prefs.getInt('userRole');
+      final session = await SessionService.readSession();
+      final userId = session.userId;
+      final userRole = session.role;
 
-      if (userId != null && userRole == 2) { // Role 2 = Restaurateur
+      if (userId > 0 &&
+          (userRole == AppRole.microRestaurant ||
+              userRole == AppRole.individual)) {
         // Créer une installation pour cet utilisateur
         final response = await http.post(
           Uri.parse('https://parseapi.back4app.com/installations'),
@@ -169,13 +184,19 @@ class NotificationService {
         );
 
         if (response.statusCode == 201) {
-          print('Installation créée et abonnée aux notifications pour le restaurateur $userId');
+          if (kDebugMode && AppConfig.enableVerboseAppLogs) {
+            debugPrint(
+              'Installation créée et abonnée aux notifications pour le restaurateur $userId',
+            );
+          }
         } else {
-          print('Erreur lors de la création de l\'installation: ${response.body}');
+          debugPrint(
+            'Erreur lors de la création de l\'installation: ${response.body}',
+          );
         }
       }
     } catch (e) {
-      print('Erreur lors de l\'abonnement aux notifications: $e');
+      debugPrint('Erreur lors de l\'abonnement aux notifications: $e');
     }
   }
 }

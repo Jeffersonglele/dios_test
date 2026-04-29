@@ -1,39 +1,38 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
 
 void Toast(BuildContext context, String message, bool isSuccess) {
-  Color backgroundColor = isSuccess ? Colors.green : Colors.red;
-  Color textColor = Colors.white;
+  final messenger = ScaffoldMessenger.maybeOf(context);
+  if (messenger == null) {
+    return;
+  }
 
-  final overlayEntry = OverlayEntry(
-    builder: (context) => Positioned(
-      bottom: 100.0, // Positionne le toast à 50 pixels du bas
-      left: MediaQuery.of(context).size.width * 0.1, // Décalage de 10% à gauche pour centrer
-      right: MediaQuery.of(context).size.width * 0.1, // Décalage de 10% à droite pour centrer
-      child: Material(
-        color: Colors.transparent,
-        child: Container(
-          padding: EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
-          decoration: BoxDecoration(
-            color: backgroundColor,
-            borderRadius: BorderRadius.circular(8.0),
-          ),
-          child: Center(
-            child: Text(
-              message,
-              style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 20),
+  final backgroundColor = isSuccess ? AppColors.success : AppColors.error;
+  final icon = isSuccess ? Icons.check_circle_rounded : Icons.error_rounded;
+
+  messenger
+    ..clearSnackBars()
+    ..showSnackBar(
+      SnackBar(
+        backgroundColor: backgroundColor,
+        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        duration: const Duration(seconds: 3),
+        content: Row(
+          children: [
+            Icon(icon, color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                ),
+              ),
             ),
-          ),
+          ],
         ),
       ),
-    ),
-  );
-
-  // Trouver l'Overlay et insérer l'OverlayEntry
-  Overlay.of(context)?.insert(overlayEntry);
-
-  // Supprimer le toast après un certain temps
-  Future.delayed(Duration(seconds: 3), () {
-    overlayEntry.remove();
-  });
+    );
 }

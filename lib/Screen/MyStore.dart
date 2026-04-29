@@ -1,19 +1,21 @@
 import 'package:dios_delices/Screen/Settings.dart';
 import 'package:dios_delices/Screen/restaurants/RestaurantDetails.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import '../components/Logout.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'UserOrdersPage.dart';
+import '../services/session_service.dart';
 
 class MyStore extends StatefulWidget {
+  const MyStore({super.key});
+
   @override
   _MyStoreState createState() => _MyStoreState();
 }
 
 class _MyStoreState extends State<MyStore> {
   List sections = [];
+  static const String logoutLabel = "DÉCONNEXION";
 
   @override
   void initState() {
@@ -29,7 +31,7 @@ class _MyStoreState extends State<MyStore> {
       {
         "icon": Icons.fastfood_rounded,
         "description": "Mes commandes",
-        "page": UserOrdersPage(),
+        "page": const UserOrdersPage(showRestaurantOrders: true),
       },
       {
         "icon": Icons.settings,
@@ -38,27 +40,21 @@ class _MyStoreState extends State<MyStore> {
       },
       {
         "icon": Icons.logout,
-        "description": "DÉCONNEXION",
+        "description": logoutLabel,
         "page": null,
       },
     ];
   }
 
-  int? _restaurantID;
-
   Future<void> loadRestaurantID() async {
-    final prefs = await SharedPreferences.getInstance();
-    final currentUserRestau = prefs.getInt('currentUser_restau');
-
-    print("currentUser_restau $currentUserRestau");
+    final session = await SessionService.readSession();
+    final currentUserRestau = session.restaurantId;
 
     if (currentUserRestau != null) {
       setState(() {
-        _restaurantID = currentUserRestau;
         sections[0]["page"] = RestaurantDetails(restaurant_id: currentUserRestau);
       });
     } else {
-      print("Aucun restaurantID valide trouvé dans SharedPreferences.");
       setState(() {
         // Soit on désactive le bouton, soit on met une page vide
         sections[0]["page"] = null;
@@ -70,8 +66,8 @@ class _MyStoreState extends State<MyStore> {
   Widget build(BuildContext context) {
     var size = MediaQuery.of(context).size;
 
-    return WillPopScope(
-      onWillPop: () async => false,
+    return PopScope(
+      canPop: false,
       child: Scaffold(
         body: Column(
           children: <Widget>[
@@ -93,7 +89,7 @@ class _MyStoreState extends State<MyStore> {
                     margin: const EdgeInsets.only(right: 30, left: 30),
                     child: ElevatedButton(
                       onPressed: () {
-                        if (sections[index]["description"] == "LOGOUT") {
+                        if (sections[index]["description"] == logoutLabel) {
                           // Affiche la boîte de dialogue Logout
                           showDialog(
                             context: context,

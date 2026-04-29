@@ -4,13 +4,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../Constant/Constant.dart';
 import '../../modeles/dish.dart';
 import '../../modeles/restaurant.dart';
 import '../../modeles/users.dart';
 import '../../providers/cart_provider.dart' as cartProvider;
 import '../../providers/users_provider.dart';
+import '../../services/favorites_service.dart';
+import '../../services/session_service.dart';
 import '../../utils/HashtagTextInputFormatter.dart';
 import '../../utils/stars.dart';
 import 'package:path/path.dart' as p;
@@ -37,6 +38,7 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
   int currentUser_id = 0;
   String currentUser_country = "";
   bool restau_de_luser_connecte = false;
+  bool isFavorite = false;
 
   bool isEditMode = false;
   File? selectedImage;
@@ -49,7 +51,9 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
   TextEditingController nbServingsController = TextEditingController();
   TextEditingController noteController = TextEditingController();
   TextEditingController categoriesController = TextEditingController();
-  bool isAvailable = true;
+  TextEditingController openingHoursController = TextEditingController();
+  TextEditingController deliveryFeeController = TextEditingController();
+  bool isRestaurantOpen = true;
   bool select_image = false;
   List<String> _selectedHashtags = [];
   List<String> _selectedHashtagsFromDatabase = [];
@@ -71,11 +75,11 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
 
   Future<void> loadData() async {
     try {
-      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final session = await SessionService.readSession();
 
-      currentUser_role = prefs.getInt('currentUser_role') ?? 0;
-      currentUser_country = prefs.getString('currentUser_country') ?? "France";
-      currentUser_id = prefs.getInt('loggedUserID') ?? 0;
+      currentUser_role = session.role.id;
+      currentUser_country = session.country;
+      currentUser_id = session.userId;
 
       // Chargement des restaurants et des plats depuis la base de données
       List<Restaurant> restaurantsList =
@@ -92,7 +96,7 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
 
       // Mise à jour de l'état
       setState(() {
-        currentUser_restau = prefs.getInt('currentUser_restau') ?? 0;
+        currentUser_restau = session.restaurantId ?? 0;
 
         current_restaurant = restaurant;
         dishes = filteredDishes;
@@ -109,12 +113,24 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
           nbServingsController.text = current_restaurant!.nb_orders.toString();
           noteController.text = current_restaurant!.note.toString();
           categoriesController.text = current_restaurant!.categories!;
-          isAvailable = current_restaurant!.valid == 1;
+          openingHoursController.text = current_restaurant!.openingHours;
+          deliveryFeeController.text =
+              current_restaurant!.deliveryFee.toStringAsFixed(2);
+          isRestaurantOpen = current_restaurant!.isOpen == 1;
 
           _selectedHashtags = current_restaurant!.categories!.split(', ');
           _selectedHashtagsFromDatabase = _selectedHashtags;
         }
       });
+
+      if (restaurant != null) {
+        final favorite =
+            await FavoritesService.isRestaurantFavorite(restaurant.restaurantID);
+        if (!mounted) return;
+        setState(() {
+          isFavorite = favorite;
+        });
+      }
     } catch (e) {
       print("Erreur lors du chargement des données : $e");
     }
@@ -135,13 +151,31 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
         nameController.text != current_restaurant!.name ||
         descriptionController.text != current_restaurant!.description ||
         nbServingsController.text != current_restaurant!.nb_orders.toString() ||
+        openingHoursController.text != current_restaurant!.openingHours ||
+        deliveryFeeController.text !=
+            current_restaurant!.deliveryFee.toStringAsFixed(2) ||
         _selectedHashtags.join(', ') != current_restaurant!.categories ||
         select_image == true ||
-        isAvailable != (current_restaurant!.valid == 1);
+        isRestaurantOpen != (current_restaurant!.isOpen == 1);
   }
 
   bool hasNewImage() {
     return selectedImage != null;
+  }
+
+  Future<void> _toggleFavorite() async {
+    if (current_restaurant == null) {
+      return;
+    }
+
+    final nextValue = await FavoritesService.toggleRestaurantFavorite(
+      current_restaurant!.restaurantID,
+    );
+
+    if (!mounted) return;
+    setState(() {
+      isFavorite = nextValue;
+    });
   }
 
   void _showRestaurantInfoDialog(BuildContext context) {
@@ -173,8 +207,18 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
                   Icon(Icons.access_time, color: Colors.grey),
                   SizedBox(width: 8),
                   Text(
-                    "Ouvert jusqu'à 20h ",
-                    //todo decommenter "Ouvert jusqu'à ${current_restaurant?.closingTime ?? ''}",
+                    current_restaurant?.openingHours ?? "Horaires non renseignés",
+                    style: TextStyle(fontSize: 14),
+                  ),
+                ],
+              ),
+              SizedBox(height: 10),
+              Row(
+                children: [
+                  Icon(Icons.delivery_dining, color: Colors.grey),
+                  SizedBox(width: 8),
+                  Text(
+                    "Frais de livraison : ${current_restaurant?.deliveryFee.toStringAsFixed(2) ?? '0.00'} ${currentUser_country == 'France' ? '€' : 'FCFA'}",
                     style: TextStyle(fontSize: 14),
                   ),
                 ],
@@ -261,7 +305,9 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
                                   child: CircleAvatar(
                                     radius: 6, // Taille du cercle
                                     backgroundColor:
-                                        isAvailable ? Colors.green : Colors.red,
+                                        isRestaurantOpen
+                                            ? Colors.green
+                                            : Colors.red,
                                   ),
                                 ),
                               ),
@@ -276,6 +322,26 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
                           child: IconButton(
                             icon: Icon(Icons.camera_alt, color: Colors.white),
                             onPressed: _pickImage,
+                          ),
+                        ),
+                      if (!restau_de_luser_connecte)
+                        Positioned(
+                          top: 16,
+                          left: 16,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: IconButton(
+                              onPressed: _toggleFavorite,
+                              icon: Icon(
+                                isFavorite
+                                    ? Icons.favorite
+                                    : Icons.favorite_border_outlined,
+                                color: isFavorite ? Colors.pink : Colors.black,
+                              ),
+                            ),
                           ),
                         ),
                       SizedBox(height: 8),
@@ -355,6 +421,35 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
                     ),
                   ),
                   SizedBox(height: size.height * 0.02),
+                  if (isEditMode)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 25.0),
+                      child: Column(
+                        children: [
+                          _buildTextField(
+                            controller: openingHoursController,
+                            hintText:
+                                "Horaires d'ouverture (ex: 09:00 - 20:00)",
+                            icon: Icons.access_time,
+                          ),
+                          SizedBox(height: size.height * 0.02),
+                          _buildTextField(
+                            controller: deliveryFeeController,
+                            hintText: "Frais de livraison",
+                            icon: Icons.delivery_dining,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            inputFormatters: <TextInputFormatter>[
+                              FilteringTextInputFormatter.allow(
+                                RegExp(r'^\d+[.,]?\d{0,2}$'),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: size.height * 0.01),
+                        ],
+                      ),
+                    ),
                   currentUser_role == 1 ||
                           currentUser_role == 4 ||
                           restau_de_luser_connecte
@@ -425,7 +520,7 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
                                   DataRow(cells: [
                                     DataCell(
                                       Text(
-                                        'Statut',
+                                        'Ouverture',
                                         style: TextStyle(
                                             fontSize: 16,
                                             fontWeight: FontWeight.bold),
@@ -434,19 +529,51 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
                                     DataCell(
                                       isEditMode
                                           ? Switch(
-                                              value: isAvailable,
+                                              value: isRestaurantOpen,
                                               onChanged: (value) {
                                                 setState(() {
-                                                  isAvailable = value;
+                                                  isRestaurantOpen = value;
                                                 });
                                               },
                                             )
                                           : Text(
-                                              isAvailable
-                                                  ? "Disponible"
-                                                  : "Indisponible",
+                                              isRestaurantOpen
+                                                  ? "Ouvert"
+                                                  : "Fermé",
                                               style: TextStyle(fontSize: 16),
                                             ),
+                                    ),
+                                  ]),
+                                  DataRow(cells: [
+                                    DataCell(
+                                      Text(
+                                        'Horaires',
+                                        style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                    DataCell(
+                                      Text(
+                                        openingHoursController.text,
+                                        style: TextStyle(fontSize: 16),
+                                      ),
+                                    ),
+                                  ]),
+                                  DataRow(cells: [
+                                    DataCell(
+                                      Text(
+                                        'Frais livraison',
+                                        style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                    DataCell(
+                                      Text(
+                                        "${deliveryFeeController.text} ${currentUser_country == 'France' ? '€' : 'FCFA'}",
+                                        style: TextStyle(fontSize: 16),
+                                      ),
                                     ),
                                   ]),
                                   DataRow(cells: [
@@ -662,11 +789,13 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
                                         current_restaurant?.name ?? "";
                                     descriptionController.text =
                                         current_restaurant?.description ?? "";
-                                    nbServingsController.text =
-                                        current_restaurant!.nb_orders
-                                            .toString();
-                                    isAvailable =
-                                        current_restaurant!.valid == 1;
+                                    openingHoursController.text =
+                                        current_restaurant?.openingHours ?? "";
+                                    deliveryFeeController.text = current_restaurant!
+                                        .deliveryFee
+                                        .toStringAsFixed(2);
+                                    isRestaurantOpen =
+                                        current_restaurant!.isOpen == 1;
                                     isEditMode = false;
                                   });
                                 },
@@ -712,7 +841,15 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
                                         name: nameController.text,
                                         note: current_restaurant!.note,
                                         nb_orders: current_restaurant!.nb_orders,
-                                        valid: isAvailable ? 1 : 0,
+                                        valid: current_restaurant!.valid,
+                                        openingHours:
+                                            openingHoursController.text.trim(),
+                                        deliveryFee: double.tryParse(
+                                              deliveryFeeController.text
+                                                  .replaceAll(',', '.'),
+                                            ) ??
+                                            0.0,
+                                        isOpen: isRestaurantOpen ? 1 : 0,
                                         date_creation: current_restaurant?.date_creation,
                                         image: parseFile,
                                         img_url: current_restaurant?.image,

@@ -1,6 +1,7 @@
 import 'package:hive/hive.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 
+import '../core/commande_status.dart';
 import '../db/database_helper.dart';
 
 part 'commande.g.dart';
@@ -40,6 +41,9 @@ class Commande extends HiveObject {
   @HiveField(10)
   double? note;
 
+  @HiveField(11)
+  String status;
+
   Commande({
     required this.commandeID,
     required this.userID,
@@ -52,6 +56,7 @@ class Commande extends HiveObject {
     required this.heure,
     this.addressID,
     this.note,
+    this.status = CommandeStatus.pending,
   });
 
   factory Commande.fromMap(Map<String, dynamic> map) {
@@ -67,6 +72,7 @@ class Commande extends HiveObject {
       heure: map['heure'],
       addressID: map['addressID'],
       note: map['note']?.toDouble(),
+      status: CommandeStatus.normalize(map['status']?.toString()),
     );
   }
 
@@ -82,6 +88,7 @@ class Commande extends HiveObject {
     'heure': heure,
     'addressID': addressID,
     'note': note,
+    'status': status,
   };
 
 
@@ -97,6 +104,7 @@ class Commande extends HiveObject {
     required String heure,
     int? addressID,
     double? note,
+    String status = CommandeStatus.pending,
   }) async {
     final functionName = commandeID == null ? 'add1Commande' : 'updateCommande'; // Tu peux créer updateCommande plus tard si besoin
     final cloudFunction = ParseCloudFunction(functionName);
@@ -111,6 +119,7 @@ class Commande extends HiveObject {
       'reduction': reduction,
       'dateCommande': dateCommande.toIso8601String(),
       'heure': heure,
+      'status': status,
       if (addressID != null) 'addressID': addressID,
       if (note != null) 'note': note,
     };
@@ -133,6 +142,7 @@ class Commande extends HiveObject {
           heure: heure,
           addressID: addressID,
           note: note,
+          status: status,
         );
 
         await DatabaseHelper.createCommande(commande);
@@ -180,6 +190,10 @@ class Commande extends HiveObject {
     List<Commande> list = await DatabaseHelper.readAllCommandes();
     print("fetchCommandesFromDB → ${list.length} éléments");
     return list;
+  }
+
+  static Future<void> refreshLocalCommandes() async {
+    await getAllCommandes();
   }
 
 }

@@ -1,241 +1,252 @@
-import 'dart:math';
 import 'package:dios_delices/Screen/restaurants/RestaurantDetails.dart';
-import 'package:dios_delices/modeles/restaurant.dart';
-import 'package:flutter/cupertino.dart';
+import 'package:dios_delices/services/nearby_service.dart';
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:get/get.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
-import '../../Controller/UiController.dart';
-import '../../modeles/address.dart';
-import '../../modeles/users.dart';
 
 class NearMeRestaurants extends StatefulWidget {
-  const NearMeRestaurants({Key? key}) : super(key: key);
+  const NearMeRestaurants({super.key});
 
   @override
   State<NearMeRestaurants> createState() => _NearMeRestaurantsState();
 }
 
 class _NearMeRestaurantsState extends State<NearMeRestaurants> {
-  String googleApiKey = 'AIzaSyDbNMAeiSEuFBhS0rpObu1wBk8V3Xx33LA'; // Remplacez par votre clé API Google
-  SimpleUIController simpleUIController = Get.put(SimpleUIController());
-
-  String? country = "";
-  int currentUser_role = 0;
+  final TextEditingController _searchController = TextEditingController();
+  List<NearbyRestaurantResult> _allRestaurants = [];
+  List<NearbyRestaurantResult> _visibleRestaurants = [];
+  bool _isLoading = true;
+  bool _openOnly = false;
+  double _maxDistanceKm = 10;
 
   @override
   void initState() {
     super.initState();
-    loadData();
+    _loadRestaurants();
+    _searchController.addListener(_applyFilters);
   }
 
-  List<Map<String, dynamic>> filteredRestaurants = [];
-  List<Users> users = [];
-  List<Restaurant> restaus = [];
-  List<Address> addresses = [];
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
-  int current_userID = 0;
-  int current_user_role = 0;
-  int current_user_restau = 0;
-
-  void loadData() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    int userID = prefs.getInt('loggedUserID') ?? 0;
-    int userRole = prefs.getInt('currentUser_role') ?? 0;
-    int userRestauID = prefs.getInt('currentUser_restau') ?? 0;
-
-    List<Users> usersList = await Users.fetchUsersFromDB();
-    List<Restaurant> restausList = await Restaurant.fetchRestaurantsFromDB();
-    List<Address> addressesList = await Address.fetchAddressesFromDB();
-
+  Future<void> _loadRestaurants() async {
     setState(() {
-      current_userID = userID;
-      current_user_role = userRole;
-      current_user_restau = userRestauID;
-
-      users = usersList;
-      restaus = restausList;
-      addresses = addressesList;
+      _isLoading = true;
     });
-    await _filterRestaurants();
+
+    final restaurants = await NearbyService.getNearbyRestaurants(
+      maxDistanceKm: _maxDistanceKm,
+      openOnly: _openOnly,
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _allRestaurants = restaurants;
+      _isLoading = false;
+    });
+    _applyFilters();
   }
 
-  Future<void> _filterRestaurants() async {
-    for (var a in addresses) {
-      if (a.objectID == current_userID) {
-        Address userAddress = a;
+  void _applyFilters() {
+    final query = _searchController.text.trim().toLowerCase();
 
-        const double maxDistanceKm = 10.0;
-        List<Map<String, dynamic>> nearbyRestaurants = [];
+    final filtered = _allRestaurants.where((result) {
+      final restaurant = result.restaurant;
+      final haystack =
+          '${restaurant.name} ${restaurant.categories} ${restaurant.description}'
+              .toLowerCase();
+      return query.isEmpty || haystack.contains(query);
+    }).toList();
 
-        for (var restau in restaus) {
-          // 🔥 1. Récupérer l'utilisateur du restaurant
-          Users? associatedUser = Users.getUsersByUserId(users, restau.userID);
-
-          // 🔥 2. Vérifier si cet utilisateur est particulier (roleID == 2)
-          if (associatedUser == null || associatedUser.roleID == 2 || restau.userID == current_userID) {
-            continue; // ❌ Exclure ce restaurant
-          }
-
-          Address? restauAddress = Address.getAddressByObject(addresses, "User", restau.userID);
-          if (restauAddress == null) continue;
-
-          try {
-            double userLat = double.parse(userAddress.lat ?? "");
-            double userLon = double.parse(userAddress.long ?? "");
-            double restauLat = double.parse(restauAddress.lat ?? "");
-            double restauLon = double.parse(restauAddress.long ?? "");
-
-            double distance = _calculateDistance(userLat, userLon, restauLat, restauLon);
-
-            if (distance <= maxDistanceKm) {
-              nearbyRestaurants.add({
-                "restaurant": restau, // ⬅️ Stocke l'objet
-                "distance": distance, // ⬅️ Stocke la distance
-              });
-            }
-          } catch (e) {
-            print("Erreur de parsing des coordonnées : $e");
-          }
-        }
-
-        setState(() {
-          filteredRestaurants = nearbyRestaurants;
-        });
-      }
-    }
+    if (!mounted) return;
+    setState(() {
+      _visibleRestaurants = filtered;
+    });
   }
 
-
-  double _calculateDistance(
-      double lat1, double lon1, double lat2, double lon2) {
-    const double earthRadius = 6371; // Rayon de la Terre en kilomètres
-
-    double dLat = _degToRad(lat2 - lat1);
-    double dLon = _degToRad(lon2 - lon1);
-
-    double a = sin(dLat / 2) * sin(dLat / 2) +
-        cos(_degToRad(lat1)) *
-            cos(_degToRad(lat2)) *
-            sin(dLon / 2) *
-            sin(dLon / 2);
-    double c = 2 * atan2(sqrt(a), sqrt(1 - a));
-
-    return earthRadius * c;
+  Future<void> _updateDistance(double distanceKm) async {
+    setState(() {
+      _maxDistanceKm = distanceKm;
+    });
+    await _loadRestaurants();
   }
 
-  double _degToRad(double deg) {
-    return deg * (pi / 180);
+  Future<void> _updateOpenOnly(bool value) async {
+    setState(() {
+      _openOnly = value;
+    });
+    await _loadRestaurants();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Restaurants à proximité'),
+        title: const Text('Restaurants à proximité'),
       ),
-      body: filteredRestaurants.isEmpty
-          ? Center(
-        child: Text(
-          'Aucun restaurant à proximité trouvé.',
-          style: TextStyle(fontSize: 16, color: Colors.grey),
-        ),
-      )
-          : ListView.builder(
-        itemCount: filteredRestaurants.length,
-        itemBuilder: (context, index) {
-          final item = filteredRestaurants[index];
-          final Restaurant restaurant = item["restaurant"];
-          final double distance = item["distance"];
-
-          return Card(
-            child: Column(
+      body: RefreshIndicator(
+        onRefresh: _loadRestaurants,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+          children: [
+            TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Rechercher un restaurant ou une cuisine',
+                prefixIcon: const Icon(Icons.search),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
               children: [
-                buildImage(restaurant.image),
-                ListTile(
-                  title: Text(
-                    restaurant.name ?? "Nom indisponible",
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 25),
-                  ),
-                  subtitle: Text(
-                    "Situé à ${distance.toStringAsFixed(2)} km",
-                    style: TextStyle(color: Colors.red.withOpacity(0.6)),
-                  ),
-                  trailing: Icon(Icons.chevron_right),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => RestaurantDetails(
-                          restaurant_id: restaurant.restaurantID,
-                        ),
-                      ),
-                    );
-                  },
+                _DistanceChip(
+                  label: '5 km',
+                  selected: _maxDistanceKm == 5,
+                  onTap: () => _updateDistance(5),
+                ),
+                _DistanceChip(
+                  label: '10 km',
+                  selected: _maxDistanceKm == 10,
+                  onTap: () => _updateDistance(10),
+                ),
+                _DistanceChip(
+                  label: '20 km',
+                  selected: _maxDistanceKm == 20,
+                  onTap: () => _updateDistance(20),
+                ),
+                FilterChip(
+                  label: const Text('Ouverts maintenant'),
+                  selected: _openOnly,
+                  onSelected: _updateOpenOnly,
                 ),
               ],
             ),
-          );
-        },
+            const SizedBox(height: 16),
+            if (_isLoading)
+              const Center(child: CircularProgressIndicator())
+            else if (_visibleRestaurants.isEmpty)
+              const Padding(
+                padding: EdgeInsets.only(top: 48),
+                child: Center(
+                  child: Text('Aucun restaurant trouvé avec ces filtres.'),
+                ),
+              )
+            else
+              ..._visibleRestaurants.map(
+                (result) => Card(
+                  margin: const EdgeInsets.only(bottom: 14),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.all(12),
+                    leading: _RestaurantAvatar(imageUrl: result.restaurant.image),
+                    title: Text(
+                      result.restaurant.name,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 4),
+                        Text('${result.distanceKm.toStringAsFixed(2)} km'),
+                        Text(
+                          result.restaurant.categories.isEmpty
+                              ? result.restaurant.openingHours
+                              : result.restaurant.categories,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          'Livraison ${result.restaurant.deliveryFee.toStringAsFixed(2)}',
+                        ),
+                      ],
+                    ),
+                    trailing: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          result.restaurant.isOpen == 1
+                              ? Icons.check_circle
+                              : Icons.remove_circle,
+                          color: result.restaurant.isOpen == 1
+                              ? Colors.green
+                              : Colors.grey,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          result.restaurant.isOpen == 1 ? 'Ouvert' : 'Fermé',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ],
+                    ),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => RestaurantDetails(
+                            restaurant_id: result.restaurant.restaurantID,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
-
     );
   }
-
 }
 
-// Fonction pour obtenir la position actuelle avec gestion des permissions
-Future<Position?> _determinePosition() async {
-  LocationPermission permission;
+class _DistanceChip extends StatelessWidget {
+  const _DistanceChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
 
-  bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-  if (!serviceEnabled) {
-    return Future.error('Le service de localisation est désactivé.');
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) => onTap(),
+    );
   }
+}
 
-  permission = await Geolocator.checkPermission();
-  if (permission == LocationPermission.denied) {
-    permission = await Geolocator.requestPermission();
-    if (permission == LocationPermission.denied) {
-      return Future.error('Les permissions de localisation sont refusées');
+class _RestaurantAvatar extends StatelessWidget {
+  const _RestaurantAvatar({required this.imageUrl});
+
+  final String? imageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasImage = imageUrl != null && imageUrl!.trim().isNotEmpty;
+    if (!hasImage) {
+      return const CircleAvatar(
+        radius: 28,
+        child: Icon(Icons.storefront),
+      );
     }
-  }
 
-  if (permission == LocationPermission.deniedForever) {
-    return Future.error(
-        'Les permissions de localisation sont refusées définitivement');
-  }
-
-  return await Geolocator.getCurrentPosition();
-}
-
-
-Widget buildImage(String? imageUrl) {
-  // Vérifie si le lien est une URL valide
-  if (imageUrl != null && Uri.tryParse(imageUrl)?.hasAbsolutePath == true) {
-    return Image.network(
-      imageUrl,
-      height: 200,
-      width: 300,
-      fit: BoxFit.fitWidth,
-      errorBuilder: (context, error, stackTrace) {
-        return Image.asset(
-          'assets/images/no_image.png', // Image par défaut si le chargement échoue
-          height: 200,
-          width: 300,
-          fit: BoxFit.fitWidth,
-        );
-      },
-    );
-  } else {
-    // Si ce n'est pas une URL valide, utilisez une image locale
-    return Image.asset(
-      'assets/images/no_image.png',
-      height: 200,
-      width: 300,
-      fit: BoxFit.fitWidth,
+    return CircleAvatar(
+      radius: 28,
+      backgroundImage: NetworkImage(imageUrl!),
+      onBackgroundImageError: (_, __) {},
+      child: hasImage ? null : const Icon(Icons.storefront),
     );
   }
 }

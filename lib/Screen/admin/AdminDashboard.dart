@@ -2,9 +2,9 @@ import 'package:dios_delices/Screen/restaurants/RestaurantListPage.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../Controller/UiController.dart';
+import '../../core/app_role.dart';
+import '../../services/session_service.dart';
 import '../../utils/DateTime.dart';
 import '../CountryPage.dart';
 
@@ -16,7 +16,7 @@ class AdminDashboard extends StatefulWidget {
 class _AdminDashboardState extends State<AdminDashboard> {
   SimpleUIController simpleUIController = Get.put(SimpleUIController());
 
-  int _userRole = 0; // Initialiser le rôle de l'utilisateur à 0
+  AppRole _userRole = AppRole.unknown;
   String _userCountry = "France";
 
   @override
@@ -27,10 +27,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   // Fonction pour charger le rôle de l'utilisateur
   Future<void> _loadUserRole() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final session = await SessionService.readSession();
     setState(() {
-      _userRole = prefs.getInt('currentUser_role') ?? 0;
-      _userCountry = prefs.getString('currentUser_country') ?? "France";
+      _userRole = session.role;
+      _userCountry = session.country;
     });
   }
 
@@ -123,7 +123,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             onTap: () {
               // Redirige vers la page des pays pour les restaurants
               // un super admin peut voir les restaus de tous les pays
-              if(_userRole == 4){
+              if (_userRole == AppRole.superAdmin) {
                 Navigator.push(
                   context,
                   CupertinoPageRoute(
@@ -146,7 +146,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           SizedBox(height: size.height * 0.03),
 
           // Section Administrateurs (si roleID == 4)
-          if (_userRole == 4) ...[
+          if (_userRole == AppRole.superAdmin) ...[
             _buildSection(
               size: size,
               sectionTitle: "Administrateurs",

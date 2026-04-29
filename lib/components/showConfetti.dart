@@ -2,8 +2,8 @@ import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:confetti/confetti.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../modeles/users.dart';
+import '../services/session_service.dart';
 
 class WelcomeScreen extends StatefulWidget {
   @override
@@ -25,15 +25,11 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
     // Attendre 5 secondes avant de rediriger l'utilisateur
     Future.delayed(Duration(seconds: 5), () async {
-      // Récupérer le rôle de l'utilisateur depuis SharedPreferences
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      int userID = prefs.getInt('loggedUserID') ?? 0;
-      int userRole = prefs.getInt('currentUser_role') ?? 0;
-      String userCountry = prefs.getString('currentUser_country') ?? "France";
+      final session = await SessionService.readSession();
 
       // Rediriger vers la bonne page en fonction du rôle de l'utilisateur
-      await Users.updateDerniereConnexion(userID);
-      Users.chooseCurvedNavigation(userRole, userCountry, context);
+      await Users.updateDerniereConnexion(session.userId);
+      Users.chooseCurvedNavigation(session.role.id, session.country, context);
     });
   }
 
