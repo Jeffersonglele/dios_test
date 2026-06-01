@@ -65,11 +65,14 @@ class _LogoutFormDialogState extends State<LogoutFormDialog> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            backgroundColor: Colors.red,
-                          ),
+                        Expanded(
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              backgroundColor: Colors.red,
+                              minimumSize: Size.zero,
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            ),
                           onPressed: () async {
                             await SessionService.clearAll();
                             await DatabaseHelper.cleanUpDatabase(true); // Nettoie la base de données
@@ -86,17 +89,22 @@ class _LogoutFormDialogState extends State<LogoutFormDialog> {
                           child: const Text('Oui',
                               style: TextStyle(fontWeight: FontWeight.bold)),
                         ),
+                        ),
                         SizedBox(width: 10),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            backgroundColor: Colors.green,
-                          ),
+                        Expanded(
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              backgroundColor: Colors.green,
+                              minimumSize: Size.zero,
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            ),
                           onPressed: () async {
                             Navigator.of(context).pop();
                           },
                           child: const Text('Non',
                               style: TextStyle(fontWeight: FontWeight.bold)),
+                        ),
                         ),
                       ],
                     ),

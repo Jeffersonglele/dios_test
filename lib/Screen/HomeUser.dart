@@ -13,6 +13,7 @@ import '../modeles/restaurant.dart';
 import '../modeles/users.dart';
 import '../services/session_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/dios_image.dart';
 import '../utils/DateTime.dart';
 import 'FoodCategories.dart';
 import 'NearMeMeals.dart';
@@ -456,16 +457,10 @@ class _HomeUserState extends State<HomeUser> {
                 SizedBox(
                   height: 150,
                   width: double.infinity,
-                  child: Image.network(
-                    (restaurant.image != null &&
-                            restaurant.image!.trim().isNotEmpty)
-                        ? restaurant.image!
-                        : "https://parsefiles.back4app.com/9qBeGGwSGOQ1iWOJ1UNUXt40NhgwwgbHJYGpV1zg/4f636282d677d999cd624580cdec2ff7_no_image.png",
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Image.asset(
-                      'assets/images/no_image.png',
-                      fit: BoxFit.cover,
-                    ),
+                  child: DiosImage(
+                    url: restaurant.image,
+                    width: double.infinity,
+                    height: 150,
                   ),
                 ),
                 // Overlay dégradé en bas de l'image

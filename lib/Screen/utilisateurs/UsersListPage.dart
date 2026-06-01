@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import '../../modeles/users.dart';
 import '../../modeles/identity.dart';
+import '../../widgets/dios_image.dart';
 
 class UsersListPage extends StatefulWidget {
   final String country;
@@ -210,9 +211,8 @@ class _UsersListPageState extends State<UsersListPage> {
               contentPadding: EdgeInsets.zero,
               leading: ClipRRect(
                 borderRadius: BorderRadius.circular(8.0),
-                child: Image.network(
-                  identity.photo ?? "https://parsefiles.back4app.com/9qBeGGwSGOQ1iWOJ1UNUXt40NhgwwgbHJYGpV1zg/4f636282d677d999cd624580cdec2ff7_no_image.png",
-                  fit: BoxFit.cover,
+                child: DiosImage(
+                  url: identity.photo,
                   width: 80,
                   height: 80,
                 ),

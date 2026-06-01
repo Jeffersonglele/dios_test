@@ -24,7 +24,103 @@ import '../restaurants/RestaurantUpdateFormPage.dart';
 import '../restaurants/WaitRestaurantValidation.dart';
 import '../password/EmailInputScreen.dart';
 import '../verif_confirm/VerificationPage.dart';
+import '../../widgets/animations.dart';
 import '../../widgets/auth_shell.dart';
+
+class WelcomeScreen extends StatefulWidget {
+  const WelcomeScreen({super.key});
+
+  @override
+  State<WelcomeScreen> createState() => _WelcomeScreenState();
+}
+
+class _WelcomeScreenState extends State<WelcomeScreen>
+    with TickerProviderStateMixin {
+  late AnimationController _textCtrl;
+  late Animation<double> _textOpacity;
+  late Animation<Offset> _textSlide;
+  late AnimationController _btnCtrl;
+  late Animation<double> _btnFade;
+  bool _showButton = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _textCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 800));
+    _textOpacity = Tween(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _textCtrl, curve: const Interval(0.3, 0.8, curve: AppMotion.standard)));
+    _textSlide = Tween(begin: const Offset(0, 0.12), end: Offset.zero).animate(
+      CurvedAnimation(parent: _textCtrl, curve: const Interval(0.3, 0.8, curve: AppMotion.standard)));
+    _textCtrl.forward();
+    _btnCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
+    _btnFade = CurvedAnimation(parent: _btnCtrl, curve: AppMotion.standard);
+    Future.delayed(const Duration(milliseconds: 1200), () {
+      if (mounted) { setState(() => _showButton = true); _btnCtrl.forward(); }
+    });
+  }
+
+  @override
+  void dispose() {
+    _textCtrl.dispose();
+    _btnCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _continue() async {
+    final session = await SessionService.readSession();
+    if (mounted) {
+      Users.chooseCurvedNavigation(session.role.id, session.country, context);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.surface,
+      body: OrderConfettiCelebration(
+        child: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const AnimatedSuccessCheck(),
+                  const SizedBox(height: 28),
+                  FadeTransition(
+                    opacity: _textOpacity,
+                    child: SlideTransition(
+                      position: _textSlide,
+                      child: Column(children: [
+                        Text('Bienvenue !', style: AppTypography.headlineLarge(), textAlign: TextAlign.center),
+                        const SizedBox(height: 12),
+                        Text('Votre compte a été créé avec succès.\nDécouvrez les meilleurs plats faits maison près de chez vous.',
+                            style: AppTypography.bodyLarge(color: AppColors.inkMuted), textAlign: TextAlign.center),
+                      ]),
+                    ),
+                  ),
+                  const SizedBox(height: 36),
+                  if (_showButton)
+                    FadeTransition(
+                      opacity: _btnFade,
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: 56,
+                        child: ElevatedButton(
+                          onPressed: _continue,
+                          child: const Text('Découvrir'),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class Login extends ConsumerStatefulWidget {
   const Login({Key? key}) : super(key: key);
@@ -301,25 +397,3 @@ class _LoginState extends ConsumerState<Login> {
   }
 }
 
-class WelcomeScreen extends StatelessWidget {
-  const WelcomeScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.surface,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.celebration_outlined, size: 64, color: AppColors.accent),
-            const SizedBox(height: 24),
-            Text('Bienvenue sur Dios Délices !', style: AppTypography.headlineMedium(), textAlign: TextAlign.center),
-            const SizedBox(height: 12),
-            Text('Votre compte a été créé avec succès.', style: AppTypography.bodyLarge(color: AppColors.inkMuted)),
-          ],
-        ),
-      ),
-    );
-  }
-}

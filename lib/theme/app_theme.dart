@@ -306,7 +306,7 @@ class AppTheme {
           foregroundColor: Colors.white,
           elevation: 0,
           surfaceTintColor: Colors.transparent,
-          minimumSize: const Size.fromHeight(56),
+          minimumSize: const Size(0, 56),
           padding: const EdgeInsets.symmetric(horizontal: 28),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.md),
@@ -320,7 +320,7 @@ class AppTheme {
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.brandDark,
           side: const BorderSide(color: AppColors.border, width: 1.3),
-          minimumSize: const Size.fromHeight(56),
+          minimumSize: const Size(0, 56),
           padding: const EdgeInsets.symmetric(horizontal: 24),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.md),
@@ -502,7 +502,7 @@ class AppTheme {
           backgroundColor: AppDarkColors.brand,
           foregroundColor: Colors.white,
           elevation: 0,
-          minimumSize: const Size.fromHeight(56),
+          minimumSize: const Size(0, 56),
           padding: const EdgeInsets.symmetric(horizontal: 28),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
           textStyle: AppTypography.labelLarge(color: Colors.white),
@@ -512,7 +512,7 @@ class AppTheme {
         style: OutlinedButton.styleFrom(
           foregroundColor: AppDarkColors.ink,
           side: const BorderSide(color: AppDarkColors.border),
-          minimumSize: const Size.fromHeight(56),
+          minimumSize: const Size(0, 56),
           padding: const EdgeInsets.symmetric(horizontal: 24),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
           textStyle: AppTypography.labelLarge(color: AppDarkColors.ink),

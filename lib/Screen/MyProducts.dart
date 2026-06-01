@@ -1,100 +1,111 @@
-import 'dart:convert';
-
-import 'package:dios_delices/Screen/curved_navigation/CurvedNavigationAdmin.dart';
+import 'package:dios_delices/modeles/dish.dart';
+import 'package:dios_delices/services/session_service.dart';
+import 'package:dios_delices/theme/app_theme.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import '../Controller/UiController.dart';
+import 'dish/DishFormPage.dart';
+import '../widgets/dios_image.dart';
 
 class MyProducts extends StatefulWidget {
+  const MyProducts({super.key});
   @override
-  _MyProductsState createState() => _MyProductsState();
+  State<MyProducts> createState() => _MyProductsState();
 }
 
 class _MyProductsState extends State<MyProducts> {
-  TextEditingController totalController = TextEditingController();
-
-  @override
-  void dispose() {
-    totalController.dispose();
-    super.dispose();
-  }
+  List<Dish> _dishes = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    getMeals();
+    _load();
   }
 
-  List _items_meals = [];
-  var selected = {};
-  var number_of_parts = 1;
-  var total = 0.0;
-
-
-  Future<void> getMeals() async {
-    final String response =
-        await rootBundle.loadString('assets/static_data/Meals.json');
-    final data = await json.decode(response);
-    setState(() {
-      _items_meals = data["items"];
-    });
+  Future<void> _load() async {
+    final session = await SessionService.readSession();
+    final allDishes = await Dish.fetchDishesFromDB();
+    final myDishes = allDishes.where((d) => d.restauID == (session.restaurantId ?? 0)).toList();
+    if (mounted) setState(() { _dishes = myDishes; _isLoading = false; });
   }
 
   @override
   Widget build(BuildContext context) {
-    var size = MediaQuery.of(context).size;
-    var theme = Theme.of(context);
-
-    return GestureDetector(
-      onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        resizeToAvoidBottomInset: false,
-        appBar: AppBar(),
-        body: SingleChildScrollView(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              if (constraints.maxWidth > 600) {
-                return _buildLargeScreen(size, theme);
-              } else {
-                return _buildSmallScreen(size, theme);
-              }
-            },
-          ),
-        ),
+    return Scaffold(
+      backgroundColor: AppColors.surface,
+      appBar: AppBar(title: const Text('Mes plats')),
+      body: RefreshIndicator(
+        color: AppColors.brand,
+        onRefresh: _load,
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _dishes.isEmpty
+                ? Center(
+                    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      Icon(Icons.restaurant_menu_rounded, size: 56, color: AppColors.border),
+                      const SizedBox(height: 12),
+                      Text('Aucun plat.', style: AppTypography.bodyMedium()),
+                      const SizedBox(height: 16),
+                      ElevatedButton.icon(
+                        onPressed: () => Navigator.push(context,
+                            CupertinoPageRoute(builder: (_) => DishFormPage())).then((_) => _load()),
+                        icon: const Icon(Icons.add_rounded),
+                        label: const Text('Ajouter un plat'),
+                      ),
+                    ]),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+                    itemCount: _dishes.length,
+                    itemBuilder: (_, i) {
+                      final d = _dishes[i];
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: AppColors.card,
+                          borderRadius: BorderRadius.circular(AppRadius.lg),
+                          border: Border.all(color: AppColors.border, width: 0.5),
+                        ),
+                        child: Row(children: [
+                          ClipRRect(
+                            borderRadius: const BorderRadius.horizontal(left: Radius.circular(AppRadius.lg)),
+                            child: SizedBox(width: 90, height: 90, child: DiosImage(url: d.image)),
+                          ),
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                Text(d.name ?? 'Plat', style: AppTypography.labelMedium()),
+                                const SizedBox(height: 2),
+                                Text('${d.price?.toStringAsFixed(2) ?? "0"} € · ${d.nb_servings ?? 0} portions',
+                                    style: AppTypography.bodyMedium()),
+                                Container(
+                                  margin: const EdgeInsets.only(top: 4),
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: (d.status ?? 0) == 1 ? AppColors.successLight : AppColors.errorLight,
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  child: Text((d.status ?? 0) == 1 ? 'Disponible' : 'Indisponible',
+                                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600,
+                                          color: (d.status ?? 0) == 1 ? AppColors.success : AppColors.error)),
+                                ),
+                              ]),
+                            ),
+                          ),
+                        ]),
+                      );
+                    },
+                  ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: AppColors.brand,
+        foregroundColor: Colors.white,
+        onPressed: () => Navigator.push(context,
+            CupertinoPageRoute(builder: (_) => DishFormPage())).then((_) => _load()),
+        icon: const Icon(Icons.add_rounded),
+        label: const Text('Ajouter un plat'),
       ),
     );
-  }
-
-  // For large screens
-  Widget _buildLargeScreen(
-      Size size, ThemeData theme) {
-    return Row(
-      children: [
-        SizedBox(width: size.width * 0.06),
-        Expanded(
-          flex: 5,
-          child: _buildMainBody(size, theme),
-        ),
-      ],
-    );
-  }
-
-  // For Small screens
-  Widget _buildSmallScreen(
-      Size size, ThemeData theme) {
-    return Center(
-      child: _buildMainBody(size, theme),
-    );
-  }
-
-  // Main Body
-  Widget _buildMainBody(
-      Size size, ThemeData theme) {
-    return Column(children: <Widget>[
-      SizedBox(
-        height: size.height * 0.06,
-      ),
-    ]);
   }
 }

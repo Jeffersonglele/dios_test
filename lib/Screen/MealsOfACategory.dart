@@ -1,186 +1,82 @@
-import 'dart:convert';
-
-import 'package:dios_delices/Screen/FoodCategories.dart';
-import 'package:dios_delices/Screen/DishDetails.dart';
+import 'package:dios_delices/modeles/dish.dart';
+import 'package:dios_delices/theme/app_theme.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-
-
-import '../Constant/Constant.dart';
-import '../Controller/UiController.dart';
+import 'DishDetails.dart';
+import '../widgets/dios_image.dart';
 
 class MealsOfACategory extends StatefulWidget {
-  final int category_id;
-
-  MealsOfACategory({required this.category_id});
+  final int? categoryId;
+  final String? categoryName;
+  const MealsOfACategory({super.key, this.categoryId, this.categoryName});
 
   @override
   State<MealsOfACategory> createState() => _MealsOfACategoryState();
 }
 
 class _MealsOfACategoryState extends State<MealsOfACategory> {
-  @override
-  void dispose() {
-    super.dispose();
-  }
+  List<Dish> _dishes = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    getCategories();
-    getMeals();
+    _loadDishes();
   }
 
-  List _items_meals = [];
-  List _items_categories = [];
-
-  var _category_details = {};
-  List _meals_of_category = [];
-
-
-  Future<void> getMeals() async {
-    final String response =
-        await rootBundle.loadString('assets/static_data/Meals.json');
-    final data = await json.decode(response);
-    setState(() {
-      _items_meals = data["items"];
-    });
-  }
-
-  Future<void> getCategories() async {
-    final String response =
-        await rootBundle.loadString('assets/static_data/FoodCategories.json');
-    final data = await json.decode(response);
-    setState(() {
-      _items_categories = data["items"];
-    });
+  Future<void> _loadDishes() async {
+    final allDishes = await Dish.fetchDishesFromDB();
+    final filtered = allDishes.where((d) => (d.status ?? 0) == 1).toList();
+    if (mounted) setState(() { _dishes = filtered; _isLoading = false; });
   }
 
   @override
   Widget build(BuildContext context) {
-    var size = MediaQuery.of(context).size;
-    var theme = Theme.of(context);
-
-    _getCategoryDetails();
-    _getMealsByCategoryId();
-
-    return GestureDetector(
-      onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        resizeToAvoidBottomInset: false,
-        appBar: AppBar(),
-        body: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            SizedBox(
-              height: size.height * 0.06,
-            ),
-            Row(
-              children: [
-                SizedBox(
-                  width: 20,
-                ),
-                Expanded(
-                  child: Text(
-                    _category_details["category"] + "'s meals",
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: bigTitleStyle(size),
-                  ),
-                ),
-                SizedBox(
-                  width: 20,
-                ),
-              ],
-            ),
-            SizedBox(
-              height: size.height * 0.03,
-            ),
-            _meals_of_category.isNotEmpty
-                ? Flexible(
-                    child: ListView.builder(
-                    scrollDirection: Axis.vertical,
-                    shrinkWrap: true,
-                    itemCount: _meals_of_category.length,
-                    itemBuilder: (context, index) {
-                      return GestureDetector(
-                        onTap: () => {
-                          Navigator.push(
-                              context,
-                              CupertinoPageRoute(
-                                  builder: (ctx) => DishDetails(
-                                      from_page: 4,
-                                      dish_id: _meals_of_category[index]
-                                          ["id"])))
-                        },
-                        child: Card(
-                          clipBehavior: Clip.antiAlias,
-                          margin: new EdgeInsets.only(
-                              left: 50.0, bottom: 20.0, right: 50.0),
-                          child: Column(
-                            children: [
-                              Image.asset(_meals_of_category[index]["image"],
-                                  height: 200,
-                                  width: 300,
-                                  fit: BoxFit.fitWidth),
-                              ListTile(
-                                title: Text(
-                                    _meals_of_category[index]["meal_name"]),
-                                subtitle: Text(
-                                  _meals_of_category[index]["price"]
-                                          .toString() +
-                                      " " +
-                                      _meals_of_category[index]["currency"],
-                                  style: TextStyle(
-                                      color: Colors.red.withOpacity(0.6)),
-                                ),
-                              ),
-                            ],
-                          ),
+    return Scaffold(
+      backgroundColor: AppColors.surface,
+      appBar: AppBar(title: Text(widget.categoryName ?? 'Plats')),
+      body: RefreshIndicator(
+        color: AppColors.brand,
+        onRefresh: _loadDishes,
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _dishes.isEmpty
+                ? Center(child: Text('Aucun plat.', style: AppTypography.bodyMedium()))
+                : ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
+                    itemCount: _dishes.length,
+                    itemBuilder: (_, i) => GestureDetector(
+                      onTap: () => Navigator.push(context,
+                          CupertinoPageRoute(builder: (_) => DishDetails(from_page: 4, dish_id: _dishes[i].dishID))),
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: AppColors.card,
+                          borderRadius: BorderRadius.circular(AppRadius.lg),
+                          border: Border.all(color: AppColors.border, width: 0.5),
                         ),
-                      );
-                    },
-                  ))
-                : Container(
-                    height: 600,
+                        clipBehavior: Clip.antiAlias,
+                        child: Row(children: [
+                          SizedBox(width: 100, height: 100, child: DiosImage(url: _dishes[i].image)),
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                Text(_dishes[i].name ?? 'Plat', style: AppTypography.titleMedium()),
+                                const SizedBox(height: 4),
+                                Text(_dishes[i].description ?? '', maxLines: 2, overflow: TextOverflow.ellipsis,
+                                    style: AppTypography.bodyMedium()),
+                                const SizedBox(height: 4),
+                                Text('${_dishes[i].price?.toStringAsFixed(2) ?? "0"} €',
+                                    style: AppTypography.bodyLarge(color: AppColors.brand)),
+                              ]),
+                            ),
+                          ),
+                        ]),
+                      ),
+                    ),
                   ),
-            SizedBox(height: 55,)
-          ],
-        ),
       ),
     );
-  }
-
-  _getCategoryDetails() async {
-    var id = widget.category_id;
-    for (var i = 0, j = _items_categories.length; i < j; i++) {
-      if (_items_categories[i]["id"] == id) {
-        setState(() {
-          _category_details = _items_categories[i];
-        });
-      }
-    }
-  }
-
-  _getMealsByCategoryId() async {
-    var id = widget.category_id;
-    List tab = [];
-    var p = 0;
-
-    for (var i = 0, j = _items_meals.length; i < j; i++) {
-      if (_items_meals[i]["category_id"] == id) {
-        tab.add(_items_meals[i]);
-      }
-      p++;
-
-      if (p == _items_meals.length) {
-        setState(() {
-          _meals_of_category = tab;
-        });
-      }
-    }
   }
 }

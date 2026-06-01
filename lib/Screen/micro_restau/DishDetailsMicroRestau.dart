@@ -199,7 +199,7 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
                         EdgeInsets.only(left: 16.0, bottom: 8.0, right: 16.0),
                         decoration: BoxDecoration(
                           image: DecorationImage(
-                            image: current_dish?.image != null
+                            image: current_dish?.image != null && current_dish!.image!.trim().isNotEmpty
                                 ? NetworkImage(current_dish!.image!)
                                 : AssetImage('assets/images/no_image.png')
                             as ImageProvider,
@@ -560,10 +560,10 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
                             ),
                           ),
                         ],
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 10.0),
-                          child: ElevatedButton(
-                            onPressed: () async {
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 10.0),
+                            child: ElevatedButton(
+                              onPressed: () async {
                               if (isEditMode && hasChanges()) {
                                 if (_formKey.currentState?.validate() ?? false) {
                                   final user = ref.read(usersProvider);

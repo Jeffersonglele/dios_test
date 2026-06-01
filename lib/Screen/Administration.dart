@@ -1,99 +1,93 @@
-import 'dart:convert';
-
+import 'package:dios_delices/modeles/commande.dart';
+import 'package:dios_delices/modeles/dish.dart';
+import 'package:dios_delices/modeles/restaurant.dart';
+import 'package:dios_delices/modeles/users.dart';
+import 'package:dios_delices/theme/app_theme.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import '../Controller/UiController.dart';
+import 'admin/AdminDashboard.dart';
 
 class Administration extends StatefulWidget {
+  const Administration({super.key});
   @override
-  _AdministrationState createState() => _AdministrationState();
+  State<Administration> createState() => _AdministrationState();
 }
 
 class _AdministrationState extends State<Administration> {
-  TextEditingController totalController = TextEditingController();
-
-  @override
-  void dispose() {
-    totalController.dispose();
-    super.dispose();
-  }
+  int _totalUsers = 0, _totalRestaurants = 0, _totalDishes = 0, _totalOrders = 0;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    getMeals();
+    _load();
   }
 
-  List _items_meals = [];
-  var selected = {};
-  var number_of_parts = 1;
-  var total = 0.0;
-
-
-  Future<void> getMeals() async {
-    final String response =
-        await rootBundle.loadString('assets/static_data/Meals.json');
-    final data = await json.decode(response);
-    setState(() {
-      _items_meals = data["items"];
+  Future<void> _load() async {
+    final users = await Users.fetchUsersFromDB();
+    final restaurants = await Restaurant.fetchRestaurantsFromDB();
+    final dishes = await Dish.fetchDishesFromDB();
+    final commandes = await Commande.fetchCommandesFromDB();
+    if (mounted) setState(() {
+      _totalUsers = users.length;
+      _totalRestaurants = restaurants.where((r) => r.valid == 1).length;
+      _totalDishes = dishes.length;
+      _totalOrders = commandes.length;
+      _isLoading = false;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    var size = MediaQuery.of(context).size;
-    var theme = Theme.of(context);
-
-    return GestureDetector(
-      onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        resizeToAvoidBottomInset: false,
-        appBar: AppBar(),
-        body: SingleChildScrollView(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              if (constraints.maxWidth > 600) {
-                return _buildLargeScreen(size, theme);
-              } else {
-                return _buildSmallScreen(size, theme);
-              }
-            },
-          ),
-        ),
+    return Scaffold(
+      backgroundColor: AppColors.surface,
+      appBar: AppBar(title: const Text('Administration')),
+      body: RefreshIndicator(
+        color: AppColors.brand,
+        onRefresh: _load,
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  _StatRow('Utilisateurs', '$_totalUsers', Icons.people_rounded, AppColors.brand),
+                  _StatRow('Restaurants', '$_totalRestaurants', Icons.storefront_rounded, AppColors.accent),
+                  _StatRow('Plats', '$_totalDishes', Icons.restaurant_menu_rounded, AppColors.success),
+                  _StatRow('Commandes', '$_totalOrders', Icons.receipt_long_rounded, AppColors.inkMuted),
+                  const SizedBox(height: 32),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => AdminDashboard())),
+                      child: const Text('Dashboard Admin'),
+                    ),
+                  ),
+                ],
+              ),
       ),
     );
   }
 
-  // For large screens
-  Widget _buildLargeScreen(
-      Size size, ThemeData theme) {
-    return Row(
-      children: [
-        SizedBox(width: size.width * 0.06),
-        Expanded(
-          flex: 5,
-          child: _buildMainBody(size, theme),
-        ),
-      ],
-    );
-  }
-
-  // For Small screens
-  Widget _buildSmallScreen(
-      Size size, ThemeData theme) {
-    return Center(
-      child: _buildMainBody(size, theme),
-    );
-  }
-
-  // Main Body
-  Widget _buildMainBody(
-      Size size, ThemeData theme) {
-    return Column(children: <Widget>[
-      SizedBox(
-        height: size.height * 0.06,
+  Widget _StatRow(String label, String value, IconData icon, Color color) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: AppColors.border, width: 0.5),
       ),
-    ]);
+      child: Row(children: [
+        Container(width: 44, height: 44,
+          decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(AppRadius.sm)),
+          child: Icon(icon, color: color, size: 22),
+        ),
+        const SizedBox(width: 14),
+        Expanded(child: Text(label, style: AppTypography.labelMedium())),
+        Text(value, style: AppTypography.headlineMedium().copyWith(fontSize: 24, color: color)),
+      ]),
+    );
   }
 }

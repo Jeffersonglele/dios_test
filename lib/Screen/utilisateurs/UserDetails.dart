@@ -13,6 +13,7 @@ import '../../Constant/Constant.dart';
 import '../../modeles/identity.dart';
 import '../../modeles/users.dart';
 import '../../utils/toast.dart';
+import '../../widgets/dios_image.dart';
 
 class UserDetails extends ConsumerStatefulWidget {
   static const routeName = '/UserDetailsUser';
@@ -328,13 +329,10 @@ class _UserDetailsState extends ConsumerState<UserDetails> {
                               child: SizedBox(
                                 width: 60,
                                 height: 60,
-                                child: Image.network(
-                                  current_user_restaurant?.image ??
-                                      "https://parsefiles.back4app.com/9qBeGGwSGOQ1iWOJ1UNUXt40NhgwwgbHJYGpV1zg/4f636282d677d999cd624580cdec2ff7_no_image.png",
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return Image.asset('assets/images/no_image.png', fit: BoxFit.cover);
-                                  },
+                                child: DiosImage(
+                                  url: current_user_restaurant?.image,
+                                  width: 60,
+                                  height: 60,
                                 ),
                               ),
                             ),
@@ -484,8 +482,7 @@ class _UserDetailsState extends ConsumerState<UserDetails> {
 }
 
 Widget buildImage(String? imageUrl) {
-  // Vérifie si le lien est une URL valide
-  if (imageUrl != null && Uri.tryParse(imageUrl)?.hasAbsolutePath == true) {
+  if (imageUrl != null && imageUrl.trim().isNotEmpty && Uri.tryParse(imageUrl)?.hasAbsolutePath == true) {
     return Image.network(
       imageUrl,
       height: 200,

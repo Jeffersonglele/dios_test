@@ -6,6 +6,7 @@ import '../modeles/dish.dart';
 import '../services/favorites_service.dart';
 import '../services/session_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/dios_image.dart';
 import '../widgets/micro_interactions.dart';
 
 class DishDetails extends StatefulWidget {
@@ -110,10 +111,9 @@ class _DishDetailsState extends State<DishDetails> {
                 background: Stack(
                   fit: StackFit.expand,
                   children: [
-                    Image.network(
-                      (dish.image != null && dish.image!.isNotEmpty) ? dish.image! : '',
+                    DiosImage(
+                      url: dish.image,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Image.asset('assets/images/no_image.png', fit: BoxFit.cover),
                     ),
                     Positioned(
                       bottom: 0, left: 0, right: 0,

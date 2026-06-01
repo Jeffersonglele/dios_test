@@ -13,6 +13,7 @@ import '../../providers/cart_provider.dart' as cartP;
 import '../../services/favorites_service.dart';
 import '../../services/session_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/dios_image.dart';
 import '../../widgets/micro_interactions.dart';
 import '../../utils/stars.dart';
 import '../../utils/toast.dart';
@@ -161,12 +162,9 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
                 background: Stack(
                   fit: StackFit.expand,
                   children: [
-                    Image.network(
-                      (current_restaurant!.image != null && current_restaurant!.image!.trim().isNotEmpty)
-                          ? current_restaurant!.image!
-                          : '',
+                    DiosImage(
+                      url: current_restaurant!.image,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Image.asset('assets/images/no_image.png', fit: BoxFit.cover),
                     ),
                     // Overlay dégradé bas
                     Positioned(
@@ -364,15 +362,10 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
         child: Row(children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(AppRadius.md),
-            child: Image.network(
-              dish.image ?? '',
-              width: 72, height: 72, fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                width: 72, height: 72,
-                color: AppColors.surfaceWarm,
-                child: const Icon(Icons.restaurant_rounded, color: AppColors.border),
-              ),
-            ),
+          child: DiosImage(
+            url: dish.image,
+            width: 72, height: 72,
+          ),
           ),
           const SizedBox(width: 14),
           Expanded(

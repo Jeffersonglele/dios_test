@@ -132,10 +132,7 @@ class _MyAppState extends State<MyApp> {
                     textScaleFactor: factor,
                     platformBrightness: brightness,
                   ),
-                  child: Semantics(
-                    label: 'Application Dios Délices',
-                    child: child!,
-                  ),
+                  child: child!,
                 ),
               );
             },
@@ -148,7 +145,7 @@ class _MyAppState extends State<MyApp> {
               FOOD_DETAILS: (BuildContext context) =>
                   DishDetails(from_page: 0, dish_id: 0),
               MEALS_OF_A_CATEGORY: (BuildContext context) =>
-                  MealsOfACategory(category_id: 0),
+                  const MealsOfACategory(),
             },
             initialRoute: "/",
           ),

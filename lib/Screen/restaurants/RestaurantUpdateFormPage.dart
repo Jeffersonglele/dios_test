@@ -14,6 +14,7 @@ import '../../utils/HashtagTextInputFormatter.dart';
 import '../../utils/phone_number.dart';
 import '../../utils/toast.dart';
 import '../../widgets/brand_avatar_logo.dart';
+import '../../widgets/dios_image.dart';
 import '../AnimatedSplashScreen.dart';
 import '../verif_confirm/ConfirmationPage.dart';
 
@@ -286,14 +287,15 @@ class _RestaurantUpdateFormPageState
                                 height: 60,
                                 fit: BoxFit.cover,
                               )
-                            : widget.restaurant.image!.isNotEmpty
-                                ? Image.network(
-                                    widget.restaurant.image ??
-                                        "https://parsefiles.back4app.com/9qBeGGwSGOQ1iWOJ1UNUXt40NhgwwgbHJYGpV1zg/4f636282d677d999cd624580cdec2ff7_no_image.png",
-                                    width: 100,
-                                    height: 60,
+                          : widget.restaurant.image!.isNotEmpty
+                              ? SizedBox(
+                                  width: 100,
+                                  height: 60,
+                                  child: DiosImage(
+                                    url: widget.restaurant.image,
                                     fit: BoxFit.cover,
-                                  )
+                                  ),
+                                )
                                 : const Text(
                                     'Aucune image sélectionnée',
                                     style:

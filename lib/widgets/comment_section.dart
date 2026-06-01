@@ -123,6 +123,8 @@ class _CommentSectionState extends State<CommentSection> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
                 foregroundColor: Colors.white,
+                minimumSize: Size.zero,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               ),
               child: const Text('Envoyer'),
             ),

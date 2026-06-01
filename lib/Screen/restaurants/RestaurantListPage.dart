@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import '../../modeles/restaurant.dart';
 import '../../modeles/users.dart';
+import '../../widgets/dios_image.dart';
 import '../../utils/toast.dart';
 import 'RestaurantDetails.dart';
 
@@ -212,8 +213,8 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
               contentPadding: EdgeInsets.zero,
               leading: ClipRRect(
                 borderRadius: BorderRadius.circular(8.0),
-                child: Image.network(
-                  restaurant.image ?? "https://parsefiles.back4app.com/9qBeGGwSGOQ1iWOJ1UNUXt40NhgwwgbHJYGpV1zg/4f636282d677d999cd624580cdec2ff7_no_image.png",
+                child: DiosImage(
+                  url: restaurant.image,
                   fit: BoxFit.cover,
                   width: 80,
                   height: 80,

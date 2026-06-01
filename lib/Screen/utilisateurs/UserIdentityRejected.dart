@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dios_delices/Screen/verif_confirm/IdentityCreated.dart';
 import 'package:dios_delices/modeles/users.dart';
 import 'package:dios_delices/utils/toast.dart';
+import 'package:dios_delices/widgets/dios_image.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -357,13 +358,15 @@ class _UserIdentityRejectedState extends ConsumerState<UserIdentityRejected> {
                       SizedBox(height: 10),
                       _userPhoto != null
                           ? _buildImagePreview(_userPhoto!)
-                          : current_identity.photo != null
-                              ? Image.network(
-                                  current_identity.photo ??
-                                      "https://parsefiles.back4app.com/9qBeGGwSGOQ1iWOJ1UNUXt40NhgwwgbHJYGpV1zg/4f636282d677d999cd624580cdec2ff7_no_image.png",
+                          :                             current_identity.photo != null
+                              ? SizedBox(
                                   width: 100,
                                   height: 100,
-                                  fit: BoxFit.cover)
+                                  child: DiosImage(
+                                    url: current_identity.photo,
+                                    fit: BoxFit.cover,
+                                  ),
+                                )
                               : Text("Aucune photo disponible"),
                       SizedBox(height: 10),
                       ElevatedButton.icon(
@@ -567,7 +570,7 @@ class PDFOrImageViewer extends StatelessWidget {
       return Scaffold(
         appBar: AppBar(title: Text("Aperçu Image")),
         body: Center(
-          child: Image.network(url, fit: BoxFit.contain),
+          child: DiosImage(url: url, fit: BoxFit.contain),
         ),
       );
     }

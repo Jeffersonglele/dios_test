@@ -1,100 +1,103 @@
-import 'dart:convert';
-
-import 'package:dios_delices/Screen/MyStore.dart';
+import 'package:dios_delices/core/commande_status.dart';
+import 'package:dios_delices/modeles/commande.dart';
+import 'package:dios_delices/modeles/dish.dart';
+import 'package:dios_delices/modeles/ligne_commande.dart';
+import 'package:dios_delices/services/session_service.dart';
+import 'package:dios_delices/theme/app_theme.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import '../Controller/UiController.dart';
 
 class MySales extends StatefulWidget {
+  const MySales({super.key});
   @override
-  _MySalesState createState() => _MySalesState();
+  State<MySales> createState() => _MySalesState();
 }
 
 class _MySalesState extends State<MySales> {
-  TextEditingController totalController = TextEditingController();
-
-  @override
-  void dispose() {
-    totalController.dispose();
-    super.dispose();
-  }
+  List<Commande> _commandes = [];
+  Map<int, String> _dishNames = {};
+  bool _isLoading = true;
+  double _totalRevenue = 0;
 
   @override
   void initState() {
     super.initState();
-    getMeals();
+    _load();
   }
 
-  List _items_meals = [];
-  var selected = {};
-  var number_of_parts = 1;
-  var total = 0.0;
+  Future<void> _load() async {
+    final session = await SessionService.readSession();
+    final allCmd = await Commande.fetchCommandesFromDB();
+    final allDishes = await Dish.fetchDishesFromDB();
+    final myCmd = allCmd.where((c) => c.restaurateurID == session.userId).toList()
+      ..sort((a, b) => b.dateCommande.compareTo(a.dateCommande));
 
+    final names = <int, String>{};
+    for (final d in allDishes) { names[d.dishID] = d.name ?? 'Plat ${d.dishID}'; }
 
-  Future<void> getMeals() async {
-    final String response =
-        await rootBundle.loadString('assets/static_data/Meals.json');
-    final data = await json.decode(response);
-    setState(() {
-      _items_meals = data["items"];
-    });
+    final total = myCmd.fold<double>(0, (s, c) => s + c.fraisLivraison);
+
+    if (mounted) setState(() { _commandes = myCmd; _dishNames = names; _totalRevenue = total; _isLoading = false; });
   }
 
   @override
   Widget build(BuildContext context) {
-    var size = MediaQuery.of(context).size;
-    var theme = Theme.of(context);
-
-    return GestureDetector(
-      onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        resizeToAvoidBottomInset: false,
-        appBar: AppBar(),
-        body: SingleChildScrollView(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              if (constraints.maxWidth > 600) {
-                return _buildLargeScreen(size, theme);
-              } else {
-                return _buildSmallScreen(size, theme);
-              }
-            },
-          ),
-        ),
+    return Scaffold(
+      backgroundColor: AppColors.surface,
+      appBar: AppBar(title: const Text('Mes ventes')),
+      body: RefreshIndicator(
+        color: AppColors.brand,
+        onRefresh: _load,
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _commandes.isEmpty
+                ? Center(child: Text('Aucune vente.', style: AppTypography.bodyMedium()))
+                : ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
+                    itemCount: _commandes.length + 1,
+                    itemBuilder: (_, i) {
+                      if (i == 0) {
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(colors: [AppColors.brandDark, AppColors.brand],
+                                begin: Alignment.topLeft, end: Alignment.bottomRight),
+                            borderRadius: BorderRadius.circular(AppRadius.xl),
+                          ),
+                          child: Column(children: [
+                            const Text('Chiffre d\'affaires', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                            const SizedBox(height: 4),
+                            Text('${_totalRevenue.toStringAsFixed(2)} €',
+                                style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold)),
+                          ]),
+                        );
+                      }
+                      final c = _commandes[i - 1];
+                      final status = CommandeStatus.normalize(c.status);
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        decoration: BoxDecoration(
+                          color: AppColors.card,
+                          borderRadius: BorderRadius.circular(AppRadius.lg),
+                          border: Border.all(color: AppColors.border, width: 0.5),
+                        ),
+                        child: ListTile(
+                          title: Text('Commande #${c.commandeID}', style: AppTypography.labelMedium()),
+                          subtitle: Text('Frais livraison: ${c.fraisLivraison.toStringAsFixed(2)} € · ${c.dateCommande.toLocal().toString().split(" ")[0]}',
+                              style: AppTypography.bodyMedium()),
+                          trailing: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: CommandeStatus.color(status).withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(status, style: TextStyle(color: CommandeStatus.color(status), fontSize: 11, fontWeight: FontWeight.w700)),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
       ),
     );
-  }
-
-  // For large screens
-  Widget _buildLargeScreen(
-      Size size, ThemeData theme) {
-    return Row(
-      children: [
-        SizedBox(width: size.width * 0.06),
-        Expanded(
-          flex: 5,
-          child: _buildMainBody(size, theme),
-        ),
-      ],
-    );
-  }
-
-  // For Small screens
-  Widget _buildSmallScreen(
-      Size size, ThemeData theme) {
-    return Center(
-      child: _buildMainBody(size, theme),
-    );
-  }
-
-  // Main Body
-  Widget _buildMainBody(
-      Size size, ThemeData theme) {
-    return Column(children: <Widget>[
-      SizedBox(
-        height: size.height * 0.06,
-      ),
-    ]);
   }
 }

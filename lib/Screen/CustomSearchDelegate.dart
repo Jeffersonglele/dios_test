@@ -3,6 +3,7 @@ import 'package:dios_delices/Screen/restaurants/RestaurantDetails.dart';
 import 'package:dios_delices/modeles/dish.dart';
 import 'package:dios_delices/modeles/restaurant.dart';
 import 'package:dios_delices/theme/app_theme.dart';
+import '../widgets/dios_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
@@ -98,9 +99,7 @@ class CustomSearchDelegate extends SearchDelegate<void> {
                 child: ListTile(
                   leading: ClipRRect(
                     borderRadius: BorderRadius.circular(AppRadius.sm),
-                    child: Image.network(d.image ?? '', width: 44, height: 44, fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(width: 44, height: 44,
-                            color: AppColors.surfaceWarm, child: const Icon(Icons.restaurant_rounded, color: AppColors.border, size: 20))),
+                  child: DiosImage(url: d.image, width: 44, height: 44),
                   ),
                   title: Text(d.name ?? 'Plat', style: AppTypography.labelMedium()),
                   subtitle: Text('${d.price?.toStringAsFixed(2) ?? '0'} €',

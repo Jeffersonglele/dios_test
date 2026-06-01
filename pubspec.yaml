@@ -112,12 +112,6 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/animations/
-    - assets/static_data/Meals.json
-    - assets/static_data/Stores.json
-    - assets/static_data/FoodCategories.json
-    - assets/static_data/Orders.json
-    - assets/static_data/OrdersDetails.json
-    - assets/static_data/DeliveriesTypes.json
     - assets/images/logo_big.jpg
     - assets/images/logo_big.png
     - assets/images/logo_sm01.jpg

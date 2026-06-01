@@ -2,6 +2,7 @@ import 'package:dios_delices/Screen/dish/DishFormPage.dart';
 import 'package:dios_delices/modeles/dish.dart';
 import 'package:dios_delices/services/session_service.dart';
 import 'package:dios_delices/theme/app_theme.dart';
+import '../widgets/dios_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'micro_restau/DishDetailsMicroRestau.dart';
@@ -118,15 +119,10 @@ class _MenuState extends State<Menu> {
                               Expanded(
                                 child: Stack(children: [
                                   Positioned.fill(
-                                    child: Image.network(
-                                      (dish.image != null && dish.image!.isNotEmpty)
-                                          ? dish.image! : '',
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) => Container(
-                                        color: AppColors.surfaceWarm,
-                                        child: const Icon(Icons.restaurant_rounded, color: AppColors.border, size: 36),
-                                      ),
-                                    ),
+                                  child: DiosImage(
+                                    url: dish.image,
+                                    fit: BoxFit.cover,
+                                  ),
                                   ),
                                   Positioned(
                                     bottom: 0, left: 0, right: 0,

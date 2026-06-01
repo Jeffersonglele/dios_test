@@ -22,6 +22,7 @@ import '../services/session_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/toast.dart';
 import '../widgets/animations.dart';
+import '../widgets/dios_image.dart';
 import 'order_tracking_page.dart';
 
 class Cart extends ConsumerStatefulWidget {
@@ -820,18 +821,10 @@ class _CartItemCard extends StatelessWidget {
               // Photo
               ClipRRect(
                 borderRadius: BorderRadius.circular(AppRadius.md),
-                child: Image.network(
-                  meal["image"] ?? '',
+                child: DiosImage(
+                  url: meal["image"],
                   width: 72,
                   height: 72,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
-                    width: 72,
-                    height: 72,
-                    color: AppColors.surfaceWarm,
-                    child: const Icon(Icons.restaurant,
-                        color: AppColors.border),
-                  ),
                 ),
               ),
               const SizedBox(width: 14),

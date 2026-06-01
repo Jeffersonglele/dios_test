@@ -41,7 +41,7 @@ class _AddToCartBounceState extends State<AddToCartBounce>
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => _ctrl.forward(from: 0),
+      onTap: () { _ctrl.reset(); _ctrl.forward(); },
       child: AnimatedBuilder(
         animation: _scale,
         builder: (_, child) => Transform.scale(scale: _scale.value, child: child),
@@ -97,7 +97,7 @@ class _AnimatedLikeButtonState extends State<AnimatedLikeButton>
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => _ctrl.forward(from: 0),
+      onTap: () { _ctrl.reset(); _ctrl.forward(); },
       child: AnimatedBuilder(
         animation: _scale,
         builder: (_, __) => Transform.scale(

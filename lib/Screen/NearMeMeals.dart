@@ -4,7 +4,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 class NearMeMeals extends StatefulWidget {
-  const NearMeMeals({super.key});
+  final String? category;
+  const NearMeMeals({super.key, this.category});
 
   @override
   State<NearMeMeals> createState() => _NearMeMealsState();
@@ -51,11 +52,15 @@ class _NearMeMealsState extends State<NearMeMeals> {
 
   void _applyFilters() {
     final query = _searchController.text.trim().toLowerCase();
+    final catFilter = widget.category?.toLowerCase();
     final filtered = _allDishes.where((result) {
       final haystack =
           '${result.dish.name} ${result.dish.categories} ${result.restaurant.name}'
               .toLowerCase();
-      return query.isEmpty || haystack.contains(query);
+      final matchesQuery = query.isEmpty || haystack.contains(query);
+      final matchesCategory = catFilter == null ||
+          (result.dish.categories?.toLowerCase().contains(catFilter) ?? false);
+      return matchesQuery && matchesCategory;
     }).toList();
 
     if (!mounted) return;

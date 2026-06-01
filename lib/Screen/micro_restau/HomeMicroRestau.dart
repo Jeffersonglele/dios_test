@@ -235,18 +235,18 @@ class _HomeMicroRestauState extends State<HomeMicroRestau> {
         crossAxisCount: 2,
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 1.3,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+        childAspectRatio: 1.8,
         children: [
           _StatCard(title: 'Commandes\nen attente', value: '$pendingOrders', subtitle: 'À confirmer',
-              color: AppColors.accent, icon: Icons.pending_actions_rounded),
+              color: AppColors.accent),
           _StatCard(title: 'Commandes\nconfirmées', value: '$confirmedOrders', subtitle: 'En cours',
-              color: AppColors.success, icon: Icons.verified_rounded),
+              color: AppColors.success),
           _StatCard(title: 'Plats\ndisponibles', value: '$availableDishes', subtitle: '$unavailableDishes indispo.',
-              color: AppColors.brand, icon: Icons.restaurant_menu_rounded),
+              color: AppColors.brand),
           _StatCard(title: 'Portions\nvendues', value: '$soldServings', subtitle: '/$totalAvailableServings portions',
-              color: AppColors.inkMuted, icon: Icons.inventory_2_rounded),
+              color: AppColors.inkMuted),
         ],
       ),
     );
@@ -400,36 +400,31 @@ class _HomeMicroRestauState extends State<HomeMicroRestau> {
 
 // ── KPI Card ───────────────────────────────────────────────
 class _StatCard extends StatelessWidget {
-  const _StatCard({required this.title, required this.value, required this.subtitle, required this.color, required this.icon});
+  const _StatCard({required this.title, required this.value, required this.subtitle, required this.color});
   final String title, value, subtitle;
   final Color color;
-  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: AppColors.border, width: 0.5),
       ),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 40, height: 40,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(AppRadius.sm),
-            ),
-            child: Icon(icon, color: color, size: 22),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(value, style: AppTypography.headlineLarge().copyWith(fontSize: 28, color: color)),
           ),
-          const Spacer(),
-          Text(value, style: AppTypography.headlineMedium().copyWith(fontSize: 26)),
-          const SizedBox(height: 2),
-          Text(title, style: AppTypography.labelMedium(color: AppColors.inkMuted).copyWith(fontSize: 11)),
-          Text(subtitle, style: AppTypography.labelMedium(color: color).copyWith(fontSize: 11)),
+          const SizedBox(height: 4),
+          Text(title, style: AppTypography.labelMedium(color: AppColors.inkMuted).copyWith(fontSize: 11), maxLines: 2),
+          if (subtitle.isNotEmpty)
+            Text(subtitle, style: AppTypography.labelMedium(color: color).copyWith(fontSize: 10), maxLines: 1, overflow: TextOverflow.ellipsis),
         ],
       ),
     );
