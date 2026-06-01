@@ -18,7 +18,6 @@ migrate_working_dir/
 # Backend — dans un repo séparé (dios-delices-backend)
 dios-delices-backend/
 cloud/
-lib/scripts/
 
 # IntelliJ related
 *.iml
