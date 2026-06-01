@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import '../Controller/UiController.dart';
 import '../modeles/dish.dart';
 import '../modeles/restaurant.dart';
@@ -15,7 +14,6 @@ class GuestBrowsePage extends StatefulWidget {
 }
 
 class _GuestBrowsePageState extends State<GuestBrowsePage> {
-  SimpleUIController simpleUIController = Get.put(SimpleUIController());
   List<Restaurant> restaurants = [];
   Map<int, List<Dish>> dishesByRestaurant = {};
   bool isLoading = true;

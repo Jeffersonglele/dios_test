@@ -1,8 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 
 import '../authentification/Login.dart';
+import '../../utils/strings.dart';
 
 class PasswordChangeSuccessScreen extends StatelessWidget {
   const PasswordChangeSuccessScreen({super.key});
@@ -20,7 +20,7 @@ class PasswordChangeSuccessScreen extends StatelessWidget {
             const Icon(Icons.check_circle, color: Colors.green, size: 100),
             const SizedBox(height: 20),
             Text(
-              'password_updated'.tr,
+              Strings.of('password_updated'),
               style: const TextStyle(fontSize: 18),
               textAlign: TextAlign.center,
             ),
@@ -47,7 +47,7 @@ class PasswordChangeSuccessScreen extends StatelessWidget {
                       CupertinoPageRoute(builder: (ctx) => const Login()));
                   // Navigator.popUntil(context, ModalRoute.withName('/login')); // Retour à la page de login
                 },
-                child: Text('back_to_login'.tr),
+                child: Text(Strings.of('back_to_login')),
               ),
             )
           ],

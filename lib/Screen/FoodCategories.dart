@@ -5,7 +5,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'package:get/get.dart';
 
 import '../Constant/Constant.dart';
 import '../Controller/UiController.dart';
@@ -28,7 +27,6 @@ class _FoodCategoriesState extends State<FoodCategories> {
   }
 
   List _items = [];
-  SimpleUIController simpleUIController = Get.put(SimpleUIController());
 
   Future<void> readJson() async {
     final String response =

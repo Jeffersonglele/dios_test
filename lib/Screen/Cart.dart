@@ -3,7 +3,6 @@ import 'package:count_stepper/count_stepper.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_stripe/flutter_stripe.dart' as stripe;
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import '../modeles/commande.dart';
 import '../modeles/restaurant.dart';
@@ -15,6 +14,8 @@ import '../providers/selected_delivery.dart';
 import '../services/commande_api.dart';
 import '../services/promo_service.dart';
 import '../services/session_service.dart';
+import '../config/app_config.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../utils/toast.dart';
 import 'package:http/http.dart' as http;
 import 'order_tracking_page.dart';
@@ -30,6 +31,7 @@ class _CartState extends ConsumerState<Cart> {
 
   PromoApplication? _appliedPromo;
   bool _isSubmittingPayment = false;
+  bool _payOnline = false;
 
   @override
   void initState() {
@@ -126,13 +128,6 @@ class _CartState extends ConsumerState<Cart> {
 
   double _calculateSubtotal(List<Map<String, dynamic>> cartItems) {
     return cartItems.fold<double>(0.0, (sum, item) => sum + _lineTotal(item));
-  }
-
-  int _stripeAmountFromTotal(double totalAmount, String currencyCode) {
-    if (currencyCode == 'eur') {
-      return (totalAmount * 100).round();
-    }
-    return totalAmount.round();
   }
 
   String _formatAmount(double amount, String currencyCode, String currencySymbol) {
@@ -520,334 +515,212 @@ class _CartState extends ConsumerState<Cart> {
                         ),
                       ],
                     ),
-                    SizedBox(height: 40),
+                    SizedBox(height: 30),
+                    if (cartItems.isNotEmpty) ...[
+                      Center(child: Text('Mode de paiement', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
+                      SizedBox(height: 10),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          ChoiceChip(
+                            label: Text('À la livraison'),
+                            selected: !_payOnline,
+                            onSelected: (v) => setState(() => _payOnline = false),
+                            selectedColor: Colors.green.shade50,
+                          ),
+                          SizedBox(width: 10),
+                          ChoiceChip(
+                            label: Text('Fedapay'),
+                            selected: _payOnline,
+                            onSelected: (v) => setState(() => _payOnline = true),
+                            selectedColor: Colors.blue.shade50,
+                          ),
+                        ],
+                      ),
+                    ],
+                    SizedBox(height: 16),
                     Center(
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
+                          backgroundColor: _payOnline ? Colors.blue : Colors.green,
                           foregroundColor: Colors.white,
-                          textStyle: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(15),
-                          ),
+                          textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                         ),
                         onPressed: cartItems.isNotEmpty && !_isSubmittingPayment
-                            ? () async {
-                          if (selectedOption == "En Livraison" &&
-                              selectedAddress == null) {
-                            Toast(
-                              context,
-                              "Choisissez une adresse de livraison avant de payer.",
-                              false,
-                            );
-                            return;
-                          }
-
-                          setState(() {
-                            _isSubmittingPayment = true;
-                          });
-
-                          try {
-                            final paymentIntentResponse = await http.post(
-                              Uri.parse(
-                                'https://dios-delices-backend.vercel.app/api/create-payment-intent',
-                              ),
-                              body: jsonEncode({
-                                'amount': _stripeAmountFromTotal(
-                                  payableTotal,
-                                  currencyCode,
-                                ),
-                                'currency': currencyCode,
-                              }),
-                              headers: {'Content-Type': 'application/json'},
-                            );
-
-                            if (paymentIntentResponse.statusCode != 200) {
-                              Toast(context, "Erreur de paiement", false);
-                              return;
-                            }
-
-                            final paymentIntentData = jsonDecode(
-                              paymentIntentResponse.body,
-                            );
-
-                            await stripe.Stripe.instance.initPaymentSheet(
-                              paymentSheetParameters:
-                                  stripe.SetupPaymentSheetParameters(
-                                paymentIntentClientSecret:
-                                    paymentIntentData['clientSecret'],
-                                merchantDisplayName: 'Dios Délices',
-                              ),
-                            );
-
-                            await stripe.Stripe.instance.presentPaymentSheet();
-
-                            final updatedIntent = await stripe.Stripe.instance
-                                .retrievePaymentIntent(
-                              paymentIntentData['clientSecret'],
-                            );
-
-                            final pmId = updatedIntent.paymentMethodId;
-
-                            if (pmId == null || pmId.isEmpty) {
-                              Toast(
-                                context,
-                                "Erreur : aucun moyen de paiement détecté.",
-                                false,
-                              );
-                              return;
-                            }
-
-                            final paymentMethodDetails =
-                                await fetchStripePaymentMethodDetails(pmId);
-
-                            final id_moyen_paiement = await createMoyenPaiement(
-                              paymentMethodDetails,
-                              cartItems.first['user']['user_id'],
-                            );
-
-                            if (id_moyen_paiement == null) {
-                              Toast(
-                                context,
-                                "Erreur paiement: moyen de paiement non enregistré",
-                                false,
-                              );
-                              return;
-                            }
-
-                            final commandeId = await createOrder(
-                              cartItems,
-                              deliveryFee,
-                              selectedOption == "En Livraison"
-                                  ? selectedAddress?.addressID
-                                  : null,
-                              id_moyen_paiement,
-                              ref,
-                              currencyCode: currencyCode,
-                              reduction: reductionAmount,
-                              promoCode: _appliedPromo?.code,
-                            );
-
-                            if (commandeId == null) {
-                              Toast(
-                                context,
-                                "Impossible de créer la commande.",
-                                false,
-                              );
-                              return;
-                            }
-
-                            await updateOrderStatus(commandeId, "Payée");
-                            await Commande.refreshLocalCommandes();
-
-                            final restaurantId = cartItems.first['restaurant']['restau_id'];
-                            final restaurantsList = await Restaurant.fetchRestaurantsFromDB();
-                            final currentRestaurant = Restaurant.getRestaurantByRestaurantId(restaurantsList, restaurantId);
-                            if (currentRestaurant != null) {
-                              NotificationService.sendOrderNotificationToRestaurateur(
-                                restaurateurId: currentRestaurant.userID,
-                                restaurantName: currentRestaurant.name,
-                                orderDetails: "Commande #$commandeId",
-                                totalAmount: payableTotal,
-                                orderId: int.tryParse(commandeId),
-                              );
-                            }
-
-                            Toast(context, "Commande validée avec succès", true);
-                            cartNotifier.clearCart();
-
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => OrderConfirmationPage(
-                                  commandeId: commandeId,
-                                ),
-                              ),
-                            );
-                          } catch (e) {
-                            Toast(
-                              context,
-                              "Paiement échoué. Veuillez réessayer.",
-                              false,
-                            );
-                          } finally {
-                            if (mounted) {
-                              setState(() {
-                                _isSubmittingPayment = false;
-                              });
-                            }
-                          }
-                        }
+                            ? () => _payOnline ? _handleFedapayPayment() : _handleOrder()
                             : null,
-
-                        child: Text(
-                          _isSubmittingPayment
-                              ? 'Paiement en cours...'
-                              : 'Procéder au paiement',
-                        ),
+                        child: Text(_isSubmittingPayment
+                            ? 'Traitement...'
+                            : _payOnline ? 'Payer avec Fedapay' : 'Commander'),
                       ),
                     ),
-                  ],
+          ],
                 ),
               ),
             ),
     );
   }
 
-  Future<Map<String, dynamic>> fetchStripePaymentMethodDetails(String pmId) async {
-    final response = await http.get(
-      Uri.parse('https://dios-delices-backend.vercel.app/api/get-payment-method-details?pm_id=$pmId'),
-    );
-
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    } else {
-      throw Exception("Échec récupération payment method : ${response.body}");
+  Future<void> _handleOrder() async {
+    final selectedOption = ref.read(selectedDeliveryProvider);
+    if (selectedOption == "En Livraison" && selectedAddress == null) {
+      Toast(context, "Choisissez une adresse de livraison.", false);
+      return;
     }
-  }
 
-  // Effectuer les paiements pour chaque devise
-  Future<void> makePayment(BuildContext context, CartNotifier cartNotifier,
-      double totalAmount, String commandeId) async {
+    final cartItems = ref.read(cartStateProvider);
+    final cartNotifier = ref.read(cartStateProvider.notifier);
+    final items = List<Map<String, dynamic>>.from(cartItems);
+    final country = _countryFromCart(items);
+    final cc = _currencyCodeFromCountry(country);
+    final fee = selectedOption == "En Livraison"
+        ? calculateDeliveryFee(List<Map<String, dynamic>>.from(cartItems))
+        : 0.0;
+    final discount = _appliedPromo?.discountAmount ?? 0.0;
+
+    setState(() => _isSubmittingPayment = true);
+
     try {
-      final List<dynamic> cartItems = cartNotifier.items;
-      final country = _countryFromCart(List<Map<String, dynamic>>.from(cartItems));
-      final currencyCode = _currencyCodeFromCountry(country);
-      final totalCart = _calculateSubtotal(List<Map<String, dynamic>>.from(cartItems));
-      final amount = _stripeAmountFromTotal(totalCart, currencyCode);
-
-      final response = await http.post(
-        Uri.parse(
-            'https://dios-delices-backend.vercel.app/api/create-payment-intent'),
-        body: jsonEncode({
-          'amount': amount,
-          'currency': currencyCode,
-        }),
-        headers: {'Content-Type': 'application/json'},
+      final commandeId = await createOrder(
+        cartItems,
+        fee,
+        selectedOption == "En Livraison" ? selectedAddress?.addressID : null,
+        null,
+        ref,
+        currencyCode: cc,
+        reduction: discount,
+        promoCode: _appliedPromo?.code,
       );
 
-      if (response.statusCode != 200) {
-        throw Exception('Erreur API paiement : ${response.body}');
-      }
+      if (commandeId != null) {
+        Toast(context, "Commande confirmée !", true);
 
-      final paymentIntentData = jsonDecode(response.body);
-
-      await stripe.Stripe.instance.initPaymentSheet(
-        paymentSheetParameters: stripe.SetupPaymentSheetParameters(
-          paymentIntentClientSecret: paymentIntentData['clientSecret'],
-          merchantDisplayName: 'Votre Boutique',
-        ),
-      );
-
-      await stripe.Stripe.instance.presentPaymentSheet().then((_) async {
-        print("✅ Paiement effectué avec succès !");
-
-        try {
-          await stripe.Stripe.instance.presentPaymentSheet();
-
-          final updatedIntent = await stripe.Stripe.instance.retrievePaymentIntent(
-            paymentIntentData['clientSecret'],
+        final restaurantId = cartItems.first['restaurant']['restau_id'];
+        final restaurantsList = await Restaurant.fetchRestaurantsFromDB();
+        final currentRestaurant = Restaurant.getRestaurantByRestaurantId(restaurantsList, restaurantId);
+        if (currentRestaurant != null) {
+          final total = _calculateSubtotal(List<Map<String, dynamic>>.from(cartItems)) + fee - discount;
+          NotificationService.sendOrderNotificationToRestaurateur(
+            restaurateurId: currentRestaurant.userID,
+            restaurantName: currentRestaurant.name,
+            orderDetails: "Commande #$commandeId",
+            totalAmount: total.clamp(0.0, double.infinity),
+            orderId: int.tryParse(commandeId),
           );
-
-          final pmId = updatedIntent.paymentMethodId;
-
-          if (pmId == null) {
-            Toast(context, "Erreur : moyen de paiement non trouvé", false);
-            return;
-          }
-
-          await updateOrderStatus(commandeId, "Payée");
-          await Commande.refreshLocalCommandes();
-        } catch (e) {
-          print("⛔ Abandon suite à échec updateOrderStatus : $e");
-          Toast(context, "Erreur de mise à jour de la commande.", false);
-          return; // ne pas continuer
         }
 
-        await generateInvoice(
-          items: cartItems.map((item) {
-            return {
-              'email': item['user']['email'],
-              'description': item['meal']['meal_name'],
-              'price': (item['meal']['price'] * item['order']['quantity']) +
-                  (item['optionPrice'] ?? 0),
-            };
-          }).toList(),
-        );
-
         cartNotifier.clearCart();
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => OrderConfirmationPage(
-              commandeId: commandeId,
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => OrderConfirmationPage(commandeId: commandeId),
             ),
-          ),
-        );
-      });
+          );
+        }
+      } else {
+        Toast(context, "Impossible de créer la commande.", false);
+      }
     } catch (e) {
-      print('Erreur lors du paiement : $e');
-      Toast(context, "Paiement échoué. Veuillez réessayer.", false);
+      Toast(context, "Erreur. Réessayez.", false);
+    } finally {
+      if (mounted) setState(() => _isSubmittingPayment = false);
     }
   }
 
-  Future<void> generateInvoice({
-    required List<Map<String, dynamic>> items,
-  }) async {
+  Future<void> _handleFedapayPayment() async {
+    final selectedOption = ref.read(selectedDeliveryProvider);
+    if (selectedOption == "En Livraison" && selectedAddress == null) {
+      Toast(context, "Choisissez une adresse de livraison.", false);
+      return;
+    }
+
+    final cartItems = ref.read(cartStateProvider);
+    final cartNotifier = ref.read(cartStateProvider.notifier);
+    final items = List<Map<String, dynamic>>.from(cartItems);
+    final country = _countryFromCart(items);
+    final cc = _currencyCodeFromCountry(country);
+    final fee = selectedOption == "En Livraison" ? calculateDeliveryFee(items) : 0.0;
+    final discount = _appliedPromo?.discountAmount ?? 0.0;
+    final total = (_calculateSubtotal(items) + fee - discount).clamp(0.0, double.infinity);
+    final currencyIso = cc == 'XOF' ? 'XOF' : 'EUR';
+
+    setState(() => _isSubmittingPayment = true);
+
     try {
+      final commandeId = await createOrder(
+        cartItems, fee,
+        selectedOption == "En Livraison" ? selectedAddress?.addressID : null,
+        null, ref, currencyCode: cc, reduction: discount, promoCode: _appliedPromo?.code,
+      );
+
+      if (commandeId == null) {
+        Toast(context, "Impossible de créer la commande.", false);
+        return;
+      }
+
+      final session = await SessionService.readSession();
+      final usersList = await Users.fetchUsersFromDB();
+      final currentUser = Users.getUsersByUserId(usersList, session.userId);
+
+      final requestBody = {
+        'amount': total,
+        'currency': currencyIso,
+        'commandeID': int.tryParse(commandeId),
+        'customerName': '${currentUser?.firstname ?? ""} ${currentUser?.lastname ?? ""}',
+        'customerEmail': currentUser?.email ?? '',
+        'country': country,
+      };
+
       final response = await http.post(
-        Uri.parse('https://dios-delices-backend.vercel.app/api/create-invoice'),
+        Uri.parse('${AppConfig.vercelBackendUrl}/api/fedapay-initiate'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'items': items}),
+        body: jsonEncode(requestBody),
       );
 
       if (response.statusCode == 200) {
-        print("Facture générée avec succès");
-        bool emailSent = await _sendEmailToUser(
-          valid: true,
-          firstname: items.first['user']['email'],
-          email: items.first['user']['email'],
-          restaurantName: items.first['restaurant']['name'],
-        );
-        if (emailSent) {
-          print("Email envoyé avec succès à ${items.first['user']['email']}");
+        final data = jsonDecode(response.body);
+        final paymentUrl = data['paymentUrl'] as String?;
+
+        if (paymentUrl != null && paymentUrl.isNotEmpty) {
+          final uri = Uri.parse(paymentUrl);
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+          }
+
+          final restaurantId = cartItems.first['restaurant']['restau_id'];
+          final restaurantsList = await Restaurant.fetchRestaurantsFromDB();
+          final currentRestaurant = Restaurant.getRestaurantByRestaurantId(restaurantsList, restaurantId);
+          if (currentRestaurant != null) {
+            NotificationService.sendOrderNotificationToRestaurateur(
+              restaurateurId: currentRestaurant.userID,
+              restaurantName: currentRestaurant.name,
+              orderDetails: "Commande #$commandeId",
+              totalAmount: total,
+              orderId: int.tryParse(commandeId),
+            );
+          }
+
+          cartNotifier.clearCart();
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => OrderConfirmationPage(commandeId: commandeId),
+              ),
+            );
+          }
         } else {
-          print("Erreur lors de l'envoi de l'email");
+          Toast(context, "Erreur: URL de paiement introuvable.", false);
         }
       } else {
-        throw Exception(
-            "Erreur lors de la génération de la facture : ${response.body}");
+        Toast(context, "Erreur paiement Fedapay. Réessayez.", false);
       }
     } catch (e) {
-      print("Erreur : $e");
-    }
-  }
-
-  Future<bool> _sendEmailToUser({
-    required String email,
-    required bool valid,
-    required String firstname,
-    required String restaurantName,
-  }) async {
-    try {
-      final cloudFunction = ParseCloudFunction('sendOrderConfirmationEmail');
-      final response = await cloudFunction.execute(parameters: {
-        'email': email,
-        'firstname': firstname,
-        'restaurantName': restaurantName,
-      });
-
-      if (response.success && response.result != null) {
-        final result = response.result as Map<String, dynamic>;
-        return result['success'] == true;
-      }
-      return false;
-    } catch (e) {
-      print('Erreur lors de l\'envoi de l\'email : $e');
-      return false;
+      Toast(context, "Erreur paiement. Réessayez.", false);
+    } finally {
+      if (mounted) setState(() => _isSubmittingPayment = false);
     }
   }
 

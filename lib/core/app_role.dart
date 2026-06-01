@@ -3,6 +3,7 @@ enum AppRole {
   individual(2),
   microRestaurant(3),
   superAdmin(4),
+  livreur(5),
   unknown(0);
 
   const AppRole(this.id);
@@ -23,4 +24,6 @@ enum AppRole {
   bool get isProfessional => this == AppRole.microRestaurant;
 
   bool get isIndividual => this == AppRole.individual;
+
+  bool get isDelivery => this == AppRole.livreur;
 }

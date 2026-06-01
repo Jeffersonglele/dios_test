@@ -1,10 +1,10 @@
 import 'package:email_validator/email_validator.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import '../../Constant/Constant.dart';
 import '../../mails/mails.dart';
 import '../../modeles/users.dart';
 import '../../widgets/brand_avatar_logo.dart';
+import '../../utils/strings.dart';
 import 'PasswordResetScreen.dart';
 
 class EmailInputScreen extends StatefulWidget {
@@ -45,7 +45,7 @@ class _EmailInputScreenState extends State<EmailInputScreen> {
         isLoading = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('no_account_for_email'.tr),
+        content: Text(Strings.of('no_account_for_email')),
       ));
       return;
     }
@@ -60,13 +60,13 @@ class _EmailInputScreenState extends State<EmailInputScreen> {
 
     if (resetCode == null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('reset_code_send_failed'.tr),
+        content: Text(Strings.of('reset_code_send_failed')),
       ));
       return;
     }
 
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text('reset_code_sent'.tr),
+      content: Text(Strings.of('reset_code_sent')),
     ));
 
     Navigator.push(
@@ -75,8 +75,6 @@ class _EmailInputScreenState extends State<EmailInputScreen> {
         builder: (context) => PasswordResetScreen(
           email: email,
           listusers: widget.listusers,
-          verificationCode: resetCode,
-          codeGenerationTime: generationTime,
         ),
       ),
     );
@@ -106,7 +104,7 @@ class _EmailInputScreenState extends State<EmailInputScreen> {
               Padding(
                 padding: const EdgeInsets.only(left: 20.0),
                 child: Text(
-                  'forgotten_password_title'.tr,
+                  Strings.of('forgotten_password_title'),
                   style: kLoginTitleStyle(size),
                 ),
               ),
@@ -117,7 +115,7 @@ class _EmailInputScreenState extends State<EmailInputScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'forgotten_password_subtitle'.tr,
+                      Strings.of('forgotten_password_subtitle'),
                       style: const TextStyle(fontSize: 16),
                     ),
                     const SizedBox(height: 20),
@@ -125,7 +123,7 @@ class _EmailInputScreenState extends State<EmailInputScreen> {
                       style: kTextFormFieldStyle(),
                       decoration: InputDecoration(
                         prefixIcon: const Icon(Icons.email_rounded),
-                        hintText: 'email'.tr,
+                        hintText: Strings.of('email'),
                         border: const OutlineInputBorder(
                           borderRadius: BorderRadius.all(Radius.circular(15)),
                         ),
@@ -134,7 +132,7 @@ class _EmailInputScreenState extends State<EmailInputScreen> {
                       keyboardType: TextInputType.emailAddress,
                       validator: (value) {
                         if (!EmailValidator.validate(value?.trim() ?? '')) {
-                          return 'enter_valid_email'.tr;
+                          return Strings.of('enter_valid_email');
                         }
                         return null;
                       },
@@ -156,7 +154,7 @@ class _EmailInputScreenState extends State<EmailInputScreen> {
                                 ),
                               ),
                               onPressed: checkEmail,
-                              child: Text('verify_email'.tr),
+                              child: Text(Strings.of('verify_email')),
                             ),
                           )
                   ],

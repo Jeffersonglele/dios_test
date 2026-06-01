@@ -149,6 +149,17 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
                             const SizedBox(height: 6),
                             _StatusChip(status: status),
                             if (!widget.showRestaurantOrders &&
+                                commande.deliveryStatus != null &&
+                                commande.deliveryStatus!.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 6),
+                                child: _DeliveryTracker(
+                                  status: commande.deliveryStatus!,
+                                  lat: commande.livreurLat,
+                                  lng: commande.livreurLng,
+                                ),
+                              ),
+                            if (!widget.showRestaurantOrders &&
                                 CommandeStatus.isPending(status))
                               const Padding(
                                 padding: EdgeInsets.only(top: 6),
@@ -265,6 +276,15 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
                                             label: const Text('Message'),
                                           ),
                                           const SizedBox(width: 8),
+                                          OutlinedButton.icon(
+                                            onPressed: () => _showAssignLivreurDialog(context, commande.commandeID),
+                                            icon: const Icon(Icons.person_add, size: 18),
+                                            label: const Text('Livreur'),
+                                            style: OutlinedButton.styleFrom(
+                                              side: BorderSide(color: Colors.teal),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
                                           ElevatedButton(
                                             onPressed: status ==
                                                     CommandeStatus.cancelled
@@ -330,6 +350,59 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
             },
           ),
         )).toList(),
+      ),
+    );
+  }
+
+  Future<void> _showAssignLivreurDialog(BuildContext ctx, int commandeID) async {
+    final users = await Users.fetchUsersFromDB();
+    final livreurs = users.where((u) => u.roleID == 5).toList();
+
+    if (!mounted) return;
+    if (livreurs.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Aucun livreur disponible.')),
+      );
+      return;
+    }
+
+    showDialog(
+      context: ctx,
+      builder: (dialogCtx) => AlertDialog(
+        title: const Text('Assigner un livreur'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: livreurs.length,
+            itemBuilder: (_, i) => ListTile(
+              leading: const CircleAvatar(child: Icon(Icons.person)),
+              title: Text('${livreurs[i].firstname} ${livreurs[i].lastname}'),
+              subtitle: Text('@${livreurs[i].username}'),
+              onTap: () async {
+                Navigator.pop(dialogCtx);
+                try {
+                  final session = await SessionService.readSession();
+                  final func = ParseCloudFunction('assignLivreur');
+                  await func.execute(parameters: {
+                    'userID': session.userId,
+                    'commandeID': commandeID,
+                    'livreurID': livreurs[i].userID,
+                  });
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Livreur assigné.')),
+                    );
+                    loadOrders();
+                  }
+                } catch (_) {}
+              },
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogCtx), child: const Text('Annuler')),
+        ],
       ),
     );
   }
@@ -424,20 +497,79 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
 
 class _StatusChip extends StatelessWidget {
   const _StatusChip({required this.status});
-
   final String status;
 
   @override
   Widget build(BuildContext context) {
-    return Chip(
-      label: Text(
-        status,
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.w600,
-        ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: CommandeStatus.isPending(status) ? Colors.orange.shade50 : Colors.green.shade50,
+        borderRadius: BorderRadius.circular(12),
       ),
-      backgroundColor: CommandeStatus.color(status),
+      child: Text(status, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+    );
+  }
+}
+
+class _DeliveryTracker extends StatelessWidget {
+  final String status;
+  final double? lat;
+  final double? lng;
+  const _DeliveryTracker({required this.status, this.lat, this.lng});
+
+  @override
+  Widget build(BuildContext context) {
+    final steps = ['assigned', 'picked_up', 'in_transit', 'delivered'];
+    final labels = ['Préparation', 'Récupéré', 'En route', 'Livré'];
+    final icons = [Icons.restaurant, Icons.shopping_bag, Icons.directions_bike, Icons.check];
+    final currentIdx = steps.indexOf(status);
+    final hasLocation = status == 'in_transit' && lat != null && lng != null;
+    final latVal = lat;
+    final lngVal = lng;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            children: List.generate(4, (i) {
+              final done = i <= currentIdx;
+              return Expanded(
+                child: Column(
+                  children: [
+                    Container(
+                      width: 22, height: 22,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: done ? Colors.teal : Colors.grey.shade300,
+                      ),
+                      child: Icon(icons[i], size: 13, color: Colors.white),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(labels[i], style: TextStyle(fontSize: 9, color: done ? Colors.teal : Colors.grey)),
+                  ],
+                ),
+              );
+            }),
+          ),
+        ),
+        if (hasLocation)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Row(
+              children: [
+                const Icon(Icons.location_on, size: 14, color: Colors.teal),
+                const SizedBox(width: 4),
+                Text(
+                  'Livreur en déplacement (${latVal!.toStringAsFixed(4)}, ${lngVal!.toStringAsFixed(4)})',
+                  style: const TextStyle(fontSize: 11, color: Colors.teal, fontStyle: FontStyle.italic),
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }

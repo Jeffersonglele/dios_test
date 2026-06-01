@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:flutter_pw_validator/flutter_pw_validator.dart';
 import '../../Constant/Constant.dart';
 import '../../Controller/UiController.dart';
@@ -8,20 +7,17 @@ import '../../modeles/users.dart';
 import '../../services/password_reset_validation.dart';
 import '../../utils/toast.dart';
 import '../../widgets/brand_avatar_logo.dart';
+import '../../utils/strings.dart';
 import 'PasswordChangeSuccessScreen.dart';
 
 class PasswordResetScreen extends StatefulWidget {
   final String email;
   final List<Users> listusers;
-  final String verificationCode;
-  final DateTime codeGenerationTime;
 
   const PasswordResetScreen({
     super.key,
     required this.email,
     required this.listusers,
-    required this.verificationCode,
-    required this.codeGenerationTime,
   });
 
   @override
@@ -33,8 +29,7 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
   final TextEditingController newPasswordController = TextEditingController();
   final TextEditingController newpasswordConfirmController =
       TextEditingController();
-  final SimpleUIController simpleUIController =
-      Get.put(SimpleUIController()); // Initialisation du contrôleur
+  final SimpleUIController simpleUIController = SimpleUIController();
   final GlobalKey<FlutterPwValidatorState> validatorKey =
       GlobalKey<FlutterPwValidatorState>();
   final _formKey = GlobalKey<FormState>(); // Clé pour le formulaire
@@ -50,17 +45,15 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
     super.dispose();
   }
 
-  void verifyCode() {
-    final isValid = isCodeValid(
-      widget.verificationCode,
-      codeController.text.trim(),
-      widget.codeGenerationTime,
-    );
-
-    if (!isValid) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('invalid_or_expired_code'.tr),
-      ));
+  Future<void> verifyCode() async {
+    final code = codeController.text.trim();
+    final valid = await verifyEmailCode(email: widget.email, code: code);
+    if (!valid) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(Strings.of('invalid_or_expired_code')),
+        ));
+      }
       return;
     }
 
@@ -93,11 +86,11 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
 
         if (validation == PasswordResetValidationResult.sameAsCurrentPassword) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('same_password_error'.tr),
+            content: Text(Strings.of('same_password_error')),
           ));
         } else if (validation != PasswordResetValidationResult.valid) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('form_invalid'.tr),
+            content: Text(Strings.of('form_invalid')),
           ));
         } else {
           String encryptedPassword =
@@ -116,7 +109,7 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
         }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('user_not_found'.tr),
+          content: Text(Strings.of('user_not_found')),
         ));
       }
 
@@ -126,7 +119,7 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
     } else {
       // Affiche un message si la validation échoue
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('form_invalid'.tr),
+        content: Text(Strings.of('form_invalid')),
       ));
     }
   }
@@ -153,7 +146,7 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
               Padding(
                 padding: const EdgeInsets.only(left: 20.0),
                 child: Text(
-                  'reset_password_title'.tr,
+                  Strings.of('reset_password_title'),
                   style: kLoginTitleStyle(size),
                 ),
               ),
@@ -164,7 +157,7 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'reset_password_subtitle'.tr,
+                      Strings.of('reset_password_subtitle'),
                       style: const TextStyle(fontSize: 16),
                     ),
                     SizedBox(height: size.height * 0.02),
@@ -174,8 +167,8 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
                         keyboardType: TextInputType.number,
                         decoration: InputDecoration(
                           prefixIcon: const Icon(Icons.verified_user),
-                          labelText: 'verification_code'.tr,
-                          hintText: 'verification_code_hint'.tr,
+                          labelText: Strings.of('verification_code'),
+                          hintText: Strings.of('verification_code_hint'),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(15),
                           ),
@@ -196,13 +189,13 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
                             ),
                           ),
                           onPressed: verifyCode,
-                          child: Text('verify_code'.tr),
+                          child: Text(Strings.of('verify_code')),
                         ),
                       ),
                     ] else ...[
-                      Obx(() => _buildPasswordField(
+                      ListenableBuilder(listenable: simpleUIController, builder: (_, __) => _buildPasswordField(
                             controller: newPasswordController,
-                            hintText: 'new_password'.tr,
+                            hintText: Strings.of('new_password'),
                             simpleUIController: simpleUIController,
                           )),
                       SizedBox(height: size.height * 0.02),
@@ -219,16 +212,16 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
                         onFail: () {},
                       ),
                       SizedBox(height: size.height * 0.03),
-                      Obx(() => _buildPasswordField(
+                      ListenableBuilder(listenable: simpleUIController, builder: (_, __) => _buildPasswordField(
                             controller: newpasswordConfirmController,
-                            hintText: 'confirm_password'.tr,
+                            hintText: Strings.of('confirm_password'),
                             simpleUIController: simpleUIController,
                             validator: (value) {
                               if (value == null || value.isEmpty) {
-                                return 'confirm_password_required'.tr;
+                                return Strings.of('confirm_password_required');
                               }
                               if (value != newPasswordController.text) {
-                                return 'passwords_do_not_match'.tr;
+                                return Strings.of('passwords_do_not_match');
                               }
                               return null;
                             },
@@ -252,7 +245,7 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
                                   ),
                                 ),
                                 onPressed: resetPassword,
-                                child: Text('reset_password'.tr),
+                                child: Text(Strings.of('reset_password')),
                               ),
                             ),
                   ],
@@ -274,11 +267,11 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
   }) {
     return TextFormField(
       controller: controller,
-      obscureText: simpleUIController.isObscure.value,
+      obscureText: simpleUIController.isObscure,
       decoration: InputDecoration(
         prefixIcon: Icon(Icons.lock_open),
         suffixIcon: IconButton(
-          icon: Icon(simpleUIController.isObscure.value
+          icon: Icon(simpleUIController.isObscure
               ? Icons.visibility
               : Icons.visibility_off),
           onPressed: () => simpleUIController.isObscureActive(),

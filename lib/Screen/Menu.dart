@@ -2,7 +2,6 @@ import 'package:dios_delices/Screen/DishDetails.dart';
 import 'package:dios_delices/Screen/dish/DishFormPage.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import '../Constant/Constant.dart';
 import '../Controller/UiController.dart';
 import '../modeles/dish.dart';
@@ -58,7 +57,6 @@ class _MenuState extends State<Menu> {
     filteredDishes = dishes.where((dish) => dish.restauID == currentUser_restau).toList();
   }
 
-  SimpleUIController simpleUIController = Get.put(SimpleUIController());
 
   @override
   Widget build(BuildContext context) {

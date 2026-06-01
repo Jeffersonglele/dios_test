@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:get/get.dart';
 import 'package:email_validator/email_validator.dart';
 import 'package:flutter_pw_validator/flutter_pw_validator.dart';
 import 'package:image_picker/image_picker.dart';
@@ -15,6 +14,7 @@ import '../../Constant/Constant.dart';
 import '../../Controller/UiController.dart';
 import '../../modeles/users.dart';
 import '../verif_confirm/VerificationPage.dart';
+import '../../utils/strings.dart';
 import '../../widgets/auth_shell.dart';
 
 class SignUpView extends StatefulWidget {
@@ -68,7 +68,7 @@ class _SignUpViewState extends State<SignUpView> {
   bool _isSelected = false; // Variable pour gérer le Checkbox
   final _formKey = GlobalKey<FormState>(); // Clé pour le formulaire
 
-  final SimpleUIController simpleUIController = Get.put(SimpleUIController());
+  final SimpleUIController simpleUIController = SimpleUIController();
 
   bool hasSpecialCharacter(String value) {
     String specialCharacters =
@@ -84,7 +84,7 @@ class _SignUpViewState extends State<SignUpView> {
   @override
   void initState() {
     super.initState();
-    Get.put(SimpleUIController()); // Initialisation du contrôleur
+    final simpleUIController = SimpleUIController(); // Initialisation du contrôleur
   }
 
   @override
@@ -107,8 +107,8 @@ class _SignUpViewState extends State<SignUpView> {
     return GestureDetector(
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
       child: AuthShell(
-        title: 'signup_title'.tr,
-        subtitle: 'signup_subtitle'.tr,
+        title: Strings.of('signup_title'),
+        subtitle: Strings.of('signup_subtitle'),
         form: _buildMainBody(size, simpleUIController, theme),
         footer: GestureDetector(
           onTap: () {
@@ -118,15 +118,15 @@ class _SignUpViewState extends State<SignUpView> {
             );
             _formKey.currentState?.reset();
             _clearTextFields();
-            simpleUIController.isObscure.value = true;
+            simpleUIController.isObscure = true;
           },
           child: RichText(
             text: TextSpan(
-              text: 'already_have_account'.tr,
+              text: Strings.of('already_have_account'),
               style: kHaveAnAccountStyle(size),
               children: [
                 TextSpan(
-                  text: " ${'login'.tr}",
+                  text: " ${Strings.of('login')}",
                   style: kLoginOrSignUpTextStyle(size),
                 ),
               ],
@@ -147,13 +147,13 @@ class _SignUpViewState extends State<SignUpView> {
           // Champ pour le prénom
           _buildTextField(
             controller: firstnameController,
-            hintText: 'firstname'.tr,
+            hintText: Strings.of('firstname'),
             icon: Icons.person,
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return 'enter_firstname'.tr;
+                return Strings.of('enter_firstname');
               } else if (value.length < 4) {
-                return 'min_4_chars'.tr;
+                return Strings.of('min_4_chars');
               }
               return null;
             },
@@ -162,13 +162,13 @@ class _SignUpViewState extends State<SignUpView> {
           // Champ pour le nom
           _buildTextField(
             controller: lastnameController,
-            hintText: 'lastname'.tr,
+            hintText: Strings.of('lastname'),
             icon: Icons.person,
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return 'enter_lastname'.tr;
+                return Strings.of('enter_lastname');
               } else if (value.length < 4) {
-                return 'min_4_chars'.tr;
+                return Strings.of('min_4_chars');
               }
               return null;
             },
@@ -177,13 +177,13 @@ class _SignUpViewState extends State<SignUpView> {
           // Champ pour le nom d'utilisateur
           _buildTextField(
             controller: usernameController,
-            hintText: 'username'.tr,
+            hintText: Strings.of('username'),
             icon: Icons.person,
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return 'enter_username'.tr;
+                return Strings.of('enter_username');
               } else if (value.length < 4) {
-                return 'min_4_chars'.tr;
+                return Strings.of('min_4_chars');
               }
               return null;
             },
@@ -192,11 +192,11 @@ class _SignUpViewState extends State<SignUpView> {
           // Champ pour l'email
           _buildTextField(
             controller: emailController,
-            hintText: 'email'.tr,
+            hintText: Strings.of('email'),
             icon: Icons.email_rounded,
             validator: (value) {
               if (!EmailValidator.validate(value!)) {
-                return 'enter_valid_email'.tr;
+                return Strings.of('enter_valid_email');
               }
               return null;
             },
@@ -243,22 +243,22 @@ class _SignUpViewState extends State<SignUpView> {
               prefixIcon: const Icon(Icons.phone_rounded),
               hintText: _selectedCountry == 'Bénin'
                   ? '01 xx xx xx xx'
-                  : 'phone_number'.tr,
+                  : Strings.of('phone_number'),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(15),
               ),
             ),
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return 'enter_phone'.tr;
+                return Strings.of('enter_phone');
               }
               if (_selectedCountry == 'Bénin' &&
                   !isValidBeninLocalPhone(value)) {
-                return 'benin_phone_format'.tr;
+                return Strings.of('benin_phone_format');
               }
               int requiredLength = _phoneNumberLengths[_selectedCountry]!;
               if (phoneDigits(value).length != requiredLength) {
-                return 'phone_length'.trParams({'count': '$requiredLength'});
+                return Strings.of('phone_length', {'count': '$requiredLength'});
               }
               return null;
             },
@@ -284,9 +284,9 @@ class _SignUpViewState extends State<SignUpView> {
                 ),
                 SizedBox(height: size.height * 0.02),*/
           // Champ pour le mot de passe
-          Obx(() => _buildPasswordField(
+          ListenableBuilder(listenable: simpleUIController, builder: (_, __) => _buildPasswordField(
                 controller: passwordController,
-                hintText: 'password'.tr,
+                hintText: Strings.of('password'),
                 simpleUIController: simpleUIController,
               )),
           SizedBox(height: size.height * 0.02),
@@ -305,17 +305,17 @@ class _SignUpViewState extends State<SignUpView> {
           ),
           SizedBox(height: size.height * 0.03),
           // Champ pour confirmer le mot de passe
-          Obx(() => _buildPasswordField(
+          ListenableBuilder(listenable: simpleUIController, builder: (_, __) => _buildPasswordField(
                 controller: passwordConfirmController,
-                hintText: 'confirm_password'.tr,
+                hintText: Strings.of('confirm_password'),
                 simpleUIController: simpleUIController,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'confirm_password_required'.tr;
+                    return Strings.of('confirm_password_required');
                   }
                   if (value != passwordController.text) {
                     // Comparaison des deux champs
-                    return 'passwords_do_not_match'.tr;
+                    return Strings.of('passwords_do_not_match');
                   }
                   return null;
                 },
@@ -330,7 +330,7 @@ class _SignUpViewState extends State<SignUpView> {
               borderRadius: BorderRadius.circular(14),
             ),
             title: Text(
-              'terms_acceptance'.tr,
+              Strings.of('terms_acceptance'),
               style: TextStyle(
                 color: _isSelected ? Colors.black : theme.colorScheme.primary,
               ),
@@ -410,11 +410,11 @@ class _SignUpViewState extends State<SignUpView> {
   }) {
     return TextFormField(
       controller: controller,
-      obscureText: simpleUIController.isObscure.value,
+      obscureText: simpleUIController.isObscure,
       decoration: InputDecoration(
         prefixIcon: Icon(Icons.lock_open),
         suffixIcon: IconButton(
-          icon: Icon(simpleUIController.isObscure.value
+          icon: Icon(simpleUIController.isObscure
               ? Icons.visibility
               : Icons.visibility_off),
           onPressed: () => simpleUIController.isObscureActive(),
@@ -488,7 +488,7 @@ class _SignUpViewState extends State<SignUpView> {
             print("Form contains errors");
           }
         },
-        child: Text('signup'.tr),
+        child: Text(Strings.of('signup')),
       ),
     );
   }

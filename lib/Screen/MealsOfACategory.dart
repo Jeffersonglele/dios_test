@@ -6,7 +6,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'package:get/get.dart';
 
 import '../Constant/Constant.dart';
 import '../Controller/UiController.dart';
@@ -39,7 +38,6 @@ class _MealsOfACategoryState extends State<MealsOfACategory> {
   var _category_details = {};
   List _meals_of_category = [];
 
-  SimpleUIController simpleUIController = Get.put(SimpleUIController());
 
   Future<void> getMeals() async {
     final String response =

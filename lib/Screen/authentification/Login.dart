@@ -3,7 +3,6 @@ import 'package:dios_delices/Screen/verif_confirm/WaitIdentityValidation.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../Constant/Constant.dart';
@@ -15,6 +14,7 @@ import '../../modeles/users.dart';
 import '../../db/database_helper.dart';
 import '../../services/session_service.dart';
 import '../../services/notification_service.dart';
+import '../../utils/strings.dart';
 import '../../utils/toast.dart';
 import '../restaurants/RestaurantFormPage.dart';
 import '../verif_confirm/StartAddressSaving.dart';
@@ -44,11 +44,12 @@ class _LoginState extends ConsumerState<Login> {
 
   bool isLoading = false;
   bool loginFailed = false;
+  bool _obscurePassword = true;
 
   @override
   void initState() {
     super.initState();
-    Get.put(SimpleUIController());
+    final simpleUIController = SimpleUIController();
     loadData();
     //checkVerificationStatus();
   }
@@ -379,7 +380,7 @@ class _LoginState extends ConsumerState<Login> {
       isLoading = false;
       loginFailed = true;
     });
-    Toast(context, 'login_failed'.tr, false);
+    Toast(context, Strings.of('login_failed'), false);
   }
 
   String _getIndicatif(String country) {
@@ -435,14 +436,14 @@ class _LoginState extends ConsumerState<Login> {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    final simpleUIController = Get.find<SimpleUIController>();
+    final simpleUIController = SimpleUIController();
 
     return GestureDetector(
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
       child: AuthShell(
-        title: 'login_title'.tr,
-        subtitle: 'login_subtitle'.tr,
-        form: _buildForm(size, simpleUIController),
+        title: Strings.of('login_title'),
+        subtitle: Strings.of('login_subtitle'),
+        form: _buildForm(size),
         footer: GestureDetector(
           onTap: () {
             Navigator.pop(context);
@@ -450,15 +451,15 @@ class _LoginState extends ConsumerState<Login> {
             emailController.clear();
             passwordController.clear();
             _formKey.currentState?.reset();
-            simpleUIController.isObscure.value = true;
+            _obscurePassword = true;
           },
           child: RichText(
             text: TextSpan(
-              text: 'dont_have_account'.tr,
+              text: Strings.of('dont_have_account'),
               style: kHaveAnAccountStyle(size),
               children: [
                 TextSpan(
-                  text: " ${'signup'.tr}",
+                  text: " ${Strings.of('signup')}",
                   style: kLoginOrSignUpTextStyle(size),
                 ),
               ],
@@ -471,7 +472,7 @@ class _LoginState extends ConsumerState<Login> {
 
   Widget _buildForm(
     Size size,
-    SimpleUIController simpleUIController,
+    
   ) {
     return Form(
       key: _formKey,
@@ -482,7 +483,7 @@ class _LoginState extends ConsumerState<Login> {
             style: kTextFormFieldStyle(),
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.person),
-              hintText: 'username_or_email'.tr,
+              hintText: Strings.of('username_or_email'),
               border: const OutlineInputBorder(
                 borderRadius: BorderRadius.all(Radius.circular(15)),
               ),
@@ -490,51 +491,49 @@ class _LoginState extends ConsumerState<Login> {
             controller: nameController,
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return 'enter_username'.tr;
+                return Strings.of('enter_username');
               } else if (value.length < 4) {
-                return 'min_4_chars'.tr;
+                return Strings.of('min_4_chars');
               } else if (value.length > 13) {
-                return 'max_13_chars'.tr;
+                return Strings.of('max_13_chars');
               }
               return null;
             },
           ),
           SizedBox(height: size.height * 0.02),
           // Champ mot de passe
-          Obx(
-            () => TextFormField(
-              style: kTextFormFieldStyle(),
-              controller: passwordController,
-              obscureText: simpleUIController.isObscure.value,
+          TextFormField(
+            style: kTextFormFieldStyle(),
+            controller: passwordController,
+            obscureText: _obscurePassword,
               decoration: InputDecoration(
                 prefixIcon: const Icon(Icons.lock_open),
                 suffixIcon: IconButton(
                   icon: Icon(
-                    simpleUIController.isObscure.value
+                    _obscurePassword
                         ? Icons.visibility
                         : Icons.visibility_off,
                   ),
                   onPressed: () {
-                    simpleUIController.isObscureActive();
+                    setState(() => _obscurePassword = !_obscurePassword);
                   },
                 ),
-                hintText: 'password'.tr,
+                hintText: Strings.of('password'),
                 border: const OutlineInputBorder(
                   borderRadius: BorderRadius.all(Radius.circular(15)),
                 ),
               ),
               validator: (value) {
                 if (value == null || value.isEmpty) {
-                  return 'enter_password'.tr;
+                  return Strings.of('enter_password');
                 } else if (value.length < 7) {
-                  return 'min_6_chars'.tr;
+                  return Strings.of('min_6_chars');
                 } else if (value.length > 13) {
-                  return 'max_13_chars'.tr;
+                  return Strings.of('max_13_chars');
                 }
                 return null;
               },
             ),
-          ),
           SizedBox(height: size.height * 0.014),
           // Bouton de connexion
           loginButton(),
@@ -547,7 +546,7 @@ class _LoginState extends ConsumerState<Login> {
                 emailController.clear();
                 passwordController.clear();
                 _formKey.currentState?.reset();
-                simpleUIController.isObscure.value = true;
+                _obscurePassword = true;
 
                 Navigator.push(
                   context,
@@ -560,7 +559,7 @@ class _LoginState extends ConsumerState<Login> {
               },
               child: RichText(
                 text: TextSpan(
-                  text: 'forgotten_password'.tr,
+                  text: Strings.of('forgotten_password'),
                   style: forgottenpasswordTextStyle(size),
                 ),
               ),
@@ -585,12 +584,12 @@ class _LoginState extends ConsumerState<Login> {
         onPressed: () async {
           if (nameController.text.trim().isEmpty ||
               passwordController.text.isEmpty) {
-            Toast(context, 'login_missing_fields'.tr, false);
+            Toast(context, Strings.of('login_missing_fields'), false);
           } else {
             await performLogin();
           }
         },
-        child: Text('login'.tr),
+        child: Text(Strings.of('login')),
       ),
     );
   }

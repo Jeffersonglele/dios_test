@@ -5,7 +5,6 @@ import 'package:dios_delices/modeles/commande.dart';
 import 'package:dios_delices/core/commande_status.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import '../../Controller/UiController.dart';
 import '../../core/app_role.dart';
@@ -19,7 +18,6 @@ class AdminDashboard extends StatefulWidget {
 }
 
 class _AdminDashboardState extends State<AdminDashboard> {
-  SimpleUIController simpleUIController = Get.put(SimpleUIController());
 
   AppRole _userRole = AppRole.unknown;
   String _userCountry = "France";
@@ -111,9 +109,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
             child: LayoutBuilder(
               builder: (context, constraints) {
                 if (constraints.maxWidth > 600) {
-                  return _buildLargeScreen(size, simpleUIController, theme);
+                  return _buildLargeScreen(size, theme);
                 } else {
-                  return _buildSmallScreen(size, simpleUIController, theme);
+                  return _buildSmallScreen(size, theme);
                 }
               },
             ),
@@ -125,13 +123,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   // Pour les grands écrans
   Widget _buildLargeScreen(
-      Size size, SimpleUIController simpleUIController, ThemeData theme) {
+      Size size, ThemeData theme) {
     return Row(
       children: [
         SizedBox(width: size.width * 0.06),
         Expanded(
           flex: 5,
-          child: _buildMainBody(size, simpleUIController, theme),
+          child: _buildMainBody(size, theme),
         ),
       ],
     );
@@ -139,15 +137,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   // Pour les petits écrans
   Widget _buildSmallScreen(
-      Size size, SimpleUIController simpleUIController, ThemeData theme) {
+      Size size, ThemeData theme) {
     return Center(
-      child: _buildMainBody(size, simpleUIController, theme),
+      child: _buildMainBody(size, theme),
     );
   }
 
   // Contenu principal du tableau de bord
   Widget _buildMainBody(
-      Size size, SimpleUIController simpleUIController, ThemeData theme) {
+      Size size, ThemeData theme) {
     return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment:

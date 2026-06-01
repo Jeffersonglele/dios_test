@@ -44,6 +44,18 @@ class Commande extends HiveObject {
   @HiveField(11)
   String status;
 
+  @HiveField(12)
+  int? livreurID;
+
+  @HiveField(13)
+  String? deliveryStatus;
+
+  @HiveField(14)
+  double? livreurLat;
+
+  @HiveField(15)
+  double? livreurLng;
+
   Commande({
     required this.commandeID,
     required this.userID,
@@ -57,6 +69,10 @@ class Commande extends HiveObject {
     this.addressID,
     this.note,
     this.status = CommandeStatus.pending,
+    this.livreurID,
+    this.deliveryStatus,
+    this.livreurLat,
+    this.livreurLng,
   });
 
   factory Commande.fromMap(Map<String, dynamic> map) {
@@ -73,6 +89,10 @@ class Commande extends HiveObject {
       addressID: map['addressID'],
       note: map['note']?.toDouble(),
       status: CommandeStatus.normalize(map['status']?.toString()),
+      livreurID: map['livreurID'] is int ? map['livreurID'] : int.tryParse(map['livreurID']?.toString() ?? ''),
+      deliveryStatus: map['deliveryStatus']?.toString(),
+      livreurLat: double.tryParse(map['livreurLat']?.toString() ?? ''),
+      livreurLng: double.tryParse(map['livreurLng']?.toString() ?? ''),
     );
   }
 
@@ -89,6 +109,10 @@ class Commande extends HiveObject {
     'addressID': addressID,
     'note': note,
     'status': status,
+    'livreurID': livreurID,
+    'deliveryStatus': deliveryStatus,
+    'livreurLat': livreurLat,
+    'livreurLng': livreurLng,
   };
 
 

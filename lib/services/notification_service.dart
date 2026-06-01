@@ -1,19 +1,13 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:http/http.dart' as http;
-import '../config/app_config.dart';
+import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import '../core/app_role.dart';
 import 'session_service.dart';
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _localNotifications =
   FlutterLocalNotificationsPlugin();
-
-  // Configuration Back4App
-  static const String _back4appApplicationId = AppConfig.parseApplicationId;
-  static const String _back4appRestApiKey = AppConfig.parseRestApiKey;
-  static const String _back4appPushUrl = AppConfig.parsePushUrl;
 
   static Future<void> initialize() async {
     // Configurer les notifications locales
@@ -38,13 +32,13 @@ class NotificationService {
       onDidReceiveNotificationResponse: _onNotificationTapped,
     );
 
-    if (kDebugMode && AppConfig.enableVerboseAppLogs) {
+    if (kDebugMode) {
       debugPrint('Service de notifications initialisé');
     }
   }
 
   static void _onNotificationTapped(NotificationResponse response) {
-    if (kDebugMode && AppConfig.enableVerboseAppLogs) {
+    if (kDebugMode) {
       debugPrint('Notification tapée: ${response.payload}');
     }
     // Ici vous pouvez naviguer vers une page spécifique
@@ -104,56 +98,31 @@ class NotificationService {
     int? orderId,
   }) async {
     try {
-      // Envoyer la notification via l'API REST Back4App
-      final response = await http.post(
-        Uri.parse(_back4appPushUrl),
-        headers: {
-          'X-Parse-Application-Id': _back4appApplicationId,
-          'X-Parse-REST-API-Key': _back4appRestApiKey,
-          'Content-Type': 'application/json',
+      final cloudFunction = ParseCloudFunction('sendPushNotification');
+      await cloudFunction.execute(parameters: {
+        'channels': ['restaurateurs', 'user_$restaurateurId'],
+        'title': 'Nouvelle commande !',
+        'body': 'Commande de $totalAmount € chez $restaurantName',
+        'data': {
+          'type': 'new_order',
+          'restaurant_name': restaurantName,
+          'order_details': orderDetails,
+          'total_amount': totalAmount,
+          'restaurateur_id': restaurateurId,
+          'order_id': orderId,
         },
-        body: jsonEncode({
-          'where': {
-            'channels': ['restaurateurs', 'user_$restaurateurId']
-          },
-          'data': {
-            'alert': {
-              'title': '🍽️ Nouvelle commande reçue !',
-              'body': 'Commande de $totalAmount€ chez $restaurantName',
-            },
-            'badge': 'Increment',
-            'sound': 'default',
-            'custom_data': {
-              'type': 'new_order',
-              'restaurant_name': restaurantName,
-              'order_details': orderDetails,
-              'total_amount': totalAmount,
-              'restaurateur_id': restaurateurId,
-              'order_id': orderId,
-            }
-          }
-        }),
-      );
+      });
 
-      if (response.statusCode == 200) {
-        if (kDebugMode && AppConfig.enableVerboseAppLogs) {
-          debugPrint(
-            'Notification de commande envoyée au restaurateur $restaurateurId',
-          );
-        }
-
-        // Afficher aussi une notification locale pour confirmation
-        await _showLocalNotification(
-          title: '🍽️ Nouvelle commande reçue !',
-          body: 'Commande de $totalAmount€ chez $restaurantName',
-        );
-      } else {
-        debugPrint(
-          'Erreur lors de l\'envoi de la notification: ${response.body}',
-        );
+      if (kDebugMode) {
+        debugPrint('Notification de commande envoyée au restaurateur $restaurateurId');
       }
+
+      await _showLocalNotification(
+        title: 'Nouvelle commande !',
+        body: 'Commande de $totalAmount € chez $restaurantName',
+      );
     } catch (e) {
-      debugPrint('Erreur lors de l\'envoi de la notification: $e');
+      debugPrint('Erreur notification: $e');
     }
   }
 
@@ -167,36 +136,19 @@ class NotificationService {
       if (userId > 0 &&
           (userRole == AppRole.microRestaurant ||
               userRole == AppRole.individual)) {
-        // Créer une installation pour cet utilisateur
-        final response = await http.post(
-          Uri.parse('${AppConfig.parseServerUrl}/installations'),
-          headers: {
-            'X-Parse-Application-Id': _back4appApplicationId,
-            'X-Parse-REST-API-Key': _back4appRestApiKey,
-            'Content-Type': 'application/json',
-          },
-          body: jsonEncode({
-            'channels': ['restaurateurs', 'user_$userId'],
-            'deviceType': 'android', // ou 'ios'
-            'appName': 'Dios Délices',
-            'appVersion': '1.0.0',
-          }),
-        );
+        final installation = ParseObject('_Installation')
+          ..set('channels', ['restaurateurs', 'user_$userId'])
+          ..set('deviceType', 'android')
+          ..set('appName', 'Dios Délices')
+          ..set('appVersion', '1.0.0');
+        await installation.save();
 
-        if (response.statusCode == 201) {
-          if (kDebugMode && AppConfig.enableVerboseAppLogs) {
-            debugPrint(
-              'Installation créée et abonnée aux notifications pour le restaurateur $userId',
-            );
-          }
-        } else {
-          debugPrint(
-            'Erreur lors de la création de l\'installation: ${response.body}',
-          );
+        if (kDebugMode) {
+          debugPrint('Installation créée pour le restaurateur $userId');
         }
       }
     } catch (e) {
-      debugPrint('Erreur lors de l\'abonnement aux notifications: $e');
+      debugPrint('Erreur abonnement notifications: $e');
     }
   }
 }

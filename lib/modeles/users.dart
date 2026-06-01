@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../Screen/curved_navigation/CurvedNavigationAdmin.dart';
 import '../Screen/curved_navigation/CurvedNavigationRestau.dart';
 import '../Screen/curved_navigation/CurvedNavigationUserFrance.dart';
+import '../Screen/livreur/DeliveryDashboard.dart';
 import '../db/database_helper.dart';
 
 part 'users.g.dart';
@@ -46,6 +47,10 @@ class Users extends HiveObject {
   @HiveField(10)
   String country;
 
+  String? birthDate;
+  bool consentRGPD;
+  String? consentDate;
+
   @HiveField(11)
   String status;
 
@@ -70,6 +75,9 @@ class Users extends HiveObject {
     required this.status,
     required this.identity,
     required this.addressID,
+    this.birthDate,
+    this.consentRGPD = false,
+    this.consentDate,
   });
 
   Map<String, dynamic> toMap() {
@@ -88,6 +96,9 @@ class Users extends HiveObject {
       'status': status,
       'identity': identity,
       'addressID': addressID,
+      'birthDate': birthDate,
+      'consentRGPD': consentRGPD,
+      'consentDate': consentDate,
     };
   }
 
@@ -109,6 +120,9 @@ class Users extends HiveObject {
           ? DateTime.tryParse(map['last_login']['iso'])
           : null,
       image: map['image']?.toString() ?? '',
+      birthDate: map['birthDate']?.toString(),
+      consentRGPD: map['consentRGPD'] == true || map['consentRGPD']?.toString() == 'true',
+      consentDate: map['consentDate']?.toString(),
     );
   }
 
@@ -127,6 +141,9 @@ class Users extends HiveObject {
     String? status,
     String? identity,
     int? addressID,
+    String? birthDate,
+    bool? consentRGPD,
+    String? consentDate,
   }) {
     return Users(
       userID: userID ?? this.userID,
@@ -142,7 +159,10 @@ class Users extends HiveObject {
       country: country ?? this.country,
       status: status ?? this.status,
       identity: identity ?? this.identity,
-      addressID: addressID ?? this.addressID,
+        addressID: addressID ?? this.addressID,
+        birthDate: birthDate ?? this.birthDate,
+        consentRGPD: consentRGPD ?? this.consentRGPD,
+        consentDate: consentDate ?? this.consentDate,
     );
   }
 
@@ -162,6 +182,9 @@ class Users extends HiveObject {
     String country = "",
     DateTime? last_login,
     ParseFile? image,
+    String? birthDate,
+    bool consentRGPD = false,
+    String? consentDate,
   }) async {
     String functionName = userID == null ? 'add1User' : 'updateUser';
     var cloudFunction = ParseCloudFunction(functionName);
@@ -193,6 +216,9 @@ class Users extends HiveObject {
       'status': status,
       'identity': identity,
       'addressID': addressID,
+      'birthDate': birthDate,
+      'consentRGPD': consentRGPD,
+      'consentDate': consentDate,
     };
 
     final ParseResponse parseResponse =
@@ -562,6 +588,13 @@ class Users extends HiveObject {
           ),
         );
       }
+    } else if (userRole == 5) {
+      Navigator.pushReplacement(
+        context,
+        CupertinoPageRoute(
+          builder: (context) => DeliveryDashboard(),
+        ),
+      );
     }
   }
 }

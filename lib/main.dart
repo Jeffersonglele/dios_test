@@ -3,7 +3,6 @@ import 'package:dios_delices/Screen/MealsOfACategory.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'Screen/authentification/Signup.dart';
@@ -21,7 +20,6 @@ import 'modeles/commande.dart';
 import 'modeles/ligne_commande.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:get/get.dart';
 import 'utils/translations.dart';
 import 'config/app_config.dart';
 import 'services/notification_service.dart';
@@ -67,9 +65,6 @@ void main() async {
   Hive.registerAdapter(MoyenPaiementAdapter());
   Hive.registerAdapter(LigneCommandeAdapter());
 
-  Stripe.publishableKey = AppConfig.stripePublishableKey;
-  await Stripe.instance.applySettings();
-
   await NotificationService.initialize();
 
   runApp(MyApp());
@@ -81,17 +76,11 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ProviderScope(
-      child: GetMaterialApp(
-        title: 'Dios Délices Vendeur',
+      child: MaterialApp(
+        title: 'Dios Délices',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light(),
-        home: SafeArea(
-          child:
-              const AnimatedSplashScreen(),
-        ),
-        translations: MyTranslations(),
-        locale: Get.deviceLocale, //
-        fallbackLocale: const Locale('fr', 'FR'),
+        home: const SafeArea(child: AnimatedSplashScreen()),
         routes: <String, WidgetBuilder>{
           ANIMATED_SPLASH: (BuildContext context) =>
               const AnimatedSplashScreen(),

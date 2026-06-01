@@ -44,10 +44,6 @@ class VerificationPage extends StatefulWidget {
 class _VerificationPageState extends State<VerificationPage> {
   final TextEditingController _codeController = TextEditingController();
 
-  String? mail_verificationCode = "";
-
-  DateTime mail_codeGenerationTime = DateTime.now();
-
   bool _isSendingCodes = true;
   String? _sendErrorMessage;
 
@@ -80,18 +76,7 @@ class _VerificationPageState extends State<VerificationPage> {
 
   Future<bool> _sendEmailCode() async {
     try {
-      print("widget.email: ${widget.email}");
-      mail_verificationCode =
-          await sendVerificationEmail(context, widget.email);
-      mail_codeGenerationTime = DateTime.now();
-
-      if (mail_verificationCode == null) {
-        print("Échec email : aucun code généré/envoyé.");
-        return false;
-      }
-
-      print("Email envoyé, code généré.");
-      return true;
+      return await sendVerificationEmail(context, widget.email);
     } catch (e) {
       print("Erreur lors de l'envoi du mail : $e");
       return false;
@@ -234,12 +219,13 @@ class _VerificationPageState extends State<VerificationPage> {
                         ),
                       ),
                       onPressed: () async {
-                        bool emailValid = isCodeValid(
-                            mail_verificationCode ?? "aaa",
-                            _codeController.text,
-                            mail_codeGenerationTime);
-
-                        if (emailValid) {
+                        final code = _codeController.text.trim();
+                        if (code.isEmpty) {
+                          Toast(context, 'Veuillez entrer le code.', false);
+                          return;
+                        }
+                        final valid = await verifyEmailCode(email: widget.email, code: code);
+                        if (valid) {
                           try {
                             await Users.updateStatus(widget.userID, "Verified");
                             SharedPreferences prefs =

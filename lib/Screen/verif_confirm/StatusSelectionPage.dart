@@ -10,7 +10,6 @@ import '../../providers/users_provider.dart';
 import '../../widgets/brand_avatar_logo.dart';
 import '../AnimatedSplashScreen.dart';
 import 'StartIdentityVerification.dart';
-import '../curved_navigation/CurvedNavigation.dart';
 import '../restaurants/RestaurantFormPage.dart';
 
 class StatusSelectionPage extends ConsumerWidget {

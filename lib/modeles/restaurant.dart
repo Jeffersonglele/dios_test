@@ -56,6 +56,11 @@ class Restaurant extends HiveObject {
 
   String currency;
 
+  String openingDays;
+  double minOrderAmount;
+  double deliveryRadius;
+  String closedDates;
+
   Restaurant(
       {required this.restaurantID,
       required this.userID,
@@ -74,7 +79,11 @@ class Restaurant extends HiveObject {
       this.professionalType = 'amateur',
       this.trainingCompleted = false,
       this.reviewRemark = '',
-      this.currency = 'EUR'});
+      this.currency = 'EUR',
+      this.openingDays = 'Lun,Mar,Mer,Jeu,Ven,Sam',
+      this.minOrderAmount = 0,
+      this.deliveryRadius = 10,
+      this.closedDates = ''});
 
   Map<String, dynamic> toMap() {
     return {
@@ -96,6 +105,10 @@ class Restaurant extends HiveObject {
       'trainingCompleted': trainingCompleted ? 1 : 0,
       'reviewRemark': reviewRemark,
       'currency': currency,
+      'openingDays': openingDays,
+      'minOrderAmount': minOrderAmount,
+      'deliveryRadius': deliveryRadius,
+      'closedDates': closedDates,
     };
   }
 
@@ -126,7 +139,11 @@ class Restaurant extends HiveObject {
         professionalType: map['professionalType']?.toString() ?? 'amateur',
         trainingCompleted: map['trainingCompleted'] == 1 || map['trainingCompleted'] == true,
         reviewRemark: map['reviewRemark']?.toString() ?? '',
-        currency: map['currency']?.toString() ?? 'EUR');
+        currency: map['currency']?.toString() ?? 'EUR',
+        openingDays: map['openingDays']?.toString() ?? 'Lun,Mar,Mer,Jeu,Ven,Sam',
+        minOrderAmount: double.tryParse(map['minOrderAmount']?.toString() ?? '0') ?? 0,
+        deliveryRadius: double.tryParse(map['deliveryRadius']?.toString() ?? '10') ?? 10,
+        closedDates: map['closedDates']?.toString() ?? '');
   }
 
   Restaurant copy({
@@ -148,6 +165,10 @@ class Restaurant extends HiveObject {
     bool? trainingCompleted,
     String? reviewRemark,
     String? currency,
+    String? openingDays,
+    double? minOrderAmount,
+    double? deliveryRadius,
+    String? closedDates,
   }) {
     return Restaurant(
         restaurantID: restaurantID ?? this.restaurantID,
@@ -167,7 +188,11 @@ class Restaurant extends HiveObject {
         professionalType: professionalType ?? this.professionalType,
         trainingCompleted: trainingCompleted ?? this.trainingCompleted,
         reviewRemark: reviewRemark ?? this.reviewRemark,
-        currency: currency ?? this.currency);
+        currency: currency ?? this.currency,
+        openingDays: openingDays ?? this.openingDays,
+        minOrderAmount: minOrderAmount ?? this.minOrderAmount,
+        deliveryRadius: deliveryRadius ?? this.deliveryRadius,
+        closedDates: closedDates ?? this.closedDates);
   }
 
   static Future<String> manageRestaurant({
@@ -190,6 +215,10 @@ class Restaurant extends HiveObject {
     String professionalType = 'amateur',
     bool trainingCompleted = false,
     String currency = 'EUR',
+    String openingDays = 'Lun,Mar,Mer,Jeu,Ven,Sam',
+    double minOrderAmount = 0,
+    double deliveryRadius = 10,
+    String closedDates = '',
   }) async {
     // Determine cloud function name based on operation
     String functionName = restaurantID == null ? 'add1Restaurant' : 'update1Restaurant';
@@ -247,6 +276,10 @@ class Restaurant extends HiveObject {
       'professionalType': professionalType,
       'trainingCompleted': trainingCompleted,
       'currency': currency,
+      'openingDays': openingDays,
+      'minOrderAmount': minOrderAmount,
+      'deliveryRadius': deliveryRadius,
+      'closedDates': closedDates,
       'date_creation': {
         "__type": "Date",
         "iso": date_creation?.toIso8601String()

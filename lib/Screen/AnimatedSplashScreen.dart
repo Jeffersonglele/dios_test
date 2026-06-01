@@ -4,7 +4,6 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dios_delices/Screen/authentification/Signup.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:get/get.dart';
 
 import '../modeles/users.dart';
 import '../services/app_bootstrap_service.dart';
@@ -13,6 +12,7 @@ import '../services/session_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/toast.dart';
 import '../widgets/brand_avatar_logo.dart';
+import '../utils/strings.dart';
 import 'GuestBrowsePage.dart';
 
 class AnimatedSplashScreen extends ConsumerStatefulWidget {
@@ -98,7 +98,7 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
   Future<void> getData() async {
     if (!(await isConnectedToInternet())) {
       if (!mounted) return;
-      Toast(context, 'internet_required'.tr, false);
+      Toast(context, Strings.of('internet_required'), false);
       return;
     }
 
@@ -319,7 +319,7 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
                           child: Column(
                             children: [
                               Text(
-                                'splash_title'.tr,
+                                Strings.of('splash_title'),
                                 textAlign: TextAlign.center,
                                 style: theme.textTheme.headlineMedium?.copyWith(
                                   fontSize: 30,
@@ -329,7 +329,7 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
                               ),
                               const SizedBox(height: 14),
                               Text(
-                                'splash_subtitle'.tr,
+                                Strings.of('splash_subtitle'),
                                 textAlign: TextAlign.center,
                                 style: theme.textTheme.bodyLarge?.copyWith(
                                   color: AppColors.inkMuted,
@@ -349,7 +349,7 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
                                     ),
                                     const SizedBox(height: 14),
                                     Text(
-                                      'splash_loading'.tr,
+                                      Strings.of('splash_loading'),
                                       style: theme.textTheme.bodyMedium,
                                     ),
                                   ],
@@ -474,7 +474,7 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              step.titleKey.tr,
+                              Strings.of(step.titleKey),
                               style: theme.textTheme.headlineMedium?.copyWith(
                                 color: Colors.white,
                                 fontSize: 31,
@@ -483,7 +483,7 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
                             ),
                             const SizedBox(height: 14),
                             Text(
-                              step.bodyKey.tr,
+                              Strings.of(step.bodyKey),
                               style: theme.textTheme.bodyLarge?.copyWith(
                                 color: Colors.white.withValues(alpha: 0.82),
                                 height: 1.45,
@@ -516,7 +516,7 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
                       TextButton(
                         onPressed: _completeOnboarding,
                         child: Text(
-                          'skip'.tr,
+                          Strings.of('skip'),
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w800,
@@ -540,8 +540,8 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
                             fit: BoxFit.scaleDown,
                             child: Text(
                               currentStep == steps.length - 1
-                                  ? 'start'.tr
-                                  : 'next'.tr,
+                                  ? Strings.of('start')
+                                  : Strings.of('next'),
                             ),
                           ),
                         ),

@@ -9,7 +9,6 @@ import 'package:dios_delices/core/app_role.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:get/get.dart';
 import '../Constant/Constant.dart';
 import '../Controller/UiController.dart';
 import '../modeles/restaurant.dart';
@@ -42,7 +41,6 @@ class _HomeUserState extends State<HomeUser> {
   double? _maxPrice;
   double? _minRating;
 
-  SimpleUIController simpleUIController = Get.put(SimpleUIController());
 
   void loadData() async {
     final session = await SessionService.readSession();
@@ -146,9 +144,9 @@ class _HomeUserState extends State<HomeUser> {
             child: LayoutBuilder(
               builder: (context, constraints) {
                 if (constraints.maxWidth > 600) {
-                  return _buildLargeScreen(size, simpleUIController, theme);
+                  return _buildLargeScreen(size, theme);
                 } else {
-                  return _buildSmallScreen(size, simpleUIController, theme);
+                  return _buildSmallScreen(size, theme);
                 }
               },
             ),
@@ -159,27 +157,27 @@ class _HomeUserState extends State<HomeUser> {
   }
 
   Widget _buildLargeScreen(
-      Size size, SimpleUIController simpleUIController, ThemeData theme) {
+      Size size, ThemeData theme) {
     return Row(
       children: [
         SizedBox(width: size.width * 0.06),
         Expanded(
           flex: 5,
-          child: _buildMainBody(size, simpleUIController, theme),
+          child: _buildMainBody(size, theme),
         ),
       ],
     );
   }
 
   Widget _buildSmallScreen(
-      Size size, SimpleUIController simpleUIController, ThemeData theme) {
+      Size size, ThemeData theme) {
     return Center(
-      child: _buildMainBody(size, simpleUIController, theme),
+      child: _buildMainBody(size, theme),
     );
   }
 
   Widget _buildMainBody(
-      Size size, SimpleUIController simpleUIController, ThemeData theme) {
+      Size size, ThemeData theme) {
     return Column(
       children: <Widget>[
         SearchInput(),
