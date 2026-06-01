@@ -1,35 +1,23 @@
-import 'package:dios_delices/Screen/DishDetails.dart';
 import 'package:dios_delices/Screen/dish/DishFormPage.dart';
+import 'package:dios_delices/modeles/dish.dart';
+import 'package:dios_delices/services/session_service.dart';
+import 'package:dios_delices/theme/app_theme.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import '../Constant/Constant.dart';
-import '../Controller/UiController.dart';
-import '../modeles/dish.dart';
-import '../services/session_service.dart';
 import 'micro_restau/DishDetailsMicroRestau.dart';
 
 class Menu extends StatefulWidget {
-
+  const Menu({super.key});
   @override
-  _MenuState createState() => _MenuState();
+  State<Menu> createState() => _MenuState();
 }
 
 class _MenuState extends State<Menu> {
   String? country = "";
-  int currentUser_id = 0;
   int currentUser_restau = 0;
   int currentUser_role = 0;
-
-  TextEditingController totalController = TextEditingController();
-
   List<Dish> dishes = [];
   List<Dish> filteredDishes = [];
-
-  @override
-  void dispose() {
-    totalController.dispose();
-    super.dispose();
-  }
 
   @override
   void initState() {
@@ -42,158 +30,136 @@ class _MenuState extends State<Menu> {
     country = session.country;
     currentUser_restau = session.restaurantId ?? 0;
     currentUser_role = session.role.id;
-
-    // Chargement des données Dish depuis la base de données
-    List<Dish> dishesList = await Dish.fetchDishesFromDB();
-
+    final dishesList = await Dish.fetchDishesFromDB();
     setState(() {
       dishes = dishesList;
-      print("dishes " + dishes.toString());
-      _fetchDishesByRestaurant();
+      filteredDishes = dishes.where((d) => d.restauID == currentUser_restau).toList();
     });
   }
 
-  void _fetchDishesByRestaurant() {
-    filteredDishes = dishes.where((dish) => dish.restauID == currentUser_restau).toList();
-  }
-
-
   @override
   Widget build(BuildContext context) {
-    var size = MediaQuery.of(context).size;
+    final size = MediaQuery.of(context).size;
+    final isWide = size.width > 600;
 
-    return WillPopScope(
-      onWillPop: () async => false,
-      child: GestureDetector(
-        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
-        child: Scaffold(
-          backgroundColor: Colors.white,
-          resizeToAvoidBottomInset: false,
-          body: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: size.width > 600
-                ? MainAxisAlignment.center
-                : MainAxisAlignment.start,
-            children: [
-              SizedBox(height: size.height * 0.01),
-              Row(
-                children: [
-                  SizedBox(width: 25),
-                  Text(
-                    'Votre Menu',
-                    style: kLoginSubtitleStyle(size),
-                  ),
-                  Spacer(),
-                  Tooltip(
-                    message: "Ajouter un plat",
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          CupertinoPageRoute(
-                            builder: (context) => DishFormPage(),
-                          ),
-                        );
-                      },
-                      child: Icon(Icons.add, color: Colors.white),
-                      style: ElevatedButton.styleFrom(
-                        shape: CircleBorder(),
-                        padding: EdgeInsets.all(20),
-                        backgroundColor: Colors.red,
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: 25),
-                ],
-              ),
-              SizedBox(height: size.height * 0.03),
-              Flexible(
-                child: ListView.builder(
-                  scrollDirection: Axis.vertical,
-                  shrinkWrap: true,
-                  itemCount: filteredDishes.length, // Use filteredDishes here
-                  itemBuilder: (context, index) {
-                    final dish = filteredDishes[index]; // Access filteredDishes
-                    return GestureDetector(
-                      onTap: () {
-                        /*Navigator.push(
-                          context,
-                          CupertinoPageRoute(
-                            builder: (ctx) => DishDetails(
-                              from_page: 2,
-                              dish_id: dish.dishID, // Passer l'ID du plat
-                            ),
-                          ),
-                        );*/
-
-                        Navigator.push(
-                          context,
-                          CupertinoPageRoute(
-                            builder: (ctx) => DishDetailsMicroRestau(
-                              from_page: 2,
-                              dish_id: dish.dishID, dish_restau: currentUser_restau,
-                            ),
-                          ),
-                        );
-                      },
-                      child: Column(
-                        children: [
-                          Card(
-                            elevation: 4.0,
-                            child: Column(
-                              children: [
-                                Container(
-                                  height: 200.0,
-                                  child: Ink.image(
-                                    image: (dish.image != null && dish.image!.isNotEmpty)
-                                        ? NetworkImage(dish.image!)
-                                        : AssetImage('assets/images/no_image.png') as ImageProvider,
-                                    fit: BoxFit.cover,
-                                  ),
-                                ),
-                                Container(
-                                  padding: EdgeInsets.all(16.0),
-                                  alignment: Alignment.centerLeft,
-                                  child: Text(
-                                    dish.name ?? "",
-                                    style: kLoginSubtitleStyle3(size),
-                                  ),
-                                ),
-                                Row(
-                                  children: [
-                                    SizedBox(width: 15),
-                                    Text(
-                                      "${dish.price} ${country == "France " ? "€" : 'FCFA'}",
-                                      style: TextStyle(
-                                        color: Colors.red,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 20,
-                                      ),
-                                    ),
-                                    Spacer(),
-                                    IconButton(
-                                      onPressed: () {},
-                                      icon: Icon(
-                                        Icons.navigate_next,
-                                        color: Colors.black,
-                                        size: 40,
-                                      ),
-                                    ),
-                                    SizedBox(width: 15),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                          SizedBox(height: 50),
-                        ],
-                      ),
-                    );
-                  },
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+        backgroundColor: AppColors.surface,
+        body: SafeArea(
+          child: Column(children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+              child: Row(children: [
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('Votre menu', style: AppTypography.headlineLarge()),
+                    Text('${filteredDishes.length} plats',
+                        style: AppTypography.bodyMedium()),
+                  ]),
                 ),
-              ),
-            ],
-          ),
+                GestureDetector(
+                  onTap: () => Navigator.push(context,
+                      CupertinoPageRoute(builder: (_) => DishFormPage()))
+                      .then((_) => loadData()),
+                  child: Container(
+                    width: 48, height: 48,
+                    decoration: BoxDecoration(
+                      color: AppColors.brand,
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                      boxShadow: [
+                        BoxShadow(color: AppColors.brand.withValues(alpha: 0.3),
+                            blurRadius: 10, offset: const Offset(0, 4)),
+                      ],
+                    ),
+                    child: const Icon(Icons.add_rounded, color: Colors.white),
+                  ),
+                ),
+              ]),
+            ),
+            Expanded(
+              child: filteredDishes.isEmpty
+                  ? Center(
+                      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                        Icon(Icons.restaurant_menu_rounded, size: 56, color: AppColors.border),
+                        const SizedBox(height: 12),
+                        Text('Aucun plat dans votre menu.',
+                            style: AppTypography.bodyMedium()),
+                        const SizedBox(height: 4),
+                        Text('Ajoutez votre premier plat !',
+                            style: AppTypography.bodyMedium(color: AppColors.inkSubtle)),
+                      ]),
+                    )
+                  : GridView.builder(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: isWide ? 3 : 2,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        childAspectRatio: 0.78,
+                      ),
+                      itemCount: filteredDishes.length,
+                      itemBuilder: (_, i) {
+                        final dish = filteredDishes[i];
+                        final curr = country == 'France' ? '€' : 'FCFA';
+                        return GestureDetector(
+                          onTap: () => Navigator.push(context,
+                              CupertinoPageRoute(builder: (_) =>
+                                  DishDetailsMicroRestau(from_page: 2, dish_id: dish.dishID, dish_restau: currentUser_restau)))
+                              .then((_) => loadData()),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: AppColors.card,
+                              borderRadius: BorderRadius.circular(AppRadius.xl),
+                              border: Border.all(color: AppColors.border, width: 0.5),
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Expanded(
+                                child: Stack(children: [
+                                  Positioned.fill(
+                                    child: Image.network(
+                                      (dish.image != null && dish.image!.isNotEmpty)
+                                          ? dish.image! : '',
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => Container(
+                                        color: AppColors.surfaceWarm,
+                                        child: const Icon(Icons.restaurant_rounded, color: AppColors.border, size: 36),
+                                      ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    bottom: 0, left: 0, right: 0,
+                                    child: Container(
+                                      height: 40,
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          begin: Alignment.topCenter,
+                                          end: Alignment.bottomCenter,
+                                          colors: [Colors.transparent, AppColors.ink.withValues(alpha: 0.35)],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ]),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.all(10),
+                                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                  Text(dish.name ?? '', style: AppTypography.labelMedium(),
+                                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                                  const SizedBox(height: 2),
+                                  Text('${dish.price?.toStringAsFixed(2)} $curr',
+                                      style: AppTypography.bodyLarge(color: AppColors.brand)),
+                                ]),
+                              ),
+                            ]),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ]),
         ),
       ),
     );

@@ -51,6 +51,10 @@ class Users extends HiveObject {
   bool consentRGPD;
   String? consentDate;
 
+  String? permisType;
+  bool permisVerified;
+  bool isOnline;
+
   @HiveField(11)
   String status;
 
@@ -78,6 +82,9 @@ class Users extends HiveObject {
     this.birthDate,
     this.consentRGPD = false,
     this.consentDate,
+    this.permisType,
+    this.permisVerified = false,
+    this.isOnline = false,
   });
 
   Map<String, dynamic> toMap() {
@@ -99,6 +106,9 @@ class Users extends HiveObject {
       'birthDate': birthDate,
       'consentRGPD': consentRGPD,
       'consentDate': consentDate,
+      'permisType': permisType,
+      'permisVerified': permisVerified,
+      'isOnline': isOnline,
     };
   }
 
@@ -123,6 +133,9 @@ class Users extends HiveObject {
       birthDate: map['birthDate']?.toString(),
       consentRGPD: map['consentRGPD'] == true || map['consentRGPD']?.toString() == 'true',
       consentDate: map['consentDate']?.toString(),
+      permisType: map['permisType']?.toString(),
+      permisVerified: map['permisVerified'] == true || map['permisVerified']?.toString() == 'true',
+      isOnline: map['isOnline'] == true || map['isOnline']?.toString() == 'true',
     );
   }
 
@@ -144,6 +157,9 @@ class Users extends HiveObject {
     String? birthDate,
     bool? consentRGPD,
     String? consentDate,
+    String? permisType,
+    bool? permisVerified,
+    bool? isOnline,
   }) {
     return Users(
       userID: userID ?? this.userID,
@@ -163,6 +179,9 @@ class Users extends HiveObject {
         birthDate: birthDate ?? this.birthDate,
         consentRGPD: consentRGPD ?? this.consentRGPD,
         consentDate: consentDate ?? this.consentDate,
+        permisType: permisType ?? this.permisType,
+        permisVerified: permisVerified ?? this.permisVerified,
+        isOnline: isOnline ?? this.isOnline,
     );
   }
 
@@ -185,6 +204,7 @@ class Users extends HiveObject {
     String? birthDate,
     bool consentRGPD = false,
     String? consentDate,
+    String? permisType,
   }) async {
     String functionName = userID == null ? 'add1User' : 'updateUser';
     var cloudFunction = ParseCloudFunction(functionName);
@@ -219,6 +239,7 @@ class Users extends HiveObject {
       'birthDate': birthDate,
       'consentRGPD': consentRGPD,
       'consentDate': consentDate,
+      'permisType': permisType,
     };
 
     final ParseResponse parseResponse =

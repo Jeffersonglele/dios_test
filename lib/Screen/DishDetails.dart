@@ -1,22 +1,18 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-
 import '../Constant/Constant.dart';
-import '../Controller/UiController.dart';
 import '../modeles/dish.dart';
 import '../services/favorites_service.dart';
 import '../services/session_service.dart';
+import '../theme/app_theme.dart';
+import '../widgets/micro_interactions.dart';
 
 class DishDetails extends StatefulWidget {
-  static const routeName = '/DishDetails';
-
   final int dish_id;
   final int from_page;
 
-  DishDetails({required this.dish_id, required this.from_page});
+  const DishDetails({super.key, required this.dish_id, required this.from_page});
 
   @override
   State<DishDetails> createState() => _DishDetailsState();
@@ -29,22 +25,13 @@ class _DishDetailsState extends State<DishDetails> {
   bool isLoading = true;
   bool isFavorite = false;
 
-  TextEditingController totalController = TextEditingController();
-
   List<Dish> dishes = [];
   Dish? current_dish;
-
-  @override
-  void dispose() {
-    totalController.dispose();
-    super.dispose();
-  }
+  var number_of_parts = 1;
 
   @override
   void initState() {
     super.initState();
-    //readJson();
-    //getCategories();
     loadData();
   }
 
@@ -54,9 +41,8 @@ class _DishDetailsState extends State<DishDetails> {
     currentUser_restau = session.restaurantId ?? 0;
     currentUser_role = session.role.id;
 
-    // Chargement des données Dish depuis la base de données
-    List<Dish> dishesList = await Dish.fetchDishesFromDB();
-    Dish? dish = Dish.getDishByDishId(dishesList, widget.dish_id);
+    final dishesList = await Dish.fetchDishesFromDB();
+    final dish = Dish.getDishByDishId(dishesList, widget.dish_id);
 
     if (!mounted || dish == null) return;
     setState(() {
@@ -64,332 +50,233 @@ class _DishDetailsState extends State<DishDetails> {
       current_dish = dish;
       isLoading = false;
     });
+
     isFavorite = await FavoritesService.isDishFavorite(widget.dish_id);
     if (!mounted) return;
     setState(() {});
   }
 
-  List _items_categories = [];
-  List _items = [];
-  var number_of_parts = 1;
-
+  Future<void> _toggleFavorite() async {
+    final next = await FavoritesService.toggleDishFavorite(widget.dish_id);
+    if (!mounted) return;
+    setState(() => isFavorite = next);
+  }
 
   @override
   Widget build(BuildContext context) {
-    var size = MediaQuery.of(context).size;
-    var theme = Theme.of(context);
+    final size = MediaQuery.of(context).size;
 
     if (isLoading || current_dish == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
+
+    final currency = country == 'France' ? '€' : 'FCFA';
+    final dish = current_dish!;
 
     return GestureDetector(
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
       child: Scaffold(
-        backgroundColor: Colors.white,
-        resizeToAvoidBottomInset: false,
-        appBar: AppBar(),
-        body: SingleChildScrollView(
-          physics: NeverScrollableScrollPhysics(),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              if (constraints.maxWidth > 600) {
-                return _buildLargeScreen(size, theme);
-              } else {
-                return _buildSmallScreen(size, theme);
-              }
-            },
+        backgroundColor: AppColors.surface,
+        body: CustomScrollView(
+          slivers: [
+            // ── Photo immersive ─────────────────────────
+            SliverAppBar(
+              expandedHeight: 340,
+              pinned: true,
+              backgroundColor: AppColors.surface,
+              surfaceTintColor: Colors.transparent,
+              leading: IconButton(
+                icon: Container(
+                  width: 36, height: 36,
+                  decoration: BoxDecoration(
+                    color: AppColors.card.withValues(alpha: 0.9),
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                  ),
+                  child: const Icon(Icons.arrow_back_rounded, size: 20),
+                ),
+                onPressed: () => Navigator.pop(context),
+              ),
+              actions: [
+                Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: AnimatedLikeButton(
+                    isLiked: isFavorite,
+                    size: 22,
+                    onTap: _toggleFavorite,
+                  ),
+                ),
+              ],
+              flexibleSpace: FlexibleSpaceBar(
+                background: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Image.network(
+                      (dish.image != null && dish.image!.isNotEmpty) ? dish.image! : '',
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Image.asset('assets/images/no_image.png', fit: BoxFit.cover),
+                    ),
+                    Positioned(
+                      bottom: 0, left: 0, right: 0,
+                      child: Container(
+                        height: 100,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [Colors.transparent, AppColors.ink.withValues(alpha: 0.5)],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              bottom: PreferredSize(
+                preferredSize: const Size.fromHeight(0),
+                child: Container(
+                  height: 24,
+                  decoration: const BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+                  ),
+                ),
+              ),
+            ),
+
+            // ── Contenu ────────────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  // Nom + prix
+                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Expanded(
+                      child: Text(dish.name ?? '', style: AppTypography.headlineMedium()),
+                    ),
+                    Text('${dish.price?.toStringAsFixed(2)} $currency',
+                        style: AppTypography.headlineMedium(color: AppColors.brand)),
+                  ]),
+                  const SizedBox(height: 8),
+                  // Badges
+                  if ((dish.nb_orders ?? 0) > 20)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.accentLight,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        const Icon(Icons.local_fire_department_rounded, color: AppColors.accent, size: 14),
+                        const SizedBox(width: 4),
+                        Text('Populaire', style: AppTypography.labelMedium(color: AppColors.accent).copyWith(fontSize: 11)),
+                      ]),
+                    ),
+                  const SizedBox(height: 16),
+                  // Description
+                  Text(dish.description ?? '', style: AppTypography.bodyLarge()),
+                  const SizedBox(height: 8),
+                  // Portions dispo
+                  Row(children: [
+                    const Icon(Icons.inventory_2_outlined, color: AppColors.inkSubtle, size: 16),
+                    const SizedBox(width: 6),
+                    Text('${dish.nb_servings ?? 0} portions disponibles',
+                        style: AppTypography.bodyMedium()),
+                  ]),
+                  const SizedBox(height: 24),
+
+                  // ── Quantité ──────────────────────────
+                  Text('Quantité', style: AppTypography.titleMedium()),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceWarm,
+                      borderRadius: BorderRadius.circular(AppRadius.lg),
+                    ),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      _QtyBtn(Icons.remove_rounded, () {
+                        if (number_of_parts > 1) setState(() => number_of_parts--);
+                      }),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Text('$number_of_parts', style: AppTypography.headlineMedium()),
+                      ),
+                      _QtyBtn(Icons.add_rounded, () {
+                        if (number_of_parts < (dish.nb_servings ?? 99)) {
+                          setState(() => number_of_parts++);
+                        }
+                      }),
+                    ]),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // ── Options (simulé) ──────────────────
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.card,
+                      borderRadius: BorderRadius.circular(AppRadius.lg),
+                      border: Border.all(color: AppColors.border, width: 0.5),
+                    ),
+                    child: Row(children: [
+                      const Icon(Icons.tune_rounded, color: AppColors.inkSubtle, size: 18),
+                      const SizedBox(width: 8),
+                      Text('Personnaliser', style: AppTypography.labelMedium()),
+                      const Spacer(),
+                      const Icon(Icons.chevron_right_rounded, color: AppColors.inkSubtle),
+                    ]),
+                  ),
+                  const SizedBox(height: 100),
+                ]),
+              ),
+            ),
+          ],
+        ),
+        // ── Bouton Ajouter au panier sticky ──────────
+        bottomNavigationBar: Container(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.ink.withValues(alpha: 0.04),
+                blurRadius: 16,
+                offset: const Offset(0, -4),
+              ),
+            ],
+          ),
+          child: SafeArea(
+            child: SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  // Ajout au panier (logique à connecter au provider)
+                },
+                icon: const Icon(Icons.shopping_cart_rounded, size: 20),
+                label: Text('Ajouter au panier · ${(dish.price ?? 0) * number_of_parts} $currency'),
+                style: ElevatedButton.styleFrom(
+                  textStyle: AppTypography.labelLarge(color: Colors.white),
+                ),
+              ),
+            ),
           ),
         ),
       ),
     );
   }
 
-  // For large screens
-  Widget _buildLargeScreen(
-      Size size, ThemeData theme) {
-    return Row(
-      children: [
-        SizedBox(width: size.width * 0.06),
-        Expanded(
-          flex: 5,
-          child: _buildMainBody(size, theme),
+  Widget _QtyBtn(IconData icon, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 40, height: 40,
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(AppRadius.md),
         ),
-      ],
+        child: Icon(icon, color: AppColors.brand, size: 20),
+      ),
     );
   }
-
-  // For Small screens
-  Widget _buildSmallScreen(
-      Size size, ThemeData theme) {
-    return Center(
-      child: _buildMainBody(size, theme),
-    );
-  }
-
-  // Main Body
-  Widget _buildMainBody(
-      Size size, ThemeData theme) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment:
-          size.width > 600 ? MainAxisAlignment.center : MainAxisAlignment.start,
-      children: [
-        SizedBox(
-          height: size.height * 0.06,
-        ),
-        Container(
-          constraints: BoxConstraints.expand(height: 300.0, width: 400),
-          padding: EdgeInsets.only(left: 16.0, bottom: 8.0, right: 16.0),
-          margin: EdgeInsets.only(left: 16.0, bottom: 8.0, right: 16.0),
-          decoration: BoxDecoration(
-            image: DecorationImage(
-              image: (current_dish!.image != null && current_dish!.image!.isNotEmpty)
-                  ? NetworkImage(current_dish!.image!)
-                  : AssetImage('assets/images/no_image.png') as ImageProvider,
-              // Cast explicite en ImageProvider
-              fit: BoxFit.cover,
-            ),
-            borderRadius: BorderRadius.all(Radius.circular(30)),
-          ),
-          child: Stack(
-            children: <Widget>[
-              Positioned(
-                right: 0.0,
-                top: 5,
-                child: Container(
-                  width: 60,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.all(Radius.circular(15)),
-                    color: Colors.white,
-                  ),
-                  child: IconButton(
-                    icon: Icon(
-                      isFavorite
-                          ? Icons.favorite
-                          : Icons.favorite_border_outlined,
-                    ),
-                    iconSize: 30,
-                    color: isFavorite ? Colors.pink : Colors.black,
-                    onPressed: _toggleFavorite,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        SizedBox(
-          height: size.height * 0.03,
-        ),
-        Row(
-          children: [
-            SizedBox(width: 25),
-            Text(
-              current_dish!.name ?? "",
-              style: kLoginSubtitleStyle3(size),
-            ),
-            Spacer(),
-            Text(
-              current_dish!.price.toString() +
-                  " " +
-                  (country == "France" ? "€" : 'FCFA'),
-              style: TextStyle(
-                color: Colors.red,
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-              ),
-            ),
-            SizedBox(width: 20),
-          ],
-        ),
-        SizedBox(
-          height: size.height * 0.03,
-        ),
-        Row(
-          children: [
-            SizedBox(
-              width: 25,
-            ),
-            Expanded(
-              child: Text(
-                current_dish!.description ?? "",
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis, // and this
-              ),
-            ),
-            SizedBox(
-              width: 20,
-            ),
-          ],
-        ),
-        SizedBox(
-          height: size.height * 0.03,
-        ),
-        Row(
-          children: [
-            SizedBox(
-              width: 20,
-            ),
-            ElevatedButton(
-              onPressed: () {},
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'See options',
-                    style: TextStyle(color: Colors.grey, fontSize: 15),
-                  ),
-                  SizedBox(
-                    width: 5,
-                  ),
-                  Icon(
-                    Icons.arrow_drop_down,
-                    size: 24.0,
-                    color: Colors.grey,
-                  ),
-                ],
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
-                ),
-              ),
-            ),
-          ],
-        ),
-        SizedBox(
-          height: size.height * 0.03,
-        ),
-        Row(
-          children: [
-            SizedBox(
-              width: 20,
-            ),
-            Text(
-              "Quantity",
-              style: kLoginSubtitleStyle4(size),
-            ),
-            Spacer(),
-            Container(
-              padding: EdgeInsets.all(3),
-              decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(15),
-                  color: Color.fromARGB(255, 225, 221, 221)),
-              child: Row(
-                children: [
-                  InkWell(
-                      onTap: () {
-                        if (number_of_parts != 0) {
-                          setState(() {
-                            number_of_parts = number_of_parts - 1;
-                          });
-                        }
-                      },
-                      child: Icon(
-                        Icons.remove,
-                        color: Colors.black,
-                        size: 16,
-                      )),
-                  SizedBox(
-                    width: 10,
-                  ),
-                  Container(
-                    margin: EdgeInsets.symmetric(horizontal: 3),
-                    padding: EdgeInsets.symmetric(horizontal: 3, vertical: 2),
-                    decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(3),
-                        color: Color.fromARGB(255, 225, 221, 221)),
-                    child: Text(
-                      number_of_parts.toString(),
-                      style: TextStyle(color: Colors.black, fontSize: 20),
-                    ),
-                  ),
-                  SizedBox(
-                    width: 10,
-                  ),
-                  InkWell(
-                      onTap: () {
-                        if (number_of_parts < (current_dish!.nb_servings ?? 0)) {
-                          setState(() {
-                            number_of_parts = number_of_parts + 1;
-                          });
-                        }
-                      },
-                      child: Icon(
-                        Icons.add,
-                        color: Colors.black,
-                        size: 16,
-                      )),
-                ],
-              ),
-            ),
-            SizedBox(
-              width: 20,
-            ),
-          ],
-        ),
-        SizedBox(
-          height: size.height * 0.08,
-        ),
-        Center(
-          child: ElevatedButton(
-            onPressed: () {},
-            child: Text(
-              'Add to cart',
-              style: TextStyle(color: Colors.white),
-            ),
-            style: ElevatedButton.styleFrom(
-              elevation: 5,
-              fixedSize: const Size(200, 40),
-              backgroundColor: Colors.red,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Future<void> _toggleFavorite() async {
-    final nextValue = await FavoritesService.toggleDishFavorite(widget.dish_id);
-    if (!mounted) return;
-    setState(() {
-      isFavorite = nextValue;
-    });
-  }
-
-  Future<void> readJson() async {
-    final String response =
-        await rootBundle.loadString('assets/static_data/Dishes.json');
-    final data = await json.decode(response);
-
-    setState(() {
-      _items = data["items"];
-    });
-  }
-
-  Future<void> getCategories() async {
-    final String response =
-        await rootBundle.loadString('assets/static_data/DishCategories.json');
-    final data = await json.decode(response);
-    setState(() {
-      _items_categories = data["items"];
-    });
-  }
-
-/*_getCategoryDetails() async {
-    var id = widget.dish_id;
-    for (var i = 0, j = _items_categories.length; i < j; i++) {
-      if (_items_categories[i]["id"] == current_dish["category_id"]) {
-        setState(() {
-          _category_details = _items_categories[i];
-        });
-      }
-    }
-  }*/
 }

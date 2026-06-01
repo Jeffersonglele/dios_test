@@ -127,7 +127,7 @@ class _RestaurantUpdateFormPageState
     super.initState();
     // Initialisez les champs avec les informations du restaurant
     _nameController.text = widget.restaurant.name;
-    _addressController.text = widget.restaurant.adress;
+    _addressController.text = widget.restaurant.location;
     _descriptionController.text = widget.restaurant.description;
     _categoriesController.text = widget.restaurant.categories;
     _openingHoursController.text = widget.restaurant.openingHours;
@@ -381,7 +381,7 @@ class _RestaurantUpdateFormPageState
                               note: widget.restaurant.note,
                               categories: _selectedHashtags.join(', '),
                               description: _descriptionController.text,
-                              adress: _addressController.text,
+                              location: _addressController.text,
                               name: _nameController.text,
                               openingHours: _openingHoursController.text.trim(),
                               deliveryFee: double.parse(

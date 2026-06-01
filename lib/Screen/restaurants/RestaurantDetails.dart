@@ -4,959 +4,390 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
+import 'package:path/path.dart' as p;
+
 import '../../Constant/Constant.dart';
 import '../../modeles/dish.dart';
 import '../../modeles/restaurant.dart';
-import '../../modeles/users.dart';
-import '../../providers/cart_provider.dart' as cartProvider;
-import '../../providers/users_provider.dart';
+import '../../providers/cart_provider.dart' as cartP;
 import '../../services/favorites_service.dart';
 import '../../services/session_service.dart';
-import '../../utils/HashtagTextInputFormatter.dart';
+import '../../theme/app_theme.dart';
+import '../../widgets/micro_interactions.dart';
 import '../../utils/stars.dart';
-import 'package:path/path.dart' as p;
-import '../Cart.dart' as screenCart;
 import '../../utils/toast.dart';
 import '../micro_restau/DishDetailsMicroRestau.dart';
 import '../../widgets/comment_section.dart';
 
 class RestaurantDetails extends ConsumerStatefulWidget {
-  static const routeName = '/RestaurantDetailsMicroRestau';
-
   final int restaurant_id;
-
-  RestaurantDetails({required this.restaurant_id});
+  const RestaurantDetails({super.key, required this.restaurant_id});
 
   @override
-  _RestaurantDetailsState createState() => _RestaurantDetailsState();
+  ConsumerState<RestaurantDetails> createState() => _RestaurantDetailsState();
 }
 
 class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
   final _formKey = GlobalKey<FormState>();
-  String? country = "";
   int currentUser_restau = 0;
   int currentUser_role = 0;
   int currentUser_id = 0;
   String currentUser_country = "";
   bool restau_de_luser_connecte = false;
   bool isFavorite = false;
-
   bool isEditMode = false;
   File? selectedImage;
   final ImagePicker _picker = ImagePicker();
 
-  TextEditingController nameController = TextEditingController();
-  TextEditingController addressController = TextEditingController();
-  TextEditingController descriptionController = TextEditingController();
-  TextEditingController nbOrdersController = TextEditingController();
-  TextEditingController nbServingsController = TextEditingController();
-  TextEditingController noteController = TextEditingController();
-  TextEditingController categoriesController = TextEditingController();
-  TextEditingController openingHoursController = TextEditingController();
-  TextEditingController deliveryFeeController = TextEditingController();
-  bool isRestaurantOpen = true;
-  bool select_image = false;
+  late TextEditingController nameCtrl, descCtrl, nbOrdersCtrl, noteCtrl;
+  late TextEditingController catCtrl, hoursCtrl, feeCtrl;
+
   List<String> _selectedHashtags = [];
-  List<String> _selectedHashtagsFromDatabase = [];
   List<Dish> dishes = [];
-  List<Dish> filteredDishes = [];
-
   Restaurant? current_restaurant;
-
-  // Ajoutez ces deux variables
-  List<Map<String, dynamic>> _current_meals =
-      []; // Liste des plats dans le panier
-  double total = 0.0; // Total du panier
 
   @override
   void initState() {
     super.initState();
+    nameCtrl = TextEditingController();
+    descCtrl = TextEditingController();
+    nbOrdersCtrl = TextEditingController();
+    noteCtrl = TextEditingController();
+    catCtrl = TextEditingController();
+    hoursCtrl = TextEditingController();
+    feeCtrl = TextEditingController();
     loadData();
+  }
+
+  @override
+  void dispose() {
+    nameCtrl.dispose(); descCtrl.dispose(); nbOrdersCtrl.dispose();
+    noteCtrl.dispose(); catCtrl.dispose(); hoursCtrl.dispose(); feeCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> loadData() async {
     try {
       final session = await SessionService.readSession();
-
       currentUser_role = session.role.id;
       currentUser_country = session.country;
       currentUser_id = session.userId;
 
-      // Chargement des restaurants et des plats depuis la base de données
-      List<Restaurant> restaurantsList =
-          await Restaurant.fetchRestaurantsFromDB();
-      Restaurant? restaurant = await Restaurant.getRestaurantByRestaurantId(
-          restaurantsList, widget.restaurant_id);
+      final restaurantsList = await Restaurant.fetchRestaurantsFromDB();
+      final restaurant = Restaurant.getRestaurantByRestaurantId(restaurantsList, widget.restaurant_id);
+      final allDishes = await Dish.fetchDishesFromDB();
+      final filtered = allDishes.where((d) => d.restauID == widget.restaurant_id).toList();
 
-      List<Dish> allDishes = await Dish.fetchDishesFromDB();
-
-      // Filtrage des plats associés au restaurant actuel
-      List<Dish> filteredDishes = allDishes
-          .where((dish) => dish.restauID == widget.restaurant_id)
-          .toList();
-
-      // Mise à jour de l'état
+      if (!mounted) return;
       setState(() {
         currentUser_restau = session.restaurantId ?? 0;
-
         current_restaurant = restaurant;
-        dishes = filteredDishes;
+        dishes = filtered;
+        restau_de_luser_connecte = currentUser_restau == restaurant?.restaurantID;
 
-        if (currentUser_restau == current_restaurant?.restaurantID) {
-          restau_de_luser_connecte = true;
-        }
-
-        if (current_restaurant != null) {
-          nameController.text = current_restaurant!.name!;
-          addressController.text = current_restaurant!.adress!;
-          descriptionController.text = current_restaurant!.description!;
-          nbOrdersController.text = current_restaurant!.nb_orders.toString();
-          nbServingsController.text = current_restaurant!.nb_orders.toString();
-          noteController.text = current_restaurant!.note.toString();
-          categoriesController.text = current_restaurant!.categories!;
-          openingHoursController.text = current_restaurant!.openingHours;
-          deliveryFeeController.text =
-              current_restaurant!.deliveryFee.toStringAsFixed(2);
-          isRestaurantOpen = current_restaurant!.isOpen == 1;
-
-          _selectedHashtags = current_restaurant!.categories!.split(', ');
-          _selectedHashtagsFromDatabase = _selectedHashtags;
+        if (restaurant != null) {
+          nameCtrl.text = restaurant.name ?? '';
+          descCtrl.text = restaurant.description ?? '';
+          nbOrdersCtrl.text = restaurant.nb_orders.toString();
+          noteCtrl.text = restaurant.note.toString();
+          catCtrl.text = restaurant.categories ?? '';
+          hoursCtrl.text = restaurant.openingHours;
+          feeCtrl.text = restaurant.deliveryFee.toStringAsFixed(2);
+          _selectedHashtags = restaurant.categories?.split(', ') ?? [];
         }
       });
 
       if (restaurant != null) {
-        final favorite =
-            await FavoritesService.isRestaurantFavorite(restaurant.restaurantID);
+        final fav = await FavoritesService.isRestaurantFavorite(restaurant.restaurantID);
         if (!mounted) return;
-        setState(() {
-          isFavorite = favorite;
-        });
+        setState(() => isFavorite = fav);
       }
-    } catch (e) {
-      print("Erreur lors du chargement des données : $e");
-    }
+    } catch (_) {}
+  }
+
+  Future<void> _toggleFavorite() async {
+    if (current_restaurant == null) return;
+    final next = await FavoritesService.toggleRestaurantFavorite(current_restaurant!.restaurantID);
+    if (mounted) setState(() => isFavorite = next);
   }
 
   Future<void> _pickImage() async {
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-    if (image != null) {
-      setState(() {
-        select_image == true;
-        selectedImage = File(image.path);
-      });
-    }
-  }
-
-  bool hasChanges() {
-    return selectedImage != null ||
-        nameController.text != current_restaurant!.name ||
-        descriptionController.text != current_restaurant!.description ||
-        nbServingsController.text != current_restaurant!.nb_orders.toString() ||
-        openingHoursController.text != current_restaurant!.openingHours ||
-        deliveryFeeController.text !=
-            current_restaurant!.deliveryFee.toStringAsFixed(2) ||
-        _selectedHashtags.join(', ') != current_restaurant!.categories ||
-        select_image == true ||
-        isRestaurantOpen != (current_restaurant!.isOpen == 1);
-  }
-
-  bool hasNewImage() {
-    return selectedImage != null;
-  }
-
-  Future<void> _toggleFavorite() async {
-    if (current_restaurant == null) {
-      return;
-    }
-
-    final nextValue = await FavoritesService.toggleRestaurantFavorite(
-      current_restaurant!.restaurantID,
-    );
-
-    if (!mounted) return;
-    setState(() {
-      isFavorite = nextValue;
-    });
-  }
-
-  void _showRestaurantInfoDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(current_restaurant?.name ?? "Informations"),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (current_restaurant?.adress != null)
-                Row(
-                  children: [
-                    Icon(Icons.location_on, color: Colors.grey),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        current_restaurant!.adress!,
-                        style: TextStyle(fontSize: 14),
-                      ),
-                    ),
-                  ],
-                ),
-              SizedBox(height: 10),
-              Row(
-                children: [
-                  Icon(Icons.access_time, color: Colors.grey),
-                  SizedBox(width: 8),
-                  Text(
-                    current_restaurant?.openingHours ?? "Horaires non renseignés",
-                    style: TextStyle(fontSize: 14),
-                  ),
-                ],
-              ),
-              SizedBox(height: 10),
-              Row(
-                children: [
-                  Icon(Icons.delivery_dining, color: Colors.grey),
-                  SizedBox(width: 8),
-                  Text(
-                    "Frais de livraison : ${current_restaurant?.deliveryFee.toStringAsFixed(2) ?? '0.00'} ${currentUser_country == 'France' ? '€' : 'FCFA'}",
-                    style: TextStyle(fontSize: 14),
-                  ),
-                ],
-              ),
-              SizedBox(height: 10),
-              Row(
-                children: [
-                  StarRating(rating: double.parse(noteController.text)),
-                ],
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text("Fermer"),
-            ),
-          ],
-        );
-      },
-    );
+    if (image != null) setState(() => selectedImage = File(image.path));
   }
 
   @override
   Widget build(BuildContext context) {
-    var size = MediaQuery.of(context).size;
+    final size = MediaQuery.of(context).size;
+    if (current_restaurant == null) return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
-    final cartNotifier = ref.read(cartProvider.cartStateProvider.notifier);
-    final cartItems = ref.watch(cartProvider.cartStateProvider);
-
-    if (current_restaurant == null) {
-      return Center(child: CircularProgressIndicator());
-    }
+    final isOwner = currentUser_role == 1 || currentUser_role == 4 || restau_de_luser_connecte;
 
     return GestureDetector(
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
       child: Scaffold(
-        backgroundColor: Colors.white,
-        appBar: AppBar(),
-        body: SingleChildScrollView(
-          child: Center(
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(height: size.height * 0.03),
-                  Stack(
-                    children: [
-                      Container(
-                        constraints:
-                            BoxConstraints.expand(height: 300.0, width: 400),
-                        padding: EdgeInsets.only(
-                            left: 16.0, bottom: 8.0, right: 16.0),
-                        margin: EdgeInsets.only(
-                            left: 16.0, bottom: 8.0, right: 16.0),
+        backgroundColor: AppColors.surface,
+        body: CustomScrollView(
+          slivers: [
+            // ── Image parallaxe ──────────────────────────
+            SliverAppBar(
+              expandedHeight: 300,
+              pinned: true,
+              backgroundColor: AppColors.surface,
+              surfaceTintColor: Colors.transparent,
+              leading: IconButton(
+                icon: Container(
+                  width: 36, height: 36,
+                  decoration: BoxDecoration(
+                    color: AppColors.card.withValues(alpha: 0.9),
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                  ),
+                  child: const Icon(Icons.arrow_back_rounded, size: 20),
+                ),
+                onPressed: () => Navigator.pop(context),
+              ),
+              actions: [
+                if (!restau_de_luser_connecte)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: AnimatedLikeButton(
+                      isLiked: isFavorite,
+                      size: 22,
+                      onTap: _toggleFavorite,
+                    ),
+                  ),
+              ],
+              flexibleSpace: FlexibleSpaceBar(
+                background: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Image.network(
+                      (current_restaurant!.image != null && current_restaurant!.image!.trim().isNotEmpty)
+                          ? current_restaurant!.image!
+                          : '',
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Image.asset('assets/images/no_image.png', fit: BoxFit.cover),
+                    ),
+                    // Overlay dégradé bas
+                    Positioned(
+                      bottom: 0, left: 0, right: 0,
+                      child: Container(
+                        height: 120,
                         decoration: BoxDecoration(
-                          image: DecorationImage(
-                            image: (current_restaurant?.image != null &&
-                                current_restaurant!.image!.trim().isNotEmpty)
-                                ? NetworkImage(current_restaurant!.image!)
-                                : AssetImage('assets/images/no_image.png') as ImageProvider,
-                            fit: BoxFit.cover,
-                          ),
-                          borderRadius: BorderRadius.all(Radius.circular(30)),
-                        ),
-                        child: Stack(
-                          children: <Widget>[
-                            Positioned(
-                              right: 0.0,
-                              top: 5,
-                              child: Container(
-                                width: 30,
-                                height: 30,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(8),
-                                  // Coins arrondis
-                                  color: Colors.white,
-                                ),
-                                child: Align(
-                                  alignment: Alignment.center,
-                                  child: CircleAvatar(
-                                    radius: 6, // Taille du cercle
-                                    backgroundColor:
-                                        isRestaurantOpen
-                                            ? Colors.green
-                                            : Colors.red,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (isEditMode)
-                        Positioned(
-                          bottom: 10,
-                          right: 10,
-                          child: IconButton(
-                            icon: Icon(Icons.camera_alt, color: Colors.white),
-                            onPressed: _pickImage,
-                          ),
-                        ),
-                      if (!restau_de_luser_connecte)
-                        Positioned(
-                          top: 16,
-                          left: 16,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: IconButton(
-                              onPressed: _toggleFavorite,
-                              icon: Icon(
-                                isFavorite
-                                    ? Icons.favorite
-                                    : Icons.favorite_border_outlined,
-                                color: isFavorite ? Colors.pink : Colors.black,
-                              ),
-                            ),
-                          ),
-                        ),
-                      SizedBox(height: 8),
-                      SizedBox(height: size.height * 0.02),
-                    ],
-                  ),
-                  SizedBox(height: size.height * 0.02),
-                  Row(
-                    children: [
-                      SizedBox(width: 25),
-                      isEditMode
-                          ? Flexible(
-                              flex: 3,
-                              child: _buildTextField(
-                                controller: nameController,
-                                hintText: "Nom du plat",
-                                maxLines: 2,
-                                icon: Icons.restaurant,
-                              ),
-                            )
-                          : Text(current_restaurant?.name ?? "",
-                              style: kLoginSubtitleStyle3(size)),
-                      Spacer(),
-                      Text(
-                        "${country == "France" ? "€" : 'FCFA'}",
-                        style: TextStyle(
-                            color: Colors.red,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 20),
-                      ),
-                      SizedBox(width: 20),
-                    ],
-                  ),
-                  SizedBox(height: size.height * 0.02),
-                  Row(
-                    children: [
-                      SizedBox(width: 25),
-                      isEditMode
-                          ? Flexible(
-                              child: _buildTextField(
-                                controller: descriptionController,
-                                hintText: "Description du restaurant",
-                                maxLines: 3,
-                                icon: Icons.description,
-                              ),
-                            )
-                          : Expanded(
-                              child: Text(
-                                current_restaurant?.description ?? "",
-                                maxLines: 5,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                      SizedBox(width: 20),
-                    ],
-                  ),
-                  SizedBox(height: size.height * 0.02),
-                  if (isEditMode)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 25.0),
-                      child: HashtagTextInputFormatter(
-                        initialHashtags: _selectedHashtagsFromDatabase,
-                        onHashtagsChanged: (hashtags) {
-                          setState(() {
-                            _selectedHashtags = hashtags;
-                            categoriesController.text =
-                                _selectedHashtags.join(', ');
-                          });
-                        },
-                      ),
-                    ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 25.0),
-                    child: Text(
-                      "Catégories : ${categoriesController.text}",
-                      style: TextStyle(fontSize: 16),
-                    ),
-                  ),
-                  SizedBox(height: size.height * 0.02),
-                  if (isEditMode)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 25.0),
-                      child: Column(
-                        children: [
-                          _buildTextField(
-                            controller: openingHoursController,
-                            hintText:
-                                "Horaires d'ouverture (ex: 09:00 - 20:00)",
-                            icon: Icons.access_time,
-                          ),
-                          SizedBox(height: size.height * 0.02),
-                          _buildTextField(
-                            controller: deliveryFeeController,
-                            hintText: "Frais de livraison",
-                            icon: Icons.delivery_dining,
-                            keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true,
-                            ),
-                            inputFormatters: <TextInputFormatter>[
-                              FilteringTextInputFormatter.allow(
-                                RegExp(r'^\d+[.,]?\d{0,2}$'),
-                              ),
-                            ],
-                          ),
-                          SizedBox(height: size.height * 0.01),
-                        ],
-                      ),
-                    ),
-                  currentUser_role == 1 ||
-                          currentUser_role == 4 ||
-                          restau_de_luser_connecte
-                      ? Row(
-                          children: [
-                            SizedBox(width: 25),
-                            Expanded(
-                              child: DataTable(
-                                columns: [
-                                  DataColumn(
-                                    label: Text(
-                                      'Informations',
-                                      style: TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold),
-                                    ),
-                                  ),
-                                  DataColumn(
-                                    label: Text(
-                                      'Valeur',
-                                      style: TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold),
-                                    ),
-                                  ),
-                                ],
-                                rows: [
-                                  DataRow(cells: [
-                                    DataCell(
-                                      Text(
-                                        'Nombre de commandes',
-                                        style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold),
-                                      ),
-                                    ),
-                                    DataCell(
-                                      Text(
-                                        nbOrdersController.text,
-                                        style: TextStyle(fontSize: 16),
-                                      ),
-                                    ),
-                                  ]),
-                                  DataRow(cells: [
-                                    DataCell(
-                                      Text(
-                                        'Note',
-                                        style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold),
-                                      ),
-                                    ),
-                                    DataCell(
-                                      Row(
-                                        children: [
-                                          StarRating(
-                                              rating: double.parse(
-                                                  noteController.text)),
-                                          SizedBox(width: 8),
-                                          Text(
-                                            "${noteController.text}/5",
-                                            style: TextStyle(fontSize: 16),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ]),
-                                  DataRow(cells: [
-                                    DataCell(
-                                      Text(
-                                        'Ouverture',
-                                        style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold),
-                                      ),
-                                    ),
-                                    DataCell(
-                                      isEditMode
-                                          ? Switch(
-                                              value: isRestaurantOpen,
-                                              onChanged: (value) {
-                                                setState(() {
-                                                  isRestaurantOpen = value;
-                                                });
-                                              },
-                                            )
-                                          : Text(
-                                              isRestaurantOpen
-                                                  ? "Ouvert"
-                                                  : "Fermé",
-                                              style: TextStyle(fontSize: 16),
-                                            ),
-                                    ),
-                                  ]),
-                                  DataRow(cells: [
-                                    DataCell(
-                                      Text(
-                                        'Horaires',
-                                        style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold),
-                                      ),
-                                    ),
-                                    DataCell(
-                                      Text(
-                                        openingHoursController.text,
-                                        style: TextStyle(fontSize: 16),
-                                      ),
-                                    ),
-                                  ]),
-                                  DataRow(cells: [
-                                    DataCell(
-                                      Text(
-                                        'Frais livraison',
-                                        style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold),
-                                      ),
-                                    ),
-                                    DataCell(
-                                      Text(
-                                        "${deliveryFeeController.text} ${currentUser_country == 'France' ? '€' : 'FCFA'}",
-                                        style: TextStyle(fontSize: 16),
-                                      ),
-                                    ),
-                                  ]),
-                                  DataRow(cells: [
-                                    DataCell(
-                                      Text(
-                                        'Adresse',
-                                        style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold),
-                                      ),
-                                    ),
-                                    DataCell(
-                                      Text(
-                                        addressController.text,
-                                        style: TextStyle(fontSize: 16),
-                                      ),
-                                    ),
-                                  ]),
-                                ],
-                              ),
-                            ),
-                          ],
-                        )
-                      : Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 25.0),
-                          child: Row(
-                            children: [
-                              StarRating(
-                                  rating: double.parse(noteController.text)),
-                              SizedBox(width: 8),
-                              Text(
-                                "${noteController.text}/5",
-                                style: TextStyle(fontSize: 16),
-                              ),
-                              Spacer(),
-                              TextButton(
-                                onPressed: () {
-                                  _showRestaurantInfoDialog(context);
-                                },
-                                child: Text(
-                                  "Informations",
-                                  style: TextStyle(
-                                    color: Colors.black,
-                                    fontWeight: FontWeight.bold,
-                                    decoration: TextDecoration
-                                        .underline, // Ajoute le soulignement
-                                  ),
-                                ),
-                              ),
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              AppColors.ink.withValues(alpha: 0.6),
                             ],
                           ),
                         ),
-                  SizedBox(height: size.height * 0.05),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 25.0),
-                    child: Text(
-                      "Menu",
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 25.0),
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      physics: NeverScrollableScrollPhysics(),
-                      itemCount: dishes.length,
-                      itemBuilder: (context, index) {
-                        final dish = dishes[index];
-                        return ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => DishDetailsMicroRestau(
-                                      dish_id: dish.dishID,
-                                      from_page: 1,
-                                      dish_restau: widget.restaurant_id),
-                                ),
-                              );
-                            },
-                            child: buildImage(dish.image),
-                          ),
-                          title: GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => DishDetailsMicroRestau(
-                                      dish_id: dish.dishID,
-                                      from_page: 1,
-                                      dish_restau: widget.restaurant_id),
-                                ),
-                              );
-                            },
-                            child: Text(
-                              dish.name ?? "",
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ),
-                          subtitle: GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => DishDetailsMicroRestau(
-                                      dish_id: dish.dishID,
-                                      from_page: 1,
-                                      dish_restau: widget.restaurant_id),
-                                ),
-                              );
-                            },
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  dish.description ?? "",
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: Colors.grey[600],
-                                    fontSize: 14,
-                                  ),
-                                ),
-                                SizedBox(height: 4),
-                                Row(
-                                  children: [
-                                    Text(
-                                      "${dish.price?.toStringAsFixed(2)} ${currentUser_country == 'France' ? '€' : 'FCFA'}",
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.red,
-                                      ),
-                                    ),
-                                    if (currentUser_role == 2) Spacer(),
-                                    /*if (currentUser_role == 2 &&
-                                        current_restaurant?.restaurantID !=
-                                            currentUser_restau)
-                                      Tooltip(
-                                        message: "Ajouter au panier",
-                                        child: GestureDetector(
-                                          onTap: () {
-                                            cartNotifier.addToCart(
-                                                dish.name ?? "Plat",
-                                                dish.price ?? 0.0,
-                                                dish.image ?? '',
-                                                1,
-                                                // Quantité par défaut
-                                                dish.nb_servings ?? 0,
-                                                // Nombre de portions max
-                                                currentUser_country ?? "France",
-                                                currentUser_id,
-                                                widget.restaurant_id);
-                                            Toast(
-                                                context,
-                                                "Le plat ${dish?.name} a été ajouté au panier !",
-                                                true);
-
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (context) =>
-                                                    screenCart.Cart(),
-                                              ),
-                                            );
-                                          },
-                                          child: Container(
-                                            width: 30,
-                                            height: 30,
-                                            decoration: BoxDecoration(
-                                              shape: BoxShape.circle,
-                                              color: Colors.black,
-                                            ),
-                                            child: Center(
-                                              child: Icon(
-                                                Icons.add,
-                                                color: Colors.white,
-                                                size: 18,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),*/
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  if (currentUser_role == 3 || restau_de_luser_connecte)
-                    Center(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          if (isEditMode) ...[
-                            Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 10.0),
-                              child: ElevatedButton(
-                                onPressed: () {
-                                  setState(() {
-                                    nameController.text =
-                                        current_restaurant?.name ?? "";
-                                    descriptionController.text =
-                                        current_restaurant?.description ?? "";
-                                    openingHoursController.text =
-                                        current_restaurant?.openingHours ?? "";
-                                    deliveryFeeController.text = current_restaurant!
-                                        .deliveryFee
-                                        .toStringAsFixed(2);
-                                    isRestaurantOpen =
-                                        current_restaurant!.isOpen == 1;
-                                    isEditMode = false;
-                                  });
-                                },
-                                child: Text('Annuler',
-                                    style: TextStyle(color: Colors.white)),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.grey,
-                                  foregroundColor: Colors.white,
-                                  textStyle: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(15),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                          Padding(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 10.0),
-                            child: ElevatedButton(
-                              onPressed: () async {
-                                if (isEditMode) {
-                                  // Tu es en mode édition, donc tu valides
-                                  if (_formKey.currentState?.validate() ?? false) {
-                                    final user = ref.read(usersProvider);
-                                    if (user != null) {
-                                      ParseFile? parseFile;
-                                      if (hasNewImage()) {
-                                        String fileName = p.basename(selectedImage!.path);
-                                        String extension = p.extension(fileName);
-                                        String newFileName = "${nameController.text}_${user.userID}$extension";
-                                        parseFile = ParseFile(File(selectedImage!.path), name: newFileName);
-                                      }
-
-                                      String result = await Restaurant.manageRestaurant(
-                                        restaurantID: current_restaurant!.restaurantID,
-                                        userID: user.userID,
-                                        categories: _selectedHashtags.join(', '),
-                                        description: descriptionController.text,
-                                        adress: addressController.text,
-                                        name: nameController.text,
-                                        note: current_restaurant!.note,
-                                        nb_orders: current_restaurant!.nb_orders,
-                                        valid: current_restaurant!.valid,
-                                        openingHours:
-                                            openingHoursController.text.trim(),
-                                        deliveryFee: double.tryParse(
-                                              deliveryFeeController.text
-                                                  .replaceAll(',', '.'),
-                                            ) ??
-                                            0.0,
-                                        isOpen: isRestaurantOpen ? 1 : 0,
-                                        date_creation: current_restaurant?.date_creation,
-                                        image: parseFile,
-                                        img_url: current_restaurant?.image,
-                                      );
-
-                                      if (result == "success") {
-                                        Toast(context, "Restaurant mis à jour", true);
-                                        // recharge les données localement
-                                        await loadData();
-                                      } else {
-                                        Toast(context, "Erreur : $result", false);
-                                      }
-                                    }
-                                  }
-                                }
-
-                                // Quoi qu'il arrive, on repasse en mode affichage
-                                setState(() {
-                                  isEditMode = !isEditMode;
-                                });
-                              },
-                              child: Text(isEditMode ? 'Valider' : 'Modifier',
-                                  style: TextStyle(color: Colors.white)),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red,
-                                foregroundColor: Colors.white,
-                                textStyle: TextStyle(
-                                    fontSize: 18, fontWeight: FontWeight.bold),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(15),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  if (currentUser_role == 2 && current_restaurant != null) ...[
-                    SizedBox(height: size.height * 0.03),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 25.0),
-                      child: CommentSection(
-                        targetType: 1,
-                        targetID: widget.restaurant_id,
                       ),
                     ),
                   ],
-                  SizedBox(height: size.height * 0.05),
-                ],
+                ),
+              ),
+              bottom: PreferredSize(
+                preferredSize: const Size.fromHeight(0),
+                child: Container(
+                  height: 24,
+                  decoration: const BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+                  ),
+                ),
               ),
             ),
-          ),
+            // ── Contenu ──────────────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  // Nom + statut
+                  Row(children: [
+                    Expanded(
+                      child: Text(current_restaurant!.name ?? '', style: AppTypography.headlineMedium()),
+                    ),
+                    // Badge ouvert/fermé
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: (current_restaurant!.isOpen == 1 ? AppColors.success : AppColors.error).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(current_restaurant!.isOpen == 1 ? 'Ouvert' : 'Fermé',
+                          style: TextStyle(
+                            color: current_restaurant!.isOpen == 1 ? AppColors.success : AppColors.error,
+                            fontSize: 12, fontWeight: FontWeight.w700,
+                          )),
+                    ),
+                  ]),
+                  const SizedBox(height: 8),
+                  // Note étoiles
+                  Row(children: [
+                    StarRating(rating: double.tryParse(noteCtrl.text) ?? 0),
+                    const SizedBox(width: 6),
+                    Text('${noteCtrl.text}/5', style: AppTypography.bodyMedium()),
+                    const SizedBox(width: 16),
+                    const Icon(Icons.access_time_rounded, color: AppColors.inkSubtle, size: 16),
+                    const SizedBox(width: 4),
+                    Text(current_restaurant!.openingHours, style: AppTypography.bodyMedium()),
+                  ]),
+                  const SizedBox(height: 12),
+                  // Description
+                  Text(current_restaurant!.description ?? '', style: AppTypography.bodyLarge()),
+                  const SizedBox(height: 16),
+                  // Catégories
+                  if (catCtrl.text.isNotEmpty)
+                    Wrap(spacing: 8, runSpacing: 8, children: catCtrl.text.split(', ').map((h) =>
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: AppColors.brandSurface,
+                          borderRadius: BorderRadius.circular(AppRadius.lg),
+                        ),
+                        child: Text(h, style: AppTypography.labelMedium(color: AppColors.brand).copyWith(fontSize: 12)),
+                      ),
+                    ).toList()),
+                  const SizedBox(height: 24),
+
+                  // ── MENU ──────────────────────────────
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceWarm,
+                      borderRadius: BorderRadius.circular(AppRadius.lg),
+                    ),
+                    child: Row(children: [
+                      Text('Menu', style: AppTypography.titleMedium()),
+                      const SizedBox(width: 8),
+                      Text('${dishes.length} plats', style: AppTypography.bodyMedium()),
+                    ]),
+                  ),
+                  const SizedBox(height: 12),
+                  ...dishes.map((dish) => _buildDishItem(dish)),
+                  const SizedBox(height: 24),
+
+                  // ── Avis ──────────────────────────────
+                  if (currentUser_role == 2 && current_restaurant != null) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceWarm,
+                        borderRadius: BorderRadius.circular(AppRadius.lg),
+                      ),
+                      child: Text('Avis', style: AppTypography.titleMedium()),
+                    ),
+                    const SizedBox(height: 12),
+                    CommentSection(targetType: 1, targetID: widget.restaurant_id),
+                  ],
+
+                  // ── Boutons admin ─────────────────────
+                  if (isOwner) ...[
+                    const SizedBox(height: 24),
+                    Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      if (isEditMode)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 10),
+                          child: OutlinedButton(
+                            onPressed: () {
+                              setState(() {
+                                nameCtrl.text = current_restaurant?.name ?? '';
+                                descCtrl.text = current_restaurant?.description ?? '';
+                                hoursCtrl.text = current_restaurant?.openingHours ?? '';
+                                feeCtrl.text = current_restaurant?.deliveryFee.toStringAsFixed(2) ?? '0';
+                                isEditMode = false;
+                              });
+                            },
+                            child: const Text('Annuler'),
+                          ),
+                        ),
+                      ElevatedButton(
+                        onPressed: () async {
+                          if (isEditMode && _formKey.currentState?.validate() == true) {
+                            final result = await Restaurant.manageRestaurant(
+                              restaurantID: current_restaurant!.restaurantID,
+                              userID: currentUser_id,
+                              categories: _selectedHashtags.join(', '),
+                              description: descCtrl.text,
+                              location: current_restaurant!.location ?? '',
+                              name: nameCtrl.text,
+                              note: double.tryParse(noteCtrl.text) ?? 0,
+                              nb_orders: current_restaurant!.nb_orders,
+                              valid: current_restaurant!.valid,
+                              openingHours: hoursCtrl.text.trim(),
+                              deliveryFee: double.tryParse(feeCtrl.text.replaceAll(',', '.')) ?? 0,
+                              isOpen: current_restaurant!.isOpen,
+                              date_creation: current_restaurant?.date_creation,
+                              image: selectedImage != null
+                                  ? ParseFile(File(selectedImage!.path),
+                                      name: '${nameCtrl.text}_${currentUser_id}${p.extension(selectedImage!.path)}')
+                                  : null,
+                              img_url: current_restaurant?.image,
+                            );
+                            if (result == "success") {
+                              Toast(context, "Restaurant mis à jour", true);
+                              await loadData();
+                            } else {
+                              Toast(context, "Erreur : $result", false);
+                            }
+                          }
+                          setState(() => isEditMode = !isEditMode);
+                        },
+                        child: Text(isEditMode ? 'Valider' : 'Modifier'),
+                      ),
+                    ]),
+                  ],
+                  const SizedBox(height: 100),
+                ]),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
-}
 
-Widget _buildTextField({
-  required TextEditingController controller,
-  required String hintText,
-  required IconData icon,
-  String? Function(String?)? validator,
-  TextInputType? keyboardType,
-  List<TextInputFormatter>? inputFormatters,
-  int? maxLines = 1,
-}) {
-  return TextFormField(
-    controller: controller,
-    decoration: InputDecoration(
-      prefixIcon: Icon(icon),
-      hintText: hintText,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
-    ),
-    validator: validator,
-    keyboardType: keyboardType,
-    inputFormatters: inputFormatters,
-    maxLines: maxLines,
-  );
-}
-
-Widget buildImage(String? imageUrl) {
-  // Vérifie si le lien est une URL valide
-  if (imageUrl != null && Uri.tryParse(imageUrl)?.hasAbsolutePath == true) {
-    return Image.network(
-      imageUrl,
-      height: 200,
-      width: 200,
-      fit: BoxFit.fitWidth,
-      errorBuilder: (context, error, stackTrace) {
-        return Image.asset(
-          'assets/images/no_image.png',
-          // Image par défaut si le chargement échoue
-          height: 200,
-          width: 200,
-          fit: BoxFit.fitWidth,
-        );
-      },
-    );
-  } else {
-    // Si ce n'est pas une URL valide, utilisez une image locale
-    return Image.asset(
-      'assets/images/no_image.png',
-      height: 200,
-      width: 200,
-      fit: BoxFit.fitWidth,
+  Widget _buildDishItem(Dish dish) {
+    return GestureDetector(
+      onTap: () => Navigator.push(context, MaterialPageRoute(
+          builder: (_) => DishDetailsMicroRestau(dish_id: dish.dishID, from_page: 1, dish_restau: widget.restaurant_id))),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: Border.all(color: AppColors.border, width: 0.5),
+        ),
+        child: Row(children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            child: Image.network(
+              dish.image ?? '',
+              width: 72, height: 72, fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                width: 72, height: 72,
+                color: AppColors.surfaceWarm,
+                child: const Icon(Icons.restaurant_rounded, color: AppColors.border),
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(dish.name ?? '', style: AppTypography.labelMedium()),
+              const SizedBox(height: 4),
+              Text(dish.description ?? '', maxLines: 2, overflow: TextOverflow.ellipsis,
+                  style: AppTypography.bodyMedium()),
+              const SizedBox(height: 4),
+              Text('${dish.price?.toStringAsFixed(2)} ${currentUser_country == 'France' ? '€' : 'FCFA'}',
+                  style: AppTypography.bodyLarge(color: AppColors.brand)),
+            ]),
+          ),
+        ]),
+      ),
     );
   }
 }

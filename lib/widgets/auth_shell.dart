@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import 'brand_avatar_logo.dart';
 
+/// Coque d'authentification Dios Délices
+/// Mobile : formulaire pleine largeur
+/// Tablette/Desktop : split screen (illustration | formulaire)
 class AuthShell extends StatelessWidget {
   const AuthShell({
     super.key,
@@ -9,27 +12,43 @@ class AuthShell extends StatelessWidget {
     required this.subtitle,
     required this.form,
     this.footer,
+    this.heroImage,
   });
 
   final String title;
   final String subtitle;
   final Widget form;
   final Widget? footer;
+  final Widget? heroImage;
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-
     return Scaffold(
       backgroundColor: AppColors.surface,
       body: Stack(
         children: [
-          const _AuthBackdrop(),
+          // Fond dégradé signature
+          const Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    AppColors.surface,
+                    AppColors.gradientEnd,
+                    AppColors.surface,
+                  ],
+                  stops: [0.0, 0.5, 1.0],
+                ),
+              ),
+            ),
+          ),
           SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final isWide = constraints.maxWidth >= 980;
-                final horizontalPadding = isWide ? 48.0 : 20.0;
+                final hPad = isWide ? 48.0 : 20.0;
 
                 final content = isWide
                     ? IntrinsicHeight(
@@ -39,6 +58,7 @@ class AuthShell extends StatelessWidget {
                               child: _AuthHero(
                                 title: title,
                                 subtitle: subtitle,
+                                heroImage: heroImage,
                               ),
                             ),
                             const SizedBox(width: 36),
@@ -60,6 +80,7 @@ class AuthShell extends StatelessWidget {
                             title: title,
                             subtitle: subtitle,
                             compact: true,
+                            heroImage: heroImage,
                           ),
                           const SizedBox(height: 22),
                           _AuthCard(
@@ -73,15 +94,10 @@ class AuthShell extends StatelessWidget {
                       );
 
                 return SingleChildScrollView(
-                  padding: EdgeInsets.fromLTRB(
-                    horizontalPadding,
-                    18,
-                    horizontalPadding,
-                    18,
-                  ),
+                  padding: EdgeInsets.fromLTRB(hPad, 18, hPad, 18),
                   child: ConstrainedBox(
                     constraints: BoxConstraints(
-                      minHeight: size.height - 36,
+                      minHeight: MediaQuery.of(context).size.height - 36,
                     ),
                     child: content,
                   ),
@@ -95,47 +111,21 @@ class AuthShell extends StatelessWidget {
   }
 }
 
-class _AuthBackdrop extends StatelessWidget {
-  const _AuthBackdrop();
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        const DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Colors.white,
-                Color(0xFFFFFCFA),
-                Color(0xFFFFF4EE),
-              ],
-            ),
-          ),
-          child: SizedBox.expand(),
-        ),
-      ],
-    );
-  }
-}
-
 class _AuthHero extends StatelessWidget {
   const _AuthHero({
     required this.title,
     required this.subtitle,
     this.compact = false,
+    this.heroImage,
   });
 
   final String title;
   final String subtitle;
   final bool compact;
+  final Widget? heroImage;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Column(
       crossAxisAlignment:
           compact ? CrossAxisAlignment.center : CrossAxisAlignment.start,
@@ -143,47 +133,67 @@ class _AuthHero extends StatelessWidget {
       children: [
         if (compact) ...[
           const SizedBox(height: 46),
-          const Center(child: BrandAvatarLogo(radius: 58)),
+          // Logo dans un cercle avec ombre chaude
+          Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.brandDark.withValues(alpha: 0.15),
+                  blurRadius: 24,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: const BrandAvatarLogo(radius: 62),
+          ),
           const SizedBox(height: 30),
         ] else ...[
           const SizedBox(height: 24),
           const BrandAvatarLogo(radius: 58),
           const SizedBox(height: 28),
+          // Badge marque pill
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.72),
+              color: AppColors.card.withValues(alpha: 0.85),
               borderRadius: BorderRadius.circular(999),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.ink.withValues(alpha: 0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: Text(
               'Dios Délices',
-              style: theme.textTheme.labelLarge?.copyWith(
-                color: AppColors.brandDark,
-              ),
+              style: AppTypography.labelLarge(color: AppColors.brandDark),
             ),
           ),
           const SizedBox(height: 20),
+          // Illustration ou espace visuel
+          if (heroImage != null) ...[
+            heroImage!,
+            const SizedBox(height: 24),
+          ],
         ],
         Text(
-          compact
-              ? title
-              : 'Une expérience plus chaleureuse pour commander et vendre.',
+          compact ? title : 'Neighborhood cooking,\nwarmer and simpler.',
           textAlign: compact ? TextAlign.center : TextAlign.start,
-          style: theme.textTheme.displayMedium?.copyWith(
+          style: AppTypography.displayMedium().copyWith(
             fontSize: compact ? 36 : 44,
             height: 1.08,
+            color: AppColors.ink,
           ),
         ),
         const SizedBox(height: 14),
         Text(
           compact
               ? subtitle
-              : 'Refonte progressive de l’application avec une interface plus claire, plus gourmande et plus premium.',
+              : 'Connectez-vous pour découvrir les meilleurs plats faits maison près de chez vous.',
           textAlign: compact ? TextAlign.center : TextAlign.start,
-          style: theme.textTheme.bodyLarge?.copyWith(
-            color: AppColors.inkMuted,
-            height: 1.45,
-          ),
+          style: AppTypography.bodyLarge(color: AppColors.inkMuted),
         ),
       ],
     );
@@ -207,8 +217,6 @@ class _AuthCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     final content = Padding(
       padding: EdgeInsets.all(compact ? 4 : 30),
       child: Column(
@@ -216,29 +224,39 @@ class _AuthCard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (!compact) ...[
-            Text(title, style: theme.textTheme.headlineMedium),
+            Text(title, style: AppTypography.headlineMedium()),
             const SizedBox(height: 10),
             Text(
               subtitle,
-              style: theme.textTheme.bodyLarge?.copyWith(
-                color: AppColors.inkMuted,
-              ),
+              style: AppTypography.bodyLarge(color: AppColors.inkMuted),
             ),
             const SizedBox(height: 24),
           ],
           form,
           if (footer != null) ...[
             const SizedBox(height: 22),
-            footer!,
+            Align(alignment: Alignment.center, child: footer!),
           ],
         ],
       ),
     );
 
-    if (compact) {
-      return content;
-    }
+    if (compact) return content;
 
-    return Card(child: content);
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+        border: Border.all(color: AppColors.border, width: 0.5),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.ink.withValues(alpha: 0.05),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: content,
+    );
   }
 }

@@ -19,7 +19,7 @@ class Restaurant extends HiveObject {
   final String description;
 
   @HiveField(4)
-  final String adress;
+  final String location;
 
   @HiveField(5)
   final String name;
@@ -61,12 +61,14 @@ class Restaurant extends HiveObject {
   double deliveryRadius;
   String closedDates;
 
+  String openingHoursByDay;
+
   Restaurant(
       {required this.restaurantID,
       required this.userID,
       required this.categories,
       required this.description,
-      required this.adress,
+      required this.location,
       required this.name,
       required this.note,
       required this.nb_orders,
@@ -83,7 +85,8 @@ class Restaurant extends HiveObject {
       this.openingDays = 'Lun,Mar,Mer,Jeu,Ven,Sam',
       this.minOrderAmount = 0,
       this.deliveryRadius = 10,
-      this.closedDates = ''});
+      this.closedDates = '',
+      this.openingHoursByDay = ''});
 
   Map<String, dynamic> toMap() {
     return {
@@ -91,7 +94,7 @@ class Restaurant extends HiveObject {
       'userID': userID,
       'categories': categories,
       'description': description,
-      'adress': adress,
+      'adress': location,
       'name': name,
       'note': note,
       'nb_orders': nb_orders,
@@ -109,6 +112,7 @@ class Restaurant extends HiveObject {
       'minOrderAmount': minOrderAmount,
       'deliveryRadius': deliveryRadius,
       'closedDates': closedDates,
+      'openingHoursByDay': openingHoursByDay,
     };
   }
 
@@ -126,7 +130,7 @@ class Restaurant extends HiveObject {
         description: map['description']?.toString() ??
             map['description']?.toString() ??
             '',
-        adress: map['adress']?.toString() ?? map['adress']?.toString() ?? '',
+        location: map['adress']?.toString() ?? map['adress']?.toString() ?? '',
         name: map['name']?.toString() ?? map['name']?.toString() ?? '',
         date_creation: map['date_creation'] != null && map['date_creation']['iso'] != null
             ? DateTime.tryParse(map['date_creation']['iso'])
@@ -143,7 +147,8 @@ class Restaurant extends HiveObject {
         openingDays: map['openingDays']?.toString() ?? 'Lun,Mar,Mer,Jeu,Ven,Sam',
         minOrderAmount: double.tryParse(map['minOrderAmount']?.toString() ?? '0') ?? 0,
         deliveryRadius: double.tryParse(map['deliveryRadius']?.toString() ?? '10') ?? 10,
-        closedDates: map['closedDates']?.toString() ?? '');
+        closedDates: map['closedDates']?.toString() ?? '',
+        openingHoursByDay: map['openingHoursByDay']?.toString() ?? '');
   }
 
   Restaurant copy({
@@ -154,7 +159,7 @@ class Restaurant extends HiveObject {
     int? nb_orders,
     String? categories,
     String? description,
-    String? adress,
+    String? location,
     String? name,
     DateTime? date_creation,
     String? image,
@@ -169,6 +174,7 @@ class Restaurant extends HiveObject {
     double? minOrderAmount,
     double? deliveryRadius,
     String? closedDates,
+    String? openingHoursByDay,
   }) {
     return Restaurant(
         restaurantID: restaurantID ?? this.restaurantID,
@@ -178,7 +184,7 @@ class Restaurant extends HiveObject {
         valid: valid ?? this.valid,
         categories: categories ?? this.categories,
         description: description ?? this.description,
-        adress: adress ?? this.adress,
+        location: location ?? this.location,
         name: name ?? this.name,
         date_creation: date_creation ?? this.date_creation,
         image: image ?? this.image,
@@ -192,7 +198,8 @@ class Restaurant extends HiveObject {
         openingDays: openingDays ?? this.openingDays,
         minOrderAmount: minOrderAmount ?? this.minOrderAmount,
         deliveryRadius: deliveryRadius ?? this.deliveryRadius,
-        closedDates: closedDates ?? this.closedDates);
+        closedDates: closedDates ?? this.closedDates,
+        openingHoursByDay: openingHoursByDay ?? this.openingHoursByDay);
   }
 
   static Future<String> manageRestaurant({
@@ -203,7 +210,7 @@ class Restaurant extends HiveObject {
     required double note,
     required String categories,
     required String description,
-    required String adress,
+    required String location,
     required String name,
     String openingHours = '09:00 - 20:00',
     double deliveryFee = 0.0,
@@ -219,6 +226,7 @@ class Restaurant extends HiveObject {
     double minOrderAmount = 0,
     double deliveryRadius = 10,
     String closedDates = '',
+    String openingHoursByDay = '',
   }) async {
     // Determine cloud function name based on operation
     String functionName = restaurantID == null ? 'add1Restaurant' : 'update1Restaurant';
@@ -263,7 +271,7 @@ class Restaurant extends HiveObject {
       'userID': userID,
       'categories': categories,
       'description': description,
-      'adress': adress,
+      'adress': location,
       'name': name,
       'note': note,
       'nb_orders': nb_orders,
@@ -280,6 +288,7 @@ class Restaurant extends HiveObject {
       'minOrderAmount': minOrderAmount,
       'deliveryRadius': deliveryRadius,
       'closedDates': closedDates,
+      'openingHoursByDay': openingHoursByDay,
       'date_creation': {
         "__type": "Date",
         "iso": date_creation?.toIso8601String()
@@ -307,7 +316,7 @@ class Restaurant extends HiveObject {
             note: note,
             categories: categories,
             description: description,
-            adress: adress,
+            location: location,
             name: name,
             image: image == null ? img_url : imageUrl,
             date_creation: date_creation,

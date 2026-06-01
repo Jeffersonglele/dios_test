@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dios_delices/Screen/authentification/Signup.dart';
@@ -13,7 +14,6 @@ import '../theme/app_theme.dart';
 import '../utils/toast.dart';
 import '../widgets/brand_avatar_logo.dart';
 import '../utils/strings.dart';
-import 'GuestBrowsePage.dart';
 
 class AnimatedSplashScreen extends ConsumerStatefulWidget {
   const AnimatedSplashScreen({Key? key}) : super(key: key);
@@ -25,10 +25,11 @@ class AnimatedSplashScreen extends ConsumerStatefulWidget {
 
 class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
     with SingleTickerProviderStateMixin {
-  late final AnimationController animationController;
-  late final Animation<double> logoScale;
-  late final Animation<double> logoOpacity;
-  late final Animation<Offset> contentSlide;
+  late final AnimationController _controller;
+  late final Animation<double> _logoScale;
+  late final Animation<double> _logoRotate;
+  late final Animation<double> _textOpacity;
+  late final Animation<Offset> _textSlide;
 
   bool isLoading = false;
   bool showContent = false;
@@ -57,42 +58,43 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
   void initState() {
     super.initState();
 
-    animationController = AnimationController(
+    _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1800),
+      duration: const Duration(milliseconds: 2200),
     );
 
+    // Animation 3D : rotation + scale du logo
     final curved = CurvedAnimation(
-      parent: animationController,
-      curve: Curves.easeOutCubic,
+      parent: _controller,
+      curve: const Interval(0, 0.55, curve: AppMotion.standard),
+    );
+    final textCurve = CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(0.35, 0.7, curve: AppMotion.standard),
     );
 
-    logoScale = Tween<double>(begin: 0.84, end: 1).animate(curved);
-    logoOpacity = Tween<double>(begin: 0.3, end: 1).animate(curved);
-    contentSlide = Tween<Offset>(
-      begin: const Offset(0, 0.08),
+    _logoScale = Tween<double>(begin: 0.4, end: 1).animate(curved);
+    _logoRotate = Tween<double>(begin: -0.12, end: 0).animate(curved);
+    _textOpacity = Tween<double>(begin: 0, end: 1).animate(textCurve);
+    _textSlide = Tween<Offset>(
+      begin: const Offset(0, 0.1),
       end: Offset.zero,
-    ).animate(curved);
+    ).animate(textCurve);
 
-    animationController.forward();
-    Future<void>.delayed(const Duration(milliseconds: 220), () {
-      if (mounted) {
-        setState(() {
-          showContent = true;
-        });
-      }
+    _controller.forward();
+    Future<void>.delayed(const Duration(milliseconds: 600), () {
+      if (mounted) setState(() => showContent = true);
     });
     startTime();
   }
 
   Future<bool> isConnectedToInternet() async {
-    final connectivityResults = await Connectivity().checkConnectivity();
-    return !connectivityResults.contains(ConnectivityResult.none);
+    final results = await Connectivity().checkConnectivity();
+    return !results.contains(ConnectivityResult.none);
   }
 
   void startTime() {
-    const splashDelay = Duration(milliseconds: 1800);
-    Timer(splashDelay, getData);
+    Timer(const Duration(milliseconds: 2200), getData);
   }
 
   Future<void> getData() async {
@@ -102,35 +104,27 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
       return;
     }
 
-    setState(() {
-      isLoading = true;
-    });
+    if (!mounted) return;
+    setState(() => isLoading = true);
 
     try {
       await AppBootstrapService.syncInitialData();
     } catch (e) {
       if (!mounted) return;
-      setState(() {
-        isLoading = false;
-      });
+      setState(() => isLoading = false);
       Toast(context, e.toString(), false);
       return;
     }
 
     final destination = await LaunchFlowService.resolveDestination();
     if (!mounted) return;
-
-    setState(() {
-      isLoading = false;
-    });
+    setState(() => isLoading = false);
 
     switch (destination) {
       case LaunchDestination.onboarding:
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
-          setState(() {
-            showOnboarding = true;
-          });
+          setState(() => showOnboarding = true);
         });
         break;
       case LaunchDestination.signup:
@@ -140,9 +134,6 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
         final session = await SessionService.readSession();
         if (!mounted) return;
         Users.chooseCurvedNavigation(session.role.id, session.country, context);
-        break;
-      case LaunchDestination.browse:
-        _goToBrowse();
         break;
     }
   }
@@ -159,21 +150,11 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
         transitionDuration: const Duration(milliseconds: 700),
         reverseTransitionDuration: const Duration(milliseconds: 450),
         pageBuilder: (_, animation, __) => FadeTransition(
-          opacity: animation,
+          opacity: CurvedAnimation(
+            parent: animation,
+            curve: AppMotion.standard,
+          ),
           child: const SignUpView(),
-        ),
-      ),
-    );
-  }
-
-  void _goToBrowse() {
-    Navigator.of(context).pushReplacement(
-      PageRouteBuilder(
-        transitionDuration: const Duration(milliseconds: 700),
-        reverseTransitionDuration: const Duration(milliseconds: 450),
-        pageBuilder: (_, animation, __) => FadeTransition(
-          opacity: animation,
-          child: const GuestBrowsePage(),
         ),
       ),
     );
@@ -184,72 +165,79 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
       _completeOnboarding();
       return;
     }
-
-    setState(() {
-      currentStep += 1;
-    });
+    setState(() => currentStep += 1);
   }
 
   @override
   void dispose() {
-    animationController.dispose();
+    _controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (showOnboarding) {
-      return _buildOnboarding(context);
-    }
-
+    if (showOnboarding) return _buildOnboarding(context);
     return _buildSplash(context);
   }
 
+  // ═══════════════════════════════════════════════════════════
+  // SPLASH — Logo 3D animé + fond dégradé signature
+  // ═══════════════════════════════════════════════════════════
   Widget _buildSplash(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
       backgroundColor: AppColors.surface,
       body: Stack(
         fit: StackFit.expand,
         children: [
-          Image.asset(
-            'assets/images/background.jpg',
-            fit: BoxFit.cover,
-          ),
-          DecoratedBox(
+          // Fond dégradé signature (crème → pêche pâle)
+          const DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  AppColors.surface.withValues(alpha: 0.92),
-                  AppColors.surface.withValues(alpha: 0.82),
-                  const Color(0xFFFFDCC3).withValues(alpha: 0.96),
+                  AppColors.surface,
+                  AppColors.gradientEnd,
+                  AppColors.surface,
                 ],
+                stops: [0.0, 0.55, 1.0],
               ),
             ),
+            child: SizedBox.expand(),
           ),
-          const DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                center: Alignment(0.2, -0.18),
-                radius: 0.86,
-                colors: [
-                  Color(0x00FFFFFF),
-                  Color(0x7AFFF8F3),
-                ],
+          // Particules décoratives subtiles
+          ...List.generate(6, (i) {
+            final rng = math.Random(i * 7);
+            return Positioned(
+              left: 30 + rng.nextDouble() * 300,
+              top: 80 + rng.nextDouble() * 500,
+              child: TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0, end: 12 + rng.nextDouble() * 8),
+                duration: Duration(seconds: 2 + rng.nextInt(2)),
+                builder: (_, v, __) => Transform.translate(
+                  offset: Offset(0, math.sin(v * 0.5) * 4),
+                  child: Container(
+                    width: 5 + rng.nextDouble() * 6,
+                    height: 5 + rng.nextDouble() * 6,
+                    decoration: BoxDecoration(
+                      color: AppColors.accent.withValues(alpha: 0.18),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
               ),
-            ),
-          ),
+            );
+          }),
+          // Contenu principal
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 26),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // Logo + marque haut de page
                   AnimatedOpacity(
-                    duration: const Duration(milliseconds: 800),
+                    duration: AppMotion.slow,
                     opacity: showContent ? 1 : 0,
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -258,105 +246,103 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
                         const SizedBox(width: 12),
                         Text(
                           'Dios Délices',
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            color: AppColors.ink,
-                            fontSize: 24,
+                          style: AppTypography.titleLarge().copyWith(
                             fontWeight: FontWeight.w900,
+                            fontSize: 24,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const Spacer(),
+                  const Spacer(flex: 2),
+                  // Logo 3D animé
                   Center(
-                    child: FadeTransition(
-                      opacity: logoOpacity,
-                      child: ScaleTransition(
-                        scale: logoScale,
-                        child: SizedBox(
-                          width: 118,
-                          height: 118,
-                          child: DecoratedBox(
-                            decoration: const BoxDecoration(
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Color(0x1F8E2F1B),
-                                  blurRadius: 28,
-                                  offset: Offset(0, 16),
-                                ),
-                              ],
+                    child: AnimatedBuilder(
+                      animation: _controller,
+                      builder: (context, child) {
+                        return Transform(
+                          alignment: Alignment.center,
+                          transform: Matrix4.identity()
+                            ..setEntry(3, 2, 0.001) // perspective
+                            ..rotateY(_logoRotate.value)
+                            ..scale(_logoScale.value),
+                          child: child,
+                        );
+                      },
+                      child: Container(
+                        width: 130,
+                        height: 130,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppColors.card,
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.brandDark.withValues(alpha: 0.22),
+                              blurRadius: 40,
+                              offset: const Offset(0, 20),
                             ),
-                            child: _LogoMark(size: 118),
-                          ),
+                          ],
+                        ),
+                        child: const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: _LogoMark(size: 106),
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 34),
-                  SlideTransition(
-                    position: contentSlide,
-                    child: AnimatedOpacity(
-                      duration: const Duration(milliseconds: 700),
-                      opacity: showContent ? 1 : 0,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.68),
-                          borderRadius: BorderRadius.circular(30),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.72),
-                          ),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x14000000),
-                              blurRadius: 24,
-                              offset: Offset(0, 14),
+                  const Spacer(flex: 2),
+                  // Slogan
+                  FadeTransition(
+                    opacity: _textOpacity,
+                    child: SlideTransition(
+                      position: _textSlide,
+                      child: Column(
+                        children: [
+                          Text(
+                            'Neighborhood cooking,',
+                            textAlign: TextAlign.center,
+                            style: AppTypography.displayMedium().copyWith(
+                              fontSize: 32,
+                              height: 1.12,
                             ),
-                          ],
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(22, 26, 22, 24),
-                          child: Column(
-                            children: [
-                              Text(
-                                Strings.of('splash_title'),
-                                textAlign: TextAlign.center,
-                                style: theme.textTheme.headlineMedium?.copyWith(
-                                  fontSize: 30,
-                                  height: 1.18,
-                                  color: AppColors.ink,
-                                ),
-                              ),
-                              const SizedBox(height: 14),
-                              Text(
-                                Strings.of('splash_subtitle'),
-                                textAlign: TextAlign.center,
-                                style: theme.textTheme.bodyLarge?.copyWith(
-                                  color: AppColors.inkMuted,
-                                  height: 1.45,
-                                ),
-                              ),
-                              const SizedBox(height: 28),
-                              if (isLoading)
-                                Column(
-                                  children: [
-                                    const SizedBox(
-                                      width: 32,
-                                      height: 32,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 3,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 14),
-                                    Text(
-                                      Strings.of('splash_loading'),
-                                      style: theme.textTheme.bodyMedium,
-                                    ),
-                                  ],
-                                ),
-                            ],
                           ),
-                        ),
+                          Text(
+                            'warmer and simpler.',
+                            textAlign: TextAlign.center,
+                            style: AppTypography.displayMedium().copyWith(
+                              fontSize: 32,
+                              height: 1.12,
+                              color: AppColors.brand,
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          Text(
+                            Strings.of('splash_subtitle'),
+                            textAlign: TextAlign.center,
+                            style: AppTypography.bodyLarge(
+                              color: AppColors.inkMuted,
+                            ),
+                          ),
+                          const SizedBox(height: 40),
+                          // Indicateur de chargement
+                          if (isLoading)
+                            Column(
+                              children: [
+                                const SizedBox(
+                                  width: 28,
+                                  height: 28,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                  ),
+                                ),
+                                const SizedBox(height: 14),
+                                Text(
+                                  Strings.of('splash_loading'),
+                                  style: AppTypography.bodyMedium(),
+                                ),
+                              ],
+                            ),
+                        ],
                       ),
                     ),
                   ),
@@ -370,8 +356,10 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
     );
   }
 
+  // ═══════════════════════════════════════════════════════════
+  // ONBOARDING — 3 slides immersifs plein écran
+  // ═══════════════════════════════════════════════════════════
   Widget _buildOnboarding(BuildContext context) {
-    final theme = Theme.of(context);
     final step = steps[currentStep];
 
     return Scaffold(
@@ -379,43 +367,33 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
       body: Stack(
         fit: StackFit.expand,
         children: [
+          // Image immersive avec transition fluide
           AnimatedSwitcher(
-            duration: const Duration(milliseconds: 260),
+            duration: const Duration(milliseconds: 500),
+            switchInCurve: AppMotion.standard,
+            switchOutCurve: AppMotion.accelerate,
             child: Image.asset(
               step.imagePath,
               key: ValueKey(step.imagePath),
               fit: BoxFit.cover,
             ),
           ),
-          DecoratedBox(
+          // Overlay dégradé chaud (pas noir froid)
+          const DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Colors.black.withValues(alpha: 0.18),
-                  Colors.black.withValues(alpha: 0.08),
-                  Colors.black.withValues(alpha: 0.74),
+                  Color(0x00261814),
+                  Color(0x66261814),
+                  Color(0xCC261814),
+                  Color(0xFF261814),
                 ],
+                stops: [0.0, 0.35, 0.7, 1.0],
               ),
             ),
-          ),
-          const Align(
-            alignment: Alignment.bottomCenter,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Color(0x00000000),
-                    Color(0xE6261814),
-                    Color(0xFF261814),
-                  ],
-                ),
-              ),
-              child: SizedBox(height: 360),
-            ),
+            child: SizedBox.expand(),
           ),
           SafeArea(
             child: Padding(
@@ -423,116 +401,114 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  DecoratedBox(
+                  // Badge marque
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.88),
-                      borderRadius: BorderRadius.circular(999),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x17000000),
-                          blurRadius: 18,
-                          offset: Offset(0, 8),
+                      color: AppColors.card.withValues(alpha: 0.9),
+                      borderRadius: BorderRadius.circular(AppRadius.lg),
+                      boxShadow: AppShadows.floatingList,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _LogoMark(size: 28),
+                        const SizedBox(width: 10),
+                        Text(
+                          'Dios Délices',
+                          style: AppTypography.titleMedium().copyWith(
+                            fontWeight: FontWeight.w900,
+                          ),
                         ),
                       ],
                     ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
+                  ),
+                  const Spacer(),
+                  // Carte de contenu avec fond chaud semi-transparent
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 350),
+                    switchInCurve: AppMotion.standard,
+                    child: Container(
+                      key: ValueKey(step.titleKey),
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(28),
+                      decoration: BoxDecoration(
+                        color: AppColors.ink.withValues(alpha: 0.72),
+                        borderRadius: BorderRadius.circular(AppRadius.xl),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.1),
+                        ),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _LogoMark(size: 30),
-                          const SizedBox(width: 10),
                           Text(
-                            'Dios Délices',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              color: AppColors.ink,
-                              fontWeight: FontWeight.w900,
+                            Strings.of(step.titleKey),
+                            style: AppTypography.headlineLarge(
+                              color: Colors.white,
+                            ).copyWith(height: 1.12),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            Strings.of(step.bodyKey),
+                            style: AppTypography.bodyLarge(
+                              color: Colors.white.withValues(alpha: 0.82),
                             ),
                           ),
                         ],
                       ),
                     ),
                   ),
-                  const Spacer(),
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: AppColors.ink.withValues(alpha: 0.78),
-                      borderRadius: BorderRadius.circular(30),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.12),
-                      ),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(22, 24, 22, 22),
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 220),
-                        child: Column(
-                          key: ValueKey(step.titleKey),
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              Strings.of(step.titleKey),
-                              style: theme.textTheme.headlineMedium?.copyWith(
-                                color: Colors.white,
-                                fontSize: 31,
-                                height: 1.12,
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-                            Text(
-                              Strings.of(step.bodyKey),
-                              style: theme.textTheme.bodyLarge?.copyWith(
-                                color: Colors.white.withValues(alpha: 0.82),
-                                height: 1.45,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 32),
+                  // Indicateur de progression + boutons
                   Row(
                     children: [
+                      // Dots animés
                       ...List.generate(
                         steps.length,
                         (dotIndex) => AnimatedContainer(
-                          duration: const Duration(milliseconds: 240),
-                          width: currentStep == dotIndex ? 28 : 9,
-                          height: 9,
+                          duration: AppMotion.normal,
+                          width: currentStep == dotIndex ? 32 : 10,
+                          height: 10,
                           margin: const EdgeInsets.only(right: 8),
                           decoration: BoxDecoration(
                             color: currentStep == dotIndex
-                                ? Colors.white
-                                : Colors.white.withValues(alpha: 0.42),
-                            borderRadius: BorderRadius.circular(99),
+                                ? AppColors.accent
+                                : Colors.white.withValues(alpha: 0.35),
+                            borderRadius: BorderRadius.circular(999),
                           ),
                         ),
                       ),
                       const Spacer(),
+                      // Skip
                       TextButton(
                         onPressed: _completeOnboarding,
                         child: Text(
                           Strings.of('skip'),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w800,
+                          style: AppTypography.labelLarge(
+                            color: Colors.white.withValues(alpha: 0.8),
                           ),
                         ),
                       ),
                       const SizedBox(width: 10),
+                      // Bouton suivant / démarrer
                       SizedBox(
-                        width: 128,
-                        height: 48,
+                        width: 140,
+                        height: 52,
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            fixedSize: const Size(128, 48),
+                            backgroundColor: AppColors.accent,
+                            foregroundColor: AppColors.ink,
                             minimumSize: Size.zero,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
+                            padding: const EdgeInsets.symmetric(horizontal: 18),
+                            textStyle: AppTypography.labelLarge(
+                              color: AppColors.ink,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(AppRadius.md),
                             ),
                           ),
                           onPressed: _goToNextStep,
@@ -564,7 +540,6 @@ class _OnboardingStep {
     required this.titleKey,
     required this.bodyKey,
   });
-
   final String imagePath;
   final String titleKey;
   final String bodyKey;
@@ -572,7 +547,6 @@ class _OnboardingStep {
 
 class _LogoMark extends StatelessWidget {
   const _LogoMark({required this.size});
-
   final double size;
 
   @override

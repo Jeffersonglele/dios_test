@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../theme/app_theme.dart';
 
 class LegalPage extends StatelessWidget {
   const LegalPage({super.key});
@@ -6,7 +7,8 @@ class LegalPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Mentions légales'), backgroundColor: Colors.deepOrange, foregroundColor: Colors.white),
+      appBar: AppBar(title: const Text('Mentions légales')),
+      backgroundColor: AppColors.surface,
       body: const SingleChildScrollView(
         padding: EdgeInsets.all(16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

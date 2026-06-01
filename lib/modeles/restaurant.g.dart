@@ -21,7 +21,7 @@ class RestaurantAdapter extends TypeAdapter<Restaurant> {
       userID: fields[1] as int,
       categories: fields[2] as String,
       description: fields[3] as String,
-      adress: fields[4] as String,
+      location: fields[4] as String,
       name: fields[5] as String,
       note: fields[6] as double,
       nb_orders: fields[10] as int,
@@ -47,7 +47,7 @@ class RestaurantAdapter extends TypeAdapter<Restaurant> {
       ..writeByte(3)
       ..write(obj.description)
       ..writeByte(4)
-      ..write(obj.adress)
+      ..write(obj.location)
       ..writeByte(5)
       ..write(obj.name)
       ..writeByte(6)

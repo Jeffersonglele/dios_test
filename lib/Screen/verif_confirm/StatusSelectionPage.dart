@@ -105,7 +105,7 @@ class StatusSelectionPage extends ConsumerWidget {
                                       note: 0.0,
                                       categories: "",
                                       description: "",
-                                      adress: "",
+                                      location: "",
                                       name: fictifName);
                               print("createResult restau " + createResult);
                             }

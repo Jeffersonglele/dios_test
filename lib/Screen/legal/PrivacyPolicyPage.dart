@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../theme/app_theme.dart';
 
 class PrivacyPolicyPage extends StatelessWidget {
   const PrivacyPolicyPage({super.key});
@@ -6,7 +7,8 @@ class PrivacyPolicyPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Politique de confidentialité'), backgroundColor: Colors.deepOrange, foregroundColor: Colors.white),
+      appBar: AppBar(title: const Text('Politique de confidentialité')),
+      backgroundColor: AppColors.surface,
       body: const SingleChildScrollView(
         padding: EdgeInsets.all(16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

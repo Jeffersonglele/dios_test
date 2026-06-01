@@ -367,7 +367,7 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
                               note: 0.0,
                               categories: _selectedHashtags.join(', '),
                               description: _descriptionController.text,
-                              adress: _addressController.text,
+                              location: _addressController.text,
                               name: _nameController.text,
                               openingHours: _openingHoursController.text.trim(),
                               deliveryFee: double.parse(

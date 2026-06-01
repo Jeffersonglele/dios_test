@@ -53,6 +53,9 @@ class Dish extends HiveObject {
 
   String currency;
 
+  int stock;
+  bool isDailySpecial;
+
   Dish({
     required this.dishID,
     required this.userID,
@@ -70,6 +73,8 @@ class Dish extends HiveObject {
     required this.restauID,
     required this.status,
     this.currency = 'EUR',
+    this.stock = 99,
+    this.isDailySpecial = false,
   });
 
   Map<String, dynamic> toMap() {

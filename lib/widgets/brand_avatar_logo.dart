@@ -1,6 +1,5 @@
 import 'package:avatar_glow/avatar_glow.dart';
 import 'package:flutter/material.dart';
-
 import '../theme/app_theme.dart';
 
 class BrandAvatarLogo extends StatelessWidget {
@@ -9,43 +8,46 @@ class BrandAvatarLogo extends StatelessWidget {
     this.radius = 50,
     this.glow = true,
     this.elevation = 8,
-    this.backgroundColor = AppColors.brand,
   });
 
   final double radius;
   final bool glow;
   final double elevation;
-  final Color backgroundColor;
 
   @override
   Widget build(BuildContext context) {
-    final logo = Material(
-      elevation: elevation,
-      shape: const CircleBorder(),
-      shadowColor: AppColors.ink.withValues(alpha: 0.18),
-      child: Container(
-        width: radius * 2,
-        height: radius * 2,
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          shape: BoxShape.circle,
+    final logo = Container(
+      width: radius * 2,
+      height: radius * 2,
+      decoration: BoxDecoration(
+        color: AppColors.brand,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.brandDark.withValues(alpha: 0.25),
+            blurRadius: elevation * 2,
+            offset: Offset(0, elevation * 0.6),
+          ),
+        ],
+        gradient: const LinearGradient(
+          colors: [AppColors.brandLight, AppColors.brandDark],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        padding: EdgeInsets.all(radius * 0.22),
-        child: Image.asset(
-          'assets/images/logo-without-bg.png',
-          fit: BoxFit.contain,
-          filterQuality: FilterQuality.high,
-        ),
+      ),
+      padding: EdgeInsets.all(radius * 0.22),
+      child: Image.asset(
+        'assets/images/logo-without-bg.png',
+        fit: BoxFit.contain,
+        filterQuality: FilterQuality.high,
       ),
     );
 
-    if (!glow) {
-      return logo;
-    }
+    if (!glow) return logo;
 
     return AvatarGlow(
       duration: const Duration(seconds: 2),
-      glowColor: Colors.white24,
+      glowColor: AppColors.accent.withValues(alpha: 0.28),
       repeat: true,
       startDelay: const Duration(seconds: 1),
       child: logo,

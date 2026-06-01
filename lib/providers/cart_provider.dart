@@ -1,10 +1,14 @@
+import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../modeles/restaurant.dart';
 import '../modeles/users.dart';
 
 class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
-  CartNotifier() : super([]);
+  CartNotifier() : super([]) {
+    _loadCart();
+  }
 
   double total = 0.0;
 
@@ -115,17 +119,53 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
     }
 
     total += finalPrice * quantity;
+    _saveCart();
     return 'success';
   }
 
   void removeFromCart(int index) {
     total -= state[index]['meal']['price'] * state[index]['order']['quantity'];
     state = [...state.sublist(0, index), ...state.sublist(index + 1)];
+    _saveCart();
+  }
+
+  void _saveCart() {
+    SharedPreferences.getInstance().then((prefs) {
+      final serialized = state.map((item) => {
+        'mealID': item['meal']['mealID'],
+        'meal_name': item['meal']['meal_name'],
+        'price': item['meal']['price'],
+        'image': item['meal']['image'],
+        'country': item['meal']['country'],
+        'quantity': item['order']['quantity'],
+        'restau_id': item['restaurant']['restau_id'],
+        'user_id': item['user']['user_id'],
+        'optionPrice': item['meal']['optionPrice'] ?? 0.0,
+      }).toList();
+      prefs.setString('saved_cart', jsonEncode(serialized));
+    });
+  }
+
+  Future<void> _loadCart() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString('saved_cart');
+    if (saved == null) return;
+    try {
+      final List items = jsonDecode(saved);
+      for (final i in items) {
+        await addToCart(
+          i['mealID'], i['meal_name'], (i['price'] as num).toDouble(),
+          i['image'] ?? '', i['quantity'], 99, i['country'] ?? 'France',
+          i['user_id'], i['restau_id'],
+        );
+      }
+    } catch (_) {}
   }
 
   void clearCart() {
     state = [];
     total = 0.0;
+    _saveCart();
   }
 
   void updateQuantity(int index, int newQuantity) {
@@ -142,6 +182,7 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
 
     // Déclencher la mise à jour de l’UI
     state = List.from(state);
+    _saveCart();
   }
 
 

@@ -1,24 +1,23 @@
+import 'dart:convert';
+import 'package:dios_delices/core/commande_status.dart';
+import 'package:dios_delices/modeles/commande.dart';
+import 'package:dios_delices/modeles/dish.dart';
+import 'package:dios_delices/modeles/ligne_commande.dart';
+import 'package:dios_delices/modeles/restaurant.dart';
+import 'package:dios_delices/modeles/users.dart';
+import 'package:dios_delices/services/commande_api.dart';
+import 'package:dios_delices/services/session_service.dart';
+import 'package:dios_delices/theme/app_theme.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:http/http.dart' as http;
+import 'package:latlong2/latlong.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
-
-import '../core/commande_status.dart';
-import '../modeles/commande.dart';
-import '../modeles/dish.dart';
-import '../modeles/ligne_commande.dart';
-import '../modeles/restaurant.dart';
-import '../modeles/users.dart';
-import '../services/commande_api.dart';
-import '../services/session_service.dart';
 import 'ChatScreen.dart';
 
 class UserOrdersPage extends StatefulWidget {
-  const UserOrdersPage({
-    super.key,
-    this.showRestaurantOrders = false,
-  });
-
   final bool showRestaurantOrders;
-
+  const UserOrdersPage({super.key, this.showRestaurantOrders = false});
   @override
   State<UserOrdersPage> createState() => _UserOrdersPageState();
 }
@@ -30,546 +29,401 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
   Map<int, String> restoNames = {};
   String? statusFilter;
   final LiveQuery liveQuery = LiveQuery();
-  Subscription? commandeSubscription;
+  Subscription? sub;
 
   @override
   void initState() {
     super.initState();
     loadOrders();
-    listenToCommandes();
+    _listen();
   }
 
-  Future<void> listenToCommandes() async {
+  Future<void> _listen() async {
     final query = QueryBuilder<ParseObject>(ParseObject('Commande'));
-    commandeSubscription = await liveQuery.client.subscribe(query);
-
-    commandeSubscription!.on(LiveQueryEvent.create, (_) async {
-      await Commande.refreshLocalCommandes();
-      await loadOrders();
-    });
-
-    commandeSubscription!.on(LiveQueryEvent.update, (_) async {
-      await Commande.refreshLocalCommandes();
-      await loadOrders();
-    });
-
-    commandeSubscription!.on(LiveQueryEvent.delete, (_) async {
-      await Commande.refreshLocalCommandes();
-      await loadOrders();
-    });
+    sub = await liveQuery.client.subscribe(query);
+    sub!.on(LiveQueryEvent.create, (_) async { await Commande.refreshLocalCommandes(); await loadOrders(); });
+    sub!.on(LiveQueryEvent.update, (_) async { await Commande.refreshLocalCommandes(); await loadOrders(); });
+    sub!.on(LiveQueryEvent.delete, (_) async { await Commande.refreshLocalCommandes(); await loadOrders(); });
   }
 
   @override
   void dispose() {
-    if (commandeSubscription != null) {
-      liveQuery.client.unSubscribe(commandeSubscription!);
-    }
+    if (sub != null) liveQuery.client.unSubscribe(sub!);
     super.dispose();
   }
 
   Future<void> loadOrders() async {
     final session = await SessionService.readSession();
-    final allCommandes = await Commande.fetchCommandesFromDB();
-    final allDishes = await Dish.fetchDishesFromDB();
-    final allRestos = await Restaurant.fetchRestaurantsFromDB();
+    final allC = await Commande.fetchCommandesFromDB();
+    final allD = await Dish.fetchDishesFromDB();
+    final allR = await Restaurant.fetchRestaurantsFromDB();
 
-    final dNames = <int, String>{};
-    for (final d in allDishes) { dNames[d.dishID] = d.name ?? 'Plat ${d.dishID}'; }
-    final rNames = <int, String>{};
-    for (final r in allRestos) { rNames[r.restaurantID] = r.name; }
+    final dn = <int, String>{};
+    for (final d in allD) { dn[d.dishID] = d.name ?? 'Plat ${d.dishID}'; }
+    final rn = <int, String>{};
+    for (final r in allR) { rn[r.restaurantID] = r.name; }
 
     var filtered = widget.showRestaurantOrders
-        ? allCommandes.where((c) => c.restaurateurID == session.userId).toList()
-        : allCommandes.where((c) => c.userID == session.userId).toList();
-
-    if (statusFilter != null) {
-      filtered = filtered.where((c) => c.status == statusFilter).toList();
-    }
-
+        ? allC.where((c) => c.restaurateurID == session.userId).toList()
+        : allC.where((c) => c.userID == session.userId).toList();
+    if (statusFilter != null) filtered = filtered.where((c) => c.status == statusFilter).toList();
     filtered.sort((a, b) => b.dateCommande.compareTo(a.dateCommande));
 
     if (!mounted) return;
-    setState(() {
-      dishNames = dNames;
-      restoNames = rNames;
-      commandes = filtered;
-      isLoading = false;
-    });
+    setState(() { dishNames = dn; restoNames = rn; commandes = filtered; isLoading = false; });
   }
 
-  Future<List<LigneCommande>> getLignes(int commandeID) async {
-    return LigneCommande.fetchLignesCommandeByCommandeID(commandeID);
-  }
+  Future<List<LigneCommande>> getLignes(int id) => LigneCommande.fetchLignesCommandeByCommandeID(id);
 
-  Future<void> updateOrderStatus(int commandeId, String status) async {
-    await CommandeApi.updateOrderStatus(commandeId.toString(), status);
+  Future<void> updateStatus(int id, String s) async {
+    await CommandeApi.updateOrderStatus(id.toString(), s);
     await Commande.refreshLocalCommandes();
     await loadOrders();
   }
 
   @override
   Widget build(BuildContext context) {
-    final title =
-        widget.showRestaurantOrders ? 'Commandes reçues' : 'Mes commandes';
-
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: Column(
-        children: [
-          _buildStatusFilters(),
-          Expanded(
-            child: isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : commandes.isEmpty
-                    ? Center(
-                        child: Text(
-                          widget.showRestaurantOrders
-                              ? 'Aucune commande reçue.'
-                              : 'Aucune commande trouvée.',
-                        ),
-                      )
-                    : ListView.builder(
-                        itemCount: commandes.length,
-                        itemBuilder: (context, index) {
-                    final commande = commandes[index];
-                    final status = CommandeStatus.normalize(commande.status);
-
-                    return Card(
-                      margin: const EdgeInsets.all(12),
-                      child: ExpansionTile(
-                        title: Text(widget.showRestaurantOrders
-                            ? 'Commande #${commande.commandeID}'
-                            : restoNames[commande.restauID] ?? 'Commande #${commande.commandeID}'),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Date : ${commande.dateCommande.toLocal().toString().split(" ")[0]}\nHeure : ${commande.heure}',
-                            ),
-                            const SizedBox(height: 6),
-                            _StatusChip(status: status),
-                            if (!widget.showRestaurantOrders &&
-                                commande.deliveryStatus != null &&
-                                commande.deliveryStatus!.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 6),
-                                child: _DeliveryTracker(
-                                  status: commande.deliveryStatus!,
-                                  lat: commande.livreurLat,
-                                  lng: commande.livreurLng,
-                                ),
-                              ),
-                            if (!widget.showRestaurantOrders &&
-                                CommandeStatus.isPending(status))
-                              const Padding(
-                                padding: EdgeInsets.only(top: 6),
-                                child: Text(
-                                  'Commande en attente de confirmation par le restaurant.',
-                                  style: TextStyle(
-                                    color: Colors.orange,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                        children: [
-                          FutureBuilder<List<LigneCommande>>(
-                            future: getLignes(commande.commandeID),
-                            builder: (context, snapshot) {
-                              if (!snapshot.hasData) {
-                                return const Padding(
-                                  padding: EdgeInsets.all(8.0),
-                                  child: Center(
-                                    child: CircularProgressIndicator(),
-                                  ),
-                                );
-                              }
-
-                              final lignes = snapshot.data!;
-                              return Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  ...lignes.map(
-                                    (ligne) => ListTile(
-                                      title: Text(dishNames[ligne.platID] ?? 'Plat #${ligne.platID}'),
-                                      subtitle: Text(
-                                        'Qté: ${ligne.quantite} | ${ligne.prixUnitaire.toStringAsFixed(2)} €',
-                                      ),
-                                    ),
-                                  ),
-                                  const Divider(),
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                    ),
-                                    child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text(
-                                          'Frais livraison: ${commande.fraisLivraison.toStringAsFixed(2)}',
-                                        ),
-                                        Text(
-                                          'Réduction: ${commande.reduction.toStringAsFixed(2)}',
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  if (!widget.showRestaurantOrders)
-                                    Padding(
-                                      padding: const EdgeInsets.only(bottom: 12),
-                                      child: Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                        children: [
-                                          OutlinedButton.icon(
-                                            onPressed: () => Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (_) => ChatScreen(
-                                                  withUserID: commande.restaurateurID,
-                                                  withUsername: 'Restaurateur',
-                                                ),
-                                              ),
-                                            ),
-                                            icon: const Icon(Icons.chat, size: 18),
-                                            label: const Text('Message'),
-                                          ),
-                                          if (status == CommandeStatus.confirmed)
-                                            ElevatedButton.icon(
-                                              onPressed: () => _showRateDialog(
-                                                  context,
-                                                  commande.commandeID,
-                                                  commande.restauID,
-                                                  lignes),
-                                              icon: const Icon(Icons.star, color: Colors.amber),
-                                              label: const Text('Noter'),
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: Colors.amber.shade50,
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                  if (widget.showRestaurantOrders)
-                                    Padding(
-                                      padding: const EdgeInsets.only(
-                                        right: 16,
-                                        bottom: 12,
-                                      ),
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.end,
-                                        children: [
-                                          OutlinedButton.icon(
-                                            onPressed: () => Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (_) => ChatScreen(
-                                                  withUserID: commande.userID,
-                                                  withUsername: 'Client #${commande.commandeID}',
-                                                ),
-                                              ),
-                                            ),
-                                            icon: const Icon(Icons.chat, size: 18),
-                                            label: const Text('Message'),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          OutlinedButton.icon(
-                                            onPressed: () => _showAssignLivreurDialog(context, commande.commandeID),
-                                            icon: const Icon(Icons.person_add, size: 18),
-                                            label: const Text('Livreur'),
-                                            style: OutlinedButton.styleFrom(
-                                              side: BorderSide(color: Colors.teal),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          ElevatedButton(
-                                            onPressed: status ==
-                                                    CommandeStatus.cancelled
-                                                ? null
-                                                : () => updateOrderStatus(
-                                                      commande.commandeID,
-                                                      CommandeStatus.cancelled,
-                                                    ),
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor: Colors.red,
-                                            ),
-                                            child: const Text('Annuler'),
-                                          ),
-                                          const SizedBox(width: 10),
-                                          ElevatedButton(
-                                            onPressed: status ==
-                                                    CommandeStatus.confirmed
-                                                ? null
-                                                : () => updateOrderStatus(
-                                                      commande.commandeID,
-                                                      CommandeStatus.confirmed,
-                                                    ),
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor: Colors.green,
-                                            ),
-                                            child: const Text('Confirmer'),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  const SizedBox(height: 8),
-                                ],
-                              );
-                            },
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-          ),
-        ],
-      ),
+      backgroundColor: AppColors.surface,
+      appBar: AppBar(title: Text(widget.showRestaurantOrders ? 'Commandes reçues' : 'Mes commandes')),
+      body: Column(children: [
+        _buildFilters(),
+        Expanded(
+          child: isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : commandes.isEmpty
+                  ? Center(child: Text(widget.showRestaurantOrders ? 'Aucune commande.' : 'Aucune commande trouvée.',
+                      style: AppTypography.bodyMedium()))
+                  : ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 40),
+                      itemCount: commandes.length,
+                      itemBuilder: (_, i) => _buildCard(commandes[i]),
+                    ),
+        ),
+      ]),
     );
   }
 
-  Widget _buildStatusFilters() {
+  Widget _buildFilters() {
     final statuses = ['Tous', CommandeStatus.pending, CommandeStatus.confirmed, CommandeStatus.cancelled];
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
-        children: statuses.map((s) => Padding(
-          padding: const EdgeInsets.only(right: 8),
-          child: ChoiceChip(
-            label: Text(s == 'Tous' ? 'Tous' : s == CommandeStatus.pending ? 'En attente' : s),
-            selected: statusFilter == (s == 'Tous' ? null : s),
-            onSelected: (_) {
-              setState(() {
-                statusFilter = s == 'Tous' ? null : s;
-              });
-              loadOrders();
-            },
-          ),
-        )).toList(),
+        children: statuses.map((s) {
+          final active = statusFilter == (s == 'Tous' ? null : s);
+          final label = s == 'Tous' ? 'Tous' : s == CommandeStatus.pending ? 'En attente' : s;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: GestureDetector(
+              onTap: () {
+                setState(() => statusFilter = s == 'Tous' ? null : s);
+                loadOrders();
+              },
+              child: AnimatedContainer(
+                duration: AppMotion.fast,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: active ? AppColors.brand : AppColors.card,
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  border: Border.all(color: active ? AppColors.brand : AppColors.border, width: 0.5),
+                ),
+                child: Text(label, style: AppTypography.labelMedium(color: active ? Colors.white : AppColors.inkMuted)),
+              ),
+            ),
+          );
+        }).toList(),
       ),
     );
   }
 
-  Future<void> _showAssignLivreurDialog(BuildContext ctx, int commandeID) async {
-    final users = await Users.fetchUsersFromDB();
-    final livreurs = users.where((u) => u.roleID == 5).toList();
+  Widget _buildCard(Commande c) {
+    final status = CommandeStatus.normalize(c.status);
+    final statusColor = CommandeStatus.color(status);
 
-    if (!mounted) return;
-    if (livreurs.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Aucun livreur disponible.')),
-      );
-      return;
-    }
-
-    showDialog(
-      context: ctx,
-      builder: (dialogCtx) => AlertDialog(
-        title: const Text('Assigner un livreur'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: livreurs.length,
-            itemBuilder: (_, i) => ListTile(
-              leading: const CircleAvatar(child: Icon(Icons.person)),
-              title: Text('${livreurs[i].firstname} ${livreurs[i].lastname}'),
-              subtitle: Text('@${livreurs[i].username}'),
-              onTap: () async {
-                Navigator.pop(dialogCtx);
-                try {
-                  final session = await SessionService.readSession();
-                  final func = ParseCloudFunction('assignLivreur');
-                  await func.execute(parameters: {
-                    'userID': session.userId,
-                    'commandeID': commandeID,
-                    'livreurID': livreurs[i].userID,
-                  });
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Livreur assigné.')),
-                    );
-                    loadOrders();
-                  }
-                } catch (_) {}
-              },
-            ),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: AppColors.border, width: 0.5),
+      ),
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        title: Text(widget.showRestaurantOrders
+            ? 'Commande #${c.commandeID}'
+            : restoNames[c.restauID] ?? 'Commande #${c.commandeID}',
+            style: AppTypography.labelMedium()),
+        subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('${c.dateCommande.toLocal().toString().split(" ")[0]} · ${c.heure}',
+              style: AppTypography.bodyMedium().copyWith(fontSize: 12)),
+          const SizedBox(height: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+            decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(99)),
+            child: Text(status, style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.w700)),
           ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogCtx), child: const Text('Annuler')),
+          if (!widget.showRestaurantOrders && c.deliveryStatus != null && c.deliveryStatus!.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: _DeliveryTracker(status: c.deliveryStatus!, lat: c.livreurLat, lng: c.livreurLng),
+            ),
+        ]),
+        children: [
+          FutureBuilder<List<LigneCommande>>(
+            future: getLignes(c.commandeID),
+            builder: (_, snap) {
+              if (!snap.hasData) return const SizedBox(height: 60, child: Center(child: CircularProgressIndicator()));
+              final lignes = snap.data!;
+              return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                ...lignes.map((l) => Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(children: [
+                    Expanded(child: Text(dishNames[l.platID] ?? 'Plat #${l.platID}', style: AppTypography.bodyMedium())),
+                    Text('x${l.quantite}', style: AppTypography.labelMedium()),
+                    const SizedBox(width: 12),
+                    Text('${l.prixUnitaire.toStringAsFixed(2)} €', style: AppTypography.bodyMedium(color: AppColors.brand)),
+                  ]),
+                )),
+                const Divider(),
+                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                  Text('Livraison: ${c.fraisLivraison.toStringAsFixed(2)} €', style: AppTypography.bodyMedium().copyWith(fontSize: 12)),
+                  Text('Réduction: ${c.reduction.toStringAsFixed(2)} €', style: AppTypography.bodyMedium().copyWith(fontSize: 12)),
+                ]),
+                const SizedBox(height: 12),
+                if (!widget.showRestaurantOrders)
+                  Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+                    OutlinedButton.icon(
+                      onPressed: () => Navigator.push(context, MaterialPageRoute(
+                          builder: (_) => ChatScreen(withUserID: c.restaurateurID, withUsername: 'Restaurateur'))),
+                      icon: const Icon(Icons.chat_rounded, size: 16),
+                      label: const Text('Message'),
+                      style: OutlinedButton.styleFrom(minimumSize: Size.zero,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
+                    ),
+                    if (status == CommandeStatus.confirmed)
+                      ElevatedButton.icon(
+                        onPressed: () => _showRate(c.commandeID, c.restauID, lignes),
+                        icon: const Icon(Icons.star_rounded, size: 16, color: AppColors.accent),
+                        label: const Text('Noter'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.accentLight, foregroundColor: AppColors.accent,
+                          minimumSize: Size.zero, padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        ),
+                      ),
+                  ]),
+                if (widget.showRestaurantOrders)
+                  Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                    OutlinedButton.icon(
+                      onPressed: () => Navigator.push(context, MaterialPageRoute(
+                          builder: (_) => ChatScreen(withUserID: c.userID, withUsername: 'Client #${c.commandeID}'))),
+                      icon: const Icon(Icons.chat_rounded, size: 16),
+                      label: const Text('Message'),
+                      style: OutlinedButton.styleFrom(minimumSize: Size.zero,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
+                    ),
+                    const SizedBox(width: 6),
+                    ElevatedButton(
+                      onPressed: status == CommandeStatus.cancelled ? null : () => updateStatus(c.commandeID, CommandeStatus.cancelled),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.error, foregroundColor: Colors.white,
+                        minimumSize: Size.zero, padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      ),
+                      child: const Text('Annuler', style: TextStyle(fontSize: 12)),
+                    ),
+                    const SizedBox(width: 6),
+                    ElevatedButton(
+                      onPressed: status == CommandeStatus.confirmed ? null : () => updateStatus(c.commandeID, CommandeStatus.confirmed),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.success, foregroundColor: Colors.white,
+                        minimumSize: Size.zero, padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      ),
+                      child: const Text('Confirmer', style: TextStyle(fontSize: 12)),
+                    ),
+                    const SizedBox(width: 6),
+                    OutlinedButton.icon(
+                      onPressed: () => _showAssignLivreur(c.commandeID),
+                      icon: const Icon(Icons.person_add_rounded, size: 16),
+                      label: const Text('Livreur'),
+                      style: OutlinedButton.styleFrom(minimumSize: Size.zero,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
+                    ),
+                  ]),
+              ]);
+            },
+          ),
         ],
       ),
     );
   }
 
-  Future<void> _showRateDialog(
-    BuildContext context,
-    int commandeID,
-    int restauID,
-    List<LigneCommande> lignes,
-  ) async {
-    final commentCtrl = TextEditingController();
-    int restoNote = 5;
-
-    await showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Noter votre commande'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Note pour le restaurant :', style: TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 4),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(5, (i) => IconButton(
-                    icon: Icon(
-                      i < restoNote ? Icons.star : Icons.star_border,
-                      color: Colors.amber,
-                      size: 32,
-                    ),
-                    onPressed: () => setDialogState(() => restoNote = i + 1),
-                  )),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: commentCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Commentaire (optionnel)',
-                    border: OutlineInputBorder(),
-                  ),
-                  maxLines: 3,
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Plus tard')),
-            ElevatedButton(
-              onPressed: () async {
-                try {
-                  final session = await SessionService.readSession();
-                  final cloudFunction = ParseCloudFunction('addComment');
-                  await cloudFunction.execute(parameters: {
-                    'userID': session.userId,
-                    'targetType': 1,
-                    'targetID': restauID,
-                    'note': restoNote,
-                    'commentaire': commentCtrl.text,
-                    'username': '',
-                    'userImage': '',
-                  });
-                  for (final ligne in lignes) {
-                    await cloudFunction.execute(parameters: {
-                      'userID': session.userId,
-                      'targetType': 2,
-                      'targetID': ligne.platID,
-                      'note': restoNote,
-                      'commentaire': '',
-                      'username': '',
-                      'userImage': '',
-                    });
-                  }
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Merci pour votre avis !')),
-                    );
-                  }
-                } catch (_) {}
-                if (mounted) Navigator.pop(ctx);
-              },
-              child: const Text('Envoyer'),
-            ),
-          ],
-        ),
+  Future<void> _showAssignLivreur(int id) async {
+    final users = await Users.fetchUsersFromDB();
+    final livreurs = users.where((u) => u.roleID == 5).toList();
+    if (!mounted) return;
+    if (livreurs.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Aucun livreur.')));
+      return;
+    }
+    showDialog(context: context, builder: (ctx) => AlertDialog(
+      title: const Text('Assigner un livreur'),
+      content: SizedBox(width: double.maxFinite,
+        child: ListView.builder(shrinkWrap: true, itemCount: livreurs.length, itemBuilder: (_, i) => ListTile(
+          leading: const CircleAvatar(child: Icon(Icons.person)),
+          title: Text('${livreurs[i].firstname} ${livreurs[i].lastname}'),
+          onTap: () async {
+            Navigator.pop(ctx);
+            await ParseCloudFunction('assignLivreur').execute(parameters: {
+              'userID': (await SessionService.readSession()).userId,
+              'commandeID': id, 'livreurID': livreurs[i].userID,
+            });
+            if (mounted) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Livreur assigné.'))); loadOrders(); }
+          },
+        )),
       ),
-    );
+      actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler'))],
+    ));
   }
-}
 
-class _StatusChip extends StatelessWidget {
-  const _StatusChip({required this.status});
-  final String status;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: CommandeStatus.isPending(status) ? Colors.orange.shade50 : Colors.green.shade50,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(status, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
-    );
+  Future<void> _showRate(int cmdId, int restauId, List<LigneCommande> lignes) async {
+    final ctrl = TextEditingController();
+    int note = 5;
+    await showDialog(context: context, builder: (ctx) => StatefulBuilder(builder: (ctx, setD) => AlertDialog(
+      title: const Text('Noter'),
+      content: Column(mainAxisSize: MainAxisSize.min, children: [
+        Row(mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(5, (i) => IconButton(
+              icon: Icon(i < note ? Icons.star_rounded : Icons.star_outline_rounded, color: AppColors.accent, size: 36),
+              onPressed: () => setD(() => note = i + 1)))),
+        TextField(controller: ctrl, decoration: const InputDecoration(labelText: 'Commentaire'), maxLines: 3),
+      ]),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Plus tard')),
+        ElevatedButton(onPressed: () async {
+          final session = await SessionService.readSession();
+          final f = ParseCloudFunction('addComment');
+          await f.execute(parameters: {'userID': session.userId, 'targetType': 1, 'targetID': restauId,
+            'note': note, 'commentaire': ctrl.text, 'username': '', 'userImage': ''});
+          Navigator.pop(ctx);
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Merci !')));
+        }, child: const Text('Envoyer')),
+      ],
+    )));
   }
 }
 
 class _DeliveryTracker extends StatelessWidget {
   final String status;
-  final double? lat;
-  final double? lng;
+  final double? lat, lng;
   const _DeliveryTracker({required this.status, this.lat, this.lng});
 
   @override
   Widget build(BuildContext context) {
     final steps = ['assigned', 'picked_up', 'in_transit', 'delivered'];
-    final labels = ['Préparation', 'Récupéré', 'En route', 'Livré'];
-    final icons = [Icons.restaurant, Icons.shopping_bag, Icons.directions_bike, Icons.check];
-    final currentIdx = steps.indexOf(status);
-    final hasLocation = status == 'in_transit' && lat != null && lng != null;
-    final latVal = lat;
-    final lngVal = lng;
+    final labels = ['Prépa.', 'Récupéré', 'En route', 'Livré'];
+    final icons = [Icons.restaurant_rounded, Icons.shopping_bag_rounded, Icons.directions_bike_rounded, Icons.check_rounded];
+    final idx = steps.indexOf(status);
+    final hasMap = status == 'in_transit' && lat != null && lng != null;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Row(
-            children: List.generate(4, (i) {
-              final done = i <= currentIdx;
-              return Expanded(
-                child: Column(
-                  children: [
-                    Container(
-                      width: 22, height: 22,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: done ? Colors.teal : Colors.grey.shade300,
-                      ),
-                      child: Icon(icons[i], size: 13, color: Colors.white),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(labels[i], style: TextStyle(fontSize: 9, color: done ? Colors.teal : Colors.grey)),
-                  ],
-                ),
-              );
-            }),
+    return Column(children: [
+      Row(
+        children: List.generate(4, (i) {
+          final done = i <= idx;
+          return Expanded(child: Column(children: [
+            Container(width: 24, height: 24,
+              decoration: BoxDecoration(shape: BoxShape.circle,
+                  color: done ? AppColors.brand : AppColors.border),
+              child: Icon(icons[i], size: 13, color: done ? Colors.white : AppColors.inkSubtle)),
+            Text(labels[i], style: TextStyle(fontSize: 9, color: done ? AppColors.brand : AppColors.inkSubtle, fontWeight: FontWeight.w600)),
+          ]));
+        }),
+      ),
+      if (hasMap)
+        GestureDetector(
+          onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => DeliveryMapPage(livreurLat: lat!, livreurLng: lng!))),
+          child: Container(
+            margin: const EdgeInsets.only(top: 8),
+            height: 160,
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(AppRadius.md), border: Border.all(color: AppColors.brand.withValues(alpha: 0.3))),
+            clipBehavior: Clip.antiAlias,
+            child: Stack(children: [
+              FlutterMap(options: MapOptions(initialCenter: LatLng(lat!, lng!), initialZoom: 14,
+                  interactionOptions: const InteractionOptions(flags: InteractiveFlag.none)),
+                children: [
+                  TileLayer(urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', userAgentPackageName: 'com.diosdelices.app'),
+                  MarkerLayer(markers: [Marker(point: LatLng(lat!, lng!), width: 40, height: 40,
+                      child: const Icon(Icons.delivery_dining, color: AppColors.brand, size: 28))]),
+                ],
+              ),
+              Positioned(bottom: 4, right: 8,
+                child: Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(color: AppColors.ink.withValues(alpha: 0.7), borderRadius: BorderRadius.circular(4)),
+                    child: const Text('Toucher pour agrandir', style: TextStyle(color: Colors.white, fontSize: 10)))),
+            ]),
           ),
         ),
-        if (hasLocation)
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Row(
-              children: [
-                const Icon(Icons.location_on, size: 14, color: Colors.teal),
-                const SizedBox(width: 4),
-                Text(
-                  'Livreur en déplacement (${latVal!.toStringAsFixed(4)}, ${lngVal!.toStringAsFixed(4)})',
-                  style: const TextStyle(fontSize: 11, color: Colors.teal, fontStyle: FontStyle.italic),
-                ),
-              ],
-            ),
-          ),
-      ],
+    ]);
+  }
+}
+
+class DeliveryMapPage extends StatefulWidget {
+  final double livreurLat, livreurLng;
+  final double? clientLat, clientLng;
+  const DeliveryMapPage({super.key, required this.livreurLat, required this.livreurLng, this.clientLat, this.clientLng});
+  @override
+  State<DeliveryMapPage> createState() => _DeliveryMapPageState();
+}
+
+class _DeliveryMapPageState extends State<DeliveryMapPage> {
+  List<LatLng> _route = [];
+  bool _loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.clientLat != null) _fetch();
+  }
+
+  Future<void> _fetch() async {
+    setState(() => _loading = true);
+    try {
+      final url = 'https://router.project-osrm.org/route/v1/driving/${widget.livreurLng},${widget.livreurLat};${widget.clientLng},${widget.clientLat}?overview=full&geometries=geojson';
+      final resp = await http.get(Uri.parse(url));
+      if (resp.statusCode == 200) {
+        final coords = (jsonDecode(resp.body)['routes']?[0]?['geometry']?['coordinates'] as List?) ?? [];
+        if (mounted) setState(() { _route = coords.map((c) => LatLng(c[1].toDouble(), c[0].toDouble())).toList(); _loading = false; });
+      }
+    } catch (_) { if (mounted) setState(() => _loading = false); }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bounds = _route.isNotEmpty ? LatLngBounds.fromPoints(_route) : null;
+    final center = bounds?.center ?? LatLng(widget.livreurLat, widget.livreurLng);
+    return Scaffold(
+      backgroundColor: AppColors.surface,
+      appBar: AppBar(title: const Text('Suivi livraison')),
+      body: Stack(children: [
+        FlutterMap(options: MapOptions(initialCenter: center, initialZoom: 14,
+            initialCameraFit: bounds != null ? CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(40)) : null),
+          children: [
+            TileLayer(urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', userAgentPackageName: 'com.diosdelices.app'),
+            if (_route.isNotEmpty) PolylineLayer(polylines: [Polyline(points: _route, color: AppColors.brand, strokeWidth: 4)]),
+            MarkerLayer(markers: [
+              Marker(point: LatLng(widget.livreurLat, widget.livreurLng), width: 50, height: 50,
+                  child: Column(children: const [Icon(Icons.delivery_dining, color: AppColors.brand, size: 32),
+                      Text('Livreur', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold))])),
+              if (widget.clientLat != null)
+                Marker(point: LatLng(widget.clientLat!, widget.clientLng!), width: 50, height: 50,
+                    child: Column(children: const [Icon(Icons.home_rounded, color: AppColors.accent, size: 32),
+                        Text('Client', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold))])),
+            ]),
+          ],
+        ),
+        if (_loading) const Positioned(top: 16, left: 0, right: 0, child: Center(child: CircularProgressIndicator())),
+      ]),
     );
   }
 }

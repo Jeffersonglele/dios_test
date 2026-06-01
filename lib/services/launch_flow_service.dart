@@ -6,7 +6,6 @@ enum LaunchDestination {
   onboarding,
   signup,
   home,
-  browse,
 }
 
 class LaunchFlowService {
@@ -37,7 +36,7 @@ class LaunchFlowService {
       return LaunchDestination.home;
     }
 
-    return LaunchDestination.browse;
+    return LaunchDestination.signup;
   }
 
   static Future<void> markOnboardingSeen() async {

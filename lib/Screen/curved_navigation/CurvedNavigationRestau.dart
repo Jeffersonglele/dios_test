@@ -1,86 +1,76 @@
-import 'package:curved_navigation_bar/curved_navigation_bar.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import '../../widgets/dios_nav_bar.dart';
+import '../../theme/app_theme.dart';
 import '../Menu.dart';
 import '../MyStore.dart';
 import '../micro_restau/HomeMicroRestau.dart';
 
 class CurvedNavigationRestau extends StatefulWidget {
   final int specified_index;
-
-  CurvedNavigationRestau({required this.specified_index});
+  const CurvedNavigationRestau({super.key, required this.specified_index});
 
   @override
-  _CurvedNavigationRestauState createState() => _CurvedNavigationRestauState();
+  State<CurvedNavigationRestau> createState() =>
+      _CurvedNavigationRestauState();
 }
 
 class _CurvedNavigationRestauState extends State<CurvedNavigationRestau> {
   late PageController _pageController;
+  int _activePage = 0;
 
-  List<Widget> _allTabItems = [
+  final _pages = <Widget>[
     HomeMicroRestau(),
     Menu(),
     MyStore(),
   ];
 
-  int _activePage = 0;
+  final _navItems = <DiosNavItem>[
+    DiosNavItem(
+      icon: Icon(Icons.home_outlined),
+      activeIcon: Icon(Icons.home),
+      label: 'Accueil',
+    ),
+    DiosNavItem(
+      icon: Icon(Icons.menu_book_outlined),
+      activeIcon: Icon(Icons.menu_book),
+      label: 'Menu',
+    ),
+    DiosNavItem(
+      icon: Icon(Icons.store_outlined),
+      activeIcon: Icon(Icons.store),
+      label: 'Boutique',
+    ),
+  ];
 
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(initialPage: widget.specified_index);
     _activePage = widget.specified_index;
+    _pageController = PageController(initialPage: _activePage);
   }
 
   @override
   void dispose() {
-    _pageController.dispose(); // Dispose du controller
+    _pageController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Scaffold(
-        appBar: AppBar(
-          leading: IconButton(
-            icon: Icon(Icons.home), // Icône personnalisée (ex: home)
-            onPressed: () {
-              setState(() {
-                _activePage = 0; // Change l'index pour revenir à la page 1 (Home)
-                _pageController.jumpToPage(0); // Synchroniser avec le PageController
-              });
-            },
-          ),
-        ),
-        body: PageView(
-          controller: _pageController,
-          onPageChanged: (index) {
-            setState(() {
-              _activePage = index; // Met à jour l'index actif lorsque la page change
-            });
-          },
-          children: _allTabItems, // Les pages à afficher pour les restaurateurs
-        ),
-        bottomNavigationBar: CurvedNavigationBar(
-          height: 60.0, // Ajustez la hauteur de la barre de navigation
-          index: _activePage,
-          buttonBackgroundColor: Colors.white,
-          backgroundColor: Colors.red,
-          animationDuration: Duration(milliseconds: 300),
-          animationCurve: Curves.easeInOut,
-          items: <Widget>[
-            Icon(Icons.home, color: Colors.red),
-            Icon(Icons.menu_book, color: Colors.red),
-            Icon(Icons.storefront, color: Colors.red),
-          ],
-          onTap: (index) {
-            setState(() {
-              _activePage = index;
-              _pageController.jumpToPage(index); // Change la page quand l'utilisateur tape sur un bouton
-            });
-          },
-        ),
+    return Scaffold(
+      backgroundColor: AppColors.surface,
+      body: PageView(
+        controller: _pageController,
+        onPageChanged: (index) => setState(() => _activePage = index),
+        children: _pages,
+      ),
+      bottomNavigationBar: DiosNavBar(
+        currentIndex: _activePage,
+        items: _navItems,
+        onTap: (index) {
+          setState(() => _activePage = index);
+          _pageController.jumpToPage(index);
+        },
       ),
     );
   }

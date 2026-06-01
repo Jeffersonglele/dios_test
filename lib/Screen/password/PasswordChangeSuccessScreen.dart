@@ -1,56 +1,43 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-
+import '../../theme/app_theme.dart';
 import '../authentification/Login.dart';
-import '../../utils/strings.dart';
 
 class PasswordChangeSuccessScreen extends StatelessWidget {
   const PasswordChangeSuccessScreen({super.key});
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Succès"),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.check_circle, color: Colors.green, size: 100),
-            const SizedBox(height: 20),
-            Text(
-              Strings.of('password_updated'),
-              style: const TextStyle(fontSize: 18),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 20),
-            Center(
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  // Couleur de fond du bouton
-                  foregroundColor: Colors.white,
-                  //Couleur du texte
-                  textStyle: const TextStyle(
-                    fontSize: 18, // Taille du texte
-                    fontWeight:
-                        FontWeight.bold, // (Optionnel) Style de texte en gras
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.circular(15), // Bordure du bouton
-                  ),
+      backgroundColor: AppColors.surface,
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Container(
+                width: 100, height: 100,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.successLight,
+                  boxShadow: [
+                    BoxShadow(color: AppColors.success.withValues(alpha: 0.2), blurRadius: 20, offset: const Offset(0, 8)),
+                  ],
                 ),
-                onPressed: () {
-                  Navigator.push(context,
-                      CupertinoPageRoute(builder: (ctx) => const Login()));
-                  // Navigator.popUntil(context, ModalRoute.withName('/login')); // Retour à la page de login
-                },
-                child: Text(Strings.of('back_to_login')),
+                child: const Icon(Icons.check_rounded, color: AppColors.success, size: 48),
               ),
-            )
-          ],
+              const SizedBox(height: 28),
+              Text('Mot de passe réinitialisé !', style: AppTypography.headlineMedium(), textAlign: TextAlign.center),
+              const SizedBox(height: 12),
+              Text('Votre mot de passe a été changé avec succès. Vous pouvez maintenant vous connecter.',
+                  style: AppTypography.bodyLarge(color: AppColors.inkMuted), textAlign: TextAlign.center),
+              const SizedBox(height: 32),
+              SizedBox(width: double.infinity, height: 56,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pushAndRemoveUntil(context,
+                      MaterialPageRoute(builder: (_) => const Login()), (_) => false),
+                  child: const Text('Se connecter'),
+                )),
+            ]),
+          ),
         ),
       ),
     );

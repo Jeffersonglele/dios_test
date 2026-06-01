@@ -8,13 +8,13 @@ import 'package:dios_delices/modeles/dish.dart';
 import 'package:dios_delices/modeles/ligne_commande.dart';
 import 'package:dios_delices/modeles/restaurant.dart';
 import 'package:dios_delices/services/session_service.dart';
+import 'package:dios_delices/theme/app_theme.dart';
 import 'package:dios_delices/utils/toast.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 class HomeMicroRestau extends StatefulWidget {
   const HomeMicroRestau({super.key});
-
   @override
   State<HomeMicroRestau> createState() => _HomeMicroRestauState();
 }
@@ -38,24 +38,16 @@ class _HomeMicroRestauState extends State<HomeMicroRestau> {
   }
 
   Future<void> _loadDashboard() async {
-    setState(() {
-      isLoading = true;
-    });
-
+    setState(() => isLoading = true);
     final session = await SessionService.readSession();
 
     if (session.restaurantId == null) {
       if (!mounted) return;
       setState(() {
-        restaurant = null;
-        dishes = [];
-        commandes = [];
-        pendingOrders = 0;
-        confirmedOrders = 0;
-        availableDishes = 0;
-        unavailableDishes = 0;
-        totalAvailableServings = 0;
-        soldServings = 0;
+        restaurant = null; dishes = []; commandes = [];
+        pendingOrders = 0; confirmedOrders = 0;
+        availableDishes = 0; unavailableDishes = 0;
+        totalAvailableServings = 0; soldServings = 0;
         isLoading = false;
       });
       return;
@@ -66,50 +58,26 @@ class _HomeMicroRestauState extends State<HomeMicroRestau> {
     final allCommandes = await Commande.fetchCommandesFromDB();
     final allLignes = await LigneCommande.fetchLignesCommandeFromDB();
 
-    final currentRestaurant =
-        Restaurant.getRestaurantByRestaurantId(restaurants, session.restaurantId!);
-    final restaurantDishes = allDishes
-        .where((dish) => dish.restauID == session.restaurantId)
-        .toList()
-      ..sort((a, b) => (b.nb_orders).compareTo(a.nb_orders));
-
-    final restaurantCommandes = allCommandes
-        .where((commande) => commande.restaurateurID == session.userId)
-        .toList()
+    final current = Restaurant.getRestaurantByRestaurantId(restaurants, session.restaurantId!);
+    final restDishes = allDishes.where((d) => d.restauID == session.restaurantId).toList()
+      ..sort((a, b) => b.nb_orders.compareTo(a.nb_orders));
+    final restCommandes = allCommandes.where((c) => c.restaurateurID == session.userId).toList()
       ..sort((a, b) => b.dateCommande.compareTo(a.dateCommande));
 
-    final commandeIds = restaurantCommandes
-        .map((commande) => commande.commandeID.toString())
-        .toSet();
-
-    final totalSoldServings = allLignes
-        .where((ligne) => commandeIds.contains(ligne.commandeID))
-        .fold<int>(0, (sum, ligne) => sum + ligne.quantite);
+    final cmdIds = restCommandes.map((c) => c.commandeID.toString()).toSet();
+    final sold = allLignes.where((l) => cmdIds.contains(l.commandeID)).fold<int>(0, (s, l) => s + l.quantite);
 
     if (!mounted) return;
     setState(() {
-      restaurant = currentRestaurant;
-      dishes = restaurantDishes;
-      commandes = restaurantCommandes;
-      pendingOrders = restaurantCommandes
-          .where((commande) => CommandeStatus.isPending(commande.status))
-          .length;
-      confirmedOrders = restaurantCommandes
-          .where(
-            (commande) =>
-                CommandeStatus.normalize(commande.status) ==
-                CommandeStatus.confirmed,
-          )
-          .length;
-      availableDishes =
-          restaurantDishes.where((dish) => (dish.status ?? 0) == 1).length;
-      unavailableDishes =
-          restaurantDishes.where((dish) => (dish.status ?? 0) != 1).length;
-      totalAvailableServings = restaurantDishes.fold<int>(
-        0,
-        (sum, dish) => sum + ((dish.nb_servings ?? 0) > 0 ? dish.nb_servings! : 0),
-      );
-      soldServings = totalSoldServings;
+      restaurant = current;
+      dishes = restDishes;
+      commandes = restCommandes;
+      pendingOrders = restCommandes.where((c) => CommandeStatus.isPending(c.status)).length;
+      confirmedOrders = restCommandes.where((c) => CommandeStatus.normalize(c.status) == CommandeStatus.confirmed).length;
+      availableDishes = restDishes.where((d) => (d.status ?? 0) == 1).length;
+      unavailableDishes = restDishes.where((d) => (d.status ?? 0) != 1).length;
+      totalAvailableServings = restDishes.fold<int>(0, (s, d) => s + ((d.nb_servings ?? 0) > 0 ? d.nb_servings! : 0));
+      soldServings = sold;
       isLoading = false;
     });
   }
@@ -124,15 +92,9 @@ class _HomeMicroRestauState extends State<HomeMicroRestau> {
 
   Future<void> _toggleDishAvailability(Dish dish, bool isAvailable) async {
     final result = await Dish.updateDishStatus(dish.dishID, isAvailable ? 1 : 0);
-
     if (!mounted) return;
-
     if (result == "success") {
-      Toast(
-        context,
-        isAvailable ? "Plat rendu disponible." : "Plat rendu indisponible.",
-        true,
-      );
+      Toast(context, isAvailable ? "Plat rendu disponible." : "Plat rendu indisponible.", true);
       await Dish.getAllDishesDetails();
       await _loadDashboard();
     } else {
@@ -142,37 +104,44 @@ class _HomeMicroRestauState extends State<HomeMicroRestau> {
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-
     return PopScope(
       canPop: false,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8F5F2),
+        backgroundColor: AppColors.surface,
         body: RefreshIndicator(
+          color: AppColors.brand,
+          backgroundColor: AppColors.card,
           onRefresh: _refreshRemoteData,
           child: isLoading
               ? const Center(child: CircularProgressIndicator())
-              : ListView(
-                  padding: EdgeInsets.fromLTRB(
-                    20,
-                    size.height * 0.02,
-                    20,
-                    32,
-                  ),
-                  children: [
-                    _buildHeader(),
-                    const SizedBox(height: 18),
-                    if (restaurant == null) _buildEmptyState(context) else ...[
-                      _buildStatsGrid(),
-                      const SizedBox(height: 20),
-                      _buildQuickActions(context),
-                      const SizedBox(height: 20),
-                      _buildRecentOrders(context),
-                      const SizedBox(height: 20),
-                      _buildDishAvailability(),
+              : CustomScrollView(
+                  slivers: [
+                    SliverToBoxAdapter(child: _buildHeader()),
+                    if (restaurant == null)
+                      SliverToBoxAdapter(child: _buildEmptyState())
+                    else ...[
+                      SliverToBoxAdapter(child: const SizedBox(height: 20)),
+                      SliverToBoxAdapter(child: _buildStatsGrid()),
+                      SliverToBoxAdapter(child: const SizedBox(height: 20)),
+                      SliverToBoxAdapter(child: _buildQuickActions()),
+                      SliverToBoxAdapter(child: const SizedBox(height: 20)),
+                      SliverToBoxAdapter(child: _buildRecentOrders()),
+                      SliverToBoxAdapter(child: const SizedBox(height: 20)),
+                      SliverToBoxAdapter(child: _buildDishAvailability()),
                     ],
+                    const SliverToBoxAdapter(child: SizedBox(height: 100)),
                   ],
                 ),
+        ),
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: () {
+            Navigator.push(context, CupertinoPageRoute(builder: (_) => DishFormPage()))
+                .then((_) => _refreshRemoteData());
+          },
+          backgroundColor: AppColors.brand,
+          foregroundColor: Colors.white,
+          icon: const Icon(Icons.add_rounded),
+          label: const Text('Ajouter un plat'),
         ),
       ),
     );
@@ -180,268 +149,198 @@ class _HomeMicroRestauState extends State<HomeMicroRestau> {
 
   Widget _buildHeader() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(AppRadius.xl),
         gradient: const LinearGradient(
-          colors: [Color(0xFF9E1B1B), Color(0xFFE0533D)],
+          colors: [AppColors.brandDark, AppColors.brand],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Espace restaurant',
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            restaurant?.name ?? 'Restaurant non configuré',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 26,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            restaurant?.adress ??
-                "Aucun restaurant n'est encore rattaché à ce compte.",
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 15,
-            ),
-          ),
-          if (restaurant != null) ...[
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                Chip(
-                  label: Text(
-                    restaurant!.isOpen == 1 ? 'Ouvert' : 'Fermé',
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                  backgroundColor:
-                      restaurant!.isOpen == 1 ? Colors.green : Colors.black45,
-                ),
-                Chip(
-                  label: Text(restaurant!.openingHours),
-                  backgroundColor: Colors.white,
-                ),
-                Chip(
-                  label: Text(
-                    "Livraison ${restaurant!.deliveryFee.toStringAsFixed(2)}",
-                  ),
-                  backgroundColor: Colors.white,
-                ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyState(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Column(
-        children: [
-          const Icon(Icons.storefront_outlined, size: 52, color: Colors.red),
-          const SizedBox(height: 14),
-          const Text(
-            "Aucun restaurant n'est disponible pour ce compte.",
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 10),
-          const Text(
-            "Dès qu'un restaurant sera créé ou synchronisé, cet espace affichera les commandes, les plats disponibles et les portions.",
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 18),
-          ElevatedButton(
-            onPressed: _refreshRemoteData,
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Rafraîchir'),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.brand.withValues(alpha: 0.3),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildStatsGrid() {
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 14,
-      mainAxisSpacing: 14,
-      childAspectRatio: 1.35,
-      children: [
-        _StatCard(
-          title: 'Commandes en attente',
-          value: pendingOrders.toString(),
-          subtitle: 'A confirmer rapidement',
-          color: const Color(0xFFF59E0B),
-          icon: Icons.pending_actions,
-        ),
-        _StatCard(
-          title: 'Commandes confirmées',
-          value: confirmedOrders.toString(),
-          subtitle: 'Déjà prises en charge',
-          color: const Color(0xFF16A34A),
-          icon: Icons.verified,
-        ),
-        _StatCard(
-          title: 'Plats disponibles',
-          value: availableDishes.toString(),
-          subtitle: '$unavailableDishes indisponibles',
-          color: const Color(0xFFDC2626),
-          icon: Icons.restaurant_menu,
-        ),
-        _StatCard(
-          title: 'Portions',
-          value: totalAvailableServings.toString(),
-          subtitle: '$soldServings portions vendues',
-          color: const Color(0xFF2563EB),
-          icon: Icons.inventory_2,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildQuickActions(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Actions rapides',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: [
-            _QuickActionChip(
-              icon: Icons.receipt_long,
-              label: 'Voir les commandes',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        const UserOrdersPage(showRestaurantOrders: true),
-                  ),
-                );
-              },
-            ),
-            _QuickActionChip(
-              icon: Icons.add_circle_outline,
-              label: 'Ajouter un plat',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  CupertinoPageRoute(
-                    builder: (context) => DishFormPage(),
-                  ),
-                ).then((_) => _refreshRemoteData());
-              },
-            ),
-            _QuickActionChip(
-              icon: Icons.store_mall_directory_outlined,
-              label: 'Gérer mon restaurant',
-              onTap: () {
-                if (restaurant == null) return;
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => RestaurantDetails(
-                      restaurant_id: restaurant!.restaurantID,
-                    ),
-                  ),
-                ).then((_) => _refreshRemoteData());
-              },
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildRecentOrders(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Text(
-                'Dernières commandes',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
+              const Icon(Icons.storefront_rounded, color: Colors.white70, size: 16),
+              const SizedBox(width: 6),
+              const Text('Espace restaurant',
+                  style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600)),
               const Spacer(),
-              TextButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          const UserOrdersPage(showRestaurantOrders: true),
-                    ),
-                  );
-                },
-                child: const Text('Tout voir'),
-              ),
+              if (restaurant != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: restaurant!.isOpen == 1 ? AppColors.success : Colors.white24,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(restaurant!.isOpen == 1 ? 'Ouvert' : 'Fermé',
+                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+                ),
             ],
           ),
+          const SizedBox(height: 12),
+          Text(
+            restaurant?.name ?? 'Restaurant non configuré',
+            style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold),
+          ),
+          if (restaurant != null) ...[
+            const SizedBox(height: 6),
+            Text('${restaurant!.location}\nLivraison : ${restaurant!.deliveryFee.toStringAsFixed(2)} € · ${restaurant!.openingHours}',
+                style: const TextStyle(color: Colors.white70, fontSize: 14)),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+        border: Border.all(color: AppColors.border, width: 0.5),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.storefront_outlined, size: 56, color: AppColors.brand.withValues(alpha: 0.3)),
+          const SizedBox(height: 16),
+          Text('Aucun restaurant disponible.',
+              style: AppTypography.titleMedium(), textAlign: TextAlign.center),
+          const SizedBox(height: 8),
+          Text('Créez ou synchronisez votre restaurant pour afficher les commandes et les plats.',
+              style: AppTypography.bodyMedium(), textAlign: TextAlign.center),
+          const SizedBox(height: 20),
+          ElevatedButton(onPressed: _refreshRemoteData, child: const Text('Rafraîchir')),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatsGrid() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: GridView.count(
+        crossAxisCount: 2,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 1.3,
+        children: [
+          _StatCard(title: 'Commandes\nen attente', value: '$pendingOrders', subtitle: 'À confirmer',
+              color: AppColors.accent, icon: Icons.pending_actions_rounded),
+          _StatCard(title: 'Commandes\nconfirmées', value: '$confirmedOrders', subtitle: 'En cours',
+              color: AppColors.success, icon: Icons.verified_rounded),
+          _StatCard(title: 'Plats\ndisponibles', value: '$availableDishes', subtitle: '$unavailableDishes indispo.',
+              color: AppColors.brand, icon: Icons.restaurant_menu_rounded),
+          _StatCard(title: 'Portions\nvendues', value: '$soldServings', subtitle: '/$totalAvailableServings portions',
+              color: AppColors.inkMuted, icon: Icons.inventory_2_rounded),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickActions() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Actions rapides', style: AppTypography.titleMedium()),
+          const SizedBox(height: 12),
+          Wrap(spacing: 10, runSpacing: 10, children: [
+            _ActionChip(Icons.receipt_long_rounded, 'Voir les commandes', () {
+              Navigator.push(context, MaterialPageRoute(
+                  builder: (_) => const UserOrdersPage(showRestaurantOrders: true)));
+            }),
+            _ActionChip(Icons.add_circle_outline_rounded, 'Ajouter un plat', () {
+              Navigator.push(context, CupertinoPageRoute(builder: (_) => DishFormPage()))
+                  .then((_) => _refreshRemoteData());
+            }),
+            _ActionChip(Icons.store_mall_directory_outlined, 'Gérer mon restaurant', () {
+              if (restaurant == null) return;
+              Navigator.push(context, MaterialPageRoute(
+                  builder: (_) => RestaurantDetails(restaurant_id: restaurant!.restaurantID)))
+                  .then((_) => _refreshRemoteData());
+            }),
+          ]),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRecentOrders() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+        border: Border.all(color: AppColors.border, width: 0.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Text('Dernières commandes', style: AppTypography.titleMedium()),
+            const Spacer(),
+            TextButton(
+              onPressed: () => Navigator.push(context, MaterialPageRoute(
+                  builder: (_) => const UserOrdersPage(showRestaurantOrders: true))),
+              child: Text('Tout voir', style: AppTypography.labelMedium(color: AppColors.brand)),
+            ),
+          ]),
           const SizedBox(height: 6),
           if (commandes.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: Text("Aucune commande reçue pour l'instant."),
-            )
+            Text("Aucune commande reçue.", style: AppTypography.bodyMedium())
           else
-            ...commandes.take(3).map(
-                  (commande) => ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: CircleAvatar(
-                      backgroundColor:
-                          CommandeStatus.color(commande.status).withValues(alpha: 0.15),
-                      child: Icon(
-                        Icons.receipt,
-                        color: CommandeStatus.color(commande.status),
-                      ),
-                    ),
-                    title: Text('Commande #${commande.commandeID}'),
-                    subtitle: Text(
-                      '${commande.dateCommande.toLocal().toString().split(" ")[0]} à ${commande.heure}',
-                    ),
-                    trailing: Chip(
-                      label: Text(CommandeStatus.normalize(commande.status)),
-                      backgroundColor:
-                          CommandeStatus.color(commande.status).withValues(alpha: 0.12),
-                    ),
+            ...commandes.take(3).map((c) => Container(
+              margin: const EdgeInsets.only(top: 10),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: CommandeStatus.color(c.status).withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
+              child: Row(children: [
+                Container(
+                  width: 40, height: 40,
+                  decoration: BoxDecoration(
+                    color: CommandeStatus.color(c.status).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
                   ),
+                  child: Icon(Icons.receipt_rounded, color: CommandeStatus.color(c.status), size: 20),
                 ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('Commande #${c.commandeID}', style: AppTypography.labelMedium()),
+                    Text('${c.dateCommande.toLocal().toString().split(" ")[0]} à ${c.heure}',
+                        style: AppTypography.labelMedium(color: AppColors.inkSubtle).copyWith(fontSize: 11)),
+                  ]),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: CommandeStatus.color(c.status).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(CommandeStatus.normalize(c.status),
+                      style: TextStyle(color: CommandeStatus.color(c.status), fontSize: 11, fontWeight: FontWeight.w600)),
+                ),
+              ]),
+            )),
         ],
       ),
     );
@@ -449,89 +348,60 @@ class _HomeMicroRestauState extends State<HomeMicroRestau> {
 
   Widget _buildDishAvailability() {
     return Container(
-      padding: const EdgeInsets.all(18),
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+        border: Border.all(color: AppColors.border, width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Plats et portions',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Activez ou désactivez rapidement vos plats disponibles.',
-          ),
+          Text('Plats et portions', style: AppTypography.titleMedium()),
+          const SizedBox(height: 4),
+          Text('Activez ou désactivez rapidement vos plats.', style: AppTypography.bodyMedium()),
           const SizedBox(height: 14),
           if (dishes.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: Text("Aucun plat enregistré pour ce restaurant."),
-            )
+            Text("Aucun plat enregistré.", style: AppTypography.bodyMedium())
           else
-            ...dishes.take(6).map(
-                  (dish) => Card(
-                    margin: const EdgeInsets.only(bottom: 10),
-                    elevation: 0,
-                    color: const Color(0xFFF8F5F2),
-                    child: ListTile(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          CupertinoPageRoute(
-                            builder: (context) => DishDetailsMicroRestau(
-                              dish_id: dish.dishID,
-                              from_page: 1,
-                              dish_restau: dish.restauID,
-                            ),
-                          ),
-                        ).then((_) => _refreshRemoteData());
-                      },
-                      leading: CircleAvatar(
-                        backgroundColor: Colors.white,
-                        child: Icon(
-                          (dish.status ?? 0) == 1
-                              ? Icons.check_circle
-                              : Icons.remove_circle_outline,
-                          color:
-                              (dish.status ?? 0) == 1 ? Colors.green : Colors.red,
-                        ),
-                      ),
-                      title: Text(dish.name ?? 'Plat sans nom'),
-                      subtitle: Text(
-                        '${dish.nb_servings ?? 0} portions | ${dish.nb_orders} commandes',
-                      ),
-                      trailing: Switch(
-                        value: (dish.status ?? 0) == 1,
-                        activeThumbColor: Colors.green,
-                        onChanged: (value) {
-                          _toggleDishAvailability(dish, value);
-                        },
-                      ),
-                    ),
+            ...dishes.take(6).map((dish) => Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceWarm,
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
+              child: ListTile(
+                onTap: () => Navigator.push(context, CupertinoPageRoute(
+                    builder: (_) => DishDetailsMicroRestau(dish_id: dish.dishID, from_page: 1, dish_restau: dish.restauID)))
+                    .then((_) => _refreshRemoteData()),
+                leading: CircleAvatar(
+                  backgroundColor: AppColors.card,
+                  child: Icon(
+                    (dish.status ?? 0) == 1 ? Icons.check_circle_rounded : Icons.remove_circle_outline_rounded,
+                    color: (dish.status ?? 0) == 1 ? AppColors.success : AppColors.error,
                   ),
                 ),
+                title: Text(dish.name ?? 'Plat sans nom', style: AppTypography.labelMedium()),
+                subtitle: Text('${dish.nb_servings ?? 0} portions · ${dish.nb_orders} commandes',
+                    style: AppTypography.bodyMedium().copyWith(fontSize: 12)),
+                trailing: Switch(
+                  value: (dish.status ?? 0) == 1,
+                  activeColor: AppColors.success,
+                  onChanged: (v) => _toggleDishAvailability(dish, v),
+                ),
+              ),
+            )),
         ],
       ),
     );
   }
 }
 
+// ── KPI Card ───────────────────────────────────────────────
 class _StatCard extends StatelessWidget {
-  const _StatCard({
-    required this.title,
-    required this.value,
-    required this.subtitle,
-    required this.color,
-    required this.icon,
-  });
-
-  final String title;
-  final String value;
-  final String subtitle;
+  const _StatCard({required this.title, required this.value, required this.subtitle, required this.color, required this.icon});
+  final String title, value, subtitle;
   final Color color;
   final IconData icon;
 
@@ -540,71 +410,54 @@ class _StatCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: AppColors.border, width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
-            backgroundColor: color.withValues(alpha: 0.12),
-            child: Icon(icon, color: color),
+          Container(
+            width: 40, height: 40,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+            ),
+            child: Icon(icon, color: color, size: 22),
           ),
           const Spacer(),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            title,
-            style: const TextStyle(fontWeight: FontWeight.w700),
-          ),
+          Text(value, style: AppTypography.headlineMedium().copyWith(fontSize: 26)),
           const SizedBox(height: 2),
-          Text(
-            subtitle,
-            style: const TextStyle(color: Colors.black54),
-          ),
+          Text(title, style: AppTypography.labelMedium(color: AppColors.inkMuted).copyWith(fontSize: 11)),
+          Text(subtitle, style: AppTypography.labelMedium(color: color).copyWith(fontSize: 11)),
         ],
       ),
     );
   }
 }
 
-class _QuickActionChip extends StatelessWidget {
-  const _QuickActionChip({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
+class _ActionChip extends StatelessWidget {
+  const _ActionChip(this.icon, this.label, this.onTap);
   final IconData icon;
   final String label;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return GestureDetector(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(30),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(30),
-          border: Border.all(color: const Color(0xFFFFD3CC)),
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: Border.all(color: AppColors.border, width: 0.5),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: Colors.red),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-          ],
-        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon, color: AppColors.brand, size: 18),
+          const SizedBox(width: 8),
+          Text(label, style: AppTypography.labelMedium(color: AppColors.ink)),
+        ]),
       ),
     );
   }

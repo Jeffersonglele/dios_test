@@ -1,19 +1,20 @@
 import 'package:dios_delices/Screen/utilisateurs/UserIdentityRejected.dart';
 import 'package:dios_delices/Screen/verif_confirm/WaitIdentityValidation.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../Constant/Constant.dart';
 import '../../Controller/UiController.dart';
-import '../../components/showConfetti.dart';
 import '../../core/app_role.dart';
 import '../../modeles/restaurant.dart';
 import '../../modeles/users.dart';
 import '../../db/database_helper.dart';
 import '../../services/session_service.dart';
 import '../../services/notification_service.dart';
+import '../../theme/app_theme.dart';
 import '../../utils/strings.dart';
 import '../../utils/toast.dart';
 import '../restaurants/RestaurantFormPage.dart';
@@ -23,7 +24,6 @@ import '../restaurants/RestaurantUpdateFormPage.dart';
 import '../restaurants/WaitRestaurantValidation.dart';
 import '../password/EmailInputScreen.dart';
 import '../verif_confirm/VerificationPage.dart';
-import 'package:dios_delices/providers/users_provider.dart';
 import '../../widgets/auth_shell.dart';
 
 class Login extends ConsumerStatefulWidget {
@@ -39,7 +39,7 @@ class _LoginState extends ConsumerState<Login> {
 
   final TextEditingController nameController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  TextEditingController emailController = TextEditingController();
+  final TextEditingController emailController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
   bool isLoading = false;
@@ -49,9 +49,7 @@ class _LoginState extends ConsumerState<Login> {
   @override
   void initState() {
     super.initState();
-    final simpleUIController = SimpleUIController();
     loadData();
-    //checkVerificationStatus();
   }
 
   @override
@@ -61,372 +59,131 @@ class _LoginState extends ConsumerState<Login> {
     super.dispose();
   }
 
-  /*Future<void> checkVerificationStatus() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    bool isVerified = prefs.getBool('userVerified') ?? false;
-
-    if (!isVerified) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => VerificationPage(
-            userID: prefs.getInt('userID')!,
-            email: prefs.getString('pendingEmail')!,
-            roleID: prefs.getInt('pendingRoleID')!,
-            telephone: prefs.getString('pendingTelephone') ?? '',
-            password_crypte: prefs.getString('pendingPasswordCrypte')!,
-            password: prefs.getString('pendingPassword')!,
-            firstname: prefs.getString('pendingFirstname')!,
-            lastname: prefs.getString('pendingLastname')!,
-            username: prefs.getString('pendingUsername')!,
-            indicatif: prefs.getString('indicatif')!,
-          ),
-        ),
-      );
-    }
-  }*/
-  Future<void> checkVerificationStatus() async {
-    final prefs = await SharedPreferences.getInstance();
-    final bool isVerified = prefs.getBool('userVerified') ?? false;
-
-    // Vérifier si les données nécessaires sont bien présentes avant de continuer
-    int? userID = prefs.getInt('userID');
-    String? email = prefs.getString('pendingEmail');
-    int? roleID = prefs.getInt('pendingRoleID');
-    String? telephone = prefs.getString('pendingTelephone');
-    String? passwordCrypte = prefs.getString('pendingPasswordCrypte');
-    String? password = prefs.getString('pendingPassword');
-    String? firstname = prefs.getString('pendingFirstname');
-    String? lastname = prefs.getString('pendingLastname');
-    String? username = prefs.getString('pendingUsername');
-    String? indicatif = prefs.getString('indicatif');
-    String country = prefs.getString('pendingCountry') ??
-        _getCountryFromIndicatif(indicatif);
-
-    // Si une des valeurs importantes est manquante, on ne redirige pas
-    if (!isVerified &&
-        userID != null &&
-        email != null &&
-        roleID != null &&
-        telephone != null &&
-        passwordCrypte != null &&
-        password != null &&
-        firstname != null &&
-        lastname != null &&
-        username != null &&
-        indicatif != null) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => VerificationPage(
-            userID: userID,
-            email: email,
-            roleID: roleID,
-            telephone: telephone,
-            password_crypte: passwordCrypte,
-            password: password,
-            firstname: firstname,
-            lastname: lastname,
-            username: username,
-            country: country,
-            indicatif: indicatif,
-          ),
-        ),
-      );
-    } else {
-      print(
-          "Les données de vérification sont incomplètes ou utilisateur déjà vérifié.");
-    }
-  }
-
   void loadData() async {
     List<Users> usersList = await Users.fetchUsersFromDB();
-    List<Restaurant>? restausList =
-        await Restaurant.fetchRestaurantsFromDB(); // Vérifier ici
-
+    List<Restaurant>? restausList = await Restaurant.fetchRestaurantsFromDB();
     setState(() {
       users = usersList;
-      restaus = restausList ?? []; // Si `null`, assigner une liste vide
+      restaus = restausList ?? [];
     });
   }
 
   Future<void> performLogin() async {
+    setState(() => isLoading = true);
     try {
       final user = await _findUserForLogin();
-      ref.read(usersProvider.notifier).state = user;
+      if (user == null) { _handleLoginFailure(); return; }
 
-      // l'user existe
-      if (user != null) {
-        final role = AppRole.fromId(user.roleID);
-        await SessionService.saveUserSession(
-          userId: user.userID,
-          role: role,
-          country: user.country,
-        );
+      final role = AppRole.fromId(user.roleID);
+      await SessionService.saveUserSession(
+        userId: user.userID, role: role, country: user.country,
+      );
 
-        // si c'est un admin ou un super admin il se connecte directement
-        if (role.isAdmin) {
-          firstLogin(user);
-        } else {
-          // l'email et le téléphone ont été vérifiés
-          if (user.status == "Verified") {
-            _handleApprovedUser(user);
-
-            // l'user n'a pas d'adresse
-            if (user.country.trim().isEmpty) {
-              Navigator.pushReplacement(
-                context,
-                CupertinoPageRoute(
-                    builder: (ctx) => StartAddressSaving(
-                          userID: user.userID,
-                          roleID: user.roleID,
-                        )),
-              );
-            } else {
-              // l'user a une adresse
-              // l'identité a été vérifiée
-              if (user.identity == "Verified") {
-                //si c'est un resto
-                if (role.isProfessional) {
-                  NotificationService.subscribeToRestaurantNotifications();
-                  _handleRestaurantValidation(user);
-                } else {
-                  // il peut se connecter ; tous les users qui ne sont pas des admins ont un restau
-                  if (role.isIndividual) {
-                    final restau = await Restaurant.getRestaurantByUser(
-                      restaus,
-                      user.userID,
-                    );
-                    if (restau != null) {
-                      await SessionService.setRestaurantId(restau.restaurantID);
-                    }
-                  }
-                  NotificationService.subscribeToRestaurantNotifications();
-                  firstLogin(user);
-                }
-              } else if (user.identity == "En attente") {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => WaitIdentityValidation(),
-                  ),
-                );
-              } else if (user.identity == "Rejected") {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => UserIdentityRejected(
-                        objectID: user.userID, user_roleID: user.roleID),
-                  ),
-                );
-              } else {
-                // faire la vérification d'identité
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => StatusSelectionPage(
-                        country: user.country,
-                        objectID: user.userID,
-                        user_roleID: user.roleID),
-                  ),
-                );
-              }
-            }
-          } else {
-            _redirectToVerification(user);
-          }
-        }
+      if (role.isAdmin) {
+        firstLogin(user);
+      } else if (user.status == "Verified") {
+        _handleApprovedUser(user);
       } else {
-        _handleLoginFailure();
+        _redirectToVerification(user);
       }
     } catch (e) {
+      debugPrint('Login error: $e');
+      Toast(context, 'Erreur de connexion. Vérifiez votre réseau.', false);
       _handleLoginFailure();
     }
   }
 
   Future<Users?> _findUserForLogin() async {
-    Users? user = await Users.verifUser(
-      users,
-      nameController.text,
-      passwordController.text,
-    );
+    Users? user = await Users.verifUser(users, nameController.text, passwordController.text);
+    if (user != null) return user;
 
-    if (user != null) {
-      return user;
-    }
-
-    user = await Users.loginUser(
-      nameController.text,
-      passwordController.text,
-    );
-
+    user = await Users.loginUser(nameController.text, passwordController.text);
     if (user != null) {
       await DatabaseHelper.createUser(user);
-      final freshUsers = await Users.fetchUsersFromDB();
-      if (mounted) {
-        setState(() => users = freshUsers);
-      }
+      final fresh = await Users.fetchUsersFromDB();
+      if (mounted) setState(() => users = fresh);
       return user;
     }
 
     await Users.getAllUsersDetails();
-    final freshUsers = await Users.fetchUsersFromDB();
-
-    if (mounted) {
-      setState(() {
-        users = freshUsers;
-      });
-    }
-
-    return Users.verifUser(
-      freshUsers,
-      nameController.text,
-      passwordController.text,
-    );
+    final fresh = await Users.fetchUsersFromDB();
+    if (mounted) setState(() => users = fresh);
+    return Users.verifUser(fresh, nameController.text, passwordController.text);
   }
 
   void _handleApprovedUser(Users user) async {
-    // si l'utilisateur ne s'est jamais connecté et s'il n'est ni un admin ni un super admin
-    final role = AppRole.fromId(user.roleID);
-    if (user.last_login == null && !role.isAdmin) {
-      Navigator.pushReplacement(
-        context,
-        CupertinoPageRoute(
-            builder: (ctx) => StartAddressSaving(
-                  userID: user.userID,
-                  roleID: user.roleID,
-                )),
-      );
-    } else {
-      /*if (user.roleID == 1 || user.roleID == 2 || user.roleID == 4) {
-                 firstLogin(user);
-
+    if (user.country.trim().isEmpty) {
+      Navigator.pushReplacement(context, CupertinoPageRoute(
+          builder: (_) => StartAddressSaving(userID: user.userID, roleID: user.roleID)));
+    } else if (user.identity == "Verified") {
+      final role = AppRole.fromId(user.roleID);
+      if (role.isProfessional) {
+        NotificationService.subscribeToRestaurantNotifications();
+        _handleRestaurantValidation(user);
       } else {
-        _handleRestaurantValidation(user, prefs);
-      }*/
+        if (role.isIndividual) {
+          final r = await Restaurant.getRestaurantByUser(restaus, user.userID);
+          if (r != null) await SessionService.setRestaurantId(r.restaurantID);
+        }
+        NotificationService.subscribeToRestaurantNotifications();
+        firstLogin(user);
+      }
+    } else if (user.identity == "En attente") {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => WaitIdentityValidation()));
+    } else if (user.identity == "Rejected") {
+      Navigator.push(context, MaterialPageRoute(
+          builder: (_) => UserIdentityRejected(objectID: user.userID, user_roleID: user.roleID)));
+    } else {
+      Navigator.push(context, MaterialPageRoute(
+          builder: (_) => StatusSelectionPage(country: user.country, objectID: user.userID, user_roleID: user.roleID)));
     }
   }
 
   void _handleRestaurantValidation(Users user) async {
     final restau = await Restaurant.getRestaurantByUser(restaus, user.userID);
-
-    if (restau != null) {
-      // le restau n'est pas encore validé
-      if (restau.valid == 0) {
-        _redirectToWaitValidation();
-      } else if (restau.valid == 1) {
-        // le restau est validé il peut se connecter
-        await SessionService.setRestaurantId(restau.restaurantID);
-        NotificationService.subscribeToRestaurantNotifications();
-        firstLogin(user);
-      } else {
-        // il y a des erreurs dans le formulaire
-        _redirectToRestaurantUpdate(user, restau);
-      }
+    if (restau == null) {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => RestaurantFormPage()));
+    } else if (restau.valid == 0) {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => WaitRestaurantValidation()));
+    } else if (restau.valid == 1) {
+      await SessionService.setRestaurantId(restau.restaurantID);
+      NotificationService.subscribeToRestaurantNotifications();
+      firstLogin(user);
     } else {
-      // on va enregistrer le restau
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => RestaurantFormPage()),
-      );
-      //Toast(context, "Erreur : Contactez les administrateurs.", false);
+      Navigator.push(context, MaterialPageRoute(
+          builder: (_) => RestaurantUpdateFormPage(user: user, restaurant: restau)));
     }
   }
 
   void _redirectToVerification(Users user) {
-    final country = _countryOrDefault(user.country);
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => VerificationPage(
-          userID: user.userID,
-          email: user.email,
-          roleID: user.roleID,
-          password: passwordController.text,
-          password_crypte: user.password,
-          firstname: user.firstname,
-          lastname: user.lastname,
-          username: user.username,
-          telephone: user.telephone.toString(),
-          country: country,
-          indicatif: _getIndicatif(country),
-        ),
-      ),
-    );
-  }
-
-  void _redirectToWaitValidation() {
-    setState(() {
-      loginFailed = true;
-      Navigator.push(context,
-          MaterialPageRoute(builder: (context) => WaitRestaurantValidation()));
-    });
-  }
-
-  void _redirectToRestaurantUpdate(Users user, Restaurant restau) {
-    setState(() {
-      loginFailed = true;
-      Navigator.push(
-          context,
-          MaterialPageRoute(
-              builder: (context) =>
-                  RestaurantUpdateFormPage(user: user, restaurant: restau)));
-    });
+    final country = user.country.trim().isEmpty ? "Bénin" : user.country.trim();
+    Navigator.push(context, MaterialPageRoute(builder: (_) => VerificationPage(
+      userID: user.userID, email: user.email, roleID: user.roleID,
+      password: passwordController.text, password_crypte: user.password,
+      firstname: user.firstname, lastname: user.lastname, username: user.username,
+      telephone: user.telephone.toString(), country: country,
+      indicatif: _indicatif(country),
+    )));
   }
 
   void _handleLoginFailure() {
-    setState(() {
-      isLoading = false;
-      loginFailed = true;
-    });
+    setState(() { isLoading = false; loginFailed = true; });
     Toast(context, Strings.of('login_failed'), false);
   }
 
-  String _getIndicatif(String country) {
-    switch (_countryOrDefault(country)) {
-      case "Bénin":
-        return "+229";
-      case "Côte d'Ivoire":
-        return "+225";
-      case "États-Unis":
-        return "+1";
-      case "France":
-        return "+33";
-      default:
-        return "+229";
+  String _indicatif(String c) {
+    switch (c) {
+      case "Bénin": return "+229";
+      case "Côte d'Ivoire": return "+225";
+      case "France": return "+33";
+      default: return "+229";
     }
-  }
-
-  String _getCountryFromIndicatif(String? indicatif) {
-    switch (indicatif) {
-      case "+229":
-        return "Bénin";
-      case "+225":
-        return "Côte d'Ivoire";
-      case "+1":
-        return "États-Unis";
-      case "+33":
-        return "France";
-      default:
-        return "Bénin";
-    }
-  }
-
-  String _countryOrDefault(String country) {
-    final cleanCountry = country.trim();
-    return cleanCountry.isEmpty ? "Bénin" : cleanCountry;
   }
 
   Future<void> firstLogin(Users user) async {
     NotificationService.subscribeToRestaurantNotifications();
     if (user.last_login == null) {
-      Navigator.push(
-        context,
-        CupertinoPageRoute(
-          builder: (context) => WelcomeScreen(),
-        ),
-      );
+      Navigator.push(context, CupertinoPageRoute(builder: (_) => const WelcomeScreen()));
     } else {
       await Users.updateDerniereConnexion(user.userID);
       Users.chooseCurvedNavigation(user.roleID, user.country, context);
@@ -436,7 +193,6 @@ class _LoginState extends ConsumerState<Login> {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    final simpleUIController = SimpleUIController();
 
     return GestureDetector(
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
@@ -448,10 +204,8 @@ class _LoginState extends ConsumerState<Login> {
           onTap: () {
             Navigator.pop(context);
             nameController.clear();
-            emailController.clear();
             passwordController.clear();
             _formKey.currentState?.reset();
-            _obscurePassword = true;
           },
           child: RichText(
             text: TextSpan(
@@ -470,98 +224,74 @@ class _LoginState extends ConsumerState<Login> {
     );
   }
 
-  Widget _buildForm(
-    Size size,
-    
-  ) {
+  Widget _buildForm(Size size) {
     return Form(
       key: _formKey,
       child: Column(
         children: [
-          // Champ username ou email
           TextFormField(
-            style: kTextFormFieldStyle(),
-            decoration: InputDecoration(
-              prefixIcon: const Icon(Icons.person),
-              hintText: Strings.of('username_or_email'),
-              border: const OutlineInputBorder(
-                borderRadius: BorderRadius.all(Radius.circular(15)),
-              ),
-            ),
+            style: AppTypography.bodyLarge(),
             controller: nameController,
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return Strings.of('enter_username');
-              } else if (value.length < 4) {
-                return Strings.of('min_4_chars');
-              } else if (value.length > 13) {
-                return Strings.of('max_13_chars');
-              }
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.person_outline_rounded),
+              hintText: Strings.of('username_or_email'),
+            ),
+            validator: (v) {
+              if (v == null || v.isEmpty) return Strings.of('enter_username');
+              if (v.length < 4) return Strings.of('min_4_chars');
+              if (v.length > 13) return Strings.of('max_13_chars');
               return null;
             },
           ),
-          SizedBox(height: size.height * 0.02),
-          // Champ mot de passe
+          const SizedBox(height: 16),
           TextFormField(
-            style: kTextFormFieldStyle(),
+            style: AppTypography.bodyLarge(),
             controller: passwordController,
             obscureText: _obscurePassword,
-              decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.lock_open),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _obscurePassword
-                        ? Icons.visibility
-                        : Icons.visibility_off,
-                  ),
-                  onPressed: () {
-                    setState(() => _obscurePassword = !_obscurePassword);
-                  },
-                ),
-                hintText: Strings.of('password'),
-                border: const OutlineInputBorder(
-                  borderRadius: BorderRadius.all(Radius.circular(15)),
-                ),
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.lock_outline_rounded),
+              suffixIcon: IconButton(
+                icon: Icon(_obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
               ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return Strings.of('enter_password');
-                } else if (value.length < 7) {
-                  return Strings.of('min_6_chars');
-                } else if (value.length > 13) {
-                  return Strings.of('max_13_chars');
-                }
-                return null;
-              },
+              hintText: Strings.of('password'),
             ),
-          SizedBox(height: size.height * 0.014),
-          // Bouton de connexion
-          loginButton(),
-          SizedBox(height: size.height * 0.014),
-          Align(
-            alignment: Alignment.centerRight,
-            child: GestureDetector(
-              onTap: () {
-                nameController.clear();
-                emailController.clear();
-                passwordController.clear();
-                _formKey.currentState?.reset();
-                _obscurePassword = true;
-
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => EmailInputScreen(
-                      listusers: users,
-                    ),
-                  ),
-                );
+            validator: (v) {
+              if (v == null || v.isEmpty) return Strings.of('enter_password');
+              if (v.length < 7) return Strings.of('min_6_chars');
+              if (v.length > 13) return Strings.of('max_13_chars');
+              return null;
+            },
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: ElevatedButton(
+              onPressed: () async {
+                if (nameController.text.trim().isEmpty || passwordController.text.isEmpty) {
+                  Toast(context, Strings.of('login_missing_fields'), false);
+                } else {
+                  await performLogin();
+                }
               },
-              child: RichText(
-                text: TextSpan(
-                  text: Strings.of('forgotten_password'),
-                  style: forgottenpasswordTextStyle(size),
-                ),
+              child: Text(Strings.of('login')),
+            ),
+          ),
+          const SizedBox(height: 16),
+          GestureDetector(
+            onTap: () {
+              nameController.clear();
+              passwordController.clear();
+              _formKey.currentState?.reset();
+              Navigator.push(context, MaterialPageRoute(
+                  builder: (_) => EmailInputScreen(listusers: users)));
+            },
+            child: Align(
+              alignment: Alignment.center,
+              child: Text(
+                Strings.of('forgotten_password'),
+                style: AppTypography.labelLarge(color: AppColors.brand),
               ),
             ),
           ),
@@ -569,27 +299,26 @@ class _LoginState extends ConsumerState<Login> {
       ),
     );
   }
+}
 
-  // Bouton de connexion
-  Widget loginButton() {
-    return SizedBox(
-      width: double.infinity,
-      height: 55,
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
+class WelcomeScreen extends StatelessWidget {
+  const WelcomeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.surface,
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.celebration_outlined, size: 64, color: AppColors.accent),
+            const SizedBox(height: 24),
+            Text('Bienvenue sur Dios Délices !', style: AppTypography.headlineMedium(), textAlign: TextAlign.center),
+            const SizedBox(height: 12),
+            Text('Votre compte a été créé avec succès.', style: AppTypography.bodyLarge(color: AppColors.inkMuted)),
+          ],
         ),
-        onPressed: () async {
-          if (nameController.text.trim().isEmpty ||
-              passwordController.text.isEmpty) {
-            Toast(context, Strings.of('login_missing_fields'), false);
-          } else {
-            await performLogin();
-          }
-        },
-        child: Text(Strings.of('login')),
       ),
     );
   }
