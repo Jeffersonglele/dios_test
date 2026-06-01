@@ -18,6 +18,7 @@ import 'package:path/path.dart' as p;
 import '../Cart.dart' as screenCart;
 import '../../utils/toast.dart';
 import '../micro_restau/DishDetailsMicroRestau.dart';
+import '../../widgets/comment_section.dart';
 
 class RestaurantDetails extends ConsumerStatefulWidget {
   static const routeName = '/RestaurantDetailsMicroRestau';
@@ -887,6 +888,16 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
                         ],
                       ),
                     ),
+                  if (currentUser_role == 2 && current_restaurant != null) ...[
+                    SizedBox(height: size.height * 0.03),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 25.0),
+                      child: CommentSection(
+                        targetType: 1,
+                        targetID: widget.restaurant_id,
+                      ),
+                    ),
+                  ],
                   SizedBox(height: size.height * 0.05),
                 ],
               ),

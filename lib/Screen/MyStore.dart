@@ -1,5 +1,6 @@
 import 'package:dios_delices/Screen/Settings.dart';
 import 'package:dios_delices/Screen/restaurants/RestaurantDetails.dart';
+import 'package:dios_delices/Screen/ContactPage.dart';
 import 'package:flutter/material.dart';
 import '../components/Logout.dart';
 
@@ -34,6 +35,11 @@ class _MyStoreState extends State<MyStore> {
         "page": const UserOrdersPage(showRestaurantOrders: true),
       },
       {
+        "icon": Icons.contact_support,
+        "description": "Nous contacter",
+        "page": const ContactPage(),
+      },
+      {
         "icon": Icons.settings,
         "description": "Paramètres",
         "page": Settings(),
@@ -52,7 +58,8 @@ class _MyStoreState extends State<MyStore> {
 
     if (currentUserRestau != null) {
       setState(() {
-        sections[0]["page"] = RestaurantDetails(restaurant_id: currentUserRestau);
+        sections[0]["page"] =
+            RestaurantDetails(restaurant_id: currentUserRestau);
       });
     } else {
       setState(() {
@@ -60,6 +67,34 @@ class _MyStoreState extends State<MyStore> {
         sections[0]["page"] = null;
       });
     }
+  }
+
+  void _openSection(int index) {
+    if (sections[index]["description"] == logoutLabel) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) => LogoutFormDialog(),
+      );
+      return;
+    }
+
+    final page = sections[index]["page"];
+    if (page == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Aucune donnée de restaurant disponible."),
+        ),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (BuildContext context) => page,
+      ),
+    );
   }
 
   @override
@@ -74,7 +109,8 @@ class _MyStoreState extends State<MyStore> {
             SizedBox(
               height: size.height * 0.06,
             ),
-            Expanded( // Limite la hauteur de ListView pour éviter d'écraser la barre de navigation
+            Expanded(
+              // Limite la hauteur de ListView pour éviter d'écraser la barre de navigation
               child: ListView.separated(
                 scrollDirection: Axis.vertical,
                 itemCount: sections.length,
@@ -88,66 +124,41 @@ class _MyStoreState extends State<MyStore> {
                     height: 60,
                     margin: const EdgeInsets.only(right: 30, left: 30),
                     child: ElevatedButton(
-                      onPressed: () {
-                        if (sections[index]["description"] == logoutLabel) {
-                          // Affiche la boîte de dialogue Logout
-                          showDialog(
-                            context: context,
-                            barrierDismissible: false,
-                            builder: (BuildContext context) {
-                              return LogoutFormDialog();
-                            },
-                          );
-                        } else {
-                          // Navigue vers la page "Settings"
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (BuildContext context) =>
-                              sections[index]["page"],
-                            ),
-                          );
-                        }
-                      },
+                      onPressed: () => _openSection(index),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Color.fromARGB(255, 241, 235, 235),
-                        shape: StadiumBorder(),
+                        backgroundColor:
+                            const Color.fromARGB(255, 241, 235, 235),
+                        shape: const StadiumBorder(),
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
                       ),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          ElevatedButton(
-                            onPressed: () {
-                              if (sections[index]["page"] != null) {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (BuildContext context) => sections[index]["page"],
-                                  ),
-                                );
-                              } else {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text("Aucune donnée de restaurant disponible.")),
-                                );
-                              }
-                            },
-                            child: Icon(sections[index]["icon"], color: Colors.white),
-                            style: ElevatedButton.styleFrom(
-                              shape: CircleBorder(),
-                              padding: EdgeInsets.only(top: 4),
-                              backgroundColor: Colors.red,
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              sections[index]["icon"],
+                              color: Colors.white,
                             ),
                           ),
-                          SizedBox(width: 20),
-                          Text(
-                            sections[index]["description"],
-                            style: TextStyle(
-                              color: Colors.black,
-                              fontSize: 27,
-                              fontWeight: FontWeight.bold,
+                          const SizedBox(width: 20),
+                          Expanded(
+                            child: Text(
+                              sections[index]["description"],
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.black,
+                                fontSize: 27,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
-                          SizedBox(width: 5),
                         ],
                       ),
                     ),

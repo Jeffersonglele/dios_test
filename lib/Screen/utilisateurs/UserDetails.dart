@@ -6,8 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:mailer/mailer.dart';
-import 'package:mailer/smtp_server/gmail.dart';
+import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import '../../Constant/Constant.dart';
@@ -143,37 +142,32 @@ class _UserDetailsState extends ConsumerState<UserDetails> {
   }
 
   Future<bool> _sendEmailToUser(Users user, bool valid, [String? remark]) async {
-    String username = 'blandinedupont087@gmail.com';
-    String password = 'dtmd pleh ufau vjqd';
-
-    final smtpServer = gmail(username, password);
-
-    String subject = valid
+    final recipientEmail = user?.email ?? 'adigbononrodicaa@gmail.com';
+    final subject = valid
         ? '🎉 Bienvenue sur Dios Délices - Votre profil est validé !'
         : '❌ Mise à jour : Validation de votre profil sur Dios Délices';
 
-    String messageText = valid
+    final messageText = valid
         ? 'Bonjour ${user?.firstname},\n\n'
         'Nous sommes ravis de vous informer que votre profil a été validé. '
         'Vous pouvez maintenant accéder à votre compte pour gérer votre profil et recevoir des commandes.\n\n'
         'Cordialement,\nL’équipe Dios Délices'
         : 'Bonjour ${user?.firstname},\n\n'
         'Nous regrettons de vous informer que votre profil n’a pas été validé suite à notre processus de vérification.\n\n'
-        'Raison du rejet : ${remark ?? "Non spécifiée"}\n\n' // Ajouter la remarque ici
+        'Raison du rejet : ${remark ?? "Non spécifiée"}\n\n'
         'Pour plus d’informations, n’hésitez pas à nous contacter.\n\n'
         'Cordialement,\nL’équipe Dios Délices';
 
-    final message = Message()
-      ..from = Address(username, 'Dios Délices')
-      ..recipients.add(user?.email ?? 'adigbononrodicaa@gmail.com') // Ajouter l'email du propriétaire
-      ..subject = subject
-      ..text = messageText;
-
+    final cloudFunction = ParseCloudFunction('sendEmail');
     try {
-      await send(message, smtpServer);
+      await cloudFunction.execute(parameters: {
+        'to': recipientEmail,
+        'subject': subject,
+        'text': messageText,
+      });
       print('Email envoyé avec succès');
       return true;
-    } on MailerException catch (e) {
+    } catch (e) {
       print('Erreur lors de l\'envoi de l\'email: $e');
       return false;
     }

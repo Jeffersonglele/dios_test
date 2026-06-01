@@ -1,3 +1,5 @@
+import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
+
 class PromoApplication {
   const PromoApplication({
     required this.code,
@@ -11,40 +13,36 @@ class PromoApplication {
 }
 
 class PromoService {
-  static PromoApplication? applyCode({
+  static Future<PromoApplication?> applyCode({
     required String rawCode,
     required double subtotal,
     required double deliveryFee,
-  }) {
+  }) async {
     final code = rawCode.trim().toUpperCase();
-    if (code.isEmpty) {
+    if (code.isEmpty) return null;
+
+    try {
+      final cloudFunction = ParseCloudFunction('validatePromoCode');
+      final response = await cloudFunction.execute(parameters: {
+        'code': code,
+        'subtotal': subtotal,
+        'deliveryFee': deliveryFee,
+      });
+
+      if (response.success && response.result != null) {
+        final result = response.result as Map<String, dynamic>;
+        if (result['success'] == true) {
+          return PromoApplication(
+            code: result['code'] as String,
+            description: result['description'] as String,
+            discountAmount: (result['discountAmount'] as num).toDouble(),
+          );
+        }
+      }
+      return null;
+    } catch (e) {
+      print('Promo validation error: $e');
       return null;
     }
-
-    if (code == 'BIENVENUE10') {
-      return PromoApplication(
-        code: code,
-        description: '10% de réduction de bienvenue',
-        discountAmount: subtotal * 0.10,
-      );
-    }
-
-    if (code == 'DELICES15') {
-      return PromoApplication(
-        code: code,
-        description: '15% de réduction sur le panier',
-        discountAmount: subtotal * 0.15,
-      );
-    }
-
-    if (code == 'LIVRAISONOFFERTE') {
-      return PromoApplication(
-        code: code,
-        description: 'Livraison offerte',
-        discountAmount: deliveryFee,
-      );
-    }
-
-    return null;
   }
 }

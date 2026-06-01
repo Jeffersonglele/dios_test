@@ -1,4 +1,3 @@
-import 'package:avatar_glow/avatar_glow.dart';
 import 'package:dios_delices/utils/toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +6,7 @@ import 'package:geocoding/geocoding.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../modeles/address.dart';
 import '../providers/address_provider.dart';
+import '../widgets/brand_avatar_logo.dart';
 import '../../Constant/Constant.dart';
 import 'verif_confirm/StatusSelectionPage.dart';
 
@@ -14,8 +14,7 @@ class LocationPage extends ConsumerStatefulWidget {
   final int objectID;
   final int user_roleID;
 
-  LocationPage({required this.objectID,
-    required this.user_roleID});
+  LocationPage({required this.objectID, required this.user_roleID});
 
   @override
   _LocationPageState createState() => _LocationPageState();
@@ -80,13 +79,15 @@ class _LocationPageState extends ConsumerState<LocationPage> {
             ? locationController.text.split(', ')[1]
             : "";
 
-    String state = (position != null && locationController.text.split(', ').length > 2)
+    String state =
+        (position != null && locationController.text.split(', ').length > 2)
             ? locationController.text.split(', ')[3]
             : "";
 
     print("state " + state);
 
-    String fullAddress = locationController.text.isNotEmpty ? locationController.text : "";
+    String fullAddress =
+        locationController.text.isNotEmpty ? locationController.text : "";
 
     String? lat = position?.latitude.toString();
     String? long = position?.longitude.toString();
@@ -122,7 +123,10 @@ class _LocationPageState extends ConsumerState<LocationPage> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => StatusSelectionPage(country: state, objectID: widget.objectID, user_roleID: widget.user_roleID),
+          builder: (context) => StatusSelectionPage(
+              country: state,
+              objectID: widget.objectID,
+              user_roleID: widget.user_roleID),
         ),
       );
     } else {
@@ -144,9 +148,11 @@ class _LocationPageState extends ConsumerState<LocationPage> {
 
     try {
       // 🔹 Convertir l'adresse en coordonnées GPS
-      List<Location> locations = await locationFromAddress("$fullAddress, $city, $state");
+      List<Location> locations =
+          await locationFromAddress("$fullAddress, $city, $state");
       if (locations.isEmpty) {
-        Toast(context, "Adresse introuvable. Veuillez vérifier l'exactitude.", false);
+        Toast(context, "Adresse introuvable. Veuillez vérifier l'exactitude.",
+            false);
         return;
       }
 
@@ -185,16 +191,19 @@ class _LocationPageState extends ConsumerState<LocationPage> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => StatusSelectionPage(country: state, objectID: widget.objectID, user_roleID: widget.user_roleID),
+            builder: (context) => StatusSelectionPage(
+                country: state,
+                objectID: widget.objectID,
+                user_roleID: widget.user_roleID),
           ),
         );
       } else {
         Toast(context, validationResult, false);
       }
-
     } catch (e) {
       print("Erreur lors de la conversion de l'adresse : $e");
-      Toast(context, "Impossible de trouver l'adresse, vérifiez les informations.", false);
+      Toast(context,
+          "Impossible de trouver l'adresse, vérifiez les informations.", false);
     }
   }
 
@@ -216,24 +225,7 @@ class _LocationPageState extends ConsumerState<LocationPage> {
                 SizedBox(height: size.height * 0.1),
                 size.width > 600
                     ? Container()
-                    : Center(
-                        child: AvatarGlow(
-                          duration: Duration(seconds: 2),
-                          glowColor: Colors.white24,
-                          repeat: true,
-                          startDelay: Duration(seconds: 1),
-                          child: Material(
-                            elevation: 8.0,
-                            shape: CircleBorder(),
-                            child: CircleAvatar(
-                              backgroundColor: Colors.transparent,
-                              backgroundImage:
-                                  AssetImage('assets/images/logo_sm01.jpg'),
-                              radius: 50.0,
-                            ),
-                          ),
-                        ),
-                      ),
+                    : const Center(child: BrandAvatarLogo()),
                 SizedBox(height: size.height * 0.03),
                 Padding(
                   padding: const EdgeInsets.only(left: 20.0),
@@ -257,8 +249,11 @@ class _LocationPageState extends ConsumerState<LocationPage> {
                         onPressed: getCurrentLocation,
                         icon:
                             const Icon(Icons.location_on, color: Colors.white),
-                        label: const Text('Obtenir ma localisation', style: TextStyle(
-                            color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                        label: const Text('Obtenir ma localisation',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold)),
                         style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.red),
                       ),
@@ -280,7 +275,9 @@ class _LocationPageState extends ConsumerState<LocationPage> {
                                 ? "Masquer le formulaire"
                                 : "Entrer mon adresse manuellement",
                             style: TextStyle(
-                                color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold)),
                       ),
                       SizedBox(height: 15),
                       if (showManualEntry)
@@ -325,27 +322,40 @@ class _LocationPageState extends ConsumerState<LocationPage> {
                             // Si l'adresse est entrée manuellement
                             saveManualAddress();
                           } else {
-                            Toast(context, "Veuillez entrer ou détecter une adresse avant d'enregistrer.", false);
+                            Toast(
+                                context,
+                                "Veuillez entrer ou détecter une adresse avant d'enregistrer.",
+                                false);
                           }
                         },
                         child: Text("Enregistrer l'adresse",
-                            style: TextStyle(color: Colors.white,
-                                fontSize: 18, fontWeight: FontWeight.bold)),
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold)),
                       ),
                       SizedBox(height: 20),
                       if (addressExists)
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => StatusSelectionPage(country: stateController.text, objectID: widget.objectID, user_roleID: widget.user_roleID),
-                            ),
-                          );
-                        },
-                        child: Text("Poursuivre >", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                      ),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => StatusSelectionPage(
+                                    country: stateController.text,
+                                    objectID: widget.objectID,
+                                    user_roleID: widget.user_roleID),
+                              ),
+                            );
+                          },
+                          child: Text("Poursuivre >",
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold)),
+                        ),
                     ],
                   ),
                 ),

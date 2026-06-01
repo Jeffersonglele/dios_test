@@ -1,20 +1,19 @@
 import 'dart:io';
-import 'package:avatar_glow/avatar_glow.dart';
 import 'package:dios_delices/modeles/restaurant.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geocoding/geocoding.dart' as geo;
 import 'package:image_picker/image_picker.dart';
-import 'package:mailer/mailer.dart';
-import 'package:mailer/smtp_server.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:path/path.dart' as p;
 import '../../Constant/Constant.dart';
 import '../../modeles/users.dart';
 import '../../providers/users_provider.dart';
 import '../../utils/HashtagTextInputFormatter.dart';
+import '../../utils/phone_number.dart';
 import '../../utils/toast.dart';
+import '../../widgets/brand_avatar_logo.dart';
 import '../AnimatedSplashScreen.dart';
 import '../verif_confirm/ConfirmationPage.dart';
 
@@ -89,23 +88,15 @@ class _RestaurantUpdateFormPageState
   // Fonction pour envoyer un email à l'admin avec les infos du restaurant
   Future<void> _sendEmailToAdmin(
       String name, String address, String phone) async {
-    String username =
-        'blandinedupont087@gmail.com'; // Remplacez par votre adresse Gmail
-    String password =
-        'dtmd pleh ufau vjqd'; // Remplacez par votre mot de passe sécurisé
-
-    final smtpServer = gmail(username, password);
-
-    final message = Message()
-      ..from = Address('blandinedupont087@gmail.com', 'Dios Délices')
-      ..recipients.add('blandinedupont087@gmail.com') // Envoyer à l'admin
-      ..subject = 'Nouvelle demande de Restaurant'
-      ..text = 'Nom du restaurant: $name\nAdresse: $address\nTéléphone: $phone';
-
+    final cloudFunction = ParseCloudFunction('sendEmail');
     try {
-      await send(message, smtpServer);
+      await cloudFunction.execute(parameters: {
+        'to': 'blandinedupont087@gmail.com',
+        'subject': 'Nouvelle demande de Restaurant',
+        'text': 'Nom du restaurant: $name\nAdresse: $address\nTéléphone: $phone',
+      });
       print('Email envoyé avec succès');
-    } on MailerException catch (e) {
+    } catch (e) {
       print('Erreur lors de l\'envoi de l\'email: $e');
     }
   }
@@ -140,7 +131,8 @@ class _RestaurantUpdateFormPageState
     _descriptionController.text = widget.restaurant.description;
     _categoriesController.text = widget.restaurant.categories;
     _openingHoursController.text = widget.restaurant.openingHours;
-    _deliveryFeeController.text = widget.restaurant.deliveryFee.toStringAsFixed(2);
+    _deliveryFeeController.text =
+        widget.restaurant.deliveryFee.toStringAsFixed(2);
     _isOpen = widget.restaurant.isOpen == 1;
   }
 
@@ -173,24 +165,7 @@ class _RestaurantUpdateFormPageState
                   SizedBox(height: size.height * 0.1),
                   size.width > 600
                       ? Container()
-                      : Center(
-                          child: AvatarGlow(
-                            duration: Duration(seconds: 2),
-                            glowColor: Colors.white24,
-                            repeat: true,
-                            startDelay: Duration(seconds: 1),
-                            child: Material(
-                              elevation: 8.0,
-                              shape: CircleBorder(),
-                              child: CircleAvatar(
-                                backgroundColor: Colors.transparent,
-                                backgroundImage:
-                                    AssetImage('assets/images/logo_sm01.jpg'),
-                                radius: 50.0,
-                              ),
-                            ),
-                          ),
-                        ),
+                      : const Center(child: BrandAvatarLogo()),
                   SizedBox(height: size.height * 0.03),
                   Padding(
                     padding: const EdgeInsets.only(left: 20.0),
@@ -273,7 +248,8 @@ class _RestaurantUpdateFormPageState
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
                     inputFormatters: <TextInputFormatter>[
-                      FilteringTextInputFormatter.allow(RegExp(r'^\d+[.,]?\d{0,2}$')),
+                      FilteringTextInputFormatter.allow(
+                          RegExp(r'^\d+[.,]?\d{0,2}$')),
                     ],
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
@@ -312,7 +288,8 @@ class _RestaurantUpdateFormPageState
                               )
                             : widget.restaurant.image!.isNotEmpty
                                 ? Image.network(
-                                    widget.restaurant.image ?? "https://parsefiles.back4app.com/9qBeGGwSGOQ1iWOJ1UNUXt40NhgwwgbHJYGpV1zg/4f636282d677d999cd624580cdec2ff7_no_image.png",
+                                    widget.restaurant.image ??
+                                        "https://parsefiles.back4app.com/9qBeGGwSGOQ1iWOJ1UNUXt40NhgwwgbHJYGpV1zg/4f636282d677d999cd624580cdec2ff7_no_image.png",
                                     width: 100,
                                     height: 60,
                                     fit: BoxFit.cover,
@@ -408,7 +385,8 @@ class _RestaurantUpdateFormPageState
                               name: _nameController.text,
                               openingHours: _openingHoursController.text.trim(),
                               deliveryFee: double.parse(
-                                _deliveryFeeController.text.replaceAll(',', '.'),
+                                _deliveryFeeController.text
+                                    .replaceAll(',', '.'),
                               ),
                               isOpen: _isOpen ? 1 : 0,
                               image: parseFile,
@@ -418,7 +396,10 @@ class _RestaurantUpdateFormPageState
                               await _sendEmailToAdmin(
                                 _nameController.text,
                                 _addressController.text,
-                                user.telephone.toString(),
+                                formatPhoneForCountry(
+                                  phone: user.telephone,
+                                  country: user.country,
+                                ),
                               );
 
                               Navigator.push(

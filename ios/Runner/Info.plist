@@ -26,6 +26,12 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Dios Délices utilise l'appareil photo pour prendre votre photo de vérification d'identité.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Dios Délices utilise votre galerie pour sélectionner des images de restaurant, de plat ou de pièce d'identité.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Dios Délices peut enregistrer des images générées ou modifiées dans votre galerie si nécessaire.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

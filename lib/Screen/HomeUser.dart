@@ -5,6 +5,7 @@ import 'package:dios_delices/Screen/restaurants/RestaurantDetails.dart';
 import 'package:dios_delices/SearchInput.dart';
 import 'package:dios_delices/modeles/address.dart';
 import 'package:dios_delices/utils/DateTime.dart';
+import 'package:dios_delices/core/app_role.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -36,6 +37,10 @@ class _HomeUserState extends State<HomeUser> {
   int current_userID = 0;
   int current_user_role = 0;
   int current_user_restau = 0;
+
+  String? _selectedCategory;
+  double? _maxPrice;
+  double? _minRating;
 
   SimpleUIController simpleUIController = Get.put(SimpleUIController());
 
@@ -180,7 +185,9 @@ class _HomeUserState extends State<HomeUser> {
         SearchInput(),
         SizedBox(height: size.height * 0.02),
         DateTimeDisplay(),
-        SizedBox(height: size.height * 0.06),
+        SizedBox(height: size.height * 0.02),
+        _buildFilterChips(),
+        SizedBox(height: size.height * 0.04),
         _buildSectionTitle(size, 'Restaurants près de chez vous', actionText: "Voir plus",
             onTap: () {
           Navigator.push(
@@ -301,9 +308,44 @@ class _HomeUserState extends State<HomeUser> {
                           ),
                         ),
                         ListTile(
-                          title: Text(
-                            restaus[index].name,
-                            style: TextStyle(fontWeight: FontWeight.bold),
+                          title: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  restaus[index].name,
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                              if (users.any(
+                                (u) => u.userID == restaus[index].userID &&
+                                    AppRole.fromId(u.roleID) ==
+                                        AppRole.microRestaurant,
+                              ))
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.amber.shade100,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.verified,
+                                          size: 12, color: Colors.amber),
+                                      SizedBox(width: 2),
+                                      Text(
+                                        'PRO',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.amber,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
                       ],
@@ -314,5 +356,54 @@ class _HomeUserState extends State<HomeUser> {
             ),
           )
         : Container();
+  }
+
+  Widget _buildFilterChips() {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          FilterChip(
+            label: const Text('Tout'),
+            selected: _selectedCategory == null && _maxPrice == null && _minRating == null,
+            onSelected: (_) => setState(() {
+              _selectedCategory = null;
+              _maxPrice = null;
+              _minRating = null;
+            }),
+          ),
+          const SizedBox(width: 6),
+          FilterChip(
+            label: const Text('⭐ 4+'),
+            selected: _minRating == 4,
+            onSelected: (_) => setState(() => _minRating = _minRating == 4 ? null : 4),
+          ),
+          const SizedBox(width: 6),
+          FilterChip(
+            label: const Text('💰 -10€'),
+            selected: _maxPrice == 10,
+            onSelected: (_) => setState(() => _maxPrice = _maxPrice == 10 ? null : 10),
+          ),
+          const SizedBox(width: 6),
+          FilterChip(
+            label: const Text('💰💰 10-20€'),
+            selected: _maxPrice == 20,
+            onSelected: (_) => setState(() => _maxPrice = _maxPrice == 20 ? null : 20),
+          ),
+          const SizedBox(width: 6),
+          ...['#africain', '#européen', '#asiatique', '#végétarien', '#fast-food', '#dessert'].map((cat) => Padding(
+            padding: const EdgeInsets.only(right: 6),
+            child: FilterChip(
+              label: Text(cat),
+              selected: _selectedCategory == cat,
+              onSelected: (_) => setState(() {
+                _selectedCategory = _selectedCategory == cat ? null : cat;
+              }),
+            ),
+          )),
+        ],
+      ),
+    );
   }
 }

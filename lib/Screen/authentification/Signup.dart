@@ -8,15 +8,14 @@ import 'package:email_validator/email_validator.dart';
 import 'package:flutter_pw_validator/flutter_pw_validator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../utils/phone_number.dart';
 import '../../utils/toast.dart';
 import 'Login.dart';
 import '../../Constant/Constant.dart';
 import '../../Controller/UiController.dart';
-import 'package:avatar_glow/avatar_glow.dart';
-
-import '../../mails/mails.dart';
 import '../../modeles/users.dart';
 import '../verif_confirm/VerificationPage.dart';
+import '../../widgets/auth_shell.dart';
 
 class SignUpView extends StatefulWidget {
   const SignUpView({Key? key}) : super(key: key);
@@ -43,11 +42,17 @@ class _SignUpViewState extends State<SignUpView> {
   Position? position;
   String completeAddress = "";
 
-  String _selectedCountry = "France";
+  String _selectedCountry = "Bénin";
   final Map<String, String> _countryCodes = {
     "France": "+33",
     "Bénin": "+229",
     "Côte d'Ivoire": "+225"
+  };
+
+  final Map<String, String> _countryFlags = {
+    "France": "🇫🇷",
+    "Bénin": "🇧🇯",
+    "Côte d'Ivoire": "🇨🇮"
   };
 
   final Map<String, int> _phoneNumberLengths = {
@@ -96,205 +101,170 @@ class _SignUpViewState extends State<SignUpView> {
 
   @override
   Widget build(BuildContext context) {
-    var size = MediaQuery.of(context).size;
-    var theme = Theme.of(context);
+    final size = MediaQuery.of(context).size;
+    final theme = Theme.of(context);
 
     return GestureDetector(
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
-      // Fermer le clavier en cliquant en dehors
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        resizeToAvoidBottomInset: false,
-        body: SingleChildScrollView(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              if (constraints.maxWidth > 600) {
-                return _buildLargeScreen(size, simpleUIController,
-                    theme); // Affichage pour les grands écrans
-              } else {
-                return _buildSmallScreen(size, simpleUIController,
-                    theme); // Affichage pour les petits écrans
-              }
-            },
+      child: AuthShell(
+        title: 'signup_title'.tr,
+        subtitle: 'signup_subtitle'.tr,
+        form: _buildMainBody(size, simpleUIController, theme),
+        footer: GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              CupertinoPageRoute(builder: (ctx) => const Login()),
+            );
+            _formKey.currentState?.reset();
+            _clearTextFields();
+            simpleUIController.isObscure.value = true;
+          },
+          child: RichText(
+            text: TextSpan(
+              text: 'already_have_account'.tr,
+              style: kHaveAnAccountStyle(size),
+              children: [
+                TextSpan(
+                  text: " ${'login'.tr}",
+                  style: kLoginOrSignUpTextStyle(size),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  // Affichage pour grands écrans
-  Widget _buildLargeScreen(
-      Size size, SimpleUIController simpleUIController, ThemeData theme) {
-    return Row(
-      children: [
-        SizedBox(width: size.width * 0.06),
-        Expanded(
-          flex: 5,
-          child: _buildMainBody(size, simpleUIController, theme),
-        ),
-      ],
-    );
-  }
-
-  // Affichage pour petits écrans
-  Widget _buildSmallScreen(
-      Size size, SimpleUIController simpleUIController, ThemeData theme) {
-    return Center(
-      child: _buildMainBody(size, simpleUIController, theme),
-    );
-  }
-
   // Corps principal du formulaire
   Widget _buildMainBody(
       Size size, SimpleUIController simpleUIController, ThemeData theme) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment:
-          size.width > 600 ? MainAxisAlignment.center : MainAxisAlignment.start,
-      children: [
-        SizedBox(height: size.height * 0.1),
-        size.width > 600
-            ? Container() // N'affiche pas l'avatar sur les grands écrans
-            : Center(
-                child: AvatarGlow(
-                  duration: Duration(seconds: 2),
-                  glowColor: Colors.white24,
-                  repeat: true,
-                  startDelay: Duration(seconds: 1),
-                  child: Material(
-                    elevation: 8.0,
-                    shape: CircleBorder(),
-                    child: CircleAvatar(
-                      backgroundColor: Colors.transparent,
-                      backgroundImage:
-                          AssetImage('assets/images/logo_sm01.jpg'),
-                      radius: 50.0,
-                    ),
-                  ),
-                ),
-              ),
-        SizedBox(height: size.height * 0.03),
-        Padding(
-          padding: const EdgeInsets.only(left: 20.0),
-          child: Text(
-            'Inscription',
-            style: kLoginTitleStyle(
-                size), // Assurez-vous que cette fonction est bien appelée ici
+    return Form(
+      key: _formKey,
+      child: Column(
+        children: [
+          // Champ pour le prénom
+          _buildTextField(
+            controller: firstnameController,
+            hintText: 'firstname'.tr,
+            icon: Icons.person,
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'enter_firstname'.tr;
+              } else if (value.length < 4) {
+                return 'min_4_chars'.tr;
+              }
+              return null;
+            },
           ),
-        ),
-        const SizedBox(height: 10),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              children: [
-                // Champ pour le prénom
-                _buildTextField(
-                  controller: firstnameController,
-                  hintText: 'firstname'.tr,
-                  icon: Icons.person,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter first name';
-                    } else if (value.length < 4) {
-                      return 'At least enter 4 characters';
-                    }
-                    return null;
-                  },
-                ),
-                SizedBox(height: size.height * 0.02),
-                // Champ pour le nom
-                _buildTextField(
-                  controller: lastnameController,
-                  hintText: 'lastname'.tr,
-                  icon: Icons.person,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter last name';
-                    } else if (value.length < 4) {
-                      return 'At least enter 4 characters';
-                    }
-                    return null;
-                  },
-                ),
-                SizedBox(height: size.height * 0.02),
-                // Champ pour le nom d'utilisateur
-                _buildTextField(
-                  controller: usernameController,
-                  hintText: 'Username',
-                  icon: Icons.person,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter username';
-                    } else if (value.length < 4) {
-                      return 'At least enter 4 characters';
-                    }
-                    return null;
-                  },
-                ),
-                SizedBox(height: size.height * 0.02),
-                // Champ pour l'email
-                _buildTextField(
-                  controller: emailController,
-                  hintText: 'Email address',
-                  icon: Icons.email_rounded,
-                  validator: (value) {
-                    if (!EmailValidator.validate(value!)) {
-                      return 'Please enter a valid email address';
-                    }
-                  },
-                ),
-                SizedBox(height: size.height * 0.02),
-                Row(
-                  children: [
-                    SizedBox(
-                      width: 100,
-                      child: DropdownButton<String>(
-                        value: _selectedCountry,
-                        onChanged: (String? newValue) {
-                          setState(() {
-                            _selectedCountry = newValue!;
-                          });
-                        },
-                        items: _countryCodes.keys.map((String country) {
-                          return DropdownMenuItem<String>(
-                            value: country,
-                            child: Text("${_countryCodes[country]}"),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                    SizedBox(width: 10),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _telephone_Controller,
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly
-                        ],
-                        decoration: InputDecoration(
-                          hintText: "Numéro de téléphone",
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(15)),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return "Veuillez entrer un numéro";
-                          }
-                          int requiredLength =
-                              _phoneNumberLengths[_selectedCountry]!;
-                          if (value.length != requiredLength) {
-                            return "Le numéro doit contenir $requiredLength chiffres";
-                          }
-                          return null;
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: size.height * 0.02),
-                /*_buildTextField(
+          SizedBox(height: size.height * 0.02),
+          // Champ pour le nom
+          _buildTextField(
+            controller: lastnameController,
+            hintText: 'lastname'.tr,
+            icon: Icons.person,
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'enter_lastname'.tr;
+              } else if (value.length < 4) {
+                return 'min_4_chars'.tr;
+              }
+              return null;
+            },
+          ),
+          SizedBox(height: size.height * 0.02),
+          // Champ pour le nom d'utilisateur
+          _buildTextField(
+            controller: usernameController,
+            hintText: 'username'.tr,
+            icon: Icons.person,
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'enter_username'.tr;
+              } else if (value.length < 4) {
+                return 'min_4_chars'.tr;
+              }
+              return null;
+            },
+          ),
+          SizedBox(height: size.height * 0.02),
+          // Champ pour l'email
+          _buildTextField(
+            controller: emailController,
+            hintText: 'email'.tr,
+            icon: Icons.email_rounded,
+            validator: (value) {
+              if (!EmailValidator.validate(value!)) {
+                return 'enter_valid_email'.tr;
+              }
+              return null;
+            },
+          ),
+          SizedBox(height: size.height * 0.02),
+          DropdownButtonFormField<String>(
+            value: _selectedCountry,
+            isExpanded: true,
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.flag_rounded),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(15),
+              ),
+            ),
+            selectedItemBuilder: (context) {
+              return _countryCodes.keys.map((country) {
+                return Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(_phoneCountryLabel(country)),
+                );
+              }).toList();
+            },
+            onChanged: (String? newValue) {
+              setState(() {
+                _selectedCountry = newValue!;
+                _telephone_Controller.clear();
+              });
+            },
+            items: _countryCodes.keys.map((String country) {
+              return DropdownMenuItem<String>(
+                value: country,
+                child: Text(_phoneCountryLabel(country)),
+              );
+            }).toList(),
+          ),
+          SizedBox(height: size.height * 0.02),
+          TextFormField(
+            controller: _telephone_Controller,
+            keyboardType: TextInputType.number,
+            inputFormatters: _selectedCountry == 'Bénin'
+                ? [BeninPhoneInputFormatter()]
+                : [FilteringTextInputFormatter.digitsOnly],
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.phone_rounded),
+              hintText: _selectedCountry == 'Bénin'
+                  ? '01 xx xx xx xx'
+                  : 'phone_number'.tr,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(15),
+              ),
+            ),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'enter_phone'.tr;
+              }
+              if (_selectedCountry == 'Bénin' &&
+                  !isValidBeninLocalPhone(value)) {
+                return 'benin_phone_format'.tr;
+              }
+              int requiredLength = _phoneNumberLengths[_selectedCountry]!;
+              if (phoneDigits(value).length != requiredLength) {
+                return 'phone_length'.trParams({'count': '$requiredLength'});
+              }
+              return null;
+            },
+          ),
+          SizedBox(height: size.height * 0.02),
+          /*_buildTextField(
                   controller: _telephone_Controller,
                   keyboardType: TextInputType.number,
                   inputFormatters: <TextInputFormatter>[
@@ -313,102 +283,79 @@ class _SignUpViewState extends State<SignUpView> {
                   },
                 ),
                 SizedBox(height: size.height * 0.02),*/
-                // Champ pour le mot de passe
-                Obx(() => _buildPasswordField(
-                      controller: passwordController,
-                      hintText: 'Password',
-                      simpleUIController: simpleUIController,
-                    )),
-                SizedBox(height: size.height * 0.02),
-                // Validateur de mot de passe
-                FlutterPwValidator(
-                  key: validatorKey,
-                  controller: passwordController,
-                  minLength: 8,
-                  uppercaseCharCount: 1,
-                  numericCharCount: 3,
-                  specialCharCount: 1,
-                  width: 400,
-                  height: 150,
-                  onSuccess: () {},
-                  onFail: () {},
-                ),
-                SizedBox(height: size.height * 0.03),
-                // Champ pour confirmer le mot de passe
-                Obx(() => _buildPasswordField(
-                      controller: passwordConfirmController,
-                      hintText: 'Confirm password',
-                      simpleUIController: simpleUIController,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please confirm your password';
-                        }
-                        if (value != passwordController.text) {
-                          // Comparaison des deux champs
-                          return 'Passwords do not match';
-                        }
-                        return null;
-                      },
-                    )),
-                SizedBox(height: size.height * 0.01),
-                CheckboxListTile(
-                  title: Text(
-                    "Creating an account means you're okay with our Terms of Services and our Privacy Policy",
-                    style: TextStyle(
-                      color: _isSelected
-                          ? Colors.black
-                          : Colors.red, // Rouge si non coché
-                    ),
-                  ),
-                  value: _isSelected,
-                  onChanged: (newValue) {
-                    setState(() {
-                      _isSelected = newValue!;
-                    });
-                  },
-                  controlAffinity: ListTileControlAffinity
-                      .leading, // Place la checkbox à gauche
-                ),
-                SizedBox(height: size.height * 0.02),
-                /*ElevatedButton.icon(
+          // Champ pour le mot de passe
+          Obx(() => _buildPasswordField(
+                controller: passwordController,
+                hintText: 'password'.tr,
+                simpleUIController: simpleUIController,
+              )),
+          SizedBox(height: size.height * 0.02),
+          // Validateur de mot de passe
+          FlutterPwValidator(
+            key: validatorKey,
+            controller: passwordController,
+            minLength: 8,
+            uppercaseCharCount: 1,
+            numericCharCount: 3,
+            specialCharCount: 1,
+            width: 400,
+            height: 150,
+            onSuccess: () {},
+            onFail: () {},
+          ),
+          SizedBox(height: size.height * 0.03),
+          // Champ pour confirmer le mot de passe
+          Obx(() => _buildPasswordField(
+                controller: passwordConfirmController,
+                hintText: 'confirm_password'.tr,
+                simpleUIController: simpleUIController,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'confirm_password_required'.tr;
+                  }
+                  if (value != passwordController.text) {
+                    // Comparaison des deux champs
+                    return 'passwords_do_not_match'.tr;
+                  }
+                  return null;
+                },
+              )),
+          SizedBox(height: size.height * 0.01),
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            activeColor: theme.colorScheme.primary,
+            checkColor: Colors.white,
+            side: BorderSide(color: theme.dividerColor),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+            title: Text(
+              'terms_acceptance'.tr,
+              style: TextStyle(
+                color: _isSelected ? Colors.black : theme.colorScheme.primary,
+              ),
+            ),
+            value: _isSelected,
+            onChanged: (newValue) {
+              setState(() {
+                _isSelected = newValue!;
+              });
+            },
+            controlAffinity:
+                ListTileControlAffinity.leading, // Place la checkbox à gauche
+          ),
+          SizedBox(height: size.height * 0.02),
+          /*ElevatedButton.icon(
                   onPressed: getCurrentLocation,
                   icon: const Icon(Icons.location_on, color: Colors.white),
                   label: const Text('Get My Current Location', style: TextStyle(color: Colors.white)),
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.orangeAccent),
                 ),
                 SizedBox(height: size.height * 0.02),*/
-                // Bouton de sign up
-                signUpButton(theme),
-                SizedBox(height: size.height * 0.03),
-                // Lien pour aller à la page de connexion
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(context,
-                        CupertinoPageRoute(builder: (ctx) => const Login()));
-                    _formKey.currentState?.reset();
-                    _clearTextFields();
-                    simpleUIController.isObscure.value = true;
-                  },
-                  child: RichText(
-                    text: TextSpan(
-                      text: 'Already have an account?',
-                      style: kHaveAnAccountStyle(size),
-                      children: [
-                        TextSpan(
-                            text: " Login",
-                            style: kLoginOrSignUpTextStyle(size)),
-                      ],
-                    ),
-                  ),
-                ),
-                SizedBox(
-                  height: 55,
-                )
-              ],
-            ),
-          ),
-        ),
-      ],
+          // Bouton de sign up
+          signUpButton(theme),
+        ],
+      ),
     );
   }
 
@@ -486,19 +433,14 @@ class _SignUpViewState extends State<SignUpView> {
       height: 55,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.red, // Couleur de fond du bouton
-          foregroundColor: Colors.white, //Couleur du texte
-          textStyle: TextStyle(
-            fontSize: 18, // Taille du texte
-            fontWeight: FontWeight.bold, // (Optionnel) Style de texte en gras
-          ),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15), // Bordure du bouton
+            borderRadius: BorderRadius.circular(20),
           ),
         ),
         onPressed: () async {
           if (_formKey.currentState!.validate()) {
-            String encryptedPassword = await Users.encryptPassword(passwordController.text);
+            String encryptedPassword =
+                await Users.encryptPassword(passwordController.text);
 
             dynamic result = await Users.manageUser(
               roleID: 2,
@@ -508,16 +450,18 @@ class _SignUpViewState extends State<SignUpView> {
               lastname: lastnameController.text,
               username: usernameController.text,
               email: emailController.text,
-              telephone: int.parse(_telephone_Controller.text),
+              telephone: phoneDigits(_telephone_Controller.text),
+              country: _selectedCountry,
               status: '',
               identity: '',
               addressID: 0,
             );
 
-            if (result is int) { // Vérifie si la réponse est bien un userID
+            if (result is int) {
+              // Vérifie si la réponse est bien un userID
               int userID = result;
               SharedPreferences prefs = await SharedPreferences.getInstance();
-              await prefs.setBool('userVerified', true);
+              await prefs.setBool('userVerified', false);
 
               Navigator.push(
                 context,
@@ -531,7 +475,8 @@ class _SignUpViewState extends State<SignUpView> {
                     firstname: firstnameController.text,
                     lastname: lastnameController.text,
                     username: usernameController.text,
-                    telephone: int.tryParse(_telephone_Controller.text.replaceAll(' ', '')) ?? 0,
+                    telephone: phoneDigits(_telephone_Controller.text),
+                    country: _selectedCountry,
                     indicatif: _countryCodes[_selectedCountry] ?? '',
                   ),
                 ),
@@ -546,6 +491,10 @@ class _SignUpViewState extends State<SignUpView> {
         child: Text('signup'.tr),
       ),
     );
+  }
+
+  String _phoneCountryLabel(String country) {
+    return '${_countryFlags[country] ?? ''} $country ${_countryCodes[country]}';
   }
 
   // Méthode pour vider tous les champs

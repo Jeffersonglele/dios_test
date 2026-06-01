@@ -87,13 +87,14 @@ class MyApp extends StatelessWidget {
         theme: AppTheme.light(),
         home: SafeArea(
           child:
-              const AnimatedSplashScreen(), // Assure que tous les écrans démarrent avec SafeArea
+              const AnimatedSplashScreen(),
         ),
-        translations: MyTranslations(), // <--- ajoute cette ligne
-        locale: Get.deviceLocale, // <--- détecte automatiquement la langue
-        fallbackLocale: const Locale('en', 'US'),
+        translations: MyTranslations(),
+        locale: Get.deviceLocale, //
+        fallbackLocale: const Locale('fr', 'FR'),
         routes: <String, WidgetBuilder>{
-          ANIMATED_SPLASH: (BuildContext context) => const AnimatedSplashScreen(),
+          ANIMATED_SPLASH: (BuildContext context) =>
+              const AnimatedSplashScreen(),
           SIGNUP_SCREEN: (BuildContext context) => const SignUpView(),
           LOGIN: (BuildContext context) => const Login(),
           FOOD_DETAILS: (BuildContext context) =>

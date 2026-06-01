@@ -15,9 +15,5 @@ class AppBootstrapService {
     await Restaurant.getAllRestaurantsDetails();
     await Dish.getAllDishesDetails();
     await Address.getAllAdressesDetails();
-    await Identity.getAllIdentitiesDetails();
-    await MoyenPaiement.getAllMoyensPaiement();
-    await Commande.getAllCommandes();
-    await LigneCommande.getAllLignesCommande();
   }
 }

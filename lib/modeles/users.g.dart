@@ -26,7 +26,7 @@ class UsersAdapter extends TypeAdapter<Users> {
       password: fields[5] as String,
       last_login: fields[6] as DateTime?,
       image: fields[7] as String,
-      telephone: fields[9] as int,
+      telephone: fields[9] as String,
       country: fields[10] as String,
       status: fields[11] as String,
       identity: fields[12] as String,

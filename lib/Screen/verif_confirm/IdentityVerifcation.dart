@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:avatar_glow/avatar_glow.dart';
 import 'package:dios_delices/Screen/verif_confirm/IdentityCreated.dart';
 import 'package:dios_delices/modeles/users.dart';
 import 'package:dios_delices/utils/toast.dart';
@@ -8,15 +7,15 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:mailer/mailer.dart';
-import 'package:mailer/smtp_server/gmail.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import '../../Constant/Constant.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 
 import '../../modeles/identity.dart';
+import '../../widgets/brand_avatar_logo.dart';
 import '../restaurants/RestaurantFormPage.dart';
 
 class IdentityVerification extends ConsumerStatefulWidget {
@@ -38,19 +37,165 @@ class _IdentityVerificationState extends ConsumerState<IdentityVerification> {
   File? _userPhoto;
   File? _identityFile;
 
-  // 📸 Prendre une photo de l'utilisateur avec la caméra
+  Future<void> _showPhotoSourcePicker() async {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text("Prendre une photo"),
+                onTap: () {
+                  Navigator.pop(context);
+                  _takePhoto();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text("Choisir depuis la galerie"),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickPhotoFromGallery();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.attach_file),
+                title: const Text("Choisir un fichier image"),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickPhotoFromFiles();
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _takePhoto() async {
-    final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.camera);
-    if (image != null) {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final cameraSupported =
+          await picker.supportsImageSource(ImageSource.camera);
+
+      if (!cameraSupported) {
+        if (!mounted) return;
+
+        Toast(
+          context,
+          "La caméra n'est pas disponible sur ce simulateur. Utilisez un vrai iPhone pour prendre une photo.",
+          false,
+        );
+        return;
+      }
+
+      final XFile? image = await picker.pickImage(source: ImageSource.camera);
+      if (image != null) {
+        setState(() {
+          _userPhoto = File(image.path);
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      Toast(
+        context,
+        "Impossible d'ouvrir l'appareil photo. Vérifiez l'autorisation caméra.",
+        false,
+      );
+    }
+  }
+
+  Future<void> _pickPhotoFromGallery() async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+
+      if (image != null) {
+        setState(() {
+          _userPhoto = File(image.path);
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      Toast(
+        context,
+        "Impossible d'ouvrir la galerie.",
+        false,
+      );
+    }
+  }
+
+  Future<void> _pickPhotoFromFiles() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['jpg', 'jpeg', 'png'],
+    );
+
+    if (result?.files.single.path != null) {
       setState(() {
-        _userPhoto = File(image.path);
+        _userPhoto = File(result!.files.single.path!);
       });
     }
   }
 
-  // 📄 Sélectionner une pièce d'identité (image ou PDF)
-  Future<void> _pickIdentityFile() async {
+  Future<void> _showIdentitySourcePicker() async {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text("Choisir une image depuis la galerie"),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickIdentityFromGallery();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.attach_file),
+                title: const Text("Choisir dans les fichiers"),
+                subtitle: const Text("Image ou PDF"),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickIdentityFromFiles();
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _pickIdentityFromGallery() async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+
+      if (image != null) {
+        setState(() {
+          _identityFile = File(image.path);
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      Toast(
+        context,
+        "Impossible d'ouvrir la galerie.",
+        false,
+      );
+    }
+  }
+
+  Future<void> _pickIdentityFromFiles() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
@@ -62,25 +207,72 @@ class _IdentityVerificationState extends ConsumerState<IdentityVerification> {
     }
   }
 
+  bool _isPdf(File file) {
+    return p.extension(file.path).toLowerCase() == '.pdf';
+  }
+
+  Widget _buildImagePreview(File file, {double size = 120}) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: Image.file(
+        file,
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+      ),
+    );
+  }
+
+  Widget _buildIdentityPreview(File file) {
+    final fileName = p.basename(file.path);
+
+    if (_isPdf(file)) {
+      return Column(
+        children: [
+          Container(
+            height: 220,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.black12),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: SfPdfViewer.file(file),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            fileName,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+      );
+    }
+
+    return Column(
+      children: [
+        _buildImagePreview(file, size: 180),
+        const SizedBox(height: 8),
+        Text(
+          fileName,
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      ],
+    );
+  }
+
   // Fonction pour envoyer un email à l'admin avec les infos du restaurant
   Future<void> _sendEmailToAdmin() async {
-    String username =
-        'blandinedupont087@gmail.com'; // Remplacez par votre adresse Gmail
-    String password =
-        'dtmd pleh ufau vjqd'; // Remplacez par votre mot de passe sécurisé
-
-    final smtpServer = gmail(username, password);
-
-    final message = Message()
-      ..from = Address('blandinedupont087@gmail.com', 'Dios Délices')
-      ..recipients.add('blandinedupont087@gmail.com') // Envoyer à l'admin
-      ..subject = 'Nouvelle identité en attente de vérification'
-      ..text = "Connectez-vous pour valider ou non l'utilisateur.";
-
+    final cloudFunction = ParseCloudFunction('sendEmail');
     try {
-      await send(message, smtpServer);
+      await cloudFunction.execute(parameters: {
+        'to': 'blandinedupont087@gmail.com',
+        'subject': 'Nouvelle identité en attente de vérification',
+        'text': "Connectez-vous pour valider ou non l'utilisateur.",
+      });
       print('Email envoyé avec succès');
-    } on MailerException catch (e) {
+    } catch (e) {
       print('Erreur lors de l\'envoi de l\'email: $e');
     }
   }
@@ -122,24 +314,7 @@ class _IdentityVerificationState extends ConsumerState<IdentityVerification> {
                 SizedBox(height: size.height * 0.1),
                 size.width > 600
                     ? Container()
-                    : Center(
-                        child: AvatarGlow(
-                          duration: Duration(seconds: 2),
-                          glowColor: Colors.white24,
-                          repeat: true,
-                          startDelay: Duration(seconds: 1),
-                          child: Material(
-                            elevation: 8.0,
-                            shape: CircleBorder(),
-                            child: CircleAvatar(
-                              backgroundColor: Colors.transparent,
-                              backgroundImage:
-                                  AssetImage('assets/images/logo_sm01.jpg'),
-                              radius: 50.0,
-                            ),
-                          ),
-                        ),
-                      ),
+                    : const Center(child: BrandAvatarLogo()),
                 SizedBox(height: size.height * 0.03),
                 Padding(
                   padding: const EdgeInsets.only(left: 20.0),
@@ -165,14 +340,13 @@ class _IdentityVerificationState extends ConsumerState<IdentityVerification> {
                       ),
                       SizedBox(height: 10),
                       _userPhoto != null
-                          ? Image.file(_userPhoto!,
-                              width: 100, height: 100, fit: BoxFit.cover)
+                          ? _buildImagePreview(_userPhoto!)
                           : Text("Aucune photo prise"),
                       SizedBox(height: 10),
                       ElevatedButton.icon(
-                        onPressed: _takePhoto,
-                        icon: Icon(Icons.camera_alt),
-                        label: Text("Prendre une photo"),
+                        onPressed: _showPhotoSourcePicker,
+                        icon: Icon(Icons.add_a_photo),
+                        label: Text("Ajouter une photo"),
                       ),
                     ],
                   ),
@@ -193,14 +367,13 @@ class _IdentityVerificationState extends ConsumerState<IdentityVerification> {
                       ),
                       SizedBox(height: 10),
                       _identityFile != null
-                          ? Text(
-                              "Fichier sélectionné : ${_identityFile!.path.split('/').last}")
+                          ? _buildIdentityPreview(_identityFile!)
                           : Text("Aucun fichier sélectionné"),
                       SizedBox(height: 10),
                       ElevatedButton.icon(
-                        onPressed: _pickIdentityFile,
+                        onPressed: _showIdentitySourcePicker,
                         icon: Icon(Icons.file_present),
-                        label: Text("Choisir un fichier"),
+                        label: Text("Ajouter une pièce d'identité"),
                       ),
                     ],
                   ),
@@ -270,10 +443,11 @@ class _IdentityVerificationState extends ConsumerState<IdentityVerification> {
                               widget.objectID, "En attente");
                           if (updateIdentity == "success") {
                             // si c'est un resto on va l'enregistrer d'abord
-                            if(widget.user_roleID == 3){
+                            if (widget.user_roleID == 3) {
                               Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (context) => RestaurantFormPage()),
+                                MaterialPageRoute(
+                                    builder: (context) => RestaurantFormPage()),
                               );
                             } else {
                               Navigator.push(

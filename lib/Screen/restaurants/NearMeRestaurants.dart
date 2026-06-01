@@ -1,5 +1,7 @@
 import 'package:dios_delices/Screen/restaurants/RestaurantDetails.dart';
 import 'package:dios_delices/services/nearby_service.dart';
+import 'package:dios_delices/modeles/users.dart';
+import 'package:dios_delices/core/app_role.dart';
 import 'package:flutter/material.dart';
 
 class NearMeRestaurants extends StatefulWidget {
@@ -13,6 +15,7 @@ class _NearMeRestaurantsState extends State<NearMeRestaurants> {
   final TextEditingController _searchController = TextEditingController();
   List<NearbyRestaurantResult> _allRestaurants = [];
   List<NearbyRestaurantResult> _visibleRestaurants = [];
+  List<Users> _users = [];
   bool _isLoading = true;
   bool _openOnly = false;
   double _maxDistanceKm = 10;
@@ -30,6 +33,11 @@ class _NearMeRestaurantsState extends State<NearMeRestaurants> {
     super.dispose();
   }
 
+  bool _isProRestaurant(int userID) {
+    final user = Users.getUsersByUserId(_users, userID);
+    return user != null && AppRole.fromId(user.roleID) == AppRole.microRestaurant;
+  }
+
   Future<void> _loadRestaurants() async {
     setState(() {
       _isLoading = true;
@@ -40,9 +48,12 @@ class _NearMeRestaurantsState extends State<NearMeRestaurants> {
       openOnly: _openOnly,
     );
 
+    final usersList = await Users.fetchUsersFromDB();
+
     if (!mounted) return;
     setState(() {
       _allRestaurants = restaurants;
+      _users = usersList;
       _isLoading = false;
     });
     _applyFilters();
@@ -147,9 +158,40 @@ class _NearMeRestaurantsState extends State<NearMeRestaurants> {
                   child: ListTile(
                     contentPadding: const EdgeInsets.all(12),
                     leading: _RestaurantAvatar(imageUrl: result.restaurant.image),
-                    title: Text(
-                      result.restaurant.name,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    title: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            result.restaurant.name,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        if (_isProRestaurant(result.restaurant.userID))
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.amber.shade100,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.verified,
+                                    size: 12, color: Colors.amber),
+                                SizedBox(width: 2),
+                                Text(
+                                  'PRO',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.amber,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
                     ),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,

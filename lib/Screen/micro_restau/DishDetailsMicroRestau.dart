@@ -17,7 +17,7 @@ import '../../utils/toast.dart';
 import 'package:path/path.dart' as p;
 
 import '../Cart.dart' as screenCart;
-
+import '../../widgets/comment_section.dart';
 
 class DishDetailsMicroRestau extends ConsumerStatefulWidget {
   static const routeName = '/DishDetailsMicroRestau';
@@ -735,6 +735,16 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
                         ],
                       ),
                     ),
+                  if (currentUser_role == 2) ...[
+                    SizedBox(height: size.height * 0.03),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 25.0),
+                      child: CommentSection(
+                        targetType: 2,
+                        targetID: widget.dish_id,
+                      ),
+                    ),
+                  ],
                   SizedBox(height: size.height * 0.05),
                 ],
               ),

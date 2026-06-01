@@ -4,6 +4,7 @@
 *.pyc
 *.swp
 .DS_Store
+dios-delices-backend/
 .env
 .env.local
 .env.*.local

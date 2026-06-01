@@ -1,24 +1,35 @@
-import 'package:avatar_glow/avatar_glow.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter_pw_validator/flutter_pw_validator.dart';
 import '../../Constant/Constant.dart';
 import '../../Controller/UiController.dart';
+import '../../mails/mails.dart';
 import '../../modeles/users.dart';
+import '../../services/password_reset_validation.dart';
 import '../../utils/toast.dart';
+import '../../widgets/brand_avatar_logo.dart';
 import 'PasswordChangeSuccessScreen.dart';
 
 class PasswordResetScreen extends StatefulWidget {
   final String email;
   final List<Users> listusers;
+  final String verificationCode;
+  final DateTime codeGenerationTime;
 
-  PasswordResetScreen({required this.email, required this.listusers});
+  const PasswordResetScreen({
+    super.key,
+    required this.email,
+    required this.listusers,
+    required this.verificationCode,
+    required this.codeGenerationTime,
+  });
 
   @override
   _PasswordResetScreenState createState() => _PasswordResetScreenState();
 }
 
 class _PasswordResetScreenState extends State<PasswordResetScreen> {
+  final TextEditingController codeController = TextEditingController();
   final TextEditingController newPasswordController = TextEditingController();
   final TextEditingController newpasswordConfirmController =
       TextEditingController();
@@ -29,8 +40,41 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
   final _formKey = GlobalKey<FormState>(); // Clé pour le formulaire
 
   bool isLoading = false;
+  bool isCodeVerified = false;
+
+  @override
+  void dispose() {
+    codeController.dispose();
+    newPasswordController.dispose();
+    newpasswordConfirmController.dispose();
+    super.dispose();
+  }
+
+  void verifyCode() {
+    final isValid = isCodeValid(
+      widget.verificationCode,
+      codeController.text.trim(),
+      widget.codeGenerationTime,
+    );
+
+    if (!isValid) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('invalid_or_expired_code'.tr),
+      ));
+      return;
+    }
+
+    setState(() {
+      isCodeVerified = true;
+    });
+  }
 
   Future<void> resetPassword() async {
+    if (!isCodeVerified) {
+      verifyCode();
+      return;
+    }
+
     if (_formKey.currentState!.validate()) {
       // Valide le formulaire avant d'exécuter l'action
       setState(() {
@@ -41,17 +85,21 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
       Users? user = await Users.getUsersByEmail(widget.listusers, widget.email);
 
       if (user != null) {
-        String newencryptedPassword =
-            await Users.encryptPassword(newPasswordController.text);
+        final validation = await PasswordResetValidation.validate(
+          newPassword: newPasswordController.text,
+          confirmPassword: newpasswordConfirmController.text,
+          currentPasswordHash: user.password,
+        );
 
-        if (newencryptedPassword == user.password) {
-          // Le mot de passe est le même que l'ancien
+        if (validation == PasswordResetValidationResult.sameAsCurrentPassword) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(
-                'Le nouveau mot de passe doit être différent de l\'ancien'),
+            content: Text('same_password_error'.tr),
+          ));
+        } else if (validation != PasswordResetValidationResult.valid) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('form_invalid'.tr),
           ));
         } else {
-          // Mettre à jour le mot de passe
           String encryptedPassword =
               await Users.encryptPassword(newPasswordController.text);
           String updateResult =
@@ -68,7 +116,7 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
         }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Erreur : Utilisateur introuvable.'),
+          content: Text('user_not_found'.tr),
         ));
       }
 
@@ -78,7 +126,7 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
     } else {
       // Affiche un message si la validation échoue
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Veuillez remplir correctement les champs'),
+        content: Text('form_invalid'.tr),
       ));
     }
   }
@@ -100,29 +148,12 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
                 : MainAxisAlignment.start,
             children: [
               SizedBox(height: size.height * 0.1),
-              Center(
-                child: AvatarGlow(
-                  duration: Duration(seconds: 2),
-                  glowColor: Colors.white24,
-                  repeat: true,
-                  startDelay: Duration(seconds: 1),
-                  child: Material(
-                    elevation: 8.0,
-                    shape: CircleBorder(),
-                    child: CircleAvatar(
-                      backgroundColor: Colors.transparent,
-                      backgroundImage:
-                          AssetImage('assets/images/logo_sm01.jpg'),
-                      radius: 50.0,
-                    ),
-                  ),
-                ),
-              ),
+              const Center(child: BrandAvatarLogo()),
               SizedBox(height: size.height * 0.03),
               Padding(
                 padding: const EdgeInsets.only(left: 20.0),
                 child: Text(
-                  'Reset Password',
+                  'reset_password_title'.tr,
                   style: kLoginTitleStyle(size),
                 ),
               ),
@@ -132,65 +163,98 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Obx(() => _buildPasswordField(
-                          controller: newPasswordController,
-                          hintText: 'New Password',
-                          simpleUIController: simpleUIController,
-                        )),
-                    SizedBox(height: size.height * 0.02),
-                    // Validateur de mot de passe
-                    FlutterPwValidator(
-                      key: validatorKey,
-                      controller: newPasswordController,
-                      minLength: 8,
-                      uppercaseCharCount: 1,
-                      numericCharCount: 3,
-                      specialCharCount: 1,
-                      width: 400,
-                      height: 150,
-                      onSuccess: () {
-                        print("Password valid");
-                      },
-                      onFail: () {
-                        print("Password not valid");
-                      },
+                    Text(
+                      'reset_password_subtitle'.tr,
+                      style: const TextStyle(fontSize: 16),
                     ),
-                    SizedBox(height: size.height * 0.03),
-                    // Champ pour confirmer le mot de passe
-                    Obx(() => _buildPasswordField(
-                          controller: newpasswordConfirmController,
-                          hintText: 'Confirm password',
-                          simpleUIController: simpleUIController,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please confirm your password';
-                            }
-                            if (value != newPasswordController.text) {
-                              return 'Passwords do not match';
-                            }
-                            return null;
-                          },
-                        )),
-                    SizedBox(height: 20),
-                    isLoading
-                        ? CircularProgressIndicator()
-                        : Center(
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red,
-                                foregroundColor: Colors.white,
-                                textStyle: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(15),
-                                ),
-                              ),
-                              onPressed: resetPassword,
-                              child: Text("Reset the password"),
+                    SizedBox(height: size.height * 0.02),
+                    if (!isCodeVerified) ...[
+                      TextFormField(
+                        controller: codeController,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          prefixIcon: const Icon(Icons.verified_user),
+                          labelText: 'verification_code'.tr,
+                          hintText: 'verification_code_hint'.tr,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: size.height * 0.02),
+                      Center(
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                            textStyle: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(15),
                             ),
                           ),
+                          onPressed: verifyCode,
+                          child: Text('verify_code'.tr),
+                        ),
+                      ),
+                    ] else ...[
+                      Obx(() => _buildPasswordField(
+                            controller: newPasswordController,
+                            hintText: 'new_password'.tr,
+                            simpleUIController: simpleUIController,
+                          )),
+                      SizedBox(height: size.height * 0.02),
+                      FlutterPwValidator(
+                        key: validatorKey,
+                        controller: newPasswordController,
+                        minLength: 8,
+                        uppercaseCharCount: 1,
+                        numericCharCount: 3,
+                        specialCharCount: 1,
+                        width: 400,
+                        height: 150,
+                        onSuccess: () {},
+                        onFail: () {},
+                      ),
+                      SizedBox(height: size.height * 0.03),
+                      Obx(() => _buildPasswordField(
+                            controller: newpasswordConfirmController,
+                            hintText: 'confirm_password'.tr,
+                            simpleUIController: simpleUIController,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'confirm_password_required'.tr;
+                              }
+                              if (value != newPasswordController.text) {
+                                return 'passwords_do_not_match'.tr;
+                              }
+                              return null;
+                            },
+                          )),
+                    ],
+                    SizedBox(height: 20),
+                    if (isCodeVerified)
+                      isLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : Center(
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red,
+                                  foregroundColor: Colors.white,
+                                  textStyle: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(15),
+                                  ),
+                                ),
+                                onPressed: resetPassword,
+                                child: Text('reset_password'.tr),
+                              ),
+                            ),
                   ],
                 ),
               ),

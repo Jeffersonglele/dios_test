@@ -1,28 +1,30 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
 import '../authentification/Login.dart';
 
 class PasswordChangeSuccessScreen extends StatelessWidget {
+  const PasswordChangeSuccessScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Succès"),
+        title: const Text("Succès"),
       ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.check_circle, color: Colors.green, size: 100),
-            SizedBox(height: 20),
+            const Icon(Icons.check_circle, color: Colors.green, size: 100),
+            const SizedBox(height: 20),
             Text(
-              "Your password has been successfully updated.",
-              style: TextStyle(fontSize: 18),
+              'password_updated'.tr,
+              style: const TextStyle(fontSize: 18),
               textAlign: TextAlign.center,
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             Center(
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
@@ -30,14 +32,14 @@ class PasswordChangeSuccessScreen extends StatelessWidget {
                   // Couleur de fond du bouton
                   foregroundColor: Colors.white,
                   //Couleur du texte
-                  textStyle: TextStyle(
+                  textStyle: const TextStyle(
                     fontSize: 18, // Taille du texte
-                    fontWeight: FontWeight
-                        .bold, // (Optionnel) Style de texte en gras
+                    fontWeight:
+                        FontWeight.bold, // (Optionnel) Style de texte en gras
                   ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(
-                        15), // Bordure du bouton
+                    borderRadius:
+                        BorderRadius.circular(15), // Bordure du bouton
                   ),
                 ),
                 onPressed: () {
@@ -45,7 +47,7 @@ class PasswordChangeSuccessScreen extends StatelessWidget {
                       CupertinoPageRoute(builder: (ctx) => const Login()));
                   // Navigator.popUntil(context, ModalRoute.withName('/login')); // Retour à la page de login
                 },
-                child: Text("Back to Login page"),
+                child: Text('back_to_login'.tr),
               ),
             )
           ],

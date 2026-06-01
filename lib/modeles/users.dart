@@ -41,7 +41,7 @@ class Users extends HiveObject {
   final String email;
 
   @HiveField(9)
-  final int telephone;
+  final String telephone;
 
   @HiveField(10)
   String country;
@@ -95,7 +95,7 @@ class Users extends HiveObject {
     return Users(
       userID: int.tryParse(map['userID']?.toString() ?? '0') ?? 0,
       roleID: int.tryParse(map['roleID']?.toString() ?? '0') ?? 0,
-      telephone: int.tryParse(map['telephone']?.toString() ?? '0') ?? 0,
+      telephone: map['telephone']?.toString() ?? '',
       email: map['email']?.toString() ?? '',
       firstname: map['firstname']?.toString() ?? '',
       lastname: map['lastname']?.toString() ?? '',
@@ -115,7 +115,7 @@ class Users extends HiveObject {
   Users copy({
     int? userID,
     int? roleID,
-    int? telephone,
+    String? telephone,
     String? password,
     String? email,
     String? firstname,
@@ -149,7 +149,7 @@ class Users extends HiveObject {
   static Future<dynamic> manageUser({
     int? userID,
     required int roleID,
-    required int telephone,
+    required String telephone,
     required String password,
     required String password_crypte,
     required String firstname,
@@ -159,6 +159,7 @@ class Users extends HiveObject {
     required String status,
     required String identity,
     required int addressID,
+    String country = "",
     DateTime? last_login,
     ParseFile? image,
   }) async {
@@ -183,7 +184,7 @@ class Users extends HiveObject {
       'lastname': lastname,
       'username': username,
       'email': email,
-      'country': "",
+      'country': country,
       'password': password,
       'telephone': telephone,
       'password_crypte': password_crypte,
@@ -195,7 +196,7 @@ class Users extends HiveObject {
     };
 
     final ParseResponse parseResponse =
-    await cloudFunction.execute(parameters: params);
+        await cloudFunction.execute(parameters: params);
 
     if (parseResponse.success && parseResponse.result != null) {
       var response = parseResponse.result as Map<String, dynamic>;
@@ -222,7 +223,7 @@ class Users extends HiveObject {
 
     try {
       final ParseResponse parseResponse =
-      await cloudFunction.execute(parameters: params);
+          await cloudFunction.execute(parameters: params);
 
       if (parseResponse.success && parseResponse.result != null) {
         var response = parseResponse.result as Map<String, dynamic>;
@@ -253,7 +254,8 @@ class Users extends HiveObject {
     };
 
     try {
-      final ParseResponse parseResponse = await cloudFunction.execute(parameters: params);
+      final ParseResponse parseResponse =
+          await cloudFunction.execute(parameters: params);
 
       if (parseResponse.success && parseResponse.result != null) {
         var response = parseResponse.result as Map<String, dynamic>;
@@ -405,13 +407,12 @@ class Users extends HiveObject {
     }
   }
 
-  static Future<bool> getAllUsersDetails() async {
-    // Créer une instance de ParseCloudFunction
+  static Future<bool> getAllUsersDetails({int? adminUserID}) async {
+    final params = adminUserID != null ? {'userID': adminUserID} : null;
     var cloudFunction = ParseCloudFunction('getAllUsers');
 
-    // Appeler la fonction cloud et attendre la réponse
     try {
-      var response = await cloudFunction.execute();
+      var response = await cloudFunction.execute(parameters: params);
 
       if (response.success) {
         List<dynamic> usersDataList = response.result;
@@ -428,6 +429,28 @@ class Users extends HiveObject {
       return false;
     }
     return true;
+  }
+
+  static Future<Users?> loginUser(String login, String password) async {
+    try {
+      final cloudFunction = ParseCloudFunction('loginUser');
+      final response = await cloudFunction.execute(parameters: {
+        'login': login,
+        'password': password,
+      });
+
+      if (response.success && response.result != null) {
+        final result = response.result as Map<String, dynamic>;
+        if (result['success'] == true && result['user'] != null) {
+          final user = Users.fromMap(result['user']);
+          return user;
+        }
+      }
+      return null;
+    } catch (e) {
+      print('loginUser error: $e');
+      return null;
+    }
   }
 
   static Future<List<Users>> fetchUsersFromDB() async {
@@ -447,24 +470,24 @@ class Users extends HiveObject {
 
   static Future<Users?> verifUser(
       List<Users> listUsers, String usernameOrEmail, String password) async {
-    // Crypter le mot de passe avant de le comparer
     String passwordCrypte = await encryptPassword(password);
+    final normalizedLogin = usernameOrEmail.trim().toLowerCase();
+    final normalizedPassword = password.trim();
+    final normalizedPasswordCrypte = passwordCrypte.trim();
 
-    print("passwordCrypte " + passwordCrypte);
-
-    // Chercher l'accès correspondant au username ou email
     for (final user in listUsers) {
-      if ((user.username.trim().toLowerCase() == usernameOrEmail.trim().toLowerCase() ||
-          user.email.trim().toLowerCase() == usernameOrEmail.trim().toLowerCase()) &&
-          user.password.trim() == passwordCrypte.trim()) {
+      final storedPassword = user.password.trim();
+      final loginMatches =
+          user.username.trim().toLowerCase() == normalizedLogin ||
+              user.email.trim().toLowerCase() == normalizedLogin;
+      final passwordMatches = storedPassword == normalizedPasswordCrypte ||
+          storedPassword == normalizedPassword;
 
-        if (user != null) {
-          return user; // Retourner l'utilisateur si trouvé
-        }
+      if (loginMatches && passwordMatches) {
+        return user;
       }
     }
 
-    // Aucun utilisateur correspondant trouvé
     return null;
   }
 

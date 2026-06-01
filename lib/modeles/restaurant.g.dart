@@ -28,9 +28,9 @@ class RestaurantAdapter extends TypeAdapter<Restaurant> {
       image: fields[7] as String?,
       valid: fields[9] as int,
       date_creation: fields[8] as DateTime?,
-      openingHours: fields[11] as String? ?? '09:00 - 20:00',
-      deliveryFee: fields[12] as double? ?? 0.0,
-      isOpen: fields[13] as int? ?? 1,
+      openingHours: fields[11] as String,
+      deliveryFee: fields[12] as double,
+      isOpen: fields[13] as int,
     );
   }
 

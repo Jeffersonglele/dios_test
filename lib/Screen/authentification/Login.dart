@@ -4,7 +4,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get/get.dart';
-import 'package:avatar_glow/avatar_glow.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../Constant/Constant.dart';
@@ -13,15 +12,19 @@ import '../../components/showConfetti.dart';
 import '../../core/app_role.dart';
 import '../../modeles/restaurant.dart';
 import '../../modeles/users.dart';
+import '../../db/database_helper.dart';
 import '../../services/session_service.dart';
+import '../../services/notification_service.dart';
 import '../../utils/toast.dart';
 import '../restaurants/RestaurantFormPage.dart';
 import '../verif_confirm/StartAddressSaving.dart';
 import '../verif_confirm/StatusSelectionPage.dart';
 import '../restaurants/RestaurantUpdateFormPage.dart';
 import '../restaurants/WaitRestaurantValidation.dart';
+import '../password/EmailInputScreen.dart';
 import '../verif_confirm/VerificationPage.dart';
 import 'package:dios_delices/providers/users_provider.dart';
+import '../../widgets/auth_shell.dart';
 
 class Login extends ConsumerStatefulWidget {
   const Login({Key? key}) : super(key: key);
@@ -69,7 +72,7 @@ class _LoginState extends ConsumerState<Login> {
             userID: prefs.getInt('userID')!,
             email: prefs.getString('pendingEmail')!,
             roleID: prefs.getInt('pendingRoleID')!,
-            telephone: prefs.getInt('pendingTelephone')!,
+            telephone: prefs.getString('pendingTelephone') ?? '',
             password_crypte: prefs.getString('pendingPasswordCrypte')!,
             password: prefs.getString('pendingPassword')!,
             firstname: prefs.getString('pendingFirstname')!,
@@ -89,13 +92,15 @@ class _LoginState extends ConsumerState<Login> {
     int? userID = prefs.getInt('userID');
     String? email = prefs.getString('pendingEmail');
     int? roleID = prefs.getInt('pendingRoleID');
-    int? telephone = prefs.getInt('pendingTelephone');
+    String? telephone = prefs.getString('pendingTelephone');
     String? passwordCrypte = prefs.getString('pendingPasswordCrypte');
     String? password = prefs.getString('pendingPassword');
     String? firstname = prefs.getString('pendingFirstname');
     String? lastname = prefs.getString('pendingLastname');
     String? username = prefs.getString('pendingUsername');
     String? indicatif = prefs.getString('indicatif');
+    String country = prefs.getString('pendingCountry') ??
+        _getCountryFromIndicatif(indicatif);
 
     // Si une des valeurs importantes est manquante, on ne redirige pas
     if (!isVerified &&
@@ -122,6 +127,7 @@ class _LoginState extends ConsumerState<Login> {
             firstname: firstname,
             lastname: lastname,
             username: username,
+            country: country,
             indicatif: indicatif,
           ),
         ),
@@ -145,11 +151,7 @@ class _LoginState extends ConsumerState<Login> {
 
   Future<void> performLogin() async {
     try {
-      final user = await Users.verifUser(
-        users,
-        nameController.text,
-        passwordController.text,
-      );
+      final user = await _findUserForLogin();
       ref.read(usersProvider.notifier).state = user;
 
       // l'user existe
@@ -175,18 +177,17 @@ class _LoginState extends ConsumerState<Login> {
                 context,
                 CupertinoPageRoute(
                     builder: (ctx) => StartAddressSaving(
-                      userID: user.userID,
-                      roleID: user.roleID,
-                    )),
+                          userID: user.userID,
+                          roleID: user.roleID,
+                        )),
               );
-
             } else {
               // l'user a une adresse
               // l'identité a été vérifiée
               if (user.identity == "Verified") {
                 //si c'est un resto
                 if (role.isProfessional) {
-                  // on vérifie que le resto est enregistré et validé
+                  NotificationService.subscribeToRestaurantNotifications();
                   _handleRestaurantValidation(user);
                 } else {
                   // il peut se connecter ; tous les users qui ne sont pas des admins ont un restau
@@ -199,6 +200,7 @@ class _LoginState extends ConsumerState<Login> {
                       await SessionService.setRestaurantId(restau.restaurantID);
                     }
                   }
+                  NotificationService.subscribeToRestaurantNotifications();
                   firstLogin(user);
                 }
               } else if (user.identity == "En attente") {
@@ -212,7 +214,8 @@ class _LoginState extends ConsumerState<Login> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => UserIdentityRejected(objectID: user.userID, user_roleID: user.roleID),
+                    builder: (context) => UserIdentityRejected(
+                        objectID: user.userID, user_roleID: user.roleID),
                   ),
                 );
               } else {
@@ -220,7 +223,10 @@ class _LoginState extends ConsumerState<Login> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => StatusSelectionPage(country: user.country, objectID: user.userID, user_roleID: user.roleID),
+                    builder: (context) => StatusSelectionPage(
+                        country: user.country,
+                        objectID: user.userID,
+                        user_roleID: user.roleID),
                   ),
                 );
               }
@@ -237,6 +243,47 @@ class _LoginState extends ConsumerState<Login> {
     }
   }
 
+  Future<Users?> _findUserForLogin() async {
+    Users? user = await Users.verifUser(
+      users,
+      nameController.text,
+      passwordController.text,
+    );
+
+    if (user != null) {
+      return user;
+    }
+
+    user = await Users.loginUser(
+      nameController.text,
+      passwordController.text,
+    );
+
+    if (user != null) {
+      await DatabaseHelper.createUser(user);
+      final freshUsers = await Users.fetchUsersFromDB();
+      if (mounted) {
+        setState(() => users = freshUsers);
+      }
+      return user;
+    }
+
+    await Users.getAllUsersDetails();
+    final freshUsers = await Users.fetchUsersFromDB();
+
+    if (mounted) {
+      setState(() {
+        users = freshUsers;
+      });
+    }
+
+    return Users.verifUser(
+      freshUsers,
+      nameController.text,
+      passwordController.text,
+    );
+  }
+
   void _handleApprovedUser(Users user) async {
     // si l'utilisateur ne s'est jamais connecté et s'il n'est ni un admin ni un super admin
     final role = AppRole.fromId(user.roleID);
@@ -245,9 +292,9 @@ class _LoginState extends ConsumerState<Login> {
         context,
         CupertinoPageRoute(
             builder: (ctx) => StartAddressSaving(
-              userID: user.userID,
-              roleID: user.roleID,
-            )),
+                  userID: user.userID,
+                  roleID: user.roleID,
+                )),
       );
     } else {
       /*if (user.roleID == 1 || user.roleID == 2 || user.roleID == 4) {
@@ -269,6 +316,7 @@ class _LoginState extends ConsumerState<Login> {
       } else if (restau.valid == 1) {
         // le restau est validé il peut se connecter
         await SessionService.setRestaurantId(restau.restaurantID);
+        NotificationService.subscribeToRestaurantNotifications();
         firstLogin(user);
       } else {
         // il y a des erreurs dans le formulaire
@@ -285,6 +333,8 @@ class _LoginState extends ConsumerState<Login> {
   }
 
   void _redirectToVerification(Users user) {
+    final country = _countryOrDefault(user.country);
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -297,8 +347,9 @@ class _LoginState extends ConsumerState<Login> {
           firstname: user.firstname,
           lastname: user.lastname,
           username: user.username,
-          telephone: int.tryParse(user.telephone.toString()) ?? 0,
-          indicatif: _getIndicatif(user.country),
+          telephone: user.telephone.toString(),
+          country: country,
+          indicatif: _getIndicatif(country),
         ),
       ),
     );
@@ -328,23 +379,46 @@ class _LoginState extends ConsumerState<Login> {
       isLoading = false;
       loginFailed = true;
     });
-    Toast(context, "Erreur : Identifiant(s) incorrect(s)", false);
+    Toast(context, 'login_failed'.tr, false);
   }
 
   String _getIndicatif(String country) {
-    switch (country) {
+    switch (_countryOrDefault(country)) {
       case "Bénin":
         return "+229";
-      case "Côte 'Ivoire":
+      case "Côte d'Ivoire":
         return "+225";
       case "États-Unis":
         return "+1";
-      default:
+      case "France":
         return "+33";
+      default:
+        return "+229";
     }
   }
 
+  String _getCountryFromIndicatif(String? indicatif) {
+    switch (indicatif) {
+      case "+229":
+        return "Bénin";
+      case "+225":
+        return "Côte d'Ivoire";
+      case "+1":
+        return "États-Unis";
+      case "+33":
+        return "France";
+      default:
+        return "Bénin";
+    }
+  }
+
+  String _countryOrDefault(String country) {
+    final cleanCountry = country.trim();
+    return cleanCountry.isEmpty ? "Bénin" : cleanCountry;
+  }
+
   Future<void> firstLogin(Users user) async {
+    NotificationService.subscribeToRestaurantNotifications();
     if (user.last_login == null) {
       Navigator.push(
         context,
@@ -360,246 +434,140 @@ class _LoginState extends ConsumerState<Login> {
 
   @override
   Widget build(BuildContext context) {
-    var size = MediaQuery.of(context).size;
-    SimpleUIController simpleUIController = Get.find<SimpleUIController>();
+    final size = MediaQuery.of(context).size;
+    final simpleUIController = Get.find<SimpleUIController>();
 
     return GestureDetector(
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        resizeToAvoidBottomInset: false,
-        body: LayoutBuilder(
-          builder: (context, constraints) {
-            if (constraints.maxWidth > 600) {
-              return _buildLargeScreen(size, simpleUIController);
-            } else {
-              return _buildSmallScreen(size, simpleUIController);
-            }
+      child: AuthShell(
+        title: 'login_title'.tr,
+        subtitle: 'login_subtitle'.tr,
+        form: _buildForm(size, simpleUIController),
+        footer: GestureDetector(
+          onTap: () {
+            Navigator.pop(context);
+            nameController.clear();
+            emailController.clear();
+            passwordController.clear();
+            _formKey.currentState?.reset();
+            simpleUIController.isObscure.value = true;
           },
-        ),
-      ),
-    );
-  }
-
-  // Écran large
-  Widget _buildLargeScreen(
-    Size size,
-    SimpleUIController simpleUIController,
-  ) {
-    return Row(
-      children: [
-        Expanded(
-          flex: 4,
-          child: RotatedBox(
-            quarterTurns: 3,
-          ),
-        ),
-        SizedBox(width: size.width * 0.06),
-        Expanded(
-          flex: 5,
-          child: _buildMainBody(
-            size,
-            simpleUIController,
-          ),
-        ),
-      ],
-    );
-  }
-
-  // Écran petit
-  Widget _buildSmallScreen(
-    Size size,
-    SimpleUIController simpleUIController,
-  ) {
-    return Center(
-      child: _buildMainBody(
-        size,
-        simpleUIController,
-      ),
-    );
-  }
-
-  // Corps principal
-  Widget _buildMainBody(
-    Size size,
-    SimpleUIController simpleUIController,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment:
-          size.width > 600 ? MainAxisAlignment.center : MainAxisAlignment.start,
-      children: [
-        SizedBox(height: size.height * 0.1),
-        size.width > 600
-            ? Container()
-            : Center(
-                child: AvatarGlow(
-                  duration: Duration(seconds: 2),
-                  glowColor: Colors.white24,
-                  repeat: true,
-                  startDelay: Duration(seconds: 1),
-                  child: Material(
-                    elevation: 8.0,
-                    shape: CircleBorder(),
-                    child: CircleAvatar(
-                      backgroundColor: Colors.transparent,
-                      backgroundImage:
-                          AssetImage('assets/images/logo_sm01.jpg'),
-                      radius: 50.0,
-                    ),
-                  ),
-                ),
-              ),
-        SizedBox(
-          height: size.height * 0.03,
-        ),
-        Padding(
-          padding: const EdgeInsets.only(left: 20.0),
-          child: Text(
-            'Login',
-            style: kLoginTitleStyle(size),
-          ),
-        ),
-        const SizedBox(
-          height: 10,
-        ),
-        Padding(
-          padding: const EdgeInsets.only(left: 20.0, right: 20),
-          child: Form(
-            key: _formKey,
-            child: Column(
+          child: RichText(
+            text: TextSpan(
+              text: 'dont_have_account'.tr,
+              style: kHaveAnAccountStyle(size),
               children: [
-                // Champ username ou email
-                TextFormField(
-                  style: kTextFormFieldStyle(),
-                  decoration: const InputDecoration(
-                    prefixIcon: Icon(Icons.person),
-                    hintText: 'Username or email address',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(15)),
-                    ),
-                  ),
-                  controller: nameController,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter username';
-                    } else if (value.length < 4) {
-                      return 'At least enter 4 characters';
-                    } else if (value.length > 13) {
-                      return 'Maximum character is 13';
-                    }
-                    return null;
-                  },
-                ),
-                SizedBox(
-                  height: size.height * 0.02,
-                ),
-                // Champ mot de passe
-                Obx(
-                  () => TextFormField(
-                    style: kTextFormFieldStyle(),
-                    controller: passwordController,
-                    obscureText: simpleUIController.isObscure.value,
-                    decoration: InputDecoration(
-                      prefixIcon: const Icon(Icons.lock_open),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          simpleUIController.isObscure.value
-                              ? Icons.visibility
-                              : Icons.visibility_off,
-                        ),
-                        onPressed: () {
-                          simpleUIController.isObscureActive();
-                        },
-                      ),
-                      hintText: 'Password',
-                      border: const OutlineInputBorder(
-                        borderRadius: BorderRadius.all(Radius.circular(15)),
-                      ),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter a password';
-                      } else if (value.length < 7) {
-                        return 'At least enter 6 characters';
-                      } else if (value.length > 13) {
-                        return 'Maximum character is 13';
-                      }
-                      return null;
-                    },
-                  ),
-                ),
-                SizedBox(
-                  height: size.height * 0.01,
-                ),
-                // Bouton de connexion
-                loginButton(),
-                SizedBox(
-                  height: size.height * 0.01,
-                ),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Visibility(
-                    visible: loginFailed,
-                    // Affiche seulement si la connexion a échoué
-                    child: GestureDetector(
-                      onTap: () {
-                        nameController.clear();
-                        emailController.clear();
-                        passwordController.clear();
-                        _formKey.currentState?.reset();
-                        simpleUIController.isObscure.value = true;
-
-                        /*Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => EmailInputScreen(
-                                listusers: users,
-                              )),
-                        );*/
-                      },
-                      child: RichText(
-                        text: TextSpan(
-                          text: 'Forgotten password ?',
-                          style: forgottenpasswordTextStyle(size),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                SizedBox(
-                  height: size.height * 0.03,
-                ),
-                // Lien vers l'inscription
-                GestureDetector(
-                  onTap: () {
-                    Navigator.pop(context);
-                    nameController.clear();
-                    emailController.clear();
-                    passwordController.clear();
-                    _formKey.currentState?.reset();
-                    simpleUIController.isObscure.value = true;
-                  },
-                  child: RichText(
-                    text: TextSpan(
-                      text: 'Don\'t have an account?',
-                      style: kHaveAnAccountStyle(size),
-                      children: [
-                        TextSpan(
-                          text: " Sign up",
-                          style: kLoginOrSignUpTextStyle(
-                            size,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                TextSpan(
+                  text: " ${'signup'.tr}",
+                  style: kLoginOrSignUpTextStyle(size),
                 ),
               ],
             ),
           ),
         ),
-      ],
+      ),
+    );
+  }
+
+  Widget _buildForm(
+    Size size,
+    SimpleUIController simpleUIController,
+  ) {
+    return Form(
+      key: _formKey,
+      child: Column(
+        children: [
+          // Champ username ou email
+          TextFormField(
+            style: kTextFormFieldStyle(),
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.person),
+              hintText: 'username_or_email'.tr,
+              border: const OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(15)),
+              ),
+            ),
+            controller: nameController,
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'enter_username'.tr;
+              } else if (value.length < 4) {
+                return 'min_4_chars'.tr;
+              } else if (value.length > 13) {
+                return 'max_13_chars'.tr;
+              }
+              return null;
+            },
+          ),
+          SizedBox(height: size.height * 0.02),
+          // Champ mot de passe
+          Obx(
+            () => TextFormField(
+              style: kTextFormFieldStyle(),
+              controller: passwordController,
+              obscureText: simpleUIController.isObscure.value,
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.lock_open),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    simpleUIController.isObscure.value
+                        ? Icons.visibility
+                        : Icons.visibility_off,
+                  ),
+                  onPressed: () {
+                    simpleUIController.isObscureActive();
+                  },
+                ),
+                hintText: 'password'.tr,
+                border: const OutlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(15)),
+                ),
+              ),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'enter_password'.tr;
+                } else if (value.length < 7) {
+                  return 'min_6_chars'.tr;
+                } else if (value.length > 13) {
+                  return 'max_13_chars'.tr;
+                }
+                return null;
+              },
+            ),
+          ),
+          SizedBox(height: size.height * 0.014),
+          // Bouton de connexion
+          loginButton(),
+          SizedBox(height: size.height * 0.014),
+          Align(
+            alignment: Alignment.centerRight,
+            child: GestureDetector(
+              onTap: () {
+                nameController.clear();
+                emailController.clear();
+                passwordController.clear();
+                _formKey.currentState?.reset();
+                simpleUIController.isObscure.value = true;
+
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => EmailInputScreen(
+                      listusers: users,
+                    ),
+                  ),
+                );
+              },
+              child: RichText(
+                text: TextSpan(
+                  text: 'forgotten_password'.tr,
+                  style: forgottenpasswordTextStyle(size),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -610,26 +578,19 @@ class _LoginState extends ConsumerState<Login> {
       height: 55,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.red, // Couleur de fond du bouton
-          foregroundColor: Colors.white, //Couleur du texte
-          textStyle: TextStyle(
-            fontSize: 18, // Taille du texte
-            fontWeight: FontWeight.bold, // (Optionnel) Style de texte en gras
-          ),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15), // Bordure du bouton
+            borderRadius: BorderRadius.circular(20),
           ),
         ),
         onPressed: () async {
           if (nameController.text.trim().isEmpty ||
               passwordController.text.isEmpty) {
-            Toast(
-                context, "Erreur : Entrez un login et un mot de passe", false);
+            Toast(context, 'login_missing_fields'.tr, false);
           } else {
             await performLogin();
           }
         },
-        child: const Text('Login'),
+        child: Text('login'.tr),
       ),
     );
   }

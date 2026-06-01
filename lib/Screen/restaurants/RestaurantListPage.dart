@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:mailer/mailer.dart';
-import 'package:mailer/smtp_server/gmail.dart';
+import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import '../../modeles/restaurant.dart';
 import '../../modeles/users.dart';
 import '../../utils/toast.dart';
@@ -25,37 +24,32 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
 
   Future<bool> _sendEmailToUser(Restaurant restaurant, bool valid, [String? remark]) async {
     Users? user = Users.getUsersByUserId(users, restaurant.userID);
-    String username = 'blandinedupont087@gmail.com';
-    String password = 'dtmd pleh ufau vjqd';
-
-    final smtpServer = gmail(username, password);
-
-    String subject = valid
+    final recipientEmail = user?.email ?? 'adigbononrodicaa@gmail.com';
+    final subject = valid
         ? '🎉 Bienvenue sur Dios Délices - Votre restaurant est validé !'
         : '❌ Mise à jour : Validation de votre restaurant sur Dios Délices';
 
-    String messageText = valid
+    final messageText = valid
         ? 'Bonjour ${user?.firstname},\n\n'
         'Nous sommes ravis de vous informer que votre restaurant "${restaurant.name}" a été validé. '
         'Vous pouvez maintenant accéder à votre compte pour gérer votre restaurant et recevoir des commandes.\n\n'
         'Cordialement,\nL’équipe Dios Délices'
         : 'Bonjour ${user?.firstname},\n\n'
         'Nous regrettons de vous informer que votre restaurant "${restaurant.name}" n’a pas été validé suite à notre processus de vérification.\n\n'
-        'Raison du rejet : ${remark ?? "Non spécifiée"}\n\n' // Ajouter la remarque ici
+        'Raison du rejet : ${remark ?? "Non spécifiée"}\n\n'
         'Pour plus d’informations, n’hésitez pas à nous contacter.\n\n'
         'Cordialement,\nL’équipe Dios Délices';
 
-    final message = Message()
-      ..from = Address(username, 'Dios Délices')
-      ..recipients.add(user?.email ?? 'adigbononrodicaa@gmail.com') // Ajouter l'email du propriétaire
-      ..subject = subject
-      ..text = messageText;
-
+    final cloudFunction = ParseCloudFunction('sendEmail');
     try {
-      await send(message, smtpServer);
+      await cloudFunction.execute(parameters: {
+        'to': recipientEmail,
+        'subject': subject,
+        'text': messageText,
+      });
       print('Email envoyé avec succès');
       return true;
-    } on MailerException catch (e) {
+    } catch (e) {
       print('Erreur lors de l\'envoi de l\'email: $e');
       return false;
     }

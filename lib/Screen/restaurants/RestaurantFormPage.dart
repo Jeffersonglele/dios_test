@@ -1,18 +1,18 @@
 import 'dart:io';
-import 'package:avatar_glow/avatar_glow.dart';
 import 'package:dios_delices/modeles/restaurant.dart';
+import 'package:dios_delices/modeles/address.dart' as address_model;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geocoding/geocoding.dart' as geo;
 import 'package:image_picker/image_picker.dart';
-import 'package:mailer/mailer.dart';
-import 'package:mailer/smtp_server.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:path/path.dart' as p;
 import '../../Constant/Constant.dart';
 import '../../providers/users_provider.dart';
 import '../../utils/HashtagTextInputFormatter.dart';
+import '../../utils/phone_number.dart';
+import '../../widgets/brand_avatar_logo.dart';
 import '../AnimatedSplashScreen.dart';
 import '../verif_confirm/ConfirmationPage.dart';
 
@@ -49,7 +49,7 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
                     title: Text('Galerie'),
                     onTap: () async {
                       final XFile? image =
-                      await _picker.pickImage(source: ImageSource.gallery);
+                          await _picker.pickImage(source: ImageSource.gallery);
                       if (image != null) {
                         setState(() {
                           _image = File(image.path);
@@ -62,7 +62,7 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
                   title: Text('Caméra'),
                   onTap: () async {
                     final XFile? image =
-                    await _picker.pickImage(source: ImageSource.camera);
+                        await _picker.pickImage(source: ImageSource.camera);
                     if (image != null) {
                       setState(() {
                         _image = File(image.path);
@@ -80,25 +80,17 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
   // Fonction pour envoyer un email à l'admin avec les infos du restaurant
   Future<void> _sendEmailToAdmin(
       String name, String address, String phone) async {
-
-    String username = 'blandinedupont087@gmail.com'; // Remplacez par votre adresse Gmail
-    String password = 'dtmd pleh ufau vjqd'; // Remplacez par votre mot de passe sécurisé
-
-    final smtpServer = gmail(username, password);
-
-    final message = Message()
-      ..from = Address('blandinedupont087@gmail.com', 'Dios Délices')
-      ..recipients.add('blandinedupont087@gmail.com') // Envoyer à l'admin
-      ..subject = 'Nouvelle demande de Restaurant'
-      ..text = 'Nom du restaurant: $name\nAdresse: $address\nTéléphone: $phone';
-
+    final cloudFunction = ParseCloudFunction('sendEmail');
     try {
-      await send(message, smtpServer);
+      await cloudFunction.execute(parameters: {
+        'to': 'blandinedupont087@gmail.com',
+        'subject': 'Nouvelle demande de Restaurant',
+        'text': 'Nom du restaurant: $name\nAdresse: $address\nTéléphone: $phone',
+      });
       print('Email envoyé avec succès');
-    } on MailerException catch (e) {
+    } catch (e) {
       print('Erreur lors de l\'envoi de l\'email: $e');
     }
-
   }
 
   @override
@@ -130,15 +122,15 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
       child: Scaffold(
         appBar: AppBar(
             leading: IconButton(
-              icon: Icon(Icons.home), // Icône personnalisée (ex: home)
-              onPressed: () {
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (context) => AnimatedSplashScreen()),
-                      (Route<dynamic> route) => false,
-                );
-              },
-            )),
+          icon: Icon(Icons.home), // Icône personnalisée (ex: home)
+          onPressed: () {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => AnimatedSplashScreen()),
+              (Route<dynamic> route) => false,
+            );
+          },
+        )),
         body: SingleChildScrollView(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20.0),
@@ -150,24 +142,7 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
                   SizedBox(height: size.height * 0.1),
                   size.width > 600
                       ? Container()
-                      : Center(
-                    child: AvatarGlow(
-                      duration: Duration(seconds: 2),
-                      glowColor: Colors.white24,
-                      repeat: true,
-                      startDelay: Duration(seconds: 1),
-                      child: Material(
-                        elevation: 8.0,
-                        shape: CircleBorder(),
-                        child: CircleAvatar(
-                          backgroundColor: Colors.transparent,
-                          backgroundImage:
-                          AssetImage('assets/images/logo_sm01.jpg'),
-                          radius: 50.0,
-                        ),
-                      ),
-                    ),
-                  ),
+                      : const Center(child: BrandAvatarLogo()),
                   SizedBox(height: size.height * 0.03),
                   Padding(
                     padding: const EdgeInsets.only(left: 20.0),
@@ -210,7 +185,8 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
                   HashtagTextInputFormatter(
                     onHashtagsChanged: (hashtags) {
                       setState(() {
-                        _selectedHashtags = hashtags; // Mettre à jour les hashtags sélectionnés
+                        _selectedHashtags =
+                            hashtags; // Mettre à jour les hashtags sélectionnés
                       });
                     },
                   ),
@@ -219,7 +195,7 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
                   _buildTextField(
                     controller: _descriptionController,
                     hintText:
-                    "Description du restaurant (donnez-nous quelques informations)",
+                        "Description du restaurant (donnez-nous quelques informations)",
                     keyboardType: TextInputType.multiline,
                     icon: Icons.info,
                     validator: (value) {
@@ -252,7 +228,8 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
                     inputFormatters: <TextInputFormatter>[
-                      FilteringTextInputFormatter.allow(RegExp(r'^\d+[.,]?\d{0,2}$')),
+                      FilteringTextInputFormatter.allow(
+                          RegExp(r'^\d+[.,]?\d{0,2}$')),
                     ],
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
@@ -272,9 +249,9 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
                       children: <Widget>[
                         _image == null
                             ? const Text(
-                          'Aucune image sélectionnée',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        )
+                                'Aucune image sélectionnée',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              )
                             : Image.file(_image!, width: 100, height: 60),
                         SizedBox(height: 10),
                         ElevatedButton(
@@ -304,14 +281,13 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
                       ),
                       onPressed: () async {
                         if (_formKey.currentState!.validate()) {
-                          final isAddressValid = await _isValidAddress(
-                              _addressController.text);
+                          final isAddressValid =
+                              await _isValidAddress(_addressController.text);
 
                           if (!isAddressValid) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content:
-                                Text("L'adresse saisie est invalide."),
+                                content: Text("L'adresse saisie est invalide."),
                               ),
                             );
                             return;
@@ -323,25 +299,68 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
                             final _image = this._image;
 
                             if (_image != null) {
-                              String fileName = p.basename(_image.path); // Get the file name
-                              String extension = p.extension(fileName);  // Get the file extension (.jpg, .png)
+                              String fileName =
+                                  p.basename(_image.path); // Get the file name
+                              String extension = p.extension(
+                                  fileName); // Get the file extension (.jpg, .png)
 
                               // Check if name and user ID are not empty
-                              if (_nameController.text.isNotEmpty && user.userID != null) {
-                                String nom_image = _nameController.text + "_" + user.userID.toString();  // New image name
-                                String newFileName = "$nom_image$extension";  // Combine name and extension
+                              if (_nameController.text.isNotEmpty &&
+                                  user.userID != null) {
+                                String nom_image = _nameController.text +
+                                    "_" +
+                                    user.userID.toString(); // New image name
+                                String newFileName =
+                                    "$nom_image$extension"; // Combine name and extension
 
                                 // Create the ParseFile with the new name
-                                parseFile = ParseFile(File(_image.path), name: newFileName);
-                                print("parseFile created: " + parseFile.toString());
+                                parseFile = ParseFile(File(_image.path),
+                                    name: newFileName);
+                                print("parseFile created: " +
+                                    parseFile.toString());
                               } else {
-                                print("Erreur : nom ou ID utilisateur manquant");
+                                print(
+                                    "Erreur : nom ou ID utilisateur manquant");
                                 return;
                               }
                             }
 
+                            // Créer l'adresse via le modèle Address avant le restaurant
+                            int? addressID;
+                            final addressText = _addressController.text.trim();
+                            if (addressText.isNotEmpty) {
+                              try {
+                                List<geo.Location> locations =
+                                    await geo.locationFromAddress(addressText);
+                                double lat =
+                                    locations.isNotEmpty ? locations.first.latitude : 0.0;
+                                double lng =
+                                    locations.isNotEmpty ? locations.first.longitude : 0.0;
+
+                                dynamic addrResult =
+                                    await address_model.Address.manageAddress(
+                                  city: "",
+                                  state: user.country,
+                                  fullAddress: addressText,
+                                  numero: 0,
+                                  lat: lat.toString(),
+                                  long: lng.toString(),
+                                  object: "Restaurant",
+                                  objectID: user.userID,
+                                  user_roleID: user.roleID,
+                                );
+
+                                if (addrResult is int) {
+                                  addressID = addrResult;
+                                }
+                              } catch (e) {
+                                print("Erreur geocoding adresse restaurant: $e");
+                              }
+                            }
+
                             // Now call the method to manage the restaurant
-                            String createResult = await Restaurant.manageRestaurant(
+                            String createResult =
+                                await Restaurant.manageRestaurant(
                               userID: user.userID,
                               valid: 0,
                               nb_orders: 0,
@@ -352,9 +371,11 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
                               name: _nameController.text,
                               openingHours: _openingHoursController.text.trim(),
                               deliveryFee: double.parse(
-                                _deliveryFeeController.text.replaceAll(',', '.'),
+                                _deliveryFeeController.text
+                                    .replaceAll(',', '.'),
                               ),
                               isOpen: 1,
+                              addressID: addressID,
                               image: parseFile, // Pass the ParseFile here
                             );
 
@@ -362,7 +383,10 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
                               await _sendEmailToAdmin(
                                 _nameController.text,
                                 _addressController.text,
-                                user.telephone.toString(),
+                                formatPhoneForCountry(
+                                  phone: user.telephone,
+                                  country: user.country,
+                                ),
                               );
 
                               Navigator.push(
@@ -375,7 +399,6 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
                               print("Error: $createResult");
                             }
                           }
-
                         }
                       },
                       child: const Text('Valider'),

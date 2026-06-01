@@ -11,9 +11,9 @@ class NotificationService {
   FlutterLocalNotificationsPlugin();
 
   // Configuration Back4App
-  static const String _back4appApplicationId = '9qBeGGwSGOQ1iWOJ1UNUXt40NhgwwgbHJYGpV1zg';
-  static const String _back4appRestApiKey = 'YKeFfBUqtkZBcEIUKPDtVIbsB5DU1gfBZlb0YFoa';
-  static const String _back4appPushUrl = 'https://parseapi.back4app.com/push';
+  static const String _back4appApplicationId = AppConfig.parseApplicationId;
+  static const String _back4appRestApiKey = AppConfig.parseRestApiKey;
+  static const String _back4appPushUrl = AppConfig.parsePushUrl;
 
   static Future<void> initialize() async {
     // Configurer les notifications locales
@@ -169,7 +169,7 @@ class NotificationService {
               userRole == AppRole.individual)) {
         // Créer une installation pour cet utilisateur
         final response = await http.post(
-          Uri.parse('https://parseapi.back4app.com/installations'),
+          Uri.parse('${AppConfig.parseServerUrl}/installations'),
           headers: {
             'X-Parse-Application-Id': _back4appApplicationId,
             'X-Parse-REST-API-Key': _back4appRestApiKey,

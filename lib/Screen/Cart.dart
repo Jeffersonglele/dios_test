@@ -4,12 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_stripe/flutter_stripe.dart' as stripe;
-import 'package:mailer/mailer.dart';
-import 'package:mailer/smtp_server/gmail.dart';
+import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import '../modeles/commande.dart';
 import '../modeles/restaurant.dart';
 import '../modeles/users.dart';
 import '../modeles/address.dart' as delivery;
+import '../services/notification_service.dart';
 import '../providers/cart_provider.dart';
 import '../providers/selected_delivery.dart';
 import '../services/commande_api.dart';
@@ -142,12 +142,12 @@ class _CartState extends ConsumerState<Cart> {
     return "${amount.round()} $currencySymbol";
   }
 
-  void _applyPromoCode({
+  Future<void> _applyPromoCode({
     required List<Map<String, dynamic>> cartItems,
     required double deliveryFee,
-  }) {
+  }) async {
     final subtotal = _calculateSubtotal(cartItems);
-    final promo = PromoService.applyCode(
+    final promo = await PromoService.applyCode(
       rawCode: _promoCodeController.text,
       subtotal: subtotal,
       deliveryFee: deliveryFee,
@@ -200,14 +200,7 @@ class _CartState extends ConsumerState<Cart> {
         : 0.0;
 
     final cartTotal = _calculateSubtotal(cartItems);
-    final effectivePromo = _appliedPromo == null
-        ? null
-        : PromoService.applyCode(
-            rawCode: _appliedPromo!.code,
-            subtotal: cartTotal,
-            deliveryFee: deliveryFee,
-          );
-    final reductionAmount = effectivePromo?.discountAmount ?? 0.0;
+    final reductionAmount = _appliedPromo?.discountAmount ?? 0.0;
     final payableTotal = (cartTotal + deliveryFee - reductionAmount).clamp(
       0.0,
       double.infinity,
@@ -448,7 +441,7 @@ class _CartState extends ConsumerState<Cart> {
                         ElevatedButton(
                           onPressed: cartItems.isEmpty
                               ? null
-                              : () => _applyPromoCode(
+                              : () async => _applyPromoCode(
                                     cartItems: cartItems,
                                     deliveryFee: deliveryFee,
                                   ),
@@ -456,10 +449,10 @@ class _CartState extends ConsumerState<Cart> {
                         ),
                       ],
                     ),
-                    if (effectivePromo != null) ...[
+                    if (_appliedPromo != null) ...[
                       SizedBox(height: 8),
                       Text(
-                        "${effectivePromo.code} : ${effectivePromo.description}",
+                        "${_appliedPromo!.code} : ${_appliedPromo!.description}",
                         style: TextStyle(
                           color: Colors.green[700],
                           fontWeight: FontWeight.w600,
@@ -481,7 +474,7 @@ class _CartState extends ConsumerState<Cart> {
                         ),
                       ],
                     ),
-                    if (effectivePromo != null) ...[
+                    if (_appliedPromo != null) ...[
                       SizedBox(height: 12),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -635,7 +628,7 @@ class _CartState extends ConsumerState<Cart> {
                               ref,
                               currencyCode: currencyCode,
                               reduction: reductionAmount,
-                              promoCode: effectivePromo?.code,
+                              promoCode: _appliedPromo?.code,
                             );
 
                             if (commandeId == null) {
@@ -649,6 +642,19 @@ class _CartState extends ConsumerState<Cart> {
 
                             await updateOrderStatus(commandeId, "Payée");
                             await Commande.refreshLocalCommandes();
+
+                            final restaurantId = cartItems.first['restaurant']['restau_id'];
+                            final restaurantsList = await Restaurant.fetchRestaurantsFromDB();
+                            final currentRestaurant = Restaurant.getRestaurantByRestaurantId(restaurantsList, restaurantId);
+                            if (currentRestaurant != null) {
+                              NotificationService.sendOrderNotificationToRestaurateur(
+                                restaurateurId: currentRestaurant.userID,
+                                restaurantName: currentRestaurant.name,
+                                orderDetails: "Commande #$commandeId",
+                                totalAmount: payableTotal,
+                                orderId: int.tryParse(commandeId),
+                              );
+                            }
 
                             Toast(context, "Commande validée avec succès", true);
                             cartNotifier.clearCart();
@@ -826,30 +832,19 @@ class _CartState extends ConsumerState<Cart> {
     required String firstname,
     required String restaurantName,
   }) async {
-    String username = 'blandinedupont087@gmail.com';
-    String password = 'dtmd pleh ufau vjqd';
-
-    final smtpServer = gmail(username, password);
-
-    String subject = valid
-        ? '🎉 Votre commande est validée !'
-        : '❌ Erreur lors de votre commande';
-
-    String messageText = valid
-        ? 'Bonjour ${firstname},\n\nVotre commande chez "${restaurantName}" a été validée. '
-            'Une facture a été générée et envoyée par email.\n\nCordialement,\nL’équipe Dios Délices'
-        : 'Bonjour ${firstname},\n\nMalheureusement, votre commande chez "${restaurantName}" n’a pas pu être validée. '
-            'Pour plus d’informations, veuillez nous contacter.\n\nCordialement,\nL’équipe Dios Délices';
-
-    final message = Message()
-      ..from = Address(username, 'Dios Délices')
-      ..recipients.add(email)
-      ..subject = subject
-      ..text = messageText;
-
     try {
-      await send(message, smtpServer);
-      return true;
+      final cloudFunction = ParseCloudFunction('sendOrderConfirmationEmail');
+      final response = await cloudFunction.execute(parameters: {
+        'email': email,
+        'firstname': firstname,
+        'restaurantName': restaurantName,
+      });
+
+      if (response.success && response.result != null) {
+        final result = response.result as Map<String, dynamic>;
+        return result['success'] == true;
+      }
+      return false;
     } catch (e) {
       print('Erreur lors de l\'envoi de l\'email : $e');
       return false;
@@ -899,7 +894,6 @@ class _CartState extends ConsumerState<Cart> {
   }) async {
     List<Restaurant> restaurantsList =
         await Restaurant.fetchRestaurantsFromDB();
-    final userId = cartItems.first['user']['user_id'];
     final restaurantId = cartItems.first['restaurant']['restau_id'];
     final current_restaurant =
         Restaurant.getRestaurantByRestaurantId(restaurantsList, restaurantId);
@@ -916,7 +910,7 @@ class _CartState extends ConsumerState<Cart> {
         "quantite": item["order"]["quantity"],
         "prix": item["meal"]["price"],
         "reduction": reduction,
-        "frais_livraison": deliveryFee,
+          "fraisLivraison": deliveryFee,
         if (id_moyen_paiement != null) "moyen_paiement_id": id_moyen_paiement,
         if (id_adresse_livraison != null) "id_adresse_livraison": id_adresse_livraison,
         "options": (item["optionDetails"] ?? {}).map(
@@ -931,35 +925,36 @@ class _CartState extends ConsumerState<Cart> {
       };
     }).toList();
 
-    final body = {
-      "userId": userId,
+    final params = <String, dynamic>{
+      "userID": current_userID,
       "restaurantId": restaurantId,
       "id_restaurateur": current_restaurant?.userID,
       "currency": currencyCode,
-      "frais_livraison": deliveryFee,
+      "fraisLivraison": deliveryFee,
       "reduction": reduction,
       "totalAmount": totalAmount,
-      "id_moyen_paiement": id_moyen_paiement,
       "items": items,
+      if (id_moyen_paiement != null) "moyenPaiementID": id_moyen_paiement,
       if (promoCode != null) "promo_code": promoCode,
       if (id_adresse_livraison != null) "id_adresse_livraison": id_adresse_livraison,
     };
 
-    print("body " + body.toString());
+    print("params " + params.toString());
 
+    final cloudFunction = ParseCloudFunction('createOrder');
+    final response = await cloudFunction.execute(parameters: params);
 
-    final response = await http.post(
-      Uri.parse("https://dios-delices-backend.vercel.app/api/create-order"),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(body),
-    );
-
-    if (response.statusCode == 201) {
-      final data = jsonDecode(response.body);
-      await Commande.refreshLocalCommandes();
-      return data['commandeId'];
+    if (response.success && response.result != null) {
+      final data = response.result as Map<String, dynamic>;
+      if (data['success'] == true) {
+        await Commande.refreshLocalCommandes();
+        return data['commandeID'];
+      } else {
+        print("Erreur création commande : ${data['error']}");
+        return null;
+      }
     } else {
-      print("Erreur lors de la création de commande : ${response.body}");
+      print("Erreur lors de la création de commande : ${response.error?.message}");
       return null;
     }
   }
