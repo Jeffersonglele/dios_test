@@ -4,7 +4,6 @@
 *.pyc
 *.swp
 .DS_Store
-dios-delices-backend/
 .env
 .env.local
 .env.*.local
@@ -15,6 +14,11 @@ dios-delices-backend/
 .svn/
 .swiftpm/
 migrate_working_dir/
+
+# Backend — dans un repo séparé (dios-delices-backend)
+dios-delices-backend/
+cloud/
+lib/scripts/
 
 # IntelliJ related
 *.iml
