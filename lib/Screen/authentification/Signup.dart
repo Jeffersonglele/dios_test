@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:email_validator/email_validator.dart';
-import 'package:flutter_pw_validator/flutter_pw_validator.dart';
 
 import '../../Constant/Constant.dart';
 import '../../Controller/UiController.dart';
@@ -47,7 +46,6 @@ class _SignUpViewState extends State<SignUpView> {
     "France": 10, "Bénin": 10, "Côte d'Ivoire": 8};
 
   final _formKey = GlobalKey<FormState>();
-  final validatorKey = GlobalKey<FlutterPwValidatorState>();
   final simpleUIController = SimpleUIController();
 
   @override
@@ -241,18 +239,7 @@ class _SignUpViewState extends State<SignUpView> {
             ),
           ),
           const SizedBox(height: 10),
-          FlutterPwValidator(
-            key: validatorKey,
-            controller: passwordCtrl,
-            minLength: 8,
-            uppercaseCharCount: 1,
-            numericCharCount: 3,
-            specialCharCount: 1,
-            width: 400,
-            height: 150,
-            onSuccess: () {},
-            onFail: () {},
-          ),
+          _PasswordRequirements(passwordCtrl),
           const SizedBox(height: 14),
 
           // Confirmation
@@ -353,5 +340,61 @@ class _SignUpViewState extends State<SignUpView> {
     firstnameCtrl.clear(); lastnameCtrl.clear(); usernameCtrl.clear();
     emailCtrl.clear(); passwordCtrl.clear(); passwordConfirmCtrl.clear();
     telephoneCtrl.clear();
+  }
+}
+
+class _PasswordRequirements extends StatefulWidget {
+  final TextEditingController controller;
+  const _PasswordRequirements(this.controller);
+  @override
+  State<_PasswordRequirements> createState() => _PasswordRequirementsState();
+}
+
+class _PasswordRequirementsState extends State<_PasswordRequirements> {
+  bool _hasMin = false, _hasUpper = false, _hasNumber = false, _hasSpecial = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_check);
+    _check();
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_check);
+    super.dispose();
+  }
+
+  void _check() {
+    final t = widget.controller.text;
+    setState(() {
+      _hasMin = t.length >= 8;
+      _hasUpper = t.contains(RegExp(r'[A-Z]'));
+      _hasNumber = RegExp(r'\d').allMatches(t).length >= 3;
+      _hasSpecial = t.contains(RegExp(r'[^a-zA-Z0-9]'));
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      _req(_hasMin, 'Au moins 8 caractères'),
+      const SizedBox(height: 4),
+      _req(_hasUpper, '1 majuscule'),
+      const SizedBox(height: 4),
+      _req(_hasNumber, '3 chiffres'),
+      const SizedBox(height: 4),
+      _req(_hasSpecial, '1 caractère spécial'),
+    ]);
+  }
+
+  Widget _req(bool ok, String label) {
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(ok ? Icons.check_circle_rounded : Icons.circle_outlined,
+          size: 16, color: ok ? Colors.green : Colors.grey),
+      const SizedBox(width: 6),
+      Text(label, style: TextStyle(fontSize: 12, color: ok ? Colors.green : Colors.grey)),
+    ]);
   }
 }

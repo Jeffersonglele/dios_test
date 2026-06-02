@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../providers/theme_provider.dart';
 
 // ────────────────────────────────────────────────────────────
 // DESIGN TOKENS — Dios Délices
 // Ambiance : chaleureux · gourmand · artisanal · premium
 // ────────────────────────────────────────────────────────────
 
-// ── COULEURS ───────────────────────────────────────────────
+// ── COULEURS (mode clair) ───────────────────────────────────
 class AppColors {
   const AppColors._();
+
+  static Color resolve(Color light, Color dark) =>
+      darkModeNotifier.value ? dark : light;
 
   // Brand
   static const brand = Color(0xFFC84C2F);
@@ -44,9 +48,12 @@ class AppColors {
   static const gradientEnd = Color(0xFFFFE8D6);
 }
 
-// ── TYPOGRAPHIE ────────────────────────────────────────────
+// ── TYPOGRAPHIE (couleurs adaptatives mode clair/sombre) ───
 class AppTypography {
-  const AppTypography._();
+  AppTypography._();
+
+  static Color get _ink => AppColors.resolve(AppColors.ink, AppDarkColors.ink);
+  static Color get _inkMuted => AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
 
   // Display — Playfair Display (serif élégante)
   static TextStyle displayLarge({Color? color}) =>
@@ -55,7 +62,7 @@ class AppTypography {
         fontWeight: FontWeight.w700,
         height: 1.08,
         letterSpacing: -0.5,
-        color: color ?? AppColors.ink,
+        color: color ?? _ink,
       );
 
   static TextStyle displayMedium({Color? color}) =>
@@ -64,7 +71,7 @@ class AppTypography {
         fontWeight: FontWeight.w700,
         height: 1.10,
         letterSpacing: -0.3,
-        color: color ?? AppColors.ink,
+        color: color ?? _ink,
       );
 
   static TextStyle headlineLarge({Color? color}) =>
@@ -72,7 +79,7 @@ class AppTypography {
         fontSize: 32,
         fontWeight: FontWeight.w700,
         height: 1.15,
-        color: color ?? AppColors.ink,
+        color: color ?? _ink,
       );
 
   static TextStyle headlineMedium({Color? color}) =>
@@ -80,7 +87,7 @@ class AppTypography {
         fontSize: 28,
         fontWeight: FontWeight.w700,
         height: 1.18,
-        color: color ?? AppColors.ink,
+        color: color ?? _ink,
       );
 
   // Titles & Body — Plus Jakarta Sans
@@ -90,7 +97,7 @@ class AppTypography {
         fontWeight: FontWeight.w700,
         height: 1.25,
         letterSpacing: -0.2,
-        color: color ?? AppColors.ink,
+        color: color ?? _ink,
       );
 
   static TextStyle titleMedium({Color? color}) =>
@@ -99,7 +106,7 @@ class AppTypography {
         fontWeight: FontWeight.w700,
         height: 1.30,
         letterSpacing: -0.1,
-        color: color ?? AppColors.ink,
+        color: color ?? _ink,
       );
 
   static TextStyle bodyLarge({Color? color}) =>
@@ -107,7 +114,7 @@ class AppTypography {
         fontSize: 16,
         fontWeight: FontWeight.w500,
         height: 1.50,
-        color: color ?? AppColors.ink,
+        color: color ?? _ink,
       );
 
   static TextStyle bodyMedium({Color? color}) =>
@@ -116,7 +123,7 @@ class AppTypography {
         fontWeight: FontWeight.w500,
         height: 1.45,
         letterSpacing: 0.1,
-        color: color ?? AppColors.inkMuted,
+        color: color ?? _inkMuted,
       );
 
   static TextStyle labelLarge({Color? color}) =>
@@ -125,7 +132,7 @@ class AppTypography {
         fontWeight: FontWeight.w700,
         height: 1.20,
         letterSpacing: 0.3,
-        color: color ?? AppColors.ink,
+        color: color ?? _ink,
       );
 
   static TextStyle labelMedium({Color? color}) =>
@@ -134,7 +141,7 @@ class AppTypography {
         fontWeight: FontWeight.w600,
         height: 1.20,
         letterSpacing: 0.2,
-        color: color ?? AppColors.inkMuted,
+        color: color ?? _inkMuted,
       );
 }
 
@@ -279,7 +286,7 @@ class AppTheme {
 
       // ── AppBar ──────────────────────────────────────────
       appBarTheme: const AppBarTheme(
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppColors.surface,
         foregroundColor: AppColors.ink,
         elevation: 0,
         centerTitle: true,

@@ -61,12 +61,35 @@ class DatabaseHelper {
     final Users? user = usersBox.get(userID);
 
     if (user != null) {
-      user.password = password; // Mettre à jour le mot de passe
-      await usersBox.put(userID, user); // Sauvegarder l'utilisateur mis à jour
-      return user; // Retourner l'utilisateur mis à jour
+      user.password = password;
+      await usersBox.put(userID, user);
+      return user;
     }
 
-    return null; // Retourner null si l'utilisateur n'est pas trouvé
+    return null;
+  }
+
+  static Future<Users?> updateUserProfile(
+      int userID,
+      String firstname,
+      String lastname,
+      String email,
+      String telephone) async {
+    final Box<Users> usersBox = await Hive.openBox<Users>('users');
+    final Users? user = usersBox.get(userID);
+
+    if (user != null) {
+      final updated = user.copy(
+        firstname: firstname,
+        lastname: lastname,
+        email: email,
+        telephone: telephone,
+      );
+      await usersBox.put(userID, updated);
+      return updated;
+    }
+
+    return null;
   }
 
   static Future<Users?> updateCountryAndRole(

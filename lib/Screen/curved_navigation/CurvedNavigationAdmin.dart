@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../widgets/dios_nav_bar.dart';
 import '../../theme/app_theme.dart';
 import '../admin/AdminDashboard.dart';
-import '../MyStore.dart';
+import '../Settings.dart';
 
 class CurvedNavigationAdmin extends StatefulWidget {
   final int specified_index;
@@ -17,20 +17,20 @@ class _CurvedNavigationAdminState extends State<CurvedNavigationAdmin> {
   int _activePage = 0;
 
   final _pages = <Widget>[
-    AdminDashboard(),
-    MyStore(),
+    const AdminDashboard(),
+    const Settings(),
   ];
 
   final _navItems = <DiosNavItem>[
     DiosNavItem(
-      icon: Icon(Icons.dashboard_outlined),
-      activeIcon: Icon(Icons.dashboard),
+      icon: const Icon(Icons.dashboard_outlined),
+      activeIcon: const Icon(Icons.dashboard_rounded),
       label: 'Dashboard',
     ),
     DiosNavItem(
-      icon: Icon(Icons.store_outlined),
-      activeIcon: Icon(Icons.store),
-      label: 'Boutique',
+      icon: const Icon(Icons.settings_outlined),
+      activeIcon: const Icon(Icons.settings_rounded),
+      label: 'Paramètres',
     ),
   ];
 

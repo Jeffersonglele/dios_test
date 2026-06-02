@@ -1,4 +1,6 @@
 import 'package:dios_delices/Screen/utilisateurs/UserDetails.dart';
+import 'package:dios_delices/providers/data_version_notifier.dart';
+import 'package:dios_delices/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import '../../modeles/users.dart';
@@ -8,7 +10,7 @@ import '../../widgets/dios_image.dart';
 class UsersListPage extends StatefulWidget {
   final String country;
 
-  UsersListPage({required this.country});
+  const UsersListPage({super.key, required this.country});
 
   @override
   _UsersListPageState createState() => _UsersListPageState();
@@ -21,6 +23,9 @@ class _UsersListPageState extends State<UsersListPage> {
   bool isLoading = true;
   bool showOnlyWaitingForValidation = false;
   String sortBy = 'Nom';
+  String searchQuery = '';
+
+  final TextEditingController _searchCtrl = TextEditingController();
 
   Future<bool> _sendEmailToUser(Users user, bool valid, [String? remark]) async {
     final recipientEmail = user?.email ?? 'adigbononrodicaa@gmail.com';
@@ -30,14 +35,14 @@ class _UsersListPageState extends State<UsersListPage> {
 
     final messageText = valid
         ? 'Bonjour ${user?.firstname},\n\n'
-        'Nous sommes ravis de vous informer que votre profil a été validé. '
-        'Vous pouvez maintenant accéder à votre compte pour gérer votre profil et recevoir des commandes.\n\n'
-        'Cordialement,\nL’équipe Dios Délices'
+            'Nous sommes ravis de vous informer que votre profil a été validé. '
+            'Vous pouvez maintenant accéder à votre compte pour gérer votre profil et recevoir des commandes.\n\n'
+            'Cordialement,\nL’équipe Dios Délices'
         : 'Bonjour ${user?.firstname},\n\n'
-        'Nous regrettons de vous informer que votre profil n’a pas été validé suite à notre processus de vérification.\n\n'
-        'Raison du rejet : ${remark ?? "Non spécifiée"}\n\n'
-        'Pour plus d’informations, n’hésitez pas à nous contacter.\n\n'
-        'Cordialement,\nL’équipe Dios Délices';
+            'Nous regrettons de vous informer que votre profil n’a pas été validé suite à notre processus de vérification.\n\n'
+            'Raison du rejet : ${remark ?? "Non spécifiée"}\n\n'
+            'Pour plus d’informations, n’hésitez pas à nous contacter.\n\n'
+            'Cordialement,\nL’équipe Dios Délices';
 
     final cloudFunction = ParseCloudFunction('sendEmail');
     try {
@@ -46,26 +51,33 @@ class _UsersListPageState extends State<UsersListPage> {
         'subject': subject,
         'text': messageText,
       });
-      print('Email envoyé avec succès');
       return true;
     } catch (e) {
-      print('Erreur lors de l\'envoi de l\'email: $e');
       return false;
     }
   }
 
-
   @override
   void initState() {
     super.initState();
+    dataVersionNotifier.addListener(_onDataChanged);
     loadData();
+  }
+
+  @override
+  void dispose() {
+    dataVersionNotifier.removeListener(_onDataChanged);
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  void _onDataChanged() {
+    if (mounted) loadData();
   }
 
   void loadData() async {
     List<Identity> identityList = await Identity.fetchIdentitiesFromDB();
-    print("identityList " + identityList.toString());
     List<Users> usersList = await Users.fetchUsersFromDB();
-    print("usersList " + usersList.toString());
 
     setState(() {
       identities = identityList;
@@ -78,7 +90,6 @@ class _UsersListPageState extends State<UsersListPage> {
     for (var user in users) {
       Identity? identity = await Identity.getIdentityByUserId(identities, user.userID);
       if (identity != null && user.country == widget.country) {
-        print(user.userID.toString());
         setState(() {
           filteredUsers.add({"user": user, "identity": identity});
         });
@@ -93,104 +104,154 @@ class _UsersListPageState extends State<UsersListPage> {
     setState(() {
       sortBy = criterion;
       if (criterion == 'Nom') {
-        filteredUsers.sort(
-                (a, b) => b["users"].name.compareTo(a["users"].name));
+        filteredUsers.sort((a, b) => b["users"].name.compareTo(a["users"].name));
       } else if (criterion == 'Username') {
-        filteredUsers.sort(
-                (a, b) => b["users"].username.compareTo(a["users"].username));
+        filteredUsers.sort((a, b) => b["users"].username.compareTo(a["users"].username));
       }
     });
   }
 
+  List<Map<String, dynamic>> get _filteredList {
+    if (searchQuery.isEmpty) return filteredUsers;
+    return filteredUsers.where((item) {
+      final user = item["users"] as Users;
+      final fullName = '${user.firstname} ${user.lastname}'.toLowerCase();
+      return fullName.contains(searchQuery.toLowerCase()) ||
+          user.email.toLowerCase().contains(searchQuery.toLowerCase());
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
-    String appBar = widget.country == "Bénin" ? " Users au " : "Users en ";
+    final displayed = _filteredList;
 
     return Scaffold(
+      backgroundColor: AppColors.surface,
       appBar: AppBar(
-        title: Text(appBar + widget.country),
+        title: Text('Utilisateurs · ${widget.country}'),
+        centerTitle: true,
       ),
       body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Text('En attente de validation'),
-                    Switch(
-                      value: showOnlyWaitingForValidation,
-                      onChanged: (value) {
-                        setState(() {
-                          showOnlyWaitingForValidation = value;
-                        });
-                      },
-                    ),
-                  ],
-                ),
-                Flexible( // Utiliser Flexible pour s'adapter à la largeur de l'écran
-                  child: PopupMenuButton<String>(
-                    onSelected: _sortUsers,
-                    itemBuilder: (BuildContext context) {
-                      return {'Nom', 'Username'}
-                          .map((String choice) {
-                        return PopupMenuItem<String>(
-                          value: choice,
-                          child: Text(choice),
-                        );
-                      }).toList();
-                    },
-                    child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade200,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.sort, color: Colors.black),
-                          SizedBox(width: 5),
-                          Flexible( // Flexible ici pour le texte qui pourrait déborder
-                            child: Text(
-                              "Trier par ",
-                              style: TextStyle(color: Colors.black),
-                              overflow: TextOverflow.ellipsis, // Tronque le texte si nécessaire
-                            ),
-                          ),
-                          Icon(Icons.arrow_drop_down, color: Colors.black),
-                        ],
-                      ),
+          // Search + Filter bar
+          Container(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: Row(children: [
+              Expanded(
+                child: Container(
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: AppColors.card,
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: TextField(
+                    controller: _searchCtrl,
+                    onChanged: (v) => setState(() {}),
+                    style: AppTypography.bodyLarge().copyWith(fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: 'Rechercher...',
+                      hintStyle: AppTypography.bodyMedium().copyWith(fontSize: 14),
+                      prefixIcon: Icon(Icons.search_rounded, color: AppColors.inkSubtle, size: 20),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                height: 44,
+                decoration: BoxDecoration(
+                  color: AppColors.card,
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: PopupMenuButton<String>(
+                  onSelected: _sortUsers,
+                  offset: const Offset(0, 44),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                  ),
+                  itemBuilder: (_) => {'Nom', 'Username'}
+                      .map((c) => PopupMenuItem(value: c, child: Text(c)))
+                      .toList(),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Icon(Icons.sort_rounded, color: AppColors.inkMuted, size: 20),
+                  ),
+                ),
+              ),
+            ]),
           ),
-          SizedBox(height: 10),
-          isLoading
-              ? Center(child: CircularProgressIndicator())
-              : filteredUsers.isEmpty
-              ? Center(
-              child: Text(
-                  'Aucun utilisateur trouvé pour ${widget.country}'))
-              : Expanded(
-            child: ListView.builder(
-              itemCount: filteredUsers.length,
-              itemBuilder: (context, index) {
-                Users user = filteredUsers[index]["user"];
-                Identity identity = filteredUsers[index]["identity"];
+          // Filter pending toggle
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Row(children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                decoration: BoxDecoration(
+                  color: showOnlyWaitingForValidation
+                      ? AppColors.accentLight
+                      : AppColors.card,
+                  borderRadius: BorderRadius.circular(99),
+                  border: Border.all(
+                    color: showOnlyWaitingForValidation
+                        ? AppColors.accent
+                        : AppColors.border,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Switch(
+                      value: showOnlyWaitingForValidation,
+                      activeColor: AppColors.accent,
+                      onChanged: (v) => setState(() => showOnlyWaitingForValidation = v),
+                    ),
+                    Text('En attente', style: AppTypography.labelMedium().copyWith(fontSize: 12)),
+                    const SizedBox(width: 8),
+                  ],
+                ),
+              ),
+              const Spacer(),
+              Text('${displayed.length} utilisateur(s)',
+                  style: AppTypography.bodyMedium().copyWith(fontSize: 12)),
+            ]),
+          ),
+          const SizedBox(height: 4),
+          // List
+          Expanded(
+            child: isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : displayed.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.people_outline_rounded,
+                                size: 64, color: AppColors.inkSubtle),
+                            const SizedBox(height: 12),
+                            Text('Aucun utilisateur trouvé',
+                                style: AppTypography.bodyLarge(color: AppColors.inkMuted)),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: displayed.length,
+                        itemBuilder: (context, index) {
+                          final item = displayed[index];
+                          final user = item["user"] as Users;
+                          final identity = item["identity"] as Identity;
 
-                if (showOnlyWaitingForValidation && user.identity == "Verified") {
-                  return SizedBox();
-                }
+                          if (showOnlyWaitingForValidation && user.identity == "Verified") {
+                            return const SizedBox.shrink();
+                          }
 
-                return _buildUserCard(user, identity);
-              },
-            ),
+                          return _buildUserCard(user, identity);
+                        },
+                      ),
           ),
         ],
       ),
@@ -198,67 +259,217 @@ class _UsersListPageState extends State<UsersListPage> {
   }
 
   Widget _buildUserCard(Users user, Identity identity) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      elevation: 5,
-      child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: ClipRRect(
-                borderRadius: BorderRadius.circular(8.0),
-                child: DiosImage(
-                  url: identity.photo,
-                  width: 80,
-                  height: 80,
-                ),
-              ),
-              title: Text(
-                user.firstname + " " + user.lastname,
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                overflow: TextOverflow.ellipsis, // Empêche le débordement du nom
-              ),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+    final isVerified = user.identity == "Verified";
+    final isRejected = user.identity == "Rejected";
 
-                ],
-              ),
-              trailing: Icon(Icons.chevron_right),
-              onTap: () => {
-                Navigator.push(context,
-                    MaterialPageRoute(builder: (context) => UserDetails(user_id: user.userID)
-                    )
-                )
-              },
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: AppColors.border, width: 0.5),
+        boxShadow: AppShadows.cardList,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => UserDetails(user_id: user.userID),
             ),
-
-            if (user.identity != "Verified")
-              Padding(
-                padding: const EdgeInsets.only(left: 12.0, right: 5.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text("Email: ${user.email}"),
-                    Row(
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    child: DiosImage(
+                      url: identity.photo,
+                      width: 56,
+                      height: 56,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${user.firstname} ${user.lastname}',
+                          style: AppTypography.titleMedium().copyWith(fontSize: 15),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          user.email,
+                          style: AppTypography.bodyMedium().copyWith(fontSize: 12),
+                        ),
+                        const SizedBox(height: 2),
+                        Row(children: [
+                          Icon(Icons.person_outline_rounded,
+                              size: 12, color: AppColors.inkSubtle),
+                          const SizedBox(width: 4),
+                          Text('@${user.username}',
+                              style: AppTypography.bodyMedium().copyWith(fontSize: 11)),
+                          const SizedBox(width: 12),
+                          Container(
+                            width: 6, height: 6,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: isVerified
+                                  ? AppColors.success
+                                  : isRejected
+                                      ? AppColors.error
+                                      : AppColors.accent,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            isVerified ? 'Validé' : isRejected ? 'Rejeté' : 'En attente',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: isVerified
+                                  ? AppColors.success
+                                  : isRejected
+                                      ? AppColors.error
+                                      : AppColors.accent,
+                            ),
+                          ),
+                        ]),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right_rounded, color: AppColors.inkSubtle, size: 20),
+                ]),
+                if (!isVerified)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 10),
+                    child: Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         IconButton(
-                          icon: Icon(Icons.punch_clock, color: Colors.red), onPressed: () {  },
+                          icon: Container(
+                            width: 36, height: 36,
+                            decoration: BoxDecoration(
+                              color: AppColors.successLight,
+                              borderRadius: BorderRadius.circular(AppRadius.sm),
+                            ),
+                            child: Icon(Icons.check_rounded, color: AppColors.success, size: 20),
+                          ),
+                          onPressed: () => _validateUsers(user),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: Container(
+                            width: 36, height: 36,
+                            decoration: BoxDecoration(
+                              color: AppColors.errorLight,
+                              borderRadius: BorderRadius.circular(AppRadius.sm),
+                            ),
+                            child: Icon(Icons.close_rounded, color: AppColors.error, size: 20),
+                          ),
+                          onPressed: () => _showRejectDialog(user),
                         ),
                       ],
                     ),
-                  ],
-                ),
-              ),
-          ],
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 
+  void _showRejectDialog(Users user) {
+    final remarkCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
+        title: Row(children: [
+          Container(
+            width: 32, height: 32,
+            decoration: BoxDecoration(
+              color: AppColors.errorLight,
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+            ),
+            child: const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 18),
+          ),
+          const SizedBox(width: 10),
+          Text('Rejeter le profil', style: AppTypography.titleMedium()),
+        ]),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text('Motif du rejet pour ${user.firstname} ${user.lastname} :',
+              style: AppTypography.bodyMedium()),
+          const SizedBox(height: 12),
+          TextField(
+            controller: remarkCtrl,
+            maxLines: 3,
+            decoration: InputDecoration(
+              hintText: 'Saisissez votre remarque...',
+              filled: true,
+              fillColor: AppColors.surfaceWarm,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+        ]),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Annuler',
+                style: AppTypography.labelMedium(color: AppColors.inkMuted)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () {
+              Navigator.pop(ctx);
+              _rejectUsers(user, remarkCtrl.text);
+            },
+            child: const Text('Rejeter'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _validateUsers(Users user) async {
+    final result = await Users.updateIdentity(user.userID, "Verified");
+    if (result == "success") {
+      await _sendEmailToUser(user, true);
+      if (mounted) {
+        setState(() => user.identity = "Verified");
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Profil de ${user.firstname} validé avec succès'),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+        ));
+      }
+    }
+  }
+
+  Future<void> _rejectUsers(Users user, String remark) async {
+    final result = await Users.updateIdentity(user.userID, "Rejected");
+    if (result == "success") {
+      await _sendEmailToUser(user, false, remark);
+      if (mounted) {
+        setState(() => user.identity = "Rejected");
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Profil de ${user.firstname} rejeté'),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+        ));
+      }
+    }
+  }
 }

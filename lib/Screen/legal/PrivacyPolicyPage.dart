@@ -9,8 +9,8 @@ class PrivacyPolicyPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Politique de confidentialité')),
       backgroundColor: AppColors.surface,
-      body: const SingleChildScrollView(
-        padding: EdgeInsets.all(16),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           _Section('1. RESPONSABLE DU TRAITEMENT', "Dios Délices\nEmail : contact@diosdelices.com\n\nLe responsable de traitement s'engage à respecter les réglementations suivantes :\n• Règlement Général sur la Protection des Données (RGPD - UE 2016/679)\n• Loi n°2013-450 relative à la protection des données personnelles (Côte d'Ivoire)\n• Loi n°2017-20 portant code du numérique (Bénin)"),
           _Section('2. DONNÉES COLLECTÉES', "Nous collectons les données strictement nécessaires au fonctionnement du service :\n\n• Identité : nom, prénom, username\n• Contact : email, numéro de téléphone\n• Adresse de livraison\n• Données de commande : historique, plats commandés, montants\n• Données de connexion : date, heure, adresse IP\n• Données de paiement : référence de transaction (pas de données bancaires stockées)\n• Géolocalisation : position du livreur pendant la livraison uniquement\n\nÂge minimum : 16 ans. Aucune donnée de mineur de moins de 16 ans n'est collectée."),
@@ -25,7 +25,7 @@ class PrivacyPolicyPage extends StatelessWidget {
           _Section("11. DÉLÉGUÉ À LA PROTECTION DES DONNÉES", "Pour toute question relative à la protection des données, contactez le DPO :\nEmail : dpo@diosdelices.com\nAdresse postale : à communiquer sur demande."),
           _Section('12. RÉCLAMATIONS', "Si vous estimez que vos droits ne sont pas respectés, vous pouvez introduire une réclamation auprès de l'autorité de contrôle compétente :\n• France : CNIL (www.cnil.fr)\n• Côte d'Ivoire : ARTCI (www.artci.ci)\n• Bénin : APDP (www.apdp.bj)"),
           _Section('13. MODIFICATIONS', "Cette politique peut être modifiée. Les utilisateurs seront informés des changements majeurs. Dernière mise à jour : juin 2026."),
-          SizedBox(height: 32),
+          const SizedBox(height: 32),
         ]),
       ),
     );
@@ -42,9 +42,9 @@ class _Section extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.deepOrange)),
+        Text(title, style: AppTypography.labelMedium(color: AppColors.brand).copyWith(fontSize: 16)),
         const SizedBox(height: 6),
-        Text(content, style: const TextStyle(fontSize: 14, height: 1.5)),
+        Text(content, style: AppTypography.bodyMedium().copyWith(fontSize: 14, height: 1.5)),
       ]),
     );
   }

@@ -1,4 +1,5 @@
 import 'package:dios_delices/Screen/curved_navigation/CurvedNavigationUserAfr.dart';
+import 'package:dios_delices/providers/data_version_notifier.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:gpassword/gpassword.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
@@ -231,7 +232,7 @@ class Users extends HiveObject {
       'password': password,
       'telephone': telephone,
       'password_crypte': password_crypte,
-      'last_login': {"__type": "Date", "iso": last_login?.toIso8601String()},
+      'last_login': last_login?.toIso8601String(),
       'image': imageUrl,
       'status': status,
       'identity': identity,
@@ -250,6 +251,7 @@ class Users extends HiveObject {
       if (response['success'] == false) {
         return "Erreur : ${response['error']}";
       } else {
+        notifyDataChanged();
         return response['userID']; // Retourne l'ID de l'utilisateur créé
       }
     } else {
@@ -279,6 +281,7 @@ class Users extends HiveObject {
         } else {
           await DatabaseHelper.updateUserStatus(userID, status);
 
+          notifyDataChanged();
           return "success";
         }
       } else {
@@ -311,6 +314,7 @@ class Users extends HiveObject {
         } else {
           await DatabaseHelper.updateUserIdentity(userID, identity);
 
+          notifyDataChanged();
           return "success";
         }
       } else {
@@ -331,7 +335,7 @@ class Users extends HiveObject {
     // Construire les paramètres, y compris userID pour la mise à jour
     var params = <String, dynamic>{
       if (userID != null) 'userID': userID,
-      'last_login': {"__type": "Date", "iso": last_login?.toIso8601String()}
+      'last_login': last_login.toIso8601String()
     };
 
     try {
@@ -345,6 +349,7 @@ class Users extends HiveObject {
         } else {
           await DatabaseHelper.updateUser(userID, last_login);
 
+          notifyDataChanged();
           return "success";
         }
       } else {
@@ -377,6 +382,7 @@ class Users extends HiveObject {
         } else {
           await DatabaseHelper.updateUserPassword(userID, newPassword);
 
+          notifyDataChanged();
           return "success";
         }
       } else {
@@ -384,6 +390,42 @@ class Users extends HiveObject {
       }
     } catch (e) {
       print("Exception lors de l'appel de la fonction cloud : $e");
+      return "Exception lors de l'appel de la fonction cloud : $e";
+    }
+  }
+
+  static Future<String> updateProfile(
+      int userID, {
+    required String firstname,
+    required String lastname,
+    required String email,
+    required String telephone,
+  }) async {
+    var cloudFunction = ParseCloudFunction('update1User');
+    var params = <String, dynamic>{
+      'userID': userID,
+      'firstname': firstname,
+      'lastname': lastname,
+      'email': email,
+      'telephone': telephone,
+    };
+    try {
+      final ParseResponse parseResponse =
+          await cloudFunction.execute(parameters: params);
+      if (parseResponse.success && parseResponse.result != null) {
+        var response = parseResponse.result as Map<String, dynamic>;
+        if (response['success'] == false) {
+          return "Erreur : ${response['error']}";
+        } else {
+          await DatabaseHelper.updateUserProfile(
+              userID, firstname, lastname, email, telephone);
+          notifyDataChanged();
+          return "success";
+        }
+      } else {
+        return "Erreur lors de l'appel de la fonction cloud : ${parseResponse.error?.message}";
+      }
+    } catch (e) {
       return "Exception lors de l'appel de la fonction cloud : $e";
     }
   }
@@ -412,6 +454,7 @@ class Users extends HiveObject {
         } else {
           await DatabaseHelper.updateCountryAndRole(userID, country, roleID);
 
+          notifyDataChanged();
           return "success";
         }
       } else {
@@ -439,6 +482,7 @@ class Users extends HiveObject {
           // User supprimé avec succès
           await DatabaseHelper.deleteUser(userID);
 
+          notifyDataChanged();
           return "success";
         } else {
           // Gestion de l'erreur si l'accès n'a pas pu être supprimé

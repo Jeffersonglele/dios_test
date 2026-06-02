@@ -26,6 +26,16 @@ Future<bool> _sendCodeViaCloud({
   }
 }
 
+/// Vérifie si un code de réinitialisation est valide.
+/// [code] : code saisi par l'utilisateur
+/// [expectedCode] : code attendu
+/// [generationTime] : moment de génération du code
+/// Expire après 15 minutes.
+bool isCodeValid(String code, String expectedCode, DateTime generationTime) {
+  return code == expectedCode &&
+      DateTime.now().difference(generationTime).inMinutes < 15;
+}
+
 Future<bool> verifyEmailCode({
   required String email,
   required String code,

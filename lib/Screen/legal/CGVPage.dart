@@ -7,10 +7,10 @@ class CGVPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('CGV')),
+      appBar: AppBar(title: const Text('Conditions générales de vente')),
       backgroundColor: AppColors.surface,
-      body: const SingleChildScrollView(
-        padding: EdgeInsets.all(16),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           _Section('1. DÉFINITIONS', "• « Plateforme » : l'application mobile Dios Délices.\n• « Restaurateur » : personne physique ou morale proposant des plats via la Plateforme.\n• « Client » : personne commandant des plats via la Plateforme.\n• « Livreur » : personne assurant la livraison des commandes.\n• « Commande » : achat de plats effectué par un Client auprès d'un Restaurateur."),
           _Section('2. OBJET', "Les présentes CGV régissent l'utilisation de la Plateforme Dios Délices et les relations entre les Utilisateurs. L'utilisation de la Plateforme emporte acceptation pleine et entière des CGV."),
@@ -26,9 +26,10 @@ class CGVPage extends StatelessWidget {
           _Section('12. LOI APPLICABLE', "Pour les utilisateurs en France : droit français, tribunaux de Paris. Pour la Côte d'Ivoire : loi ivoirienne, tribunaux d'Abidjan. Pour le Bénin : loi béninoise, tribunaux de Cotonou. Pour tout autre pays : droit français."),
           _Section('13. MÉDIATION', "En cas de litige non résolu, le Client peut recourir gratuitement au Médiateur de la consommation compétent. En France : www.mediation-conso.fr. Le Client peut également utiliser la plateforme européenne de règlement des litiges : ec.europa.eu/consumers/odr."),
           _Section('14. MODIFICATION DES CGV', "Dios Délices se réserve le droit de modifier les présentes CGV à tout moment. Les Utilisateurs seront informés des modifications. L'utilisation continue de la Plateforme vaut acceptation des nouvelles CGV."),
-          SizedBox(height: 32),
-          Text('Dernière mise à jour : juin 2026', style: TextStyle(color: Colors.grey, fontSize: 12)),
-          SizedBox(height: 32),
+          const SizedBox(height: 16),
+          Text('Dernière mise à jour : juin 2026',
+              style: AppTypography.bodyMedium(color: AppColors.inkSubtle).copyWith(fontSize: 12)),
+          const SizedBox(height: 32),
         ]),
       ),
     );
@@ -45,9 +46,9 @@ class _Section extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.deepOrange)),
+        Text(title, style: AppTypography.labelMedium(color: AppColors.brand).copyWith(fontSize: 16)),
         const SizedBox(height: 6),
-        Text(content, style: const TextStyle(fontSize: 14, height: 1.5)),
+        Text(content, style: AppTypography.bodyMedium().copyWith(fontSize: 14, height: 1.5)),
       ]),
     );
   }

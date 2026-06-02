@@ -1,6 +1,7 @@
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:hive/hive.dart';
 import '../db/database_helper.dart';
+import 'package:dios_delices/providers/data_version_notifier.dart';
 
 part 'dish.g.dart';
 
@@ -253,6 +254,7 @@ class Dish extends HiveObject {
             await DatabaseHelper.updateDish(dish);
           }
 
+          notifyDataChanged();
           return "success";
         }
       } else {
@@ -282,6 +284,7 @@ class Dish extends HiveObject {
           return "Erreur : ${response['error']}";
         } else {
           await DatabaseHelper.updateDishStatus(dishID, status);
+          notifyDataChanged();
           return "success";
         }
       } else {
@@ -306,6 +309,7 @@ class Dish extends HiveObject {
         var response = parseResponse.result as Map<String, dynamic>;
         if (response['success'] == true) {
           await DatabaseHelper.deleteDish(dishID);
+          notifyDataChanged();
           return "success";
         } else {
           return "Erreur : ${response['error']}";

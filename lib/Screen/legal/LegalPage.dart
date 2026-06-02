@@ -9,8 +9,8 @@ class LegalPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Mentions légales')),
       backgroundColor: AppColors.surface,
-      body: const SingleChildScrollView(
-        padding: EdgeInsets.all(16),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           _Section('Éditeur', 'Dios Délices\n\nForme juridique : à compléter (EI, SARL, SAS, etc.)\nSIRET / SIREN : à compléter\nRCS : à compléter\nN° TVA intracommunautaire : à compléter\nCapital social : à compléter\n\nAdresse du siège social :\nà compléter\n\nTéléphone : à compléter\nEmail : contact@diosdelices.com'),
           _Section('Directeur de la publication', 'À compléter (nom du représentant légal)'),
@@ -19,7 +19,7 @@ class LegalPage extends StatelessWidget {
           _Section('Propriété intellectuelle', 'L\'ensemble du contenu de l\'application (logos, textes, code source, design) est protégé par le droit d\'auteur et reste la propriété exclusive de Dios Délices. Toute reproduction est interdite sans autorisation.'),
           _Section('Médiation', 'Conformément au Code de la consommation, en cas de litige non résolu, vous pouvez recourir gratuitement au médiateur de la consommation compétent.\n\nFrance : www.mediation-conso.fr\nPlateforme européenne de règlement des litiges : ec.europa.eu/consumers/odr\n\nCôte d\'Ivoire : ARTCI (www.artci.ci)\nBénin : APDP (www.apdp.bj)'),
           _Section('Autorités de contrôle', 'France : CNIL — 3 Place de Fontenoy, 75007 Paris (www.cnil.fr)\nCôte d\'Ivoire : ARTCI — Marcory Zone 4, Abidjan (www.artci.ci)\nBénin : APDP — Cotonou (www.apdp.bj)'),
-          SizedBox(height: 32),
+          const SizedBox(height: 32),
         ]),
       ),
     );
@@ -33,9 +33,9 @@ class _Section extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: 20),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.deepOrange)),
+      Text(title, style: AppTypography.labelMedium(color: AppColors.brand).copyWith(fontSize: 16)),
       const SizedBox(height: 6),
-      Text(content, style: const TextStyle(fontSize: 14, height: 1.5)),
+      Text(content, style: AppTypography.bodyMedium().copyWith(fontSize: 14, height: 1.5)),
     ]),
   );
 }

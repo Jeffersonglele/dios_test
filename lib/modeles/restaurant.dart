@@ -1,6 +1,7 @@
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:hive/hive.dart';
 import '../db/database_helper.dart';
+import 'package:dios_delices/providers/data_version_notifier.dart';
 
 part 'restaurant.g.dart';
 
@@ -333,6 +334,7 @@ class Restaurant extends HiveObject {
           } else {
             await DatabaseHelper.updateRestaurant(restaurant);
           }
+          notifyDataChanged();
           return "success";
         }
       } else {
@@ -365,6 +367,7 @@ class Restaurant extends HiveObject {
         } else {
           await DatabaseHelper.updateRestaurantStatus(restaurantID, status);
 
+          notifyDataChanged();
           return "success";
         }
       } else {
@@ -391,6 +394,7 @@ class Restaurant extends HiveObject {
           // Restaurant supprimé avec succès
           await DatabaseHelper.deleteRestaurant(restaurantID);
 
+          notifyDataChanged();
           return "success";
         } else {
           // Gestion de l'erreur si l'accès n'a pas pu être supprimé

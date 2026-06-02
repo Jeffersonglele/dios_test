@@ -41,7 +41,10 @@ class _AdministrationState extends State<Administration> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.surface,
-      appBar: AppBar(title: const Text('Administration')),
+      appBar: AppBar(
+        title: const Text('Administration'),
+        centerTitle: true,
+      ),
       body: RefreshIndicator(
         color: AppColors.brand,
         onRefresh: _load,
@@ -50,7 +53,7 @@ class _AdministrationState extends State<Administration> {
             : ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  _StatRow('Utilisateurs', '$_totalUsers', Icons.people_rounded, AppColors.brand),
+                  _StatRow('Utilisateurs', '$_totalUsers', Icons.people_rounded, Colors.blue),
                   _StatRow('Restaurants', '$_totalRestaurants', Icons.storefront_rounded, AppColors.accent),
                   _StatRow('Plats', '$_totalDishes', Icons.restaurant_menu_rounded, AppColors.success),
                   _StatRow('Commandes', '$_totalOrders', Icons.receipt_long_rounded, AppColors.inkMuted),
@@ -58,10 +61,11 @@ class _AdministrationState extends State<Administration> {
                   SizedBox(
                     width: double.infinity,
                     height: 56,
-                    child: ElevatedButton(
+                    child: ElevatedButton.icon(
                       onPressed: () => Navigator.push(context,
-                          MaterialPageRoute(builder: (_) => AdminDashboard())),
-                      child: const Text('Dashboard Admin'),
+                          MaterialPageRoute(builder: (_) => const AdminDashboard())),
+                      icon: const Icon(Icons.dashboard_rounded),
+                      label: const Text('Dashboard Admin'),
                     ),
                   ),
                 ],
@@ -80,8 +84,12 @@ class _AdministrationState extends State<Administration> {
         border: Border.all(color: AppColors.border, width: 0.5),
       ),
       child: Row(children: [
-        Container(width: 44, height: 44,
-          decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(AppRadius.sm)),
+        Container(
+          width: 44, height: 44,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+          ),
           child: Icon(icon, color: color, size: 22),
         ),
         const SizedBox(width: 14),

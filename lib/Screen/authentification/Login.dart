@@ -278,11 +278,20 @@ class _LoginState extends ConsumerState<Login> {
 
   Future<void> firstLogin(Users user) async {
     NotificationService.subscribeToRestaurantNotifications();
-    if (user.last_login == null) {
-      Navigator.push(context, CupertinoPageRoute(builder: (_) => const WelcomeScreen()));
+    final prefs = await SharedPreferences.getInstance();
+    final welcomeKey = 'has_seen_welcome_${user.userID}';
+    final hasSeenWelcome = prefs.getBool(welcomeKey) ?? false;
+
+    if (!hasSeenWelcome) {
+      await prefs.setBool(welcomeKey, true);
+      if (mounted) {
+        Navigator.push(context, CupertinoPageRoute(builder: (_) => const WelcomeScreen()));
+      }
     } else {
       await Users.updateDerniereConnexion(user.userID);
-      Users.chooseCurvedNavigation(user.roleID, user.country, context);
+      if (mounted) {
+        Users.chooseCurvedNavigation(user.roleID, user.country, context);
+      }
     }
   }
 
