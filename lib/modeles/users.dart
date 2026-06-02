@@ -118,7 +118,7 @@ class Users extends HiveObject {
     return Users(
       userID: int.tryParse(map['userID']?.toString() ?? '0') ?? 0,
       roleID: int.tryParse(map['roleID']?.toString() ?? '0') ?? 0,
-      telephone: map['telephone']?.toString() ?? '',
+      telephone: map['telephone'].toString().trim(),
       email: map['email']?.toString() ?? '',
       firstname: map['firstname']?.toString() ?? '',
       lastname: map['lastname']?.toString() ?? '',
@@ -129,7 +129,11 @@ class Users extends HiveObject {
       identity: map['identity']?.toString() ?? '',
       addressID: int.tryParse(map['addressID']?.toString() ?? '0') ?? 0,
       last_login: map['last_login'] != null
-          ? DateTime.tryParse(map['last_login'].toString())
+          ? (map['last_login'] is String
+              ? DateTime.tryParse(map['last_login'])
+              : (map['last_login']['iso'] != null
+                  ? DateTime.tryParse(map['last_login']['iso'])
+                  : null))
           : null,
       image: map['image']?.toString() ?? '',
       birthDate: map['birthDate']?.toString(),
@@ -234,9 +238,8 @@ class Users extends HiveObject {
       'email': email,
       'country': country,
       'password': password,
-      'telephone': telephone,
+      'telephone': telephone.toString(),
       'password_crypte': password_crypte,
-      if (last_login != null) 'last_login': last_login.toIso8601String(),
       'image': imageUrl,
       'status': status,
       'identity': identity,
@@ -246,6 +249,12 @@ class Users extends HiveObject {
       'consentDate': consentDate,
       'permisType': permisType,
     };
+    if (last_login != null) {
+      params['last_login'] = {
+        "__type": "Date",
+        "iso": last_login.toIso8601String()
+      };
+    }
 
     final ParseResponse parseResponse =
         await cloudFunction.execute(parameters: params);
@@ -339,7 +348,7 @@ class Users extends HiveObject {
     // Construire les paramètres, y compris userID pour la mise à jour
     var params = <String, dynamic>{
       if (userID != null) 'userID': userID,
-      'last_login': last_login.toIso8601String()
+      'last_login': {"__type": "Date", "iso": last_login.toIso8601String()}
     };
 
     try {
