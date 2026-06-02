@@ -49,9 +49,15 @@ void main() async {
     debugPrint('Failed to initialize Parse: $e');
   }
 
-  final appDocumentDirectory =
-      await path_provider.getApplicationDocumentsDirectory();
-  await Hive.initFlutter(appDocumentDirectory.path);
+  // NOTE: On Flutter Web, path_provider does not provide a documents directory.
+  // Hive can be initialized with an in-memory store instead.
+  if (kIsWeb) {
+    await Hive.initFlutter();
+  } else {
+    final appDocumentDirectory =
+        await path_provider.getApplicationDocumentsDirectory();
+    await Hive.initFlutter(appDocumentDirectory.path);
+  }
 
   Hive.registerAdapter(UsersAdapter());
   Hive.registerAdapter(RestaurantAdapter());
