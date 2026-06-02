@@ -6,7 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 
 class LivreurListPage extends StatefulWidget {
-  const LivreurListPage({super.key});
+  final String? country;
+  const LivreurListPage({super.key, this.country});
 
   @override
   State<LivreurListPage> createState() => _LivreurListPageState();
@@ -43,7 +44,11 @@ class _LivreurListPageState extends State<LivreurListPage> {
     final users = await Users.fetchUsersFromDB();
     if (!mounted) return;
     setState(() {
-      _livreurs = users.where((u) => u.roleID == 5).toList();
+      var livreurs = users.where((u) => u.roleID == 5).toList();
+      if (widget.country != null && widget.country!.isNotEmpty) {
+        livreurs = livreurs.where((u) => u.country == widget.country).toList();
+      }
+      _livreurs = livreurs;
       _isLoading = false;
     });
   }

@@ -8,12 +8,14 @@ import 'package:email_validator/email_validator.dart';
 
 import '../../Constant/Constant.dart';
 import '../../Controller/UiController.dart';
+import '../../core/app_role.dart';
 import '../../modeles/users.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/phone_number.dart';
 import '../../utils/strings.dart';
 import '../../utils/toast.dart';
 import '../../mails/mails.dart';
+import '../../services/session_service.dart';
 import '../../widgets/auth_shell.dart';
 import 'Login.dart';
 
@@ -239,7 +241,10 @@ class _SignUpViewState extends State<SignUpView> {
             ),
           ),
           const SizedBox(height: 10),
-          _PasswordRequirements(passwordCtrl),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: _PasswordRequirements(passwordCtrl),
+          ),
           const SizedBox(height: 14),
 
           // Confirmation
@@ -307,6 +312,11 @@ class _SignUpViewState extends State<SignUpView> {
                   status: '', identity: '', addressID: 0,
                 );
                 if (result is int) {
+                  await SessionService.saveUserSession(
+                    userId: result,
+                    role: AppRole.fromId(_signupRole),
+                    country: _selectedCountry,
+                  );
                   sendVerificationEmail(context, emailCtrl.text);
                   Toast(context, "Compte créé ! Vérifiez votre email.", true);
                   if (mounted) Users.chooseCurvedNavigation(_signupRole, _selectedCountry, context);

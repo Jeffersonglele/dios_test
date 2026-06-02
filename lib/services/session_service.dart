@@ -91,6 +91,15 @@ class SessionService {
 
   static Future<void> clearAll() async {
     final prefs = await SharedPreferences.getInstance();
+    final welcomeKeys = prefs.getKeys().where((k) => k.startsWith('has_seen_welcome_'));
+    final welcomeValues = <String, bool>{};
+    for (final k in welcomeKeys) {
+      welcomeValues[k] = prefs.getBool(k) ?? false;
+    }
     await prefs.clear();
+    // Restaurer les clés welcome pour ne pas les réafficher
+    for (final e in welcomeValues.entries) {
+      await prefs.setBool(e.key, e.value);
+    }
   }
 }

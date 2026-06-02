@@ -56,7 +56,7 @@ class _SettingsState extends State<Settings> {
   Future<void> _confirmLogout() {
     return showDialog(
       context: context,
-      barrierDismissible: false,
+      barrierDismissible: true,
       builder: (_) => const LogoutFormDialog(),
     );
   }

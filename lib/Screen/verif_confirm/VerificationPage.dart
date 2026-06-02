@@ -8,6 +8,7 @@ import '../../core/app_role.dart';
 import '../../mails/mails.dart';
 import '../../modeles/users.dart';
 import '../../services/session_service.dart';
+import '../../components/showConfetti.dart';
 import '../../utils/toast.dart';
 import '../../widgets/brand_avatar_logo.dart';
 
@@ -243,11 +244,27 @@ class _VerificationPageState extends State<VerificationPage> {
                             if (!mounted) return;
 
                             Toast(context, "Vérification réussie", true);
-                            Users.chooseCurvedNavigation(
-                              widget.roleID,
-                              country,
-                              context,
-                            );
+
+                            final welcomeKey = 'has_seen_welcome_${widget.userID}';
+                            final hasSeenWelcome = prefs.getBool(welcomeKey) ?? false;
+
+                            if (!hasSeenWelcome) {
+                              await prefs.setBool(welcomeKey, true);
+                              if (!mounted) return;
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => WelcomeScreen(),
+                                ),
+                              );
+                            } else {
+                              if (!mounted) return;
+                              Users.chooseCurvedNavigation(
+                                widget.roleID,
+                                country,
+                                context,
+                              );
+                            }
                           } catch (e) {
                             if (!mounted) return;
 

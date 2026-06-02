@@ -1,3 +1,4 @@
+import 'package:dios_delices/Screen/livreur/LivreurListPage.dart';
 import 'package:dios_delices/Screen/utilisateurs/UsersListPage.dart';
 import 'package:dios_delices/theme/app_theme.dart';
 import 'package:flutter/material.dart';
@@ -27,6 +28,10 @@ class CountryPage extends StatelessWidget {
       title = "Administrateurs";
       icon = Icons.admin_panel_settings_rounded;
       iconColor = AppColors.error;
+    } else if (sectionType == "livreurs") {
+      title = "Livreurs";
+      icon = Icons.delivery_dining_rounded;
+      iconColor = AppColors.success;
     } else {
       title = "Restaurants";
       icon = Icons.storefront_rounded;
@@ -70,9 +75,15 @@ class CountryPage extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => sectionType == "utilisateurs"
-                          ? UsersListPage(country: c.name)
-                          : RestaurantListPage(country: c.name),
+                      builder: (context) {
+                        if (sectionType == "utilisateurs" || sectionType == "administrateurs") {
+                          return UsersListPage(country: c.name);
+                        } else if (sectionType == "livreurs") {
+                          return LivreurListPage(country: c.name);
+                        } else {
+                          return RestaurantListPage(country: c.name);
+                        }
+                      },
                     ),
                   );
                 },
