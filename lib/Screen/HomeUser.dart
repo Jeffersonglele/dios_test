@@ -190,7 +190,7 @@ class _HomeUserState extends State<HomeUser> {
   // ── Header ──────────────────────────────────────────────
   Widget _buildHeader(Size size) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+      padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 8, 20, 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

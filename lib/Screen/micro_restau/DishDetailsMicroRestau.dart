@@ -26,13 +26,17 @@ class DishDetailsMicroRestau extends ConsumerStatefulWidget {
   final int from_page;
   final int dish_restau;
 
-  DishDetailsMicroRestau({required this.dish_id, required this.from_page, required this.dish_restau});
+  DishDetailsMicroRestau(
+      {required this.dish_id,
+      required this.from_page,
+      required this.dish_restau});
 
   @override
   _DishDetailsMicroRestauState createState() => _DishDetailsMicroRestauState();
 }
 
-class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau> {
+class _DishDetailsMicroRestauState
+    extends ConsumerState<DishDetailsMicroRestau> {
   final _formKey = GlobalKey<FormState>();
   String? country = "";
   int currentUser_id = 0;
@@ -91,9 +95,10 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
     setState(() {
       current_dish = dish;
 
-      if(currentUser_restau == dish?.restauID){
-        restau_de_luser_connecte =  true;
-        print("restau_de_luser_connecte " + restau_de_luser_connecte.toString());
+      if (currentUser_restau == dish?.restauID) {
+        restau_de_luser_connecte = true;
+        print(
+            "restau_de_luser_connecte " + restau_de_luser_connecte.toString());
       }
 
       if (current_dish != null) {
@@ -192,17 +197,18 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
                     children: [
                       Container(
                         constraints:
-                        BoxConstraints.expand(height: 300.0, width: 400),
-                        padding:
-                        EdgeInsets.only(left: 16.0, bottom: 8.0, right: 16.0),
-                        margin:
-                        EdgeInsets.only(left: 16.0, bottom: 8.0, right: 16.0),
+                            BoxConstraints.expand(height: 300.0, width: 400),
+                        padding: EdgeInsets.only(
+                            left: 16.0, bottom: 8.0, right: 16.0),
+                        margin: EdgeInsets.only(
+                            left: 16.0, bottom: 8.0, right: 16.0),
                         decoration: BoxDecoration(
                           image: DecorationImage(
-                            image: current_dish?.image != null && current_dish!.image!.trim().isNotEmpty
+                            image: current_dish?.image != null &&
+                                    current_dish!.image!.trim().isNotEmpty
                                 ? NetworkImage(current_dish!.image!)
                                 : AssetImage('assets/images/no_image.png')
-                            as ImageProvider,
+                                    as ImageProvider,
                             fit: BoxFit.cover,
                           ),
                           borderRadius: BorderRadius.all(Radius.circular(30)),
@@ -225,7 +231,7 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
                                   child: CircleAvatar(
                                     radius: 6, // Taille du cercle
                                     backgroundColor:
-                                    isAvailable ? Colors.green : Colors.red,
+                                        isAvailable ? Colors.green : Colors.red,
                                   ),
                                 ),
                               ),
@@ -259,51 +265,58 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
                           ),
                         ),
                       if (!isEditMode)
-                        Text(current_dish?.name ?? "", style: kLoginSubtitleStyle3(size)),
+                        Text(current_dish?.name ?? "",
+                            style: kLoginSubtitleStyle3(size)),
                       Spacer(),
                       if (isEditMode)
                         Flexible(
                           flex: 2,
                           child: country == "France"
                               ? _buildTextField(
-                            controller: priceController,
-                            hintText: "Prix du plat (en euro €)",
-                            icon: Icons.money,
-                            keyboardType: TextInputType.numberWithOptions(decimal: true),
-                            inputFormatters: <TextInputFormatter>[
-                              FilteringTextInputFormatter.allow(RegExp(r'^\d{0,2}(,\d{0,2})?')),
-                              LengthLimitingTextInputFormatter(5),
-                              FrenchFormat(decimalRange: 2),
-                            ],
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Entrez un prix';
-                              }
-                              return null;
-                            },
-                          )
+                                  controller: priceController,
+                                  hintText: "Prix du plat (en euro €)",
+                                  icon: Icons.money,
+                                  keyboardType: TextInputType.numberWithOptions(
+                                      decimal: true),
+                                  inputFormatters: <TextInputFormatter>[
+                                    FilteringTextInputFormatter.allow(
+                                        RegExp(r'^\d{0,2}(,\d{0,2})?')),
+                                    LengthLimitingTextInputFormatter(5),
+                                    FrenchFormat(decimalRange: 2),
+                                  ],
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty) {
+                                      return 'Entrez un prix';
+                                    }
+                                    return null;
+                                  },
+                                )
                               : _buildTextField(
-                            controller: priceController,
-                            hintText: "Prix du plat (en FCFA)",
-                            icon: Icons.money,
-                            keyboardType: TextInputType.numberWithOptions(decimal: true),
-                            inputFormatters: <TextInputFormatter>[
-                              FilteringTextInputFormatter.digitsOnly,
-                              LengthLimitingTextInputFormatter(5),
-                              CFAFormat(),
-                            ],
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Entrez un prix';
-                              }
-                              return null;
-                            },
-                          ),
+                                  controller: priceController,
+                                  hintText: "Prix du plat (en FCFA)",
+                                  icon: Icons.money,
+                                  keyboardType: TextInputType.numberWithOptions(
+                                      decimal: true),
+                                  inputFormatters: <TextInputFormatter>[
+                                    FilteringTextInputFormatter.digitsOnly,
+                                    LengthLimitingTextInputFormatter(5),
+                                    CFAFormat(),
+                                  ],
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty) {
+                                      return 'Entrez un prix';
+                                    }
+                                    return null;
+                                  },
+                                ),
                         ),
                       if (!isEditMode)
                         Text(
                           "${current_dish!.price} ${country == "France" ? "€" : 'FCFA'}",
-                          style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 20),
+                          style: TextStyle(
+                              color: Colors.red,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 20),
                         ),
                       SizedBox(width: 20),
                     ],
@@ -341,7 +354,8 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
                         onHashtagsChanged: (hashtags) {
                           setState(() {
                             _selectedHashtags = hashtags;
-                            categoriesController.text = _selectedHashtags.join(', ');
+                            categoriesController.text =
+                                _selectedHashtags.join(', ');
                           });
                         },
                       ),
@@ -354,205 +368,314 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
                     ),
                   ),
                   SizedBox(height: size.height * 0.02),
-                  currentUser_role == 4 || restau_de_luser_connecte ?
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 25.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text("Options :", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                        ..._buildEditableOptions()
-                      ],
-                    ),
-                  ) :
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 25.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text("Sélectionnez vos options :", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                        ..._buildSelectableOptions(current_dish!)
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: size.height * 0.02),
-                  if(currentUser_role == 2 && !restau_de_luser_connecte)
-                   Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 25.0),
-                      child: Row(
-                        children: [
-                          StarRating(rating: double.parse(noteController.text)),
-                          Spacer(),
-                          DropdownButton<int>(
-                            value: selectedQuantity, // The currently selected value
-                            onChanged: (int? newValue) {
-                              if (newValue != null) {
-                                setState(() {
-                                  selectedQuantity = newValue; // Update the selected value
-                                });
-                              }
-                            },
-                            items: List.generate(
-                              current_dish!.nb_servings ?? 5,
-                                  (index) => DropdownMenuItem<int>(
-                                value: index + 1,
-                                child: Text(
-                                  "${index + 1}",
-                                  style: TextStyle(fontSize: 16),
-                                ),
-                              ),
-                            ),
-                            dropdownColor: Colors.white, // Optional: Set the dropdown background color
-                            style: TextStyle(
-                              color: Colors.black, // Text color
-                              fontSize: 16,
-                            ),
+                  currentUser_role == 4 || restau_de_luser_connecte
+                      ? Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 25.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text("Options :",
+                                  style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold)),
+                              ..._buildEditableOptions()
+                            ],
                           ),
-                        ],
-                      )
-
-                   ),
-
-
-                  if(currentUser_role != 2 || restau_de_luser_connecte)
-                  Row(
-                    children: [
-                      SizedBox(width: 25),
-                      Expanded(
-                        child: DataTable(
-                          columns: [
-                            DataColumn(
-                              label: Text(
-                                'Informations',
-                                style: TextStyle(
-                                    fontSize: 18, fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                            DataColumn(
-                              label: Text(
-                                'Valeur',
-                                style: TextStyle(
-                                    fontSize: 18, fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                          ],
-                          rows: [
-                            DataRow(cells: [
-                              DataCell(
-                                Text(
-                                  'Nombre de commandes',
+                        )
+                      : Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 25.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text("Sélectionnez vos options :",
                                   style: TextStyle(
-                                      fontSize: 16, fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                              DataCell(
-                                Text(
-                                  nbOrdersController.text,
-                                  style: TextStyle(fontSize: 16),
-                                ),
-                              ),
-                            ]),
-                            DataRow(cells: [
-                              DataCell(
-                                Text(
-                                  'Portions disponibles',
-                                  style: TextStyle(
-                                      fontSize: 16, fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                              DataCell(
-                                isEditMode
-                                    ? _buildTextField(
-                                  controller: nbServingsController,
-                                  hintText: "Portions disponibles",
-                                  icon: Icons.fastfood,
-                                  keyboardType: TextInputType.number,
-                                )
-                                    : Text(
-                                  nbServingsController.text,
-                                  style: TextStyle(fontSize: 16),
-                                ),
-                              ),
-                            ]),
-                            DataRow(cells: [
-                              DataCell(
-                                Text(
-                                  'Note',
-                                  style: TextStyle(
-                                      fontSize: 16, fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                              DataCell(
-                                Row(
-                                  children: [
-                                    StarRating(
-                                        rating:
-                                        double.parse(noteController.text)),
-                                    SizedBox(width: 8),
-                                    Text(
-                                      "${noteController.text}/5",
-                                      style: TextStyle(fontSize: 16),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ]),
-                            DataRow(cells: [
-                              DataCell(
-                                Text(
-                                  'Statut',
-                                  style: TextStyle(
-                                      fontSize: 16, fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                              DataCell(
-                                isEditMode
-                                    ? Switch(
-                                  value: isAvailable,
-                                  onChanged: (value) {
-                                    setState(() {
-                                      isAvailable = value;
-                                    });
-                                  },
-                                )
-                                    : Text(
-                                  isAvailable
-                                      ? "Disponible"
-                                      : "Indisponible",
-                                  style: TextStyle(fontSize: 16),
-                                ),
-                              ),
-                            ]),
-                          ],
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold)),
+                              ..._buildSelectableOptions(current_dish!)
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: size.height * 0.05),
-                  if(currentUser_role != 2 || restau_de_luser_connecte)
-                  Center(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                  SizedBox(height: size.height * 0.02),
+                  if (currentUser_role == 2 && !restau_de_luser_connecte)
+                    Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 25.0),
+                        child: Row(
+                          children: [
+                            StarRating(
+                                rating: double.parse(noteController.text)),
+                            Spacer(),
+                            DropdownButton<int>(
+                              value:
+                                  selectedQuantity, // The currently selected value
+                              onChanged: (int? newValue) {
+                                if (newValue != null) {
+                                  setState(() {
+                                    selectedQuantity =
+                                        newValue; // Update the selected value
+                                  });
+                                }
+                              },
+                              items: List.generate(
+                                current_dish!.nb_servings ?? 5,
+                                (index) => DropdownMenuItem<int>(
+                                  value: index + 1,
+                                  child: Text(
+                                    "${index + 1}",
+                                    style: TextStyle(fontSize: 16),
+                                  ),
+                                ),
+                              ),
+                              dropdownColor: Colors
+                                  .white, // Optional: Set the dropdown background color
+                              style: TextStyle(
+                                color: Colors.black, // Text color
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        )),
+                  if (currentUser_role != 2 || restau_de_luser_connecte)
+                    Row(
                       children: [
-                        if (isEditMode) ...[
+                        SizedBox(width: 25),
+                        Expanded(
+                          child: DataTable(
+                            columns: [
+                              DataColumn(
+                                label: Text(
+                                  'Informations',
+                                  style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                              DataColumn(
+                                label: Text(
+                                  'Valeur',
+                                  style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ],
+                            rows: [
+                              DataRow(cells: [
+                                DataCell(
+                                  Text(
+                                    'Nombre de commandes',
+                                    style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                                DataCell(
+                                  Text(
+                                    nbOrdersController.text,
+                                    style: TextStyle(fontSize: 16),
+                                  ),
+                                ),
+                              ]),
+                              DataRow(cells: [
+                                DataCell(
+                                  Text(
+                                    'Portions disponibles',
+                                    style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                                DataCell(
+                                  isEditMode
+                                      ? _buildTextField(
+                                          controller: nbServingsController,
+                                          hintText: "Portions disponibles",
+                                          icon: Icons.fastfood,
+                                          keyboardType: TextInputType.number,
+                                        )
+                                      : Text(
+                                          nbServingsController.text,
+                                          style: TextStyle(fontSize: 16),
+                                        ),
+                                ),
+                              ]),
+                              DataRow(cells: [
+                                DataCell(
+                                  Text(
+                                    'Note',
+                                    style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                                DataCell(
+                                  Row(
+                                    children: [
+                                      StarRating(
+                                          rating: double.parse(
+                                              noteController.text)),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        "${noteController.text}/5",
+                                        style: TextStyle(fontSize: 16),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ]),
+                              DataRow(cells: [
+                                DataCell(
+                                  Text(
+                                    'Statut',
+                                    style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                                DataCell(
+                                  isEditMode
+                                      ? Switch(
+                                          value: isAvailable,
+                                          onChanged: (value) {
+                                            setState(() {
+                                              isAvailable = value;
+                                            });
+                                          },
+                                        )
+                                      : Text(
+                                          isAvailable
+                                              ? "Disponible"
+                                              : "Indisponible",
+                                          style: TextStyle(fontSize: 16),
+                                        ),
+                                ),
+                              ]),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  SizedBox(height: size.height * 0.05),
+                  if (currentUser_role != 2 || restau_de_luser_connecte)
+                    Center(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (isEditMode) ...[
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 10.0),
+                              child: ElevatedButton(
+                                onPressed: () async {
+                                  setState(() {
+                                    nameController.text =
+                                        current_dish?.name ?? "";
+                                    priceController.text =
+                                        current_dish!.price.toString();
+                                    descriptionController.text =
+                                        current_dish?.description ?? "";
+                                    nbServingsController.text =
+                                        current_dish!.nb_servings.toString();
+                                    isAvailable = current_dish!.status == 1;
+                                    isEditMode = false;
+                                  });
+                                },
+                                child: Text('Annuler',
+                                    style: TextStyle(color: Colors.white)),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.grey,
+                                  foregroundColor: Colors.white,
+                                  textStyle: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(15),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                           Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 10.0),
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 10.0),
                             child: ElevatedButton(
                               onPressed: () async {
+                                if (isEditMode && hasChanges()) {
+                                  if (_formKey.currentState?.validate() ??
+                                      false) {
+                                    final user = ref.read(usersProvider);
+                                    if (user != null) {
+                                      ParseFile? parseFile;
+                                      if (hasNewImage()) {
+                                        String fileName =
+                                            p.basename(selectedImage!.path);
+                                        String extension =
+                                            p.extension(fileName);
+                                        String newFileName =
+                                            "${nameController.text}_${user.userID}$extension";
+                                        parseFile = ParseFile(
+                                            File(selectedImage!.path),
+                                            name: newFileName);
+                                      }
+
+                                      String createResult =
+                                          await Dish.manageDish(
+                                        dishID: current_dish!.dishID,
+                                        userID: user.userID,
+                                        nb_orders: current_dish!.nb_orders,
+                                        note: current_dish!.note,
+                                        categories:
+                                            _selectedHashtags.join(', '),
+                                        description: descriptionController.text,
+                                        option1: _optionControllers[0].text,
+                                        option2: _optionControllers[1].text,
+                                        option3: _optionControllers[2].text,
+                                        name: nameController.text,
+                                        price: double.tryParse(
+                                                priceController.text) ??
+                                            0.0,
+                                        nb_servings: int.tryParse(
+                                                nbServingsController.text) ??
+                                            0,
+                                        restauID: currentUser_restau,
+                                        status: isAvailable ? 1 : 0,
+                                        image: parseFile,
+                                        img_url: current_dish?.image,
+                                      );
+
+                                      Toast(
+                                        context,
+                                        createResult == "success"
+                                            ? "Plat modifié avec succès"
+                                            : "Erreur : $createResult",
+                                        createResult == "success",
+                                      );
+
+                                      if (createResult == "success") {
+                                        Navigator.of(context).pop();
+                                      }
+                                    }
+                                  }
+                                }
                                 setState(() {
-                                  nameController.text = current_dish?.name ?? "";
-                                  priceController.text = current_dish!.price.toString();
-                                  descriptionController.text = current_dish?.description ?? "";
-                                  nbServingsController.text = current_dish!.nb_servings.toString();
+                                  isEditMode = !isEditMode;
+                                  nameController.text =
+                                      current_dish?.name ?? "";
+                                  priceController.text =
+                                      current_dish!.price.toString();
+                                  descriptionController.text =
+                                      current_dish?.description ?? "";
+                                  nbServingsController.text =
+                                      current_dish!.nb_servings.toString();
                                   isAvailable = current_dish!.status == 1;
-                                  isEditMode = false;
                                 });
                               },
-                              child: Text('Annuler', style: TextStyle(color: Colors.white)),
+                              child: Text(isEditMode ? 'Valider' : 'Modifier',
+                                  style: TextStyle(color: Colors.white)),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.grey,
+                                backgroundColor: Colors.red,
                                 foregroundColor: Colors.white,
-                                textStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                textStyle: TextStyle(
+                                    fontSize: 18, fontWeight: FontWeight.bold),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(15),
                                 ),
@@ -560,92 +683,31 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
                             ),
                           ),
                         ],
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 10.0),
-                            child: ElevatedButton(
-                              onPressed: () async {
-                              if (isEditMode && hasChanges()) {
-                                if (_formKey.currentState?.validate() ?? false) {
-                                  final user = ref.read(usersProvider);
-                                  if (user != null) {
-
-                                    ParseFile? parseFile;
-                                    if (hasNewImage()) {
-                                      String fileName = p.basename(selectedImage!.path);
-                                      String extension = p.extension(fileName);
-                                      String newFileName = "${nameController.text}_${user.userID}$extension";
-                                      parseFile = ParseFile(File(selectedImage!.path), name: newFileName);
-                                    }
-
-                                    String createResult = await Dish.manageDish(
-                                      dishID: current_dish!.dishID,
-                                      userID: user.userID,
-                                      nb_orders: current_dish!.nb_orders,
-                                      note: current_dish!.note,
-                                      categories: _selectedHashtags.join(', '),
-                                      description: descriptionController.text,
-                                      option1: _optionControllers[0].text,
-                                      option2: _optionControllers[1].text,
-                                      option3: _optionControllers[2].text,
-                                      name: nameController.text,
-                                      price: double.tryParse(priceController.text) ?? 0.0,
-                                      nb_servings: int.tryParse(nbServingsController.text) ?? 0,
-                                      restauID: currentUser_restau,
-                                      status: isAvailable ? 1 : 0,
-                                      image: parseFile,
-                                      img_url: current_dish?.image,
-                                    );
-
-                                    Toast(
-                                      context,
-                                      createResult == "success" ? "Plat modifié avec succès" : "Erreur : $createResult",
-                                      createResult == "success",
-                                    );
-
-                                    if (createResult == "success") {
-                                      Navigator.of(context).pop();
-                                    }
-                                  }
-                                }
-                              }
-                              setState(() {
-                                isEditMode = !isEditMode;
-                                nameController.text = current_dish?.name ?? "";
-                                priceController.text = current_dish!.price.toString();
-                                descriptionController.text = current_dish?.description ?? "";
-                                nbServingsController.text = current_dish!.nb_servings.toString();
-                                isAvailable = current_dish!.status == 1;
-                              });
-                            },
-                            child: Text(isEditMode ? 'Valider' : 'Modifier', style: TextStyle(color: Colors.white)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red,
-                              foregroundColor: Colors.white,
-                              textStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(15),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
-                  if(currentUser_role == 2 && !restau_de_luser_connecte)
+                  if (currentUser_role == 2 && !restau_de_luser_connecte)
                     Center(
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 10.0),
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 10.0),
                             child: ElevatedButton(
                               onPressed: () async {
-                                List<String?> options = [current_dish!.option1, current_dish!.option2, current_dish!.option3];
+                                List<String?> options = [
+                                  current_dish!.option1,
+                                  current_dish!.option2,
+                                  current_dish!.option3
+                                ];
                                 for (int i = 0; i < options.length; i++) {
                                   String? opt = options[i];
                                   if (opt != null && opt.trim().isNotEmpty) {
                                     if (!selectedChoices.containsKey(i)) {
-                                      Toast(context, "Veuillez sélectionner un choix pour l'option ${i + 1}", false);
+                                      Toast(
+                                          context,
+                                          "Veuillez sélectionner un choix pour l'option ${i + 1}",
+                                          false);
                                       return;
                                     }
                                   }
@@ -659,26 +721,43 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
                                   String? opt = options[i];
                                   String? selectedChoice = selectedChoices[i];
 
-                                  if (opt == null || opt.trim().isEmpty || selectedChoice == null || selectedChoice == "Aucun choix") {
+                                  if (opt == null ||
+                                      opt.trim().isEmpty ||
+                                      selectedChoice == null ||
+                                      selectedChoice == "Aucun choix") {
                                     continue;
                                   }
 
-                                  List<String> parts = opt.split(':');
+                                  // Format attendu : "NomOption: choix1/choix2/.../prix"
+                                  // On extrait le dernier nombre (supporte ',' et '.') par regex.
+                                  final parts = opt.split(':');
                                   if (parts.length <= 1) continue;
 
-                                  List<String> choixList = parts[1].split('/').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
-                                  String prixStr = choixList.isNotEmpty ? choixList.last : '';
-                                  prixStr = prixStr.replaceAll(',', '.');
+                                  final afterColon = parts.sublist(1).join(':');
+                                  final lastNumberMatches = RegExp(r'([\d.,]+)')
+                                      .allMatches(afterColon)
+                                      .map((m) => m.group(0))
+                                      .whereType<String>()
+                                      .map((s) => s.replaceAll(',', '.'))
+                                      .toList();
 
-                                  double? prix = double.tryParse(prixStr);
+                                  final lastNumber = lastNumberMatches.isEmpty
+                                      ? null
+                                      : lastNumberMatches.last;
+
+                                  final prix = lastNumber == null
+                                      ? null
+                                      : double.tryParse(lastNumber);
 
                                   if (prix != null) {
                                     prixTotalOptions += prix;
-                                    selectedChoices[i] = selectedChoice; // juste le nom, sans prix
+                                    selectedChoices[i] =
+                                        selectedChoice; // juste le nom, sans prix
                                   }
                                 }
 
-                                print("current_dish!.dishID " + current_dish!.dishID.toString());
+                                print("current_dish!.dishID " +
+                                    current_dish!.dishID.toString());
                                 final addResult = await cartNotifier.addToCart(
                                   current_dish!.dishID,
                                   current_dish?.name ?? "Plat",
@@ -712,7 +791,10 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
                                   return;
                                 }
 
-                                Toast(context, "Le plat ${current_dish?.name} a été ajouté au panier !", true);
+                                Toast(
+                                    context,
+                                    "Le plat ${current_dish?.name} a été ajouté au panier !",
+                                    true);
 
                                 Navigator.push(
                                   context,
@@ -721,11 +803,15 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
                                   ),
                                 );
                               },
-                              child: Text('Ajouter au panier', style: TextStyle(color: Colors.white)),
+                              child: Text('Ajouter au panier',
+                                  style: TextStyle(color: Colors.white)),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.black,
                                 foregroundColor: Colors.white,
-                                textStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
+                                textStyle: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(15),
                                 ),
@@ -764,10 +850,10 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
         var parts = opt.split(':');
         String nomOption = parts.first.trim();
         String choixStr = parts.length > 1 ? parts[1].trim() : "";
-        List<String> choixList = choixStr.split('/').map((e) => e.trim()).toList();
+        List<String> choixList =
+            choixStr.split('/').map((e) => e.trim()).toList();
         String? prix = choixList.length > 3 ? choixList[3] : null;
         List<String> choix = choixList.take(3).toList(); // max 3 choix
-
 
         widgets.add(
           Padding(
@@ -776,7 +862,8 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(nomOption,
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    style:
+                        TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                 SizedBox(height: 4),
                 Wrap(
                   spacing: 10,
@@ -785,12 +872,13 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
                       .map((c) => Chip(label: Text(c)))
                       .toList(),
                 ),
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                "Prix de l'option : $prix ${country == "France" ? "€" : "FCFA"}",
-                style: TextStyle(fontSize: 14, fontStyle: FontStyle.italic),
-              ))
+                Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      "Prix de l'option : $prix ${country == "France" ? "€" : "FCFA"}",
+                      style:
+                          TextStyle(fontSize: 14, fontStyle: FontStyle.italic),
+                    ))
               ],
             ),
           ),
@@ -844,18 +932,18 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
           title: Text(displayText),
           trailing: isEditMode
               ? Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: Icon(Icons.edit),
-                onPressed: () => _showOptionDialog(optionIndex: i),
-              ),
-              IconButton(
-                icon: Icon(Icons.delete),
-                onPressed: () => _removeOption(i),
-              ),
-            ],
-          )
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.edit),
+                      onPressed: () => _showOptionDialog(optionIndex: i),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.delete),
+                      onPressed: () => _removeOption(i),
+                    ),
+                  ],
+                )
               : null,
         ),
       );
@@ -930,10 +1018,14 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
     String nomInitial = parts.length > 1 ? parts[0] : "";
     List<String> sousParts = parts.length > 1 ? parts[1].split("/") : [];
 
-    TextEditingController nomController = TextEditingController(text: nomInitial);
-    TextEditingController choix1Controller = TextEditingController(text: sousParts.isNotEmpty ? sousParts[0].trim() : "");
-    TextEditingController choix2Controller = TextEditingController(text: sousParts.length > 1 ? sousParts[1].trim() : "");
-    TextEditingController choix3Controller = TextEditingController(text: sousParts.length > 2 ? sousParts[2].trim() : "");
+    TextEditingController nomController =
+        TextEditingController(text: nomInitial);
+    TextEditingController choix1Controller = TextEditingController(
+        text: sousParts.isNotEmpty ? sousParts[0].trim() : "");
+    TextEditingController choix2Controller = TextEditingController(
+        text: sousParts.length > 1 ? sousParts[1].trim() : "");
+    TextEditingController choix3Controller = TextEditingController(
+        text: sousParts.length > 2 ? sousParts[2].trim() : "");
     TextEditingController prixController = TextEditingController(
       text: sousParts.length > 3 ? sousParts[3].trim() : "",
     );
@@ -965,10 +1057,12 @@ class _DishDetailsMicroRestauState extends ConsumerState<DishDetailsMicroRestau>
                 controller: prixController,
                 keyboardType: TextInputType.numberWithOptions(decimal: true),
                 inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'^\d{0,3}(,\d{0,2})?$')),
+                  FilteringTextInputFormatter.allow(
+                      RegExp(r'^\d{0,3}(,\d{0,2})?$')),
                   LengthLimitingTextInputFormatter(6), // Par exemple : "999,99"
                 ],
-                decoration: InputDecoration(labelText: "Prix de l'option (format 00,00)"),
+                decoration: InputDecoration(
+                    labelText: "Prix de l'option (format 00,00)"),
               ),
             ],
           ),
