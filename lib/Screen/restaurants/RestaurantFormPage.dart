@@ -17,6 +17,8 @@ import '../AnimatedSplashScreen.dart';
 import '../verif_confirm/ConfirmationPage.dart';
 
 class RestaurantFormPage extends ConsumerStatefulWidget {
+  const RestaurantFormPage({super.key});
+
   @override
   _RestaurantFormPageState createState() => _RestaurantFormPageState();
 }
