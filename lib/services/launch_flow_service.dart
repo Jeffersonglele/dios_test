@@ -5,6 +5,7 @@ import 'session_service.dart';
 enum LaunchDestination {
   onboarding,
   signup,
+  verification,
   home,
 }
 
@@ -17,22 +18,28 @@ class LaunchFlowService {
     final prefs = await SharedPreferences.getInstance();
     final hasSeenOnboarding = prefs.getBool(_hasSeenOnboardingKey) ?? false;
     final session = await SessionService.readSession();
+    final isVerified = prefs.getBool('userVerified') ?? false;
 
     return decideDestination(
       isFirstLaunch: !hasSeenOnboarding,
       session: session,
+      isVerified: isVerified,
     );
   }
 
   static LaunchDestination decideDestination({
     required bool isFirstLaunch,
     required UserSession session,
+    bool isVerified = false,
   }) {
     if (isFirstLaunch) {
       return LaunchDestination.onboarding;
     }
 
     if (session.isLoggedIn && session.userId > 0 && session.role.id > 0) {
+      if (!isVerified && (session.email?.isNotEmpty ?? false)) {
+        return LaunchDestination.verification;
+      }
       return LaunchDestination.home;
     }
 

@@ -65,6 +65,8 @@ void main() async {
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       await Geolocator.requestPermission();
+    } else if (permission == LocationPermission.deniedForever) {
+      debugPrint('Géolocalisation refusée définitivement — aller dans Réglages > Confidentialité > Localisation');
     }
   } catch (_) {}
 

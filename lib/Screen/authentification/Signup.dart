@@ -19,6 +19,7 @@ import '../../utils/toast.dart';
 import '../../mails/mails.dart';
 import '../../services/session_service.dart';
 import '../../widgets/auth_shell.dart';
+import '../verif_confirm/VerificationPage.dart';
 import 'Login.dart';
 
 class SignUpView extends StatefulWidget {
@@ -318,16 +319,28 @@ class _SignUpViewState extends State<SignUpView> {
                     userId: result,
                     role: AppRole.fromId(_signupRole),
                     country: _selectedCountry,
+                    email: emailCtrl.text,
                   );
                   sendVerificationEmail(context, emailCtrl.text);
                   Toast(context, "Compte créé ! Vérifiez votre email.", true);
                   if (mounted) {
-                    final prefs = await SharedPreferences.getInstance();
-                    final welcomeKey = 'has_seen_welcome_$result';
-                    await prefs.setBool(welcomeKey, true);
                     Navigator.pushReplacement(
                       context,
-                      MaterialPageRoute(builder: (_) => WelcomeScreen()),
+                      MaterialPageRoute(
+                        builder: (_) => VerificationPage(
+                          email: emailCtrl.text,
+                          username: usernameCtrl.text,
+                          userID: result,
+                          roleID: _signupRole,
+                          telephone: phoneDigits(telephoneCtrl.text),
+                          password_crypte: encrypted,
+                          password: passwordCtrl.text,
+                          firstname: firstnameCtrl.text,
+                          country: _selectedCountry,
+                          indicatif: _countryCodes[_selectedCountry] ?? '+229',
+                          lastname: lastnameCtrl.text,
+                        ),
+                      ),
                     );
                   }
                 } else {

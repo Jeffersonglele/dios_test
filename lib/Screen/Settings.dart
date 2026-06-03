@@ -2,13 +2,16 @@ import 'package:dios_delices/Screen/legal/LegalPage.dart';
 import 'package:dios_delices/Screen/legal/PrivacyPolicyPage.dart';
 import 'package:dios_delices/Screen/legal/CGVPage.dart';
 import 'package:dios_delices/Screen/ProfilePage.dart';
+import 'package:dios_delices/Screen/restaurants/RestaurantFormPage.dart';
 import 'package:dios_delices/components/Logout.dart';
 import 'package:dios_delices/l10n/app_localizations.dart';
 import 'package:dios_delices/modeles/users.dart';
 import 'package:dios_delices/providers/theme_provider.dart';
 import 'package:dios_delices/services/session_service.dart';
 import 'package:dios_delices/theme/app_theme.dart';
+import 'package:dios_delices/core/app_role.dart';
 import 'package:flutter/material.dart';
+import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class Settings extends StatefulWidget {
@@ -201,6 +204,90 @@ class _SettingsState extends State<Settings> {
         ),
       ),
     );
+  }
+
+  Future<void> _showBecomeRestaurateurDialog() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+        ),
+        title: Row(children: [
+          Container(
+            width: 32, height: 32,
+            decoration: BoxDecoration(
+              color: AppColors.brandSurface,
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+            ),
+            child: const Icon(Icons.restaurant_menu_outlined,
+                color: AppColors.brand, size: 18),
+          ),
+          const SizedBox(width: 10),
+          Text('Devenir micro-restaurateur',
+              style: AppTypography.titleMedium().copyWith(fontSize: 16)),
+        ]),
+        content: Text(
+          'En devenant micro-restaurateur, vous pourrez publier vos plats et les vendre directement aux clients. '
+          'Souhaitez-vous continuer ?',
+          style: AppTypography.bodyLarge(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Annuler',
+                style: AppTypography.labelMedium(color: AppColors.inkMuted)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.brand,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Oui, je veux vendre mes plats'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    try {
+      final session = await SessionService.readSession();
+      final cloudFunction = ParseCloudFunction('update1User');
+      final response = await cloudFunction.execute(parameters: {
+        'userID': session.userId,
+        'roleID': 3,
+        'identity': 'Verified',
+      });
+
+      if (response.success) {
+        await SessionService.saveUserSession(
+          userId: session.userId,
+          role: AppRole.fromId(3),
+          country: session.country,
+          email: session.email,
+        );
+        if (!mounted) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => RestaurantFormPage()),
+        );
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur : ${response.error?.message ?? "inconnue"}')),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur réseau : $e')),
+      );
+    }
   }
 
   Future<void> _showDeleteAccountDialog() async {
@@ -398,6 +485,26 @@ class _SettingsState extends State<Settings> {
             ]),
           ),
           const SizedBox(height: 24),
+
+          // ── Devenir micro-restaurateur ─────────────
+          if (_currentRoleId == 2)
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              _sectionTitle('Vendre vos plats'),
+              const SizedBox(height: 8),
+              Container(
+                decoration: BoxDecoration(
+                  color: AppColors.card,
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  border: Border.all(color: AppColors.border, width: 0.5),
+                ),
+                child: _settingRow(
+                  Icons.restaurant_menu_outlined,
+                  'Devenir micro-restaurateur',
+                  _showBecomeRestaurateurDialog,
+                ),
+              ),
+              const SizedBox(height: 24),
+            ]),
 
           // ── À propos ─────────────────────────────────
           Container(

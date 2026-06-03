@@ -132,7 +132,8 @@ class _HomeUserState extends State<HomeUser> {
         onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
         child: Scaffold(
           backgroundColor: AppColors.surface,
-          body: RefreshIndicator(
+          body: SafeArea(
+            child: RefreshIndicator(
             color: AppColors.brand,
             backgroundColor: AppColors.card,
             onRefresh: loadData,
@@ -179,6 +180,7 @@ class _HomeUserState extends State<HomeUser> {
                 const SliverToBoxAdapter(child: SizedBox(height: 120)),
               ],
             ),
+          ),
           ),
         ),
       ),

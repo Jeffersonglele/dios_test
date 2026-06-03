@@ -212,26 +212,29 @@ class _LoginState extends ConsumerState<Login> {
       Navigator.pushReplacement(context, CupertinoPageRoute(
           builder: (_) => StartAddressSaving(userID: user.userID, roleID: user.roleID)));
     } else if (user.identity == "Verified") {
-      final role = AppRole.fromId(user.roleID);
-      if (role.isProfessional) {
-        NotificationService.subscribeToRestaurantNotifications();
-        _handleRestaurantValidation(user);
-      } else {
-        if (role.isIndividual) {
-          final r = await Restaurant.getRestaurantByUser(restaus, user.userID);
-          if (r != null) await SessionService.setRestaurantId(r.restaurantID);
-        }
-        NotificationService.subscribeToRestaurantNotifications();
-        firstLogin(user);
-      }
+      _redirectToMainApp(user);
     } else if (user.identity == "En attente") {
       Navigator.push(context, MaterialPageRoute(builder: (_) => WaitIdentityValidation()));
     } else if (user.identity == "Rejected") {
       Navigator.push(context, MaterialPageRoute(
           builder: (_) => UserIdentityRejected(objectID: user.userID, user_roleID: user.roleID)));
     } else {
-      Navigator.push(context, MaterialPageRoute(
-          builder: (_) => StatusSelectionPage(country: user.country, objectID: user.userID, user_roleID: user.roleID)));
+      _redirectToMainApp(user);
+    }
+  }
+
+  void _redirectToMainApp(Users user) async {
+    final role = AppRole.fromId(user.roleID);
+    if (role.isProfessional) {
+      NotificationService.subscribeToRestaurantNotifications();
+      _handleRestaurantValidation(user);
+    } else {
+      if (role.isIndividual) {
+        final r = await Restaurant.getRestaurantByUser(restaus, user.userID);
+        if (r != null) await SessionService.setRestaurantId(r.restaurantID);
+      }
+      NotificationService.subscribeToRestaurantNotifications();
+      firstLogin(user);
     }
   }
 

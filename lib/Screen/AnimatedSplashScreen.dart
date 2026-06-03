@@ -14,6 +14,7 @@ import '../theme/app_theme.dart';
 import '../utils/toast.dart';
 import '../widgets/brand_avatar_logo.dart';
 import '../utils/strings.dart';
+import 'verif_confirm/VerificationPage.dart';
 
 class AnimatedSplashScreen extends ConsumerStatefulWidget {
   const AnimatedSplashScreen({Key? key}) : super(key: key);
@@ -134,6 +135,21 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
         final session = await SessionService.readSession();
         if (!mounted) return;
         Users.chooseCurvedNavigation(session.role.id, session.country, context);
+        break;
+      case LaunchDestination.verification:
+        final session = await SessionService.readSession();
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => VerificationPage(
+              email: session.email ?? '',
+              userID: session.userId,
+              roleID: session.role.id,
+              country: session.country,
+            ),
+          ),
+        );
         break;
     }
   }

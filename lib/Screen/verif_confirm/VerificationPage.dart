@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
@@ -11,32 +12,34 @@ import '../../services/session_service.dart';
 import '../../components/showConfetti.dart';
 import '../../utils/toast.dart';
 import '../../widgets/brand_avatar_logo.dart';
+import '../AnimatedSplashScreen.dart';
 
 class VerificationPage extends StatefulWidget {
   final String email;
-  final int roleID; //c'est la création de compte pour un utilisateur lambda
+  final int roleID;
   final String telephone;
   final int userID;
-  final String password;
-  final String firstname;
-  final String lastname;
-  final String username;
-  final String password_crypte;
-  final String indicatif;
+  final String? password;
+  final String? firstname;
+  final String? lastname;
+  final String? username;
+  final String? password_crypte;
+  final String? indicatif;
   final String country;
 
-  VerificationPage(
-      {required this.email,
-      required this.username,
-      required this.userID,
-      required this.roleID,
-      required this.telephone,
-      required this.password_crypte,
-      required this.password,
-      required this.firstname,
-      required this.country,
-      required this.indicatif,
-      required this.lastname});
+  VerificationPage({
+    required this.email,
+    required this.userID,
+    required this.roleID,
+    required this.country,
+    this.telephone = '',
+    this.password,
+    this.firstname,
+    this.lastname,
+    this.username,
+    this.password_crypte,
+    this.indicatif,
+  });
 
   @override
   _VerificationPageState createState() => _VerificationPageState();
@@ -47,6 +50,8 @@ class _VerificationPageState extends State<VerificationPage> {
 
   bool _isSendingCodes = true;
   String? _sendErrorMessage;
+  int _resendCooldown = 0;
+  Timer? _cooldownTimer;
 
   @override
   void initState() {
@@ -55,6 +60,14 @@ class _VerificationPageState extends State<VerificationPage> {
   }
 
   Future<void> _initializeVerification() async {
+    if (widget.email.trim().isEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _isSendingCodes = false;
+        _sendErrorMessage = "Adresse email introuvable. Veuillez vous reconnecter.";
+      });
+      return;
+    }
     final emailSent = await _sendEmailCode();
 
     if (!mounted) return;
@@ -65,6 +78,7 @@ class _VerificationPageState extends State<VerificationPage> {
     });
 
     if (emailSent) {
+      _startResendCooldown();
       Toast(
         context,
         "Code de vérification envoyé par email.",
@@ -76,6 +90,7 @@ class _VerificationPageState extends State<VerificationPage> {
   }
 
   Future<bool> _sendEmailCode() async {
+    if (widget.email.trim().isEmpty) return false;
     try {
       return await sendVerificationEmail(context, widget.email);
     } catch (e) {
@@ -93,9 +108,24 @@ class _VerificationPageState extends State<VerificationPage> {
     return cleanCountry.isEmpty ? "Bénin" : cleanCountry;
   }
 
+  void _startResendCooldown() {
+    _resendCooldown = 60;
+    _cooldownTimer?.cancel();
+    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      setState(() {
+        _resendCooldown--;
+        if (_resendCooldown <= 0) {
+          _cooldownTimer?.cancel();
+        }
+      });
+    });
+  }
+
   @override
   void dispose() {
     _codeController.dispose();
+    _cooldownTimer?.cancel();
     super.dispose();
   }
 
@@ -104,7 +134,22 @@ class _VerificationPageState extends State<VerificationPage> {
     var size = MediaQuery.of(context).size;
 
     return Scaffold(
-      appBar: AppBar(),
+      appBar: AppBar(
+        actions: [
+          TextButton(
+            onPressed: () async {
+              await SessionService.clearAll();
+              if (!mounted) return;
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const AnimatedSplashScreen()),
+              );
+            },
+            child: Text("Déconnexion",
+                style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
       body: SingleChildScrollView(
           child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -154,20 +199,36 @@ class _VerificationPageState extends State<VerificationPage> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () {
-                        setState(() {
-                          _isSendingCodes = true;
-                          _sendErrorMessage = null;
-                        });
-                        _initializeVerification();
-                      },
-                      child: const Text("Renvoyer le code"),
+                      onPressed: widget.email.trim().isEmpty
+                          ? () async {
+                              await SessionService.clearAll();
+                              if (!mounted) return;
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(builder: (_) => const AnimatedSplashScreen()),
+                              );
+                            }
+                          : () {
+                              setState(() {
+                                _isSendingCodes = true;
+                                _sendErrorMessage = null;
+                              });
+                              _initializeVerification();
+                            },
+                      child: Text(widget.email.trim().isEmpty
+                          ? "Se reconnecter"
+                          : "Renvoyer le code"),
                     ),
                   ),
                 ] else ...[
                   Text(
                     "Entrez le code envoyé par email à ${widget.email}",
                     style: TextStyle(fontSize: 16),
+                  ),
+                  SizedBox(height: 6),
+                  Text(
+                    "Si vous ne trouvez pas l'email, vérifiez dans vos spams.",
+                    style: TextStyle(fontSize: 13, color: Colors.grey),
                   ),
                   SizedBox(height: 20),
                   PinCodeTextField(
@@ -192,31 +253,21 @@ class _VerificationPageState extends State<VerificationPage> {
                     controller: _codeController,
                     keyboardType: TextInputType.number,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    onCompleted: (v) {
-                      print(
-                          "Code entered: $v"); // Action après avoir entré les 6 chiffres
-                    },
-                    onChanged: (value) {
-                      print(
-                          value); // Mettre à jour l'état à chaque chiffre entré
-                    },
+                    onCompleted: (v) {},
+                    onChanged: (value) {},
                   ),
                   SizedBox(height: 20),
                   Center(
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red,
-                        // Couleur de fond du bouton
                         foregroundColor: Colors.white,
-                        //Couleur du texte
                         textStyle: TextStyle(
-                          fontSize: 18, // Taille du texte
-                          fontWeight: FontWeight
-                              .bold, // (Optionnel) Style de texte en gras
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
                         ),
                         shape: RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(15), // Bordure du bouton
+                          borderRadius: BorderRadius.circular(15),
                         ),
                       ),
                       onPressed: () async {
@@ -280,6 +331,42 @@ class _VerificationPageState extends State<VerificationPage> {
                         }
                       },
                       child: Text("Vérifier"),
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  Center(
+                    child: TextButton(
+                      onPressed: _resendCooldown > 0
+                          ? null
+                          : () async {
+                              setState(() {
+                                _isSendingCodes = true;
+                                _sendErrorMessage = null;
+                              });
+                              final sent = await _sendEmailCode();
+                              if (!mounted) return;
+                              setState(() {
+                                _isSendingCodes = false;
+                                _sendErrorMessage = sent ? null : _buildSendErrorMessage();
+                              });
+                              if (sent) _startResendCooldown();
+                              Toast(
+                                context,
+                                sent
+                                    ? "Nouveau code envoyé par email."
+                                    : "Impossible d'envoyer le code.",
+                                sent,
+                              );
+                            },
+                      child: Text(
+                        _resendCooldown > 0
+                            ? "Renvoyer le code ($_resendCooldown s)"
+                            : "Renvoyer le code de vérification",
+                        style: TextStyle(
+                          color: _resendCooldown > 0 ? Colors.grey : Colors.red,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   )
                 ],
