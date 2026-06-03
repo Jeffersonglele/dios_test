@@ -605,18 +605,40 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
                               '${livreurs[i].firstname} ${livreurs[i].lastname}'),
                           onTap: () async {
                             Navigator.pop(ctx);
-                            await ParseCloudFunction('assignLivreur')
-                                .execute(parameters: {
-                              'userID':
-                                  (await SessionService.readSession()).userId,
-                              'commandeID': id,
-                              'livreurID': livreurs[i].userID,
-                            });
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                      content: Text('Livreur assigné.')));
-                              loadOrders();
+                            try {
+                              final cloudFunction =
+                                  ParseCloudFunction('assignLivreur');
+                              final response =
+                                  await cloudFunction.execute(parameters: {
+                                'commandeID': id,
+                                'livreurID': livreurs[i].userID,
+                              });
+
+                              if (response.success) {
+                                await Commande.refreshLocalCommandes();
+                                await loadOrders();
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text(
+                                            'Livreur assigné avec succès!')),
+                                  );
+                                }
+                              } else {
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                        content: Text(
+                                            'Erreur: ${response.error?.message}')),
+                                  );
+                                }
+                              }
+                            } catch (e) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Erreur: $e')),
+                                );
+                              }
                             }
                           },
                         )),

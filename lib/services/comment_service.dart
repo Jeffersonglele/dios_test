@@ -51,14 +51,26 @@ class CommentService {
     required String commentaire,
     required String username,
     String userImage = '',
+    // Champs optionnels pour compatibilité avec le schéma Back4App
+    // (certains objets utilisent content/description/rating plutôt que note/commentaire)
+    String content = '',
+    String description = '',
   }) async {
     final cloudFunction = ParseCloudFunction('addComment');
     final params = {
       'userID': userID,
       'targetType': targetType,
       'targetID': targetID,
+
+      // Champs historiques
       'note': note,
       'commentaire': commentaire,
+
+      // Champs du schéma Back4App que tu vois (rating/content/description)
+      'rating': note,
+      'content': commentaire,
+      'description': description,
+
       'username': username,
       'userImage': userImage,
     };

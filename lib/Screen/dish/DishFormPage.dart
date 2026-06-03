@@ -33,7 +33,7 @@ class _DishFormPageState extends ConsumerState<DishFormPage> {
   final TextEditingController _priceController = TextEditingController();
   final TextEditingController _nbServingsController = TextEditingController();
 
-  // Structure améliorée pour les options
+  // Structure pour les options
   List<DishOption> _options = [];
 
   File? _selectedImage;
@@ -61,20 +61,11 @@ class _DishFormPageState extends ConsumerState<DishFormPage> {
     }
   }
 
+  // Convertit un prix avec virgule en double
   double _parsePrice(String value) {
     if (value.trim().isEmpty) return 0.0;
-    // Supprimer les espaces
-    String cleaned = value.replaceAll(' ', '');
-    // Remplacer la virgule par un point
-    cleaned = cleaned.replaceAll(',', '.');
-    // S'assurer qu'il n'y a qu'un seul point
-    final parts = cleaned.split('.');
-    if (parts.length > 2) {
-      cleaned = parts[0] + '.' + parts.sublist(1).join('');
-    }
-    double result = double.tryParse(cleaned) ?? 0.0;
-    // Arrondir à 2 décimales
-    return double.parse(result.toStringAsFixed(2));
+    String cleaned = value.replaceAll(' ', '').replaceAll(',', '.');
+    return double.tryParse(cleaned) ?? 0.0;
   }
 
   // Nettoie le nombre de portions
@@ -173,7 +164,7 @@ class _DishFormPageState extends ConsumerState<DishFormPage> {
       return;
     }
 
-    // Récupération de l'utilisateur depuis la session (solution fiable)
+    // Récupération de l'utilisateur depuis la session
     final session = await SessionService.readSession();
 
     if (session.userId == null) {
@@ -187,18 +178,25 @@ class _DishFormPageState extends ConsumerState<DishFormPage> {
     _updateState(() => isLoading = true);
 
     try {
-      // Formatage des options
+      // ===== FORMATAGE DES OPTIONS POUR LA BASE DE DONNÉES =====
       String option1 = "";
       String option2 = "";
       String option3 = "";
 
       for (int i = 0; i < _options.length && i < 3; i++) {
         final opt = _options[i];
+        // Format: "Nom option: choix1 / choix2 / choix3 / prix"
         String choices = opt.choices.join(" / ");
         String optionText = "${opt.name}: $choices";
         if (opt.price > 0) {
-          optionText += " / ${opt.price.toStringAsFixed(2)} €";
+          // Utiliser la virgule pour l'affichage
+          String priceStr = opt.price.toStringAsFixed(2).replaceAll('.', ',');
+          optionText += " / $priceStr €";
         }
+
+        // Debug pour vérifier le format
+        debugPrint('Option ${i + 1} formatée: $optionText');
+
         if (i == 0) {
           option1 = optionText;
         } else if (i == 1) {
@@ -479,8 +477,8 @@ class _DishFormPageState extends ConsumerState<DishFormPage> {
       final option = _options[i];
       String display = "${option.name}: ${option.choices.join(' / ')}";
       if (option.price > 0) {
-        display +=
-            " / ${option.price.toStringAsFixed(2)} ${country == "France" ? "€" : "FCFA"}";
+        String priceStr = option.price.toStringAsFixed(2).replaceAll('.', ',');
+        display += " / $priceStr ${country == "France" ? "€" : "FCFA"}";
       }
 
       widgets.add(Card(
@@ -523,10 +521,13 @@ class _DishFormPageState extends ConsumerState<DishFormPage> {
         text: isEditing && optionToEdit.choices.length > 2
             ? optionToEdit.choices[2]
             : "");
-    TextEditingController prixCtrl = TextEditingController(
-        text: isEditing && optionToEdit.price > 0
-            ? optionToEdit.price.toString()
-            : "");
+
+    // Afficher le prix avec virgule dans le champ
+    String initialPrice = "";
+    if (isEditing && optionToEdit.price > 0) {
+      initialPrice = optionToEdit.price.toStringAsFixed(2).replaceAll('.', ',');
+    }
+    TextEditingController prixCtrl = TextEditingController(text: initialPrice);
 
     showDialog(
       context: context,
@@ -594,8 +595,11 @@ class _DishFormPageState extends ConsumerState<DishFormPage> {
                 return;
               }
 
-              double prix = _parsePrice(prixStr);
-              if (prix <= 0 && prixStr != "0") {
+              // Convertir le prix (virgule en point)
+              String priceCleaned = prixStr.replaceAll(',', '.');
+              double prix = double.tryParse(priceCleaned) ?? 0.0;
+
+              if (prix <= 0) {
                 Toast(context, "Prix invalide", false);
                 return;
               }
