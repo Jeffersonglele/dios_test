@@ -1,4 +1,5 @@
 import 'package:geolocator/geolocator.dart';
+import 'package:intl/intl.dart';
 import 'package:dios_delices/Screen/DishDetails.dart';
 import 'package:dios_delices/Screen/MealsOfACategory.dart';
 import 'package:dios_delices/l10n/app_localizations.dart';
@@ -136,9 +137,6 @@ class _MyAppState extends ConsumerState<MyApp> {
         themeNotifier.toggleTheme();
       }
     });
-  }
-
-
   }
 
   @override

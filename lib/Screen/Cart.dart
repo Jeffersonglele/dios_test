@@ -548,6 +548,7 @@ class _CartState extends ConsumerState<Cart> {
             restaurantName: currentRestaurant.name,
             totalAmount: total.clamp(0.0, double.infinity),
             orderId: int.tryParse(commandeId),
+            orderDetails: items.map((i) => '${i['quantity']}x ${i['meal']['meal_name']}').join(', '),
           );
         }
         cartNotifier.clearCart();
@@ -637,6 +638,7 @@ class _CartState extends ConsumerState<Cart> {
               restaurantName: currentRestaurant.name,
               totalAmount: total,
               orderId: int.tryParse(commandeId),
+              orderDetails: items.map((i) => '${i['quantity']}x ${i['meal']['meal_name']}').join(', '),
             );
           }
           cartNotifier.clearCart();

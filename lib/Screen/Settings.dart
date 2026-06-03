@@ -167,11 +167,7 @@ class _SettingsState extends ConsumerState<Settings> {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => RestaurantFormPage(
-                    userID: session.userId,
-                    country: session.country,
-                    mode: 'create',
-                  ),
+                  builder: (_) => const RestaurantFormPage(),
                 ),
               );
             }

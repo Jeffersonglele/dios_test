@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../providers/theme_provider.dart';
 
 // ────────────────────────────────────────────────────────────
 // DESIGN TOKENS — Dios Délices
@@ -9,6 +10,9 @@ import 'package:google_fonts/google_fonts.dart';
 // ── COULEURS (mode clair) ───────────────────────────────────
 class AppColors {
   const AppColors._();
+
+  static Color resolve(Color light, Color dark) =>
+      darkModeNotifier.value ? dark : light;
 
   // Brand
   static const brand = Color(0xFFC84C2F);

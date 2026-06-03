@@ -93,8 +93,8 @@ class NotificationService {
   static Future<void> sendOrderNotificationToRestaurateur({
     required int restaurateurId,
     required String restaurantName,
-    required String orderDetails,
     required double totalAmount,
+    String orderDetails = '',
     int? orderId,
   }) async {
     try {
