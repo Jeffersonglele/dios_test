@@ -44,39 +44,46 @@ class _EmailInputScreenState extends State<EmailInputScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = isDark ? AppDarkColors.surface : AppColors.surface;
+    final cardColor = isDark ? AppDarkColors.card : AppColors.card;
+    final inkColor = isDark ? AppDarkColors.ink : AppColors.ink;
+    final inkMuted = isDark ? AppDarkColors.inkMuted : AppColors.inkMuted;
+
     return Scaffold(
-      backgroundColor: AppColors.surface,
-      appBar: AppBar(),
+      backgroundColor: surface,
+      appBar: AppBar(backgroundColor: surface),
       body: Padding(
         padding: const EdgeInsets.all(24),
         child: Form(
           key: _formKey,
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             const SizedBox(height: 40),
-            Text(Strings.of('forgotten_password_title'),
-                style: AppTypography.headlineLarge()),
+            Text(Strings.of('forgotten_password_title'), style: AppTypography.headlineLarge(color: inkColor)),
             const SizedBox(height: 8),
-            Text(Strings.of('forgotten_password_subtitle'),
-                style: AppTypography.bodyLarge(color: AppColors.inkMuted)),
+            Text(Strings.of('forgotten_password_subtitle'), style: AppTypography.bodyLarge(color: inkMuted)),
             const SizedBox(height: 32),
             TextFormField(
               controller: emailCtrl,
               keyboardType: TextInputType.emailAddress,
-              style: AppTypography.bodyLarge(),
+              style: AppTypography.bodyLarge(color: inkColor),
               decoration: InputDecoration(
                 prefixIcon: const Icon(Icons.email_outlined),
                 hintText: Strings.of('email'),
+                filled: true, fillColor: cardColor,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.lg), borderSide: BorderSide(color: AppColors.border)),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.lg), borderSide: BorderSide(color: AppColors.border)),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.lg), borderSide: BorderSide(color: AppColors.brand, width: 1.5)),
               ),
               validator: (v) => EmailValidator.validate(v?.trim() ?? '') ? null : Strings.of('enter_valid_email'),
             ),
             const SizedBox(height: 24),
             SizedBox(
-              width: double.infinity,
-              height: 56,
+              width: double.infinity, height: 56,
               child: ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.brand, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg))),
                 onPressed: isLoading ? null : checkEmail,
-                child: isLoading ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : Text(Strings.of('verify_email')),
+                child: isLoading ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : Text(Strings.of('verify_email'), style: AppTypography.labelMedium(color: Colors.white)),
               ),
             ),
           ]),

@@ -57,14 +57,16 @@ class _GuestBrowsePageState extends State<GuestBrowsePage> {
               context,
               MaterialPageRoute(builder: (_) => const Login()),
             ),
-            child: const Text('Connexion', style: TextStyle(color: Colors.white)),
+            child:
+                const Text('Connexion', style: TextStyle(color: Colors.white)),
           ),
           TextButton(
             onPressed: () => Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (_) => const SignUpView()),
             ),
-            child: const Text('S\'inscrire', style: TextStyle(color: Colors.white70)),
+            child: const Text('S\'inscrire',
+                style: TextStyle(color: Colors.white70)),
           ),
         ],
       ),
@@ -77,13 +79,15 @@ class _GuestBrowsePageState extends State<GuestBrowsePage> {
                   _buildFilterChips(),
                   Expanded(
                     child: restaurants.isEmpty
-                        ? const Center(child: Text('Aucun restaurant disponible.'))
+                        ? const Center(
+                            child: Text('Aucun restaurant disponible.'))
                         : ListView.builder(
                             padding: const EdgeInsets.all(12),
                             itemCount: restaurants.length,
                             itemBuilder: (ctx, i) {
                               final resto = restaurants[i];
-                              final dishes = dishesByRestaurant[resto.restaurantID] ?? [];
+                              final dishes =
+                                  dishesByRestaurant[resto.restaurantID] ?? [];
                               return _RestaurantCard(
                                 restaurant: resto,
                                 dishCount: dishes.length,
@@ -114,25 +118,36 @@ class _GuestBrowsePageState extends State<GuestBrowsePage> {
           FilterChip(
             label: const Text('Tout'),
             selected: _selectedCategory == null && _minRating == null,
-            onSelected: (_) => setState(() { _selectedCategory = null; _minRating = null; }),
+            onSelected: (_) => setState(() {
+              _selectedCategory = null;
+              _minRating = null;
+            }),
           ),
           const SizedBox(width: 6),
           FilterChip(
             label: const Text('⭐ 4+'),
             selected: _minRating == 4,
-            onSelected: (_) => setState(() => _minRating = _minRating == 4 ? null : 4),
+            onSelected: (_) =>
+                setState(() => _minRating = _minRating == 4 ? null : 4),
           ),
           const SizedBox(width: 6),
-          ...['#africain', '#européen', '#asiatique', '#végétarien', '#fast-food', '#dessert'].map((cat) => Padding(
-            padding: const EdgeInsets.only(right: 6),
-            child: FilterChip(
-              label: Text(cat),
-              selected: _selectedCategory == cat,
-              onSelected: (_) => setState(() {
-                _selectedCategory = _selectedCategory == cat ? null : cat;
-              }),
-            ),
-          )),
+          ...[
+            '#africain',
+            '#européen',
+            '#asiatique',
+            '#végétarien',
+            '#fast-food',
+            '#dessert'
+          ].map((cat) => Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: FilterChip(
+                  label: Text(cat),
+                  selected: _selectedCategory == cat,
+                  onSelected: (_) => setState(() {
+                    _selectedCategory = _selectedCategory == cat ? null : cat;
+                  }),
+                ),
+              )),
         ],
       ),
     );
@@ -165,7 +180,8 @@ class _RestaurantCard extends StatelessWidget {
               CircleAvatar(
                 backgroundColor: Colors.deepOrange.shade50,
                 radius: 30,
-                child: const Icon(Icons.restaurant, color: Colors.deepOrange, size: 30),
+                child: const Icon(Icons.restaurant,
+                    color: Colors.deepOrange, size: 30),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -174,28 +190,38 @@ class _RestaurantCard extends StatelessWidget {
                   children: [
                     Text(
                       restaurant.name,
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       restaurant.description,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                      style:
+                          TextStyle(color: Colors.grey.shade600, fontSize: 13),
                     ),
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        ...List.generate(5, (i) => Icon(
-                          i < restaurant.note.toInt() ? Icons.star : Icons.star_border,
-                          size: 16,
-                          color: Colors.amber,
-                        )),
+                        ...List.generate(
+                            5,
+                            (i) => Icon(
+                                  i < restaurant.note.toInt()
+                                      ? Icons.star
+                                      : Icons.star_border,
+                                  size: 16,
+                                  color: Colors.amber,
+                                )),
                         const SizedBox(width: 6),
-                        Text('$dishCount plats', style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+                        Text('$dishCount plats',
+                            style: TextStyle(
+                                color: Colors.grey.shade500, fontSize: 12)),
                         const Spacer(),
-                        Text('${restaurant.deliveryFee.toStringAsFixed(0)}€ livraison',
-                          style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+                        Text(
+                            '${restaurant.deliveryFee.toStringAsFixed(0)}€ livraison',
+                            style: TextStyle(
+                                color: Colors.grey.shade500, fontSize: 12)),
                       ],
                     ),
                   ],

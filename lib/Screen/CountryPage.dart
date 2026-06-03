@@ -2,7 +2,6 @@ import 'package:dios_delices/Screen/livreur/LivreurListPage.dart';
 import 'package:dios_delices/Screen/utilisateurs/UsersListPage.dart';
 import 'package:dios_delices/theme/app_theme.dart';
 import 'package:flutter/material.dart';
-import '../utils/strings.dart';
 import 'restaurants/RestaurantListPage.dart';
 
 class CountryPage extends StatelessWidget {
@@ -22,19 +21,19 @@ class CountryPage extends StatelessWidget {
     IconData icon;
     Color iconColor;
     if (sectionType == "utilisateurs") {
-      title = Strings.users;
+      title = "Utilisateurs";
       icon = Icons.people_rounded;
       iconColor = Colors.blue;
     } else if (sectionType == "administrateurs") {
-      title = Strings.administrators;
+      title = "Administrateurs";
       icon = Icons.admin_panel_settings_rounded;
       iconColor = AppColors.error;
     } else if (sectionType == "livreurs") {
-      title = Strings.livreurs;
+      title = "Livreurs";
       icon = Icons.delivery_dining_rounded;
       iconColor = AppColors.success;
     } else {
-      title = Strings.restaurants;
+      title = "Restaurants";
       icon = Icons.storefront_rounded;
       iconColor = AppColors.accent;
     }
@@ -54,7 +53,7 @@ class CountryPage extends StatelessWidget {
               child: Icon(icon, color: iconColor, size: 18),
             ),
             const SizedBox(width: 10),
-            Text('${Strings.management} $title'),
+            Text('Gestion $title'),
           ],
         ),
         centerTitle: true,
@@ -65,7 +64,7 @@ class CountryPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              Strings.get('Sélectionnez un pays', 'Select a country'),
+              'Sélectionnez un pays',
               style: AppTypography.titleMedium().copyWith(color: AppColors.inkMuted),
             ),
             const SizedBox(height: 16),
@@ -106,7 +105,7 @@ class CountryPage extends StatelessWidget {
                           Text(c.name, style: AppTypography.titleMedium().copyWith(fontSize: 17)),
                           const SizedBox(height: 2),
                           Text(
-                            '${Strings.get("Voir les", "See")} $title ${Strings.get("en", "in")} ${c.name}',
+                            'Voir les $title en ${c.name}',
                             style: AppTypography.bodyMedium().copyWith(fontSize: 12),
                           ),
                         ],

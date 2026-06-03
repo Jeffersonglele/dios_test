@@ -13,6 +13,7 @@ import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import '../../Constant/Constant.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
+import '../../theme/app_theme.dart';
 
 import '../../modeles/identity.dart';
 import '../../widgets/brand_avatar_logo.dart';
@@ -22,7 +23,8 @@ class IdentityVerification extends ConsumerStatefulWidget {
   final int objectID;
   final int user_roleID;
 
-  IdentityVerification({required this.objectID, required this.user_roleID});
+  const IdentityVerification(
+      {super.key, required this.objectID, required this.user_roleID});
 
   @override
   _IdentityVerificationState createState() => _IdentityVerificationState();
@@ -224,6 +226,7 @@ class _IdentityVerificationState extends ConsumerState<IdentityVerification> {
   }
 
   Widget _buildIdentityPreview(File file) {
+    final colorScheme = Theme.of(context).colorScheme;
     final fileName = p.basename(file.path);
 
     if (_isPdf(file)) {
@@ -232,9 +235,9 @@ class _IdentityVerificationState extends ConsumerState<IdentityVerification> {
           Container(
             height: 220,
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.black12),
+              color: colorScheme.surface,
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              border: Border.all(color: colorScheme.outline),
             ),
             clipBehavior: Clip.antiAlias,
             child: SfPdfViewer.file(file),
@@ -243,7 +246,10 @@ class _IdentityVerificationState extends ConsumerState<IdentityVerification> {
           Text(
             fileName,
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodySmall,
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall!
+                .copyWith(color: colorScheme.onSurface),
           ),
         ],
       );
@@ -256,7 +262,10 @@ class _IdentityVerificationState extends ConsumerState<IdentityVerification> {
         Text(
           fileName,
           textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodySmall,
+          style: Theme.of(context)
+              .textTheme
+              .bodySmall!
+              .copyWith(color: colorScheme.onSurface),
         ),
       ],
     );
@@ -299,6 +308,7 @@ class _IdentityVerificationState extends ConsumerState<IdentityVerification> {
   @override
   Widget build(BuildContext context) {
     var size = MediaQuery.of(context).size;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
         appBar: AppBar(),
@@ -320,12 +330,14 @@ class _IdentityVerificationState extends ConsumerState<IdentityVerification> {
                   padding: const EdgeInsets.only(left: 20.0),
                   child: Text(
                     'Mon identité',
-                    style: kLoginTitleStyle(size),
+                    style: AppTypography.displayMedium(
+                      color: colorScheme.onSurface,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 10),
 
-                SizedBox(height: 30),
+                const SizedBox(height: 30),
 
                 Center(
                   child: Column(
@@ -333,26 +345,30 @@ class _IdentityVerificationState extends ConsumerState<IdentityVerification> {
                       // 📸 Photo de l'utilisateur
                       Text(
                         'Votre photo',
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleMedium!
+                        style: AppTypography.titleMedium(
+                                color: colorScheme.onSurface)
                             .copyWith(fontWeight: FontWeight.bold),
                       ),
-                      SizedBox(height: 10),
+                      const SizedBox(height: 10),
                       _userPhoto != null
                           ? _buildImagePreview(_userPhoto!)
-                          : Text("Aucune photo prise"),
-                      SizedBox(height: 10),
+                          : Text("Aucune photo prise",
+                              style: AppTypography.bodyMedium(
+                                  color: colorScheme.onSurface)),
+                      const SizedBox(height: 10),
                       ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+                            foregroundColor: Colors.white),
                         onPressed: _showPhotoSourcePicker,
-                        icon: Icon(Icons.add_a_photo),
-                        label: Text("Ajouter une photo"),
+                        icon: const Icon(Icons.add_a_photo),
+                        label: const Text("Ajouter une photo"),
                       ),
                     ],
                   ),
                 ),
 
-                SizedBox(height: 50),
+                const SizedBox(height: 50),
 
                 Center(
                   child: Column(
@@ -360,45 +376,51 @@ class _IdentityVerificationState extends ConsumerState<IdentityVerification> {
                       // 🪪 Pièce d'identité
                       Text(
                         'Pièce d\'identité (image ou PDF)',
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleMedium!
+                        style: AppTypography.titleMedium(
+                                color: colorScheme.onSurface)
                             .copyWith(fontWeight: FontWeight.bold),
                       ),
-                      SizedBox(height: 10),
+                      const SizedBox(height: 10),
                       _identityFile != null
                           ? _buildIdentityPreview(_identityFile!)
-                          : Text("Aucun fichier sélectionné"),
-                      SizedBox(height: 10),
+                          : Text("Aucun fichier sélectionné",
+                              style: AppTypography.bodyMedium(
+                                  color: colorScheme.onSurface)),
+                      const SizedBox(height: 10),
                       ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+                            foregroundColor: Colors.white),
                         onPressed: _showIdentitySourcePicker,
-                        icon: Icon(Icons.file_present),
-                        label: Text("Ajouter une pièce d'identité"),
+                        icon: const Icon(Icons.file_present),
+                        label: const Text("Ajouter une pièce d'identité"),
                       ),
                     ],
                   ),
                 ),
 
-                SizedBox(height: 40),
+                const SizedBox(height: 40),
 
                 // 🔘 Valider
                 Center(
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
+                      backgroundColor: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
                       foregroundColor: Colors.white,
-                      textStyle:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      textStyle: const TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15)),
+                          borderRadius: BorderRadius.circular(AppRadius.lg)),
                     ),
                     onPressed: () async {
                       if (_userPhoto == null || _identityFile == null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                              content: Text(
-                                  "Merci de fournir une photo et une pièce d'identité")),
-                        );
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text(
+                                    "Merci de fournir une photo et une pièce d'identité")),
+                          );
+                        }
                         return;
                       } else {
                         ParseFile? parseFile_userPhoto;
@@ -408,12 +430,8 @@ class _IdentityVerificationState extends ConsumerState<IdentityVerification> {
                             p.basename(_userPhoto!.path); // Get the file name
                         String extension_userPhoto = p.extension(
                             _userPhoto_fileName); // Get the file extension (.jpg, .png)
-                        String nom_userPhoto = current_user.firstname +
-                            "_" +
-                            current_user.lastname +
-                            "_" +
-                            current_user.userID.toString() +
-                            "_photo"; // New image name
+                        String nom_userPhoto =
+                            "${current_user.firstname}_${current_user.lastname}_${current_user.userID}_photo"; // New image name
                         String userPhoto_newFileName =
                             "$nom_userPhoto$extension_userPhoto"; // Combine name and extension
                         parseFile_userPhoto = ParseFile(File(_userPhoto!.path),
@@ -444,18 +462,23 @@ class _IdentityVerificationState extends ConsumerState<IdentityVerification> {
                           if (updateIdentity == "success") {
                             // si c'est un resto on va l'enregistrer d'abord
                             if (widget.user_roleID == 3) {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (context) => RestaurantFormPage()),
-                              );
+                              if (mounted) {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (context) =>
+                                          RestaurantFormPage()),
+                                );
+                              }
                             } else {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => IdentityCreated(),
-                                ),
-                              );
+                              if (mounted) {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => IdentityCreated(),
+                                  ),
+                                );
+                              }
                             }
                           }
                         } else {
@@ -470,7 +493,7 @@ class _IdentityVerificationState extends ConsumerState<IdentityVerification> {
                         }
                       }
                     },
-                    child: Text("Valider"),
+                    child: const Text("Valider"),
                   ),
                 ),
 

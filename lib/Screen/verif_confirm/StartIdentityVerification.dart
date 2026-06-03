@@ -2,15 +2,16 @@ import 'package:dios_delices/Screen/verif_confirm/IdentityVerifcation.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../Constant/Constant.dart';
+import '../../Constant/Constant.dart';
 import '../../widgets/brand_avatar_logo.dart';
+import '../../theme/app_theme.dart';
 
 class StartIdentityVerification extends ConsumerStatefulWidget {
   final int objectID;
   final int user_roleID;
 
-  StartIdentityVerification(
-      {required this.objectID, required this.user_roleID});
+  const StartIdentityVerification(
+      {super.key, required this.objectID, required this.user_roleID});
   @override
   StartIdentityVerificationState createState() =>
       StartIdentityVerificationState();
@@ -21,6 +22,7 @@ class StartIdentityVerificationState
   @override
   Widget build(BuildContext context) {
     var size = MediaQuery.of(context).size;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
         appBar: AppBar(),
@@ -42,7 +44,8 @@ class StartIdentityVerificationState
                   padding: const EdgeInsets.only(left: 20.0),
                   child: Text(
                     "Dernière étape : nous allons vérifier votre identité",
-                    style: kLoginSubtitleStyle(size),
+                    style: AppTypography.titleLarge(
+                        color: colorScheme.onSurface),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -55,12 +58,12 @@ class StartIdentityVerificationState
                         height: 55,
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
+                            backgroundColor: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
                             foregroundColor: Colors.white,
                             textStyle: const TextStyle(
                                 fontSize: 18, fontWeight: FontWeight.bold),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(15),
+                              borderRadius: BorderRadius.circular(AppRadius.lg),
                             ),
                           ),
                           onPressed: () async {
@@ -83,12 +86,13 @@ class StartIdentityVerificationState
                         height: 55,
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.grey.shade800,
-                            foregroundColor: Colors.white,
+                            backgroundColor:
+                                colorScheme.surfaceContainerHighest,
+                            foregroundColor: colorScheme.onSurface,
                             textStyle: const TextStyle(
                                 fontSize: 16, fontWeight: FontWeight.bold),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(15),
+                              borderRadius: BorderRadius.circular(AppRadius.lg),
                             ),
                           ),
                           onPressed: () {

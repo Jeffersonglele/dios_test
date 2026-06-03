@@ -123,6 +123,12 @@ flutter:
     - assets/images/background.jpg
     - assets/images/search.png
     - assets/images/paragraph.png
+    - assets/images/logo_circulaire.png
+    - assets/images/onboarding/slide1.png
+    - assets/images/onboarding/slide2.png
+    - assets/images/onboarding/slide3.png
+    - assets/images/meals/pancakes.png
+    - assets/images/meals/soda.png
     - assets/images/meals/beef_steak.jpeg
     - assets/images/meals/chicken_nuggets.jpeg
     - assets/images/meals/chocolate_cake.jpeg

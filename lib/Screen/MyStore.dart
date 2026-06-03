@@ -1,11 +1,14 @@
 import 'package:dios_delices/Screen/Settings.dart';
 import 'package:dios_delices/Screen/restaurants/RestaurantDetails.dart';
+import 'package:dios_delices/Screen/restaurants/RestaurantFormPage.dart';
 import 'package:dios_delices/Screen/ContactPage.dart';
+import 'package:dios_delices/core/app_role.dart';
+import 'package:dios_delices/modeles/restaurant.dart';
+import 'package:dios_delices/modeles/users.dart';
 import 'package:dios_delices/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 
 import '../components/Logout.dart';
-import '../utils/strings.dart';
 import 'UserOrdersPage.dart';
 import '../services/session_service.dart';
 
@@ -16,27 +19,80 @@ class MyStore extends StatefulWidget {
 }
 
 class _MyStoreState extends State<MyStore> {
-  late List<_StoreSection> sections;
+  List<_StoreSection> sections = [];
+  Restaurant? _restaurant;
+  int _restoState = 0;
 
   @override
   void initState() {
     super.initState();
-    sections = [
-      _StoreSection(Icons.storefront_rounded, Strings.myRestaurant, null),
-      _StoreSection(Icons.receipt_long_rounded, Strings.myOrders, const UserOrdersPage(showRestaurantOrders: true)),
-      _StoreSection(Icons.contact_support_rounded, Strings.contactUs, const ContactPage()),
-      _StoreSection(Icons.settings_rounded, Strings.settings, const Settings()),
-      _StoreSection(Icons.logout_rounded, Strings.logout, null, isLogout: true),
-    ];
     _load();
   }
 
   Future<void> _load() async {
     final session = await SessionService.readSession();
-    if (session.restaurantId != null) {
-      setState(() => sections[0] = _StoreSection(
-        Icons.storefront_rounded, Strings.myRestaurant,
-        RestaurantDetails(restaurant_id: session.restaurantId!)));
+    final allUsers = await Users.fetchUsersFromDB();
+    final currentUser = Users.getUsersByUserId(allUsers, session.userId);
+    final userRole = AppRole.fromId(currentUser?.roleID);
+
+    // Fetch restaurant if user is professional
+    if (userRole.isProfessional && session.restaurantId != null) {
+      final restaurants = await Restaurant.fetchRestaurantsFromDB();
+      _restaurant = Restaurant.getRestaurantByRestaurantId(
+          restaurants, session.restaurantId!);
+      _restoState = _restaurant?.valid ?? 0;
+    }
+
+    // Build sections based on role
+    List<_StoreSection> newSections = [];
+
+    // Only show restaurateur sections if user is microRestaurant
+    if (userRole.isProfessional) {
+      _buildVendreSection(newSections, session);
+    }
+
+    // Common sections for all users
+    newSections.add(_StoreSection(
+        Icons.contact_support_rounded, 'Nous contacter', const ContactPage()));
+    newSections.add(
+        _StoreSection(Icons.settings_rounded, 'Paramètres', const Settings()));
+    newSections.add(_StoreSection(Icons.logout_rounded, 'Déconnexion', null,
+        isLogout: true));
+
+    if (!mounted) return;
+    setState(() => sections = newSections);
+  }
+
+  void _buildVendreSection(List<_StoreSection> newSections, session) {
+    switch (_restoState) {
+      case 0: // pending validation
+        newSections.add(_StoreSection(
+            Icons.hourglass_bottom_rounded, 'Mon restaurant', null));
+        newSections.add(_StoreSection(
+            Icons.arrow_forward_rounded, 'Continuer ma demande', null));
+        newSections.add(_StoreSection(
+            Icons.cancel_rounded, 'Annuler la demande', null));
+        break;
+      case 1: // validated
+        newSections.add(_StoreSection(
+            Icons.storefront_rounded,
+            'Mon restaurant',
+            RestaurantDetails(restaurant_id: session.restaurantId!)));
+        newSections.add(_StoreSection(
+            Icons.edit_rounded, 'Modifier mon restaurant',
+            RestaurantFormPage()));
+        newSections.add(_StoreSection(Icons.receipt_long_rounded,
+            'Mes commandes',
+            const UserOrdersPage(showRestaurantOrders: true)));
+        newSections.add(_StoreSection(Icons.workspace_premium_rounded,
+            'Devenir Pro', null));
+        break;
+      default:
+        newSections.add(
+            _StoreSection(Icons.storefront_rounded, 'Mon restaurant', null));
+        newSections.add(_StoreSection(Icons.receipt_long_rounded,
+            'Mes commandes',
+            const UserOrdersPage(showRestaurantOrders: true)));
     }
   }
 
@@ -51,7 +107,7 @@ class _MyStoreState extends State<MyStore> {
             const SizedBox(height: 20),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text(Strings.mySpace, style: AppTypography.headlineLarge()),
+              child: Text('Mon espace', style: AppTypography.headlineLarge()),
             ),
             const SizedBox(height: 20),
             Expanded(
@@ -66,27 +122,38 @@ class _MyStoreState extends State<MyStore> {
                     child: Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: s.isLogout ? AppColors.errorLight : AppColors.card,
+                        color:
+                            s.isLogout ? AppColors.errorLight : AppColors.card,
                         borderRadius: BorderRadius.circular(AppRadius.lg),
                         border: Border.all(color: AppColors.border, width: 0.5),
                       ),
                       child: Row(children: [
                         Container(
-                          width: 48, height: 48,
+                          width: 48,
+                          height: 48,
                           decoration: BoxDecoration(
-                            color: s.isLogout ? AppColors.error.withValues(alpha: 0.12) : AppColors.brandSurface,
+                            color: s.isLogout
+                                ? AppColors.error.withValues(alpha: 0.12)
+                                : AppColors.brandSurface,
                             borderRadius: BorderRadius.circular(AppRadius.md),
                           ),
-                          child: Icon(s.icon, color: s.isLogout ? AppColors.error : AppColors.brand, size: 24),
+                          child: Icon(s.icon,
+                              color: s.isLogout
+                                  ? AppColors.error
+                                  : AppColors.brand,
+                              size: 24),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
                           child: Text(s.label,
                               style: AppTypography.titleMedium().copyWith(
                                   fontSize: 19,
-                                  color: s.isLogout ? AppColors.error : AppColors.ink)),
+                                  color: s.isLogout
+                                      ? AppColors.error
+                                      : AppColors.ink)),
                         ),
-                        const Icon(Icons.chevron_right_rounded, color: AppColors.inkSubtle),
+                        const Icon(Icons.chevron_right_rounded,
+                            color: AppColors.inkSubtle),
                       ]),
                     ),
                   );
@@ -102,13 +169,15 @@ class _MyStoreState extends State<MyStore> {
   void _openSection(int index) {
     final s = sections[index];
     if (s.isLogout) {
-      showDialog(context: context, barrierDismissible: false,
+      showDialog(
+          context: context,
+          barrierDismissible: false,
           builder: (_) => const LogoutFormDialog());
       return;
     }
     if (s.page == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(Strings.noRestaurantData)),
+        const SnackBar(content: Text('Aucune donnée de restaurant.')),
       );
       return;
     }
@@ -121,5 +190,6 @@ class _StoreSection {
   final String label;
   final Widget? page;
   final bool isLogout;
-  const _StoreSection(this.icon, this.label, this.page, {this.isLogout = false});
+  const _StoreSection(this.icon, this.label, this.page,
+      {this.isLogout = false});
 }

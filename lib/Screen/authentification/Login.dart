@@ -4,7 +4,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../Constant/Constant.dart';
@@ -18,6 +17,7 @@ import '../../services/notification_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/strings.dart';
 import '../../utils/toast.dart';
+import '../../providers/users_provider.dart';
 import '../restaurants/RestaurantFormPage.dart';
 import '../verif_confirm/StartAddressSaving.dart';
 import '../verif_confirm/StatusSelectionPage.dart';
@@ -28,6 +28,11 @@ import '../verif_confirm/VerificationPage.dart';
 import '../../widgets/animations.dart';
 import '../../widgets/auth_shell.dart';
 
+// ═══════════════════════════════════════════════════════════
+// WelcomeScreen — Écran post-inscription (inchangé logique)
+// Refonte visuelle : fond brand, check animé, texte blanc
+// ═══════════════════════════════════════════════════════════
+
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
 
@@ -37,26 +42,49 @@ class WelcomeScreen extends StatefulWidget {
 
 class _WelcomeScreenState extends State<WelcomeScreen>
     with TickerProviderStateMixin {
-  late AnimationController _textCtrl;
-  late Animation<double> _textOpacity;
-  late Animation<Offset> _textSlide;
-  late AnimationController _btnCtrl;
-  late Animation<double> _btnFade;
+  late final AnimationController _textCtrl;
+  late final Animation<double> _textOpacity;
+  late final Animation<Offset> _textSlide;
+  late final AnimationController _btnCtrl;
+  late final Animation<double> _btnFade;
   bool _showButton = false;
 
   @override
   void initState() {
     super.initState();
-    _textCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 800));
+
+    _textCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
     _textOpacity = Tween(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _textCtrl, curve: const Interval(0.3, 0.8, curve: AppMotion.standard)));
-    _textSlide = Tween(begin: const Offset(0, 0.12), end: Offset.zero).animate(
-      CurvedAnimation(parent: _textCtrl, curve: const Interval(0.3, 0.8, curve: AppMotion.standard)));
+      CurvedAnimation(
+        parent: _textCtrl,
+        curve: const Interval(0.3, 0.8, curve: AppMotion.standard),
+      ),
+    );
+    _textSlide = Tween(
+      begin: const Offset(0, 0.12),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _textCtrl,
+        curve: const Interval(0.3, 0.8, curve: AppMotion.standard),
+      ),
+    );
     _textCtrl.forward();
-    _btnCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
+
+    _btnCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
     _btnFade = CurvedAnimation(parent: _btnCtrl, curve: AppMotion.standard);
+
     Future.delayed(const Duration(milliseconds: 1200), () {
-      if (mounted) { setState(() => _showButton = true); _btnCtrl.forward(); }
+      if (mounted) {
+        setState(() => _showButton = true);
+        _btnCtrl.forward();
+      }
     });
   }
 
@@ -68,7 +96,10 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   }
 
   Future<void> _continue() async {
-    if (mounted) Navigator.of(context).pop(true);
+    final session = await SessionService.readSession();
+    if (mounted) {
+      Users.chooseCurvedNavigation(session.role.id, session.country, context);
+    }
   }
 
   @override
@@ -79,25 +110,56 @@ class _WelcomeScreenState extends State<WelcomeScreen>
         child: SafeArea(
           child: Center(
             child: Padding(
-              padding: const EdgeInsets.all(32),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.xl,
+                vertical: AppSpacing.lg,
+              ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const AnimatedSuccessCheck(),
-                  const SizedBox(height: 28),
+                  // Cercle check animé sur fond brand doux
+                  Container(
+                    width: 88,
+                    height: 88,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppColors.brandSurface,
+                      border: Border.all(
+                        color: AppColors.brand.withValues(alpha: 0.2),
+                        width: 2,
+                      ),
+                    ),
+                    child: const AnimatedSuccessCheck(),
+                  ),
+
+                  const SizedBox(height: AppSpacing.xl),
+
                   FadeTransition(
                     opacity: _textOpacity,
                     child: SlideTransition(
                       position: _textSlide,
-                      child: Column(children: [
-                        Text(Strings.welcome, style: AppTypography.headlineLarge(), textAlign: TextAlign.center),
-                        const SizedBox(height: 12),
-                        Text(Strings.welcomeSubtitle,
-                            style: AppTypography.bodyLarge(color: AppColors.inkMuted), textAlign: TextAlign.center),
-                      ]),
+                      child: Column(
+                        children: [
+                          Text(
+                            'Bienvenue !',
+                            style: AppTypography.headlineLarge(),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          Text(
+                            'Votre compte a été créé avec succès.\nDécouvrez les meilleurs plats faits maison près de chez vous.',
+                            style: AppTypography.bodyLarge(
+                              color: AppColors.inkMuted,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 36),
+
+                  const SizedBox(height: AppSpacing.xl),
+
                   if (_showButton)
                     FadeTransition(
                       opacity: _btnFade,
@@ -106,7 +168,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                         height: 56,
                         child: ElevatedButton(
                           onPressed: _continue,
-                          child: Text(Strings.discover),
+                          child: const Text('Découvrir'),
                         ),
                       ),
                     ),
@@ -120,6 +182,10 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   }
 }
 
+// ═══════════════════════════════════════════════════════════
+// Login — Refonte complète
+// ═══════════════════════════════════════════════════════════
+
 class Login extends ConsumerStatefulWidget {
   const Login({Key? key}) : super(key: key);
 
@@ -128,98 +194,119 @@ class Login extends ConsumerStatefulWidget {
 }
 
 class _LoginState extends ConsumerState<Login> {
-  List<Users> users = [];
-  List<Restaurant> restaus = [];
+  // ── Données ──────────────────────────────────────────────
+  List<Users> _users = [];
+  List<Restaurant> _restaus = [];
 
-  final TextEditingController nameController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
-  final TextEditingController emailController = TextEditingController();
+  // ── Contrôleurs ──────────────────────────────────────────
+  final _nameCtrl = TextEditingController();
+  final _passwordCtrl = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
-  bool isLoading = false;
-  bool loginFailed = false;
+  // ── État ─────────────────────────────────────────────────
+  bool _isLoading = false;
+  bool _loginFailed = false;
   bool _obscurePassword = true;
 
   @override
   void initState() {
     super.initState();
-    loadData();
+    _loadData();
   }
 
   @override
   void dispose() {
-    nameController.dispose();
-    passwordController.dispose();
+    _nameCtrl.dispose();
+    _passwordCtrl.dispose();
     super.dispose();
   }
 
-  void loadData() async {
-    List<Users> usersList = await Users.fetchUsersFromDB();
-    List<Restaurant>? restausList = await Restaurant.fetchRestaurantsFromDB();
-    setState(() {
-      users = usersList;
-      restaus = restausList ?? [];
-    });
+  // ── Chargement ───────────────────────────────────────────
+  Future<void> _loadData() async {
+    final usersList = await Users.fetchUsersFromDB();
+    final restausList = await Restaurant.fetchRestaurantsFromDB();
+    if (mounted) {
+      setState(() {
+        _users = usersList;
+        _restaus = restausList ?? [];
+      });
+    }
   }
 
-  Future<void> performLogin() async {
-    setState(() => isLoading = true);
+  // ── Connexion ────────────────────────────────────────────
+  Future<void> _performLogin() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() {
+      _isLoading = true;
+      _loginFailed = false;
+    });
+
     try {
-      final user = await _findUserForLogin();
-      if (user == null) { _handleLoginFailure(); return; }
+      final user = await _findUser();
+      if (user == null) {
+        _onLoginFailed();
+        return;
+      }
 
       final role = AppRole.fromId(user.roleID);
       await SessionService.saveUserSession(
-        userId: user.userID, role: role, country: user.country,
+        userId: user.userID,
+        role: role,
+        country: user.country,
       );
 
       if (role.isAdmin) {
-        firstLogin(user);
-      } else if (user.status == "Verified") {
+        _firstLogin(user);
+      } else if (user.status == 'Verified') {
         _handleApprovedUser(user);
       } else {
         _redirectToVerification(user);
       }
     } catch (e) {
       debugPrint('Login error: $e');
-      Toast(context, Strings.connectError, false);
-      _handleLoginFailure();
+      if (mounted)
+        Toast(context, 'Erreur de connexion. Vérifiez votre réseau.', false);
+      _onLoginFailed();
     }
   }
 
-  Future<Users?> _findUserForLogin() async {
-    Users? user = await Users.verifUser(users, nameController.text, passwordController.text);
+  Future<Users?> _findUser() async {
+    Users? user =
+        await Users.verifUser(_users, _nameCtrl.text, _passwordCtrl.text);
     if (user != null) return user;
 
-    user = await Users.loginUser(nameController.text, passwordController.text);
+    user = await Users.loginUser(_nameCtrl.text, _passwordCtrl.text);
     if (user != null) {
       await DatabaseHelper.createUser(user);
       final fresh = await Users.fetchUsersFromDB();
-      if (mounted) setState(() => users = fresh);
+      if (mounted) setState(() => _users = fresh);
       return user;
     }
 
     await Users.getAllUsersDetails();
     final fresh = await Users.fetchUsersFromDB();
-    if (mounted) setState(() => users = fresh);
-    return Users.verifUser(fresh, nameController.text, passwordController.text);
+    if (mounted) setState(() => _users = fresh);
+    return Users.verifUser(fresh, _nameCtrl.text, _passwordCtrl.text);
   }
 
   void _handleApprovedUser(Users user) async {
-    if (user.status == 'deleted_pending') {
-      Toast(context, Strings.get('Ce compte est en cours de suppression.', 'This account is being deleted.'), false);
-      return;
-    }
     if (user.country.trim().isEmpty) {
-      Navigator.pushReplacement(context, CupertinoPageRoute(
-          builder: (_) => StartAddressSaving(userID: user.userID, roleID: user.roleID)));
+      Navigator.pushReplacement(
+          context,
+          CupertinoPageRoute(
+              builder: (_) => StartAddressSaving(
+                  userID: user.userID, roleID: user.roleID)));
     } else if (user.identity == "Verified") {
       _redirectToMainApp(user);
     } else if (user.identity == "En attente") {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => WaitIdentityValidation()));
+      Navigator.push(
+          context, MaterialPageRoute(builder: (_) => WaitIdentityValidation()));
     } else if (user.identity == "Rejected") {
-      Navigator.push(context, MaterialPageRoute(
-          builder: (_) => UserIdentityRejected(objectID: user.userID, user_roleID: user.roleID)));
+      Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (_) => UserIdentityRejected(
+                  objectID: user.userID, user_roleID: user.roleID)));
     } else {
       _redirectToMainApp(user);
     }
@@ -227,29 +314,25 @@ class _LoginState extends ConsumerState<Login> {
 
   void _redirectToMainApp(Users user) async {
     final role = AppRole.fromId(user.roleID);
-    if (role.isProfessional) {
+    final r = await Restaurant.getRestaurantByUser(_restaus, user.userID);
+    if (r != null) await SessionService.setRestaurantId(r.restaurantID);
+
+    if (role.isProfessional || r != null) {
       NotificationService.subscribeToRestaurantNotifications();
-      _handleRestaurantValidation(user);
+      _handleRestaurantValidation(user, r);
     } else {
-      if (role.isIndividual) {
-        final r = await Restaurant.getRestaurantByUser(restaus, user.userID);
-        if (r != null) await SessionService.setRestaurantId(r.restaurantID);
-      }
       NotificationService.subscribeToRestaurantNotifications();
-      firstLogin(user);
+      _firstLogin(user);
     }
   }
 
-  void _handleRestaurantValidation(Users user) async {
-    final restau = await Restaurant.getRestaurantByUser(restaus, user.userID);
+  void _handleRestaurantValidation(Users user, Restaurant? restau) async {
+    if (!mounted) return;
     if (restau == null) {
       Navigator.push(context, MaterialPageRoute(builder: (_) => RestaurantFormPage()));
-    } else if (restau.valid == 0) {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => WaitRestaurantValidation()));
-    } else if (restau.valid == 1) {
-      await SessionService.setRestaurantId(restau.restaurantID);
+    } else if (restau.valid == 0 || restau.valid == 1) {
       NotificationService.subscribeToRestaurantNotifications();
-      firstLogin(user);
+      if (mounted) Users.chooseCurvedNavigation(3, user.country, context);
     } else {
       Navigator.push(context, MaterialPageRoute(
           builder: (_) => RestaurantUpdateFormPage(user: user, restaurant: restau)));
@@ -258,53 +341,60 @@ class _LoginState extends ConsumerState<Login> {
 
   void _redirectToVerification(Users user) {
     final country = user.country.trim().isEmpty ? "Bénin" : user.country.trim();
-    Navigator.push(context, MaterialPageRoute(builder: (_) => VerificationPage(
-      userID: user.userID, email: user.email, roleID: user.roleID,
-      password: passwordController.text, password_crypte: user.password,
-      firstname: user.firstname, lastname: user.lastname, username: user.username,
-      telephone: user.telephone.toString(), country: country,
-      indicatif: _indicatif(country),
-    )));
+    Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (_) => VerificationPage(
+                  userID: user.userID,
+                  email: user.email,
+                  roleID: user.roleID,
+                  password: _passwordCtrl.text,
+                  password_crypte: user.password,
+                  firstname: user.firstname,
+                  lastname: user.lastname,
+                  username: user.username,
+                  telephone: user.telephone.toString(),
+                  country: country,
+                  indicatif: _indicatif(country),
+                )));
   }
 
-  void _handleLoginFailure() {
-    setState(() { isLoading = false; loginFailed = true; });
+  void _onLoginFailed() {
+    if (!mounted) return;
+    setState(() {
+      _isLoading = false;
+      _loginFailed = true;
+    });
     Toast(context, Strings.of('login_failed'), false);
   }
 
   String _indicatif(String c) {
     switch (c) {
-      case "Bénin": return "+229";
-      case "Côte d'Ivoire": return "+225";
-      case "France": return "+33";
-      default: return "+229";
+      case 'Bénin':
+        return '+229';
+      case "Côte d'Ivoire":
+        return '+225';
+      case 'France':
+        return '+33';
+      default:
+        return '+229';
     }
   }
 
-  Future<void> firstLogin(Users user) async {
+  Future<void> _firstLogin(Users user) async {
     NotificationService.subscribeToRestaurantNotifications();
-
-    final role = AppRole.fromId(user.roleID);
-    if (role.isAdmin) {
-      await Users.updateDerniereConnexion(user.userID);
-      if (mounted) Users.chooseCurvedNavigation(user.roleID, user.country, context);
-      return;
-    }
-
     final prefs = await SharedPreferences.getInstance();
-    final key = 'welcomed_${user.userID}';
-    final alreadyShown = prefs.getBool(key) ?? false;
+    final key = 'has_seen_welcome_${user.userID}';
+    final seen = prefs.getBool(key) ?? false;
 
-    if (!alreadyShown) {
+    if (!seen) {
+      await prefs.setBool(key, true);
       if (mounted) {
-        final result = await Navigator.push<bool>(
-          context, CupertinoPageRoute(builder: (_) => const WelcomeScreen()));
-        if (result == true) {
-          await prefs.setBool(key, true);
-        }
+        Navigator.push(
+          context,
+          CupertinoPageRoute(builder: (_) => const WelcomeScreen()),
+        );
       }
-      await Users.updateDerniereConnexion(user.userID);
-      if (mounted) Users.chooseCurvedNavigation(user.roleID, user.country, context);
     } else {
       await Users.updateDerniereConnexion(user.userID);
       if (mounted) {
@@ -313,109 +403,162 @@ class _LoginState extends ConsumerState<Login> {
     }
   }
 
+  // ── Build ─────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-
     return GestureDetector(
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
       child: AuthShell(
         title: Strings.of('login_title'),
         subtitle: Strings.of('login_subtitle'),
-        form: _buildForm(size),
-        footer: GestureDetector(
-          onTap: () {
-            Navigator.pop(context);
-            nameController.clear();
-            passwordController.clear();
-            _formKey.currentState?.reset();
-          },
-          child: RichText(
-            text: TextSpan(
-              text: Strings.of('dont_have_account'),
-              style: kHaveAnAccountStyle(size),
-              children: [
-                TextSpan(
-                  text: " ${Strings.of('signup')}",
-                  style: kLoginOrSignUpTextStyle(size),
-                ),
-              ],
+        form: _buildForm(),
+        footer: _buildFooter(),
+      ),
+    );
+  }
+
+  Widget _buildFooter() {
+    return GestureDetector(
+      onTap: () {
+        Navigator.pop(context);
+        _nameCtrl.clear();
+        _passwordCtrl.clear();
+        _formKey.currentState?.reset();
+      },
+      child: RichText(
+        text: TextSpan(
+          text: Strings.of('dont_have_account'),
+          style: AppTypography.bodyLarge(color: AppColors.inkMuted),
+          children: [
+            TextSpan(
+              text: '  ${Strings.of('signup')}',
+              style: AppTypography.bodyLarge(color: AppColors.brand).copyWith(
+                fontWeight: FontWeight.w700,
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildForm(Size size) {
+  Widget _buildForm() {
     return Form(
       key: _formKey,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          TextFormField(
-            style: AppTypography.bodyLarge(),
-            controller: nameController,
-            decoration: InputDecoration(
-              prefixIcon: const Icon(Icons.person_outline_rounded),
-              hintText: Strings.of('username_or_email'),
-            ),
-            validator: (v) {
-              if (v == null || v.isEmpty) return Strings.of('enter_username');
-              if (v.length < 4) return Strings.of('min_4_chars');
-              if (v.length > 13) return Strings.of('max_13_chars');
-              return null;
+          // ── Identifiant ───────────────────────────────────
+          Builder(
+            builder: (context) {
+              final colorScheme = Theme.of(context).colorScheme;
+              return TextFormField(
+                controller: _nameCtrl,
+                style: AppTypography.bodyLarge(color: colorScheme.onSurface),
+                textInputAction: TextInputAction.next,
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.person_outline_rounded),
+                  hintText: Strings.of('username_or_email'),
+                ),
+                 validator: (v) {
+                   if (v == null || v.isEmpty)
+                     return Strings.of('enter_username');
+                   if (v.length < 4) return Strings.of('min_4_chars');
+                   return null;
+                 },
+              );
             },
           ),
-          const SizedBox(height: 16),
-          TextFormField(
-            style: AppTypography.bodyLarge(),
-            controller: passwordController,
-            obscureText: _obscurePassword,
-            decoration: InputDecoration(
-              prefixIcon: const Icon(Icons.lock_outline_rounded),
-              suffixIcon: IconButton(
-                icon: Icon(_obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined),
-                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+
+          const SizedBox(height: AppSpacing.md),
+
+          // ── Mot de passe ──────────────────────────────────
+          Builder(
+            builder: (context) {
+              final colorScheme = Theme.of(context).colorScheme;
+              return TextFormField(
+                controller: _passwordCtrl,
+                style: AppTypography.bodyLarge(color: colorScheme.onSurface),
+                obscureText: _obscurePassword,
+                textInputAction: TextInputAction.done,
+                onFieldSubmitted: (_) => _performLogin(),
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.lock_outline_rounded),
+                  hintText: Strings.of('password'),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                    ),
+                    onPressed: () =>
+                        setState(() => _obscurePassword = !_obscurePassword),
+                  ),
+                ),
+                validator: (v) {
+                  if (v == null || v.isEmpty)
+                    return Strings.of('enter_password');
+                  if (v.length < 7) return Strings.of('min_6_chars');
+                  return null;
+                },
+              );
+            },
+          ),
+
+          // ── Mot de passe oublié ───────────────────────────
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: () {
+                _nameCtrl.clear();
+                _passwordCtrl.clear();
+                _formKey.currentState?.reset();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => EmailInputScreen(listusers: _users),
+                  ),
+                );
+              },
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.xs,
+                  vertical: AppSpacing.xs,
+                ),
               ),
-              hintText: Strings.of('password'),
+              child: Text(
+                Strings.of('forgotten_password'),
+                style: AppTypography.labelMedium(color: AppColors.brand),
+              ),
             ),
-            validator: (v) {
-              if (v == null || v.isEmpty) return Strings.of('enter_password');
-              if (v.length < 7) return Strings.of('min_6_chars');
-              if (v.length > 13) return Strings.of('max_13_chars');
-              return null;
-            },
           ),
-          const SizedBox(height: 24),
+
+          const SizedBox(height: AppSpacing.md),
+
+          // ── Bannière erreur ───────────────────────────────
+          if (_loginFailed)
+            _LoginErrorBanner(
+              onDismiss: () => setState(() => _loginFailed = false),
+            ),
+
+          if (_loginFailed) const SizedBox(height: AppSpacing.md),
+
+          // ── Bouton connexion ──────────────────────────────
           SizedBox(
             width: double.infinity,
             height: 56,
             child: ElevatedButton(
-              onPressed: () async {
-                if (nameController.text.trim().isEmpty || passwordController.text.isEmpty) {
-                  Toast(context, Strings.of('login_missing_fields'), false);
-                } else {
-                  await performLogin();
-                }
-              },
-              child: Text(Strings.of('login')),
-            ),
-          ),
-          const SizedBox(height: 16),
-          GestureDetector(
-            onTap: () {
-              nameController.clear();
-              passwordController.clear();
-              _formKey.currentState?.reset();
-              Navigator.push(context, MaterialPageRoute(
-                  builder: (_) => EmailInputScreen(listusers: users)));
-            },
-            child: Align(
-              alignment: Alignment.center,
-              child: Text(
-                Strings.of('forgotten_password'),
-                style: AppTypography.labelLarge(color: AppColors.brand),
-              ),
+              onPressed: _isLoading ? null : _performLogin,
+              child: _isLoading
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation(Colors.white),
+                      ),
+                    )
+                  : Text(Strings.of('login')),
             ),
           ),
         ],
@@ -424,3 +567,51 @@ class _LoginState extends ConsumerState<Login> {
   }
 }
 
+// ═══════════════════════════════════════════════════════════
+// _LoginErrorBanner — Bandeau d'erreur dismissible
+// ═══════════════════════════════════════════════════════════
+class _LoginErrorBanner extends StatelessWidget {
+  const _LoginErrorBanner({required this.onDismiss});
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.errorLight,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(
+          color: AppColors.error.withValues(alpha: 0.25),
+        ),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.error_outline_rounded,
+            color: AppColors.error,
+            size: 18,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              Strings.of('login_failed'),
+              style: AppTypography.labelMedium(color: AppColors.error),
+            ),
+          ),
+          GestureDetector(
+            onTap: onDismiss,
+            child: const Icon(
+              Icons.close_rounded,
+              color: AppColors.error,
+              size: 16,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

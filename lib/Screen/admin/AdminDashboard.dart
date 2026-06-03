@@ -15,7 +15,6 @@ import 'package:path_provider/path_provider.dart';
 import '../../core/app_role.dart';
 import '../../services/session_service.dart';
 import '../../theme/app_theme.dart';
-import '../../utils/strings.dart';
 import '../../utils/toast.dart';
 import '../CountryPage.dart';
 import 'AdminSupportMessagerie.dart';
@@ -172,10 +171,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
     final result = await Restaurant.updateRestaurantStatus(restaurant.restaurantID, 1);
     if (!mounted) return;
     if (result == 'success') {
-      Toast(context, '${restaurant.name} ${Strings.validatedWithSuccess}', true);
+      Toast(context, '${restaurant.name} validé avec succès', true);
       _loadStats();
     } else {
-      Toast(context, '${Strings.error} : $result', false);
+      Toast(context, 'Erreur : $result', false);
     }
   }
 
@@ -185,22 +184,22 @@ class _AdminDashboardState extends State<AdminDashboard> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
-        title: Text(Strings.rejectReason, style: AppTypography.titleMedium()),
+        title: Text('Motif de rejet', style: AppTypography.titleMedium()),
         content: TextField(
           controller: remarkCtrl,
-          decoration: InputDecoration(
-            hintText: Strings.rejectReasonHint,
+          decoration: const InputDecoration(
+            hintText: 'Raison du rejet…',
           ),
           maxLines: 3,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text(Strings.cancel),
+            child: const Text('Annuler'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, remarkCtrl.text),
-            child: Text(Strings.reject),
+            child: const Text('Rejeter'),
           ),
         ],
       ),
@@ -209,10 +208,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
     final result = await Restaurant.updateRestaurantStatus(restaurant.restaurantID, 2);
     if (!mounted) return;
     if (result == 'success') {
-      Toast(context, '${restaurant.name} ${Strings.rejectedStatus}', false);
+      Toast(context, '${restaurant.name} rejeté', false);
       _loadStats();
     } else {
-      Toast(context, '${Strings.error} : $result', false);
+      Toast(context, 'Erreur : $result', false);
     }
   }
 
@@ -242,9 +241,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
             title: TextField(
               controller: searchCtrl,
               autofocus: true,
-              decoration: InputDecoration(
-                hintText: Strings.searchHint,
-                prefixIcon: const Icon(Icons.search_rounded, size: 20),
+              decoration: const InputDecoration(
+                hintText: 'Rechercher un utilisateur ou un restaurant…',
+                prefixIcon: Icon(Icons.search_rounded, size: 20),
               ),
               onChanged: (_) => setDialogState(() {}),
             ),
@@ -304,7 +303,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         if (userResults.isEmpty && restoResults.isEmpty)
                           Padding(
                             padding: const EdgeInsets.all(16),
-                            child: Text(Strings.noResults,
+                            child: Text('Aucun résultat',
                                 style: AppTypography.bodyMedium(
                                     color: AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted))),
                           ),
@@ -315,7 +314,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: Text(Strings.close),
+                child: const Text('Fermer'),
               ),
             ],
           );
@@ -333,29 +332,29 @@ class _AdminDashboardState extends State<AdminDashboard> {
           Icon(Icons.file_download_rounded,
               color: AppColors.resolve(AppColors.brand, AppDarkColors.brand)),
           const SizedBox(width: 10),
-          Text(Strings.exportData, style: AppTypography.titleMedium()),
+          Text('Exporter les données', style: AppTypography.titleMedium()),
         ]),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
-          _ExportTile(Icons.people_rounded, Strings.users,
-              Strings.completeUserList, Colors.blue, () {
+          _ExportTile(Icons.people_rounded, 'Utilisateurs',
+              'Liste complète des utilisateurs', Colors.blue, () {
             Navigator.pop(ctx);
             _doExport('users');
           }),
           const SizedBox(height: 8),
-          _ExportTile(Icons.storefront_rounded, Strings.restaurants,
-              Strings.completeRestaurantList, AppColors.resolve(AppColors.accent, AppDarkColors.accent), () {
+          _ExportTile(Icons.storefront_rounded, 'Restaurants',
+              'Liste complète des restaurants', AppColors.resolve(AppColors.accent, AppDarkColors.accent), () {
             Navigator.pop(ctx);
             _doExport('restaurants');
           }),
           const SizedBox(height: 8),
-          _ExportTile(Icons.receipt_long_rounded, Strings.orders,
-              Strings.ordersHistory, AppColors.resolve(AppColors.success, AppDarkColors.success), () {
+          _ExportTile(Icons.receipt_long_rounded, 'Commandes',
+              'Historique des commandes', AppColors.resolve(AppColors.success, AppDarkColors.success), () {
             Navigator.pop(ctx);
             _doExport('orders');
           }),
           const SizedBox(height: 8),
-          _ExportTile(Icons.description_rounded, Strings.completeReport,
-              Strings.usersRestaurantsOrders, AppColors.resolve(AppColors.brand, AppDarkColors.brand), () {
+          _ExportTile(Icons.description_rounded, 'Rapport complet',
+              'Utilisateurs + restaurants + commandes', AppColors.resolve(AppColors.brand, AppDarkColors.brand), () {
             Navigator.pop(ctx);
             _doExport('report');
           }),
@@ -363,7 +362,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text(Strings.cancel, style: AppTypography.labelMedium(
+            child: Text('Annuler', style: AppTypography.labelMedium(
                 color: AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted))),
           ),
         ],
@@ -398,7 +397,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               r.restaurantID.toString(), _esc(r.name),
               _esc(owner != null ? '${owner.firstname} ${owner.lastname}' : '#${r.userID}'),
               _esc(r.categories),
-              r.valid == 1 ? 'Oui' : r.valid == 2 ? 'Rejeté' : Strings.pending,
+              r.valid == 1 ? 'Oui' : r.valid == 2 ? 'Rejeté' : 'En attente',
             ];
           }).toList(),
         );
@@ -449,7 +448,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               r.restaurantID.toString(), _esc(r.name),
               _esc(owner != null ? '${owner.firstname} ${owner.lastname}' : '#${r.userID}'),
               _esc(r.categories),
-              r.valid == 1 ? 'Oui' : r.valid == 2 ? 'Rejeté' : Strings.pending,
+              r.valid == 1 ? 'Oui' : r.valid == 2 ? 'Rejeté' : 'En attente',
             ].join(';');
           }),
           '',
@@ -480,7 +479,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               Icon(Icons.check_circle_rounded,
                   color: AppColors.resolve(AppColors.success, AppDarkColors.success)),
               const SizedBox(width: 10),
-              Flexible(child: Text(Strings.exportSuccess, style: AppTypography.titleMedium())),
+              Flexible(child: Text('Export réussi', style: AppTypography.titleMedium())),
             ]),
             content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(filename, style: AppTypography.bodyLarge()),
@@ -491,14 +490,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: Text(Strings.close),
+                child: const Text('Fermer'),
               ),
             ],
           ),
         );
       }
     } catch (e) {
-      if (mounted) Toast(context, '${Strings.exportErrorLabel} : $e', false);
+      if (mounted) Toast(context, 'Erreur export : $e', false);
     }
   }
 
@@ -614,7 +613,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('${Strings.hello}, $_userName',
+                              Text('Bonjour, $_userName',
                                 style: GoogleFonts.plusJakartaSans(
                                   fontSize: 24, fontWeight: FontWeight.w700,
                                   color: Colors.white, height: 1.2,
@@ -703,14 +702,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
           const SizedBox(height: 8),
           Row(children: [
             Expanded(
-              child: Text(Strings.overview,
+              child: Text('Vue d\'ensemble',
                   style: AppTypography.titleLarge().copyWith(fontSize: 18)),
             ),
             IconButton(
               icon: Icon(Icons.search_rounded,
                   color: AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted), size: 22),
               onPressed: _showSearchDialog,
-              tooltip: Strings.search,
+              tooltip: 'Rechercher',
             ),
             if (_pendingRestaurantCount > 0)
               Container(
@@ -720,7 +719,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   color: AppColors.resolve(AppColors.errorLight, AppDarkColors.errorLight),
                   borderRadius: BorderRadius.circular(99),
                 ),
-                child: Text('$_pendingRestaurantCount ${Strings.pending.toLowerCase()}',
+                child: Text('$_pendingRestaurantCount en attente',
                     style: AppTypography.labelMedium(
                         color: AppColors.resolve(AppColors.error, AppDarkColors.error)).copyWith(fontSize: 10)),
               ),
@@ -734,21 +733,21 @@ class _AdminDashboardState extends State<AdminDashboard> {
             mainAxisSpacing: 12,
             childAspectRatio: 1.25,
             children: [
-              _KpiCard(Strings.revenue, '${_totalRevenue.toStringAsFixed(0)} €',
+              _KpiCard('Revenus', '${_totalRevenue.toStringAsFixed(0)} €',
                   Icons.euro_rounded,
                   AppColors.resolve(AppColors.success, AppDarkColors.success)),
-              _KpiCard(Strings.orders, '$_totalOrders',
+              _KpiCard('Commandes', '$_totalOrders',
                   Icons.receipt_long_rounded,
                   AppColors.resolve(AppColors.accent, AppDarkColors.accent),
-                  subtitle: '$_confirmedOrders ${Strings.confirmedPlural}'),
-              _KpiCard(Strings.pending, '$_pendingOrders',
+                  subtitle: '$_confirmedOrders confirmées'),
+              _KpiCard('En attente', '$_pendingOrders',
                   Icons.pending_actions_rounded,
                   AppColors.resolve(AppColors.error, AppDarkColors.error),
-                  subtitle: '$_cancelledOrders ${Strings.cancelledPlural}'),
-              _KpiCard(Strings.users, '$_totalUsers',
+                  subtitle: '$_cancelledOrders annulées'),
+              _KpiCard('Utilisateurs', '$_totalUsers',
                   Icons.people_rounded,
                   AppColors.resolve(AppColors.brand, AppDarkColors.brand),
-                  subtitle: _newUsersThisMonth > 0 ? '+$_newUsersThisMonth ${Strings.thisMonth}' : null),
+                  subtitle: _newUsersThisMonth > 0 ? '+$_newUsersThisMonth ce mois' : null),
             ],
           ),
         ],
@@ -782,7 +781,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(Strings.pendingRestaurantsValidation,
+              child: Text('Restaurants en attente de validation',
                   style: AppTypography.titleMedium()),
             ),
             Container(
@@ -834,7 +833,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     icon: Icon(Icons.close_rounded,
                         color: AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted), size: 20),
                     onPressed: () => _rejectRestaurant(resto),
-                    tooltip: Strings.reject,
+                    tooltip: 'Rejeter',
                     style: IconButton.styleFrom(padding: const EdgeInsets.all(6)),
                   ),
                   const SizedBox(width: 4),
@@ -842,7 +841,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     icon: Icon(Icons.check_circle_rounded,
                         color: AppColors.resolve(AppColors.success, AppDarkColors.success), size: 22),
                     onPressed: () => _validateRestaurant(resto),
-                    tooltip: Strings.validate,
+                    tooltip: 'Valider',
                     style: IconButton.styleFrom(padding: const EdgeInsets.all(6)),
                   ),
                 ]),
@@ -879,7 +878,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             Icon(Icons.flash_on_rounded,
                 color: AppColors.resolve(AppColors.accent, AppDarkColors.accent), size: 20),
             const SizedBox(width: 8),
-            Text(Strings.quickActions,
+            Text('Actions rapides',
                 style: AppTypography.titleLarge().copyWith(fontSize: 18)),
           ]),
           const SizedBox(height: 12),
@@ -888,7 +887,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               Expanded(
                 child: _QuickActionCard(
                   icon: Icons.person_add_rounded,
-                  label: Strings.addAdmin,
+                  label: 'Ajouter admin',
                   color: Colors.blue,
                   onTap: () => _showAddUserDialog(roleID: 1),
                 ),
@@ -898,7 +897,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             Expanded(
               child: _QuickActionCard(
                 icon: Icons.file_download_rounded,
-                label: Strings.export,
+                label: 'Exporter',
                 color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
                 onTap: _exportData,
               ),
@@ -907,7 +906,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             Expanded(
               child: _QuickActionCard(
                 icon: Icons.refresh_rounded,
-                label: Strings.refresh,
+                label: 'Actualiser',
                 color: AppColors.resolve(AppColors.success, AppDarkColors.success),
                 onTap: _loadStats,
               ),
@@ -928,13 +927,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
             Icon(Icons.grid_view_rounded,
                 color: AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted), size: 20),
             const SizedBox(width: 8),
-            Text(Strings.management, style: AppTypography.titleLarge().copyWith(fontSize: 18)),
+            Text('Gestion', style: AppTypography.titleLarge().copyWith(fontSize: 18)),
           ]),
           const SizedBox(height: 12),
           _buildSection(
-            Strings.users, Icons.people_rounded, Colors.blue,
+            'Utilisateurs', Icons.people_rounded, Colors.blue,
             '$_totalUsers',
-            subtitle: _newUsersThisMonth > 0 ? '+$_newUsersThisMonth ${Strings.thisMonth}' : null,
+            subtitle: _newUsersThisMonth > 0 ? '+$_newUsersThisMonth ce mois' : null,
             onTap: () {
               if (_userRole == AppRole.superAdmin) {
                 Navigator.push(context, CupertinoPageRoute(
@@ -950,7 +949,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           ),
           const SizedBox(height: 8),
           _buildSection(
-            Strings.restaurants, Icons.storefront_rounded,
+            'Restaurants', Icons.storefront_rounded,
             AppColors.resolve(AppColors.accent, AppDarkColors.accent),
             '$_totalRestaurants',
             badge: _pendingRestaurantCount > 0 ? '+$_pendingRestaurantCount' : null,
@@ -966,7 +965,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           ),
           const SizedBox(height: 8),
           _buildSection(
-            Strings.livreurs, Icons.delivery_dining_rounded,
+            'Livreurs', Icons.delivery_dining_rounded,
             AppColors.resolve(AppColors.success, AppDarkColors.success),
             '$_totalLivreurs',
             onTap: () {
@@ -982,7 +981,23 @@ class _AdminDashboardState extends State<AdminDashboard> {
           if (_userRole == AppRole.superAdmin) ...[
             const SizedBox(height: 8),
             _buildSection(
-              Strings.administrators, Icons.admin_panel_settings_rounded,
+              'Support Messagerie', Icons.support_agent_rounded,
+              AppColors.resolve(AppColors.brand, AppDarkColors.brand), '',
+              subtitle: 'Discuter avec les utilisateurs',
+              onTap: () => Navigator.push(context, MaterialPageRoute(
+                  builder: (_) => AdminSupportMessagerie(country: _userCountry))),
+            ),
+            const SizedBox(height: 8),
+            _buildSection(
+              'Audit Log', Icons.history_rounded,
+              AppColors.resolve(AppColors.accent, AppDarkColors.accent), '',
+              subtitle: 'Traçabilité des actions',
+              onTap: () => Navigator.push(context, MaterialPageRoute(
+                  builder: (_) => AuditLogPage(country: _userCountry))),
+            ),
+            const SizedBox(height: 8),
+            _buildSection(
+              'Administrateurs', Icons.admin_panel_settings_rounded,
               AppColors.resolve(AppColors.error, AppDarkColors.error),
               '—',
               onTap: () {
@@ -990,22 +1005,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     builder: (_) => CountryPage(sectionType: "administrateurs")));
               },
               onAdd: () => _showAddUserDialog(roleID: 1),
-            ),
-            const SizedBox(height: 8),
-            _buildSection(
-              Strings.supportChat, Icons.support_agent_rounded,
-              AppColors.resolve(AppColors.brand, AppDarkColors.brand), '',
-              subtitle: Strings.chatWithUsers,
-              onTap: () => Navigator.push(context, MaterialPageRoute(
-                  builder: (_) => AdminSupportMessagerie(country: _userCountry))),
-            ),
-            const SizedBox(height: 8),
-            _buildSection(
-              Strings.auditLog, Icons.history_rounded,
-              AppColors.resolve(AppColors.accent, AppDarkColors.accent), '',
-              subtitle: Strings.auditTrail,
-              onTap: () => Navigator.push(context, MaterialPageRoute(
-                  builder: (_) => AuditLogPage(country: _userCountry))),
             ),
           ],
         ],
@@ -1118,7 +1117,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   color: AppColors.resolve(AppColors.brand, AppDarkColors.brand), size: 20),
             ),
             const SizedBox(width: 12),
-            Text(roleID == 1 ? Strings.addAdmin : Strings.addUserLabel,
+            Text(roleID == 1 ? 'Ajouter un admin' : 'Ajouter un utilisateur',
                 style: AppTypography.titleMedium()),
           ]),
           content: SingleChildScrollView(
@@ -1126,33 +1125,33 @@ class _AdminDashboardState extends State<AdminDashboard> {
               const SizedBox(height: 8),
               TextField(
                 controller: firstnameCtrl,
-                decoration: InputDecoration(
-                  labelText: Strings.firstName,
-                  prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
+                decoration: const InputDecoration(
+                  labelText: 'Prénom',
+                  prefixIcon: Icon(Icons.person_outline_rounded, size: 20),
                 ),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: lastnameCtrl,
-                decoration: InputDecoration(
-                  labelText: Strings.lastName,
-                  prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
+                decoration: const InputDecoration(
+                  labelText: 'Nom',
+                  prefixIcon: Icon(Icons.person_outline_rounded, size: 20),
                 ),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: usernameCtrl,
-                decoration: InputDecoration(
-                  labelText: Strings.username,
-                  prefixIcon: const Icon(Icons.badge_outlined, size: 20),
+                decoration: const InputDecoration(
+                  labelText: "Nom d'utilisateur",
+                  prefixIcon: Icon(Icons.badge_outlined, size: 20),
                 ),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: emailCtrl,
-                decoration: InputDecoration(
-                  labelText: Strings.email,
-                  prefixIcon: const Icon(Icons.email_outlined, size: 20),
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  prefixIcon: Icon(Icons.email_outlined, size: 20),
                 ),
                 keyboardType: TextInputType.emailAddress,
               ),
@@ -1161,7 +1160,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 controller: passwordCtrl,
                 obscureText: !showPassword,
                 decoration: InputDecoration(
-                  labelText: Strings.password,
+                  labelText: 'Mot de passe',
                   prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
                   suffixIcon: IconButton(
                     icon: Icon(showPassword
@@ -1177,7 +1176,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: Text(Strings.cancel,
+              child: Text('Annuler',
                   style: AppTypography.labelMedium(
                       color: AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted))),
             ),
@@ -1204,7 +1203,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   final isSuccess = result is int && result > 0;
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                     content: Text(isSuccess
-                        ? Strings.userCreatedSuccess
+                        ? 'Utilisateur créé avec succès'
                         : result.toString()),
                     behavior: SnackBarBehavior.floating,
                     shape: RoundedRectangleBorder(
@@ -1216,7 +1215,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   }
                 }
               },
-              child: Text(Strings.create),
+              child: const Text('Créer'),
             ),
           ],
         ),

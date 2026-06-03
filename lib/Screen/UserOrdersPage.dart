@@ -8,7 +8,6 @@ import 'package:dios_delices/modeles/ligne_commande.dart';
 import 'package:dios_delices/modeles/restaurant.dart';
 import 'package:dios_delices/modeles/users.dart';
 import 'package:dios_delices/services/commande_api.dart';
-import 'package:dios_delices/services/livreur_api.dart';
 import 'package:dios_delices/services/session_service.dart';
 import 'package:dios_delices/theme/app_theme.dart';
 import 'package:flutter/material.dart';
@@ -17,7 +16,6 @@ import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../utils/strings.dart';
 import 'ChatScreen.dart';
 
 class UserOrdersPage extends StatefulWidget {
@@ -37,14 +35,15 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
     ).hasMatch(text);
 
     if (isInvalidAuth) {
-      return Strings.get('Connexion impossible : identifiants de connexion incorrects. Veuillez vous reconnecter.', 'Login failed: incorrect credentials. Please log in again.');
+      return 'Connexion impossible : identifiants de connexion incorrects. Veuillez vous reconnecter.';
     }
 
-    return '${Strings.error} : ${e.toString()}';
+    return 'Erreur : ${e.toString()}';
   }
 
   List<Commande> commandes = [];
   bool isLoading = true;
+  bool _restoValid = true;
   Map<int, String> dishNames = {};
   Map<int, String> restoNames = {};
   String? statusFilter;
@@ -59,31 +58,23 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
   }
 
   Future<void> _listen() async {
-    try {
-      final query = QueryBuilder<ParseObject>(ParseObject('Commande'));
-      sub = await liveQuery.client.subscribe(query);
-      sub!.on(LiveQueryEvent.create, (_) async {
-        await Commande.refreshLocalCommandes();
-        await loadOrders();
-      });
-      sub!.on(LiveQueryEvent.update, (_) async {
-        await Commande.refreshLocalCommandes();
-        await loadOrders();
-      });
-      sub!.on(LiveQueryEvent.delete, (_) async {
-        await Commande.refreshLocalCommandes();
-        await loadOrders();
-      });
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_buildAuthErrorMessage(e)),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    }
+    final query = QueryBuilder<ParseObject>(ParseObject('Commande'));
+    sub = await liveQuery.client.subscribe(query);
+    sub!.on(LiveQueryEvent.create, (_) async {
+      await Commande.refreshLocalCommandes();
+      await LigneCommande.getAllLignesCommande();
+      await loadOrders();
+    });
+    sub!.on(LiveQueryEvent.update, (_) async {
+      await Commande.refreshLocalCommandes();
+      await LigneCommande.getAllLignesCommande();
+      await loadOrders();
+    });
+    sub!.on(LiveQueryEvent.delete, (_) async {
+      await Commande.refreshLocalCommandes();
+      await LigneCommande.getAllLignesCommande();
+      await loadOrders();
+    });
   }
 
   @override
@@ -94,24 +85,67 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
 
   Future<void> loadOrders() async {
     final session = await SessionService.readSession();
+
+    // Vérifier la validité du restaurant pour les restaurateurs
+    if (widget.showRestaurantOrders && session.restaurantId != null) {
+      final restaurants = await Restaurant.fetchRestaurantsFromDB();
+      final resto = Restaurant.getRestaurantByRestaurantId(
+          restaurants, session.restaurantId!);
+      _restoValid = resto?.valid == 1;
+    }
+
+    await Commande.refreshLocalCommandes(); // Refresh orders from Parse first!
+    await LigneCommande
+        .getAllLignesCommande(); // Refresh order items from Parse too!
     final allC = await Commande.fetchCommandesFromDB();
     final allD = await Dish.fetchDishesFromDB();
     final allR = await Restaurant.fetchRestaurantsFromDB();
 
+    print("loadOrders: ${allC.length} orders in local DB");
+    print(
+        "loadOrders: Current user ID = ${session.userId} (type: ${session.userId.runtimeType})");
+    for (var i = 0; i < allC.length; i++) {
+      print(
+          "loadOrders: AllC[$i] - userID: ${allC[i].userID} (type: ${allC[i].userID.runtimeType}), restaurateurID: ${allC[i].restaurateurID} (type: ${allC[i].restaurateurID.runtimeType})");
+    }
+
     final dn = <int, String>{};
     for (final d in allD) {
-      dn[d.dishID] = d.name ?? '${Strings.get('Plat', 'Dish')} ${d.dishID}';
+      dn[d.dishID] = d.name ?? 'Plat ${d.dishID}';
     }
     final rn = <int, String>{};
     for (final r in allR) {
       rn[r.restaurantID] = r.name;
     }
 
-    var filtered = widget.showRestaurantOrders
-        ? allC.where((c) => c.restaurateurID == session.userId).toList()
-        : allC.where((c) => c.userID == session.userId).toList();
+    var filtered = <Commande>[];
+    for (var c in allC) {
+      print("loadOrders: Checking order #${c.commandeID}:");
+      if (widget.showRestaurantOrders) {
+        print(
+            "loadOrders:   - c.restaurateurID (${c.restaurateurID}) == session.userId (${session.userId})? ${c.restaurateurID == session.userId}");
+        if (c.restaurateurID == session.userId) {
+          filtered.add(c);
+        }
+      } else {
+        print(
+            "loadOrders:   - c.userID (${c.userID}) == session.userId (${session.userId})? ${c.userID == session.userId}");
+        if (c.userID == session.userId) {
+          filtered.add(c);
+        }
+      }
+    }
+    print(
+        "loadOrders: Filtered orders before status filter: ${filtered.length}");
+    print("loadOrders: Status filter = $statusFilter");
     if (statusFilter != null)
       filtered = filtered.where((c) => c.status == statusFilter).toList();
+    print(
+        "loadOrders: Filtered orders after status filter: ${filtered.length}");
+    for (var i = 0; i < filtered.length; i++) {
+      print(
+          "loadOrders: Order $i - ID: ${filtered[i].commandeID}, userID: ${filtered[i].userID}, status: ${filtered[i].status}");
+    }
     filtered.sort((a, b) => b.dateCommande.compareTo(a.dateCommande));
 
     if (!mounted) return;
@@ -132,15 +166,15 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
         title: Text(newStatus == CommandeStatus.confirmed
-            ? Strings.get('Confirmer la commande', 'Confirm order')
-            : Strings.get('Annuler la commande', 'Cancel order')),
+            ? 'Confirmer la commande'
+            : 'Annuler la commande'),
         content: Text(newStatus == CommandeStatus.confirmed
-            ? Strings.get('Voulez-vous vraiment confirmer cette commande ?', 'Do you really want to confirm this order?')
-            : Strings.get('Voulez-vous vraiment annuler cette commande ?', 'Do you really want to cancel this order?')),
+            ? 'Voulez-vous vraiment confirmer cette commande ?'
+            : 'Voulez-vous vraiment annuler cette commande ?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text(Strings.get('Non', 'No')),
+            child: const Text('Non'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -150,8 +184,8 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
                   : AppColors.error,
             ),
             child: Text(newStatus == CommandeStatus.confirmed
-                ? Strings.get('Oui, confirmer', 'Yes, confirm')
-                : Strings.get('Oui, annuler', 'Yes, cancel')),
+                ? 'Oui, confirmer'
+                : 'Oui, annuler'),
           ),
         ],
       ),
@@ -174,8 +208,8 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(newStatus == CommandeStatus.confirmed
-                  ? Strings.get('Commande confirmée', 'Order confirmed')
-                  : Strings.get('Commande annulée', 'Order cancelled')),
+                  ? 'Commande confirmée'
+                  : 'Commande annulée'),
               backgroundColor: newStatus == CommandeStatus.confirmed
                   ? AppColors.success
                   : AppColors.error,
@@ -188,7 +222,7 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('${Strings.error}: ${e.toString()}'),
+              content: Text('Erreur: ${e.toString()}'),
               backgroundColor: AppColors.error,
               duration: const Duration(seconds: 4),
             ),
@@ -205,93 +239,79 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isSmallScreen = screenWidth < 400;
-
+    final isSmallScreen = MediaQuery.of(context).size.width < 600;
+    print(
+        "UserOrdersPage.build(): widget.showRestaurantOrders = ${widget.showRestaurantOrders}");
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: AppBar(
-        title: Text(
-            widget.showRestaurantOrders ? Strings.orders : Strings.myOrders),
-        backgroundColor: AppColors.brand,
-        foregroundColor: Colors.white,
-      ),
-      body: Column(children: [
-        _buildFilters(isSmallScreen),
-        Expanded(
-          child: isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : commandes.isEmpty
-                  ? Center(
-                      child: Text(
-                          widget.showRestaurantOrders
-                              ? Strings.get('Aucune commande reçue.', 'No orders received.')
-                              : Strings.get('Aucune commande trouvée.', 'No orders found.'),
-                          style: AppTypography.bodyMedium()))
-                  : ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 40),
-                      itemCount: commandes.length,
-                      itemBuilder: (_, i) =>
-                          _buildCard(commandes[i], isSmallScreen),
-                    ),
-        ),
-      ]),
+          title: Text(widget.showRestaurantOrders
+              ? 'Commandes reçues'
+              : 'Mes commandes')),
+      body: widget.showRestaurantOrders && !_restoValid
+          ? _buildPendingFullPage()
+          : Column(children: [
+              _buildFilters(isSmallScreen),
+              Expanded(
+                child: isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : commandes.isEmpty
+                        ? Center(
+                            child: Text(
+                                widget.showRestaurantOrders
+                                    ? 'Aucune commande reçue.'
+                                    : 'Aucune commande trouvée.',
+                                style: AppTypography.bodyMedium()))
+                        : ListView.builder(
+                            padding: const EdgeInsets.fromLTRB(16, 4, 16, 40),
+                            itemCount: commandes.length,
+                            itemBuilder: (_, i) =>
+                                _buildCard(commandes[i], isSmallScreen),
+                          ),
+              ),
+            ]),
     );
   }
 
   Widget _buildFilters(bool isSmall) {
-    const allKey = 'all';
     final statuses = [
-      allKey,
+      'Tous',
       CommandeStatus.pending,
       CommandeStatus.confirmed,
       CommandeStatus.cancelled
     ];
-
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         children: statuses.map((s) {
-          final active = statusFilter == (s == allKey ? null : s);
-          String label;
-          if (s == allKey) {
-            label = Strings.get('Toutes', 'All');
-          } else if (s == CommandeStatus.pending) {
-            label = Strings.pending;
-          } else if (s == CommandeStatus.confirmed) {
-            label = Strings.confirmed;
-          } else {
-            label = Strings.cancelled;
-          }
-
+          final active = statusFilter == (s == 'Tous' ? null : s);
+          final label = s == 'Tous'
+              ? 'Tous'
+              : s == CommandeStatus.pending
+                  ? 'En attente'
+                  : s;
           return Padding(
             padding: const EdgeInsets.only(right: 8),
             child: GestureDetector(
               onTap: () {
-                setState(() => statusFilter = s == allKey ? null : s);
+                setState(() => statusFilter = s == 'Tous' ? null : s);
                 loadOrders();
               },
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: EdgeInsets.symmetric(
-                    horizontal: isSmall ? 10 : 14, vertical: isSmall ? 6 : 8),
+                duration: AppMotion.fast,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
                   color: active ? AppColors.brand : AppColors.card,
                   borderRadius: BorderRadius.circular(AppRadius.lg),
                   border: Border.all(
-                    color: active ? AppColors.brand : AppColors.border,
-                    width: 0.5,
-                  ),
+                      color: active ? AppColors.brand : AppColors.border,
+                      width: 0.5),
                 ),
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: isSmall ? 12 : 14,
-                    fontWeight: FontWeight.w500,
-                    color: active ? Colors.white : AppColors.inkMuted,
-                  ),
-                ),
+                child: Text(label,
+                    style: AppTypography.labelMedium(
+                        color: active ? Colors.white : AppColors.inkMuted)),
               ),
             ),
           );
@@ -321,18 +341,38 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
         tilePadding: const EdgeInsets.symmetric(horizontal: 16),
         childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         title: Text(
-          isRestaurantView
-              ? '${Strings.get('Commande', 'Order')} #${c.commandeID}'
-              : restoNames[c.restauID] ?? '${Strings.get('Commande', 'Order')} #${c.commandeID}',
-          style: AppTypography.labelMedium(),
-        ),
+            widget.showRestaurantOrders
+                ? 'Commande #${c.commandeID}'
+                : restoNames[c.restauID] ?? 'Commande #${c.commandeID}',
+            style: AppTypography.labelMedium()),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '${c.dateCommande.toLocal().toString().split(" ")[0]} · ${c.heure}',
-              style: AppTypography.bodyMedium().copyWith(fontSize: 12),
+                '${c.dateCommande.toLocal().toString().split(" ")[0]} · ${c.heure}',
+                style: AppTypography.bodyMedium().copyWith(fontSize: 12)),
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+              decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(99)),
+              child: Text(status,
+                  style: TextStyle(
+                      color: statusColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700)),
             ),
+            if (!widget.showRestaurantOrders &&
+                c.deliveryStatus != null &&
+                c.deliveryStatus!.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: _DeliveryTracker(
+                    status: c.deliveryStatus!,
+                    lat: c.livreurLat,
+                    lng: c.livreurLng),
+              ),
             const SizedBox(height: 6),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
@@ -366,43 +406,137 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
           FutureBuilder<List<LigneCommande>>(
             future: getLignes(c.commandeID),
             builder: (_, snap) {
-              if (!snap.hasData) {
+              if (!snap.hasData)
                 return const SizedBox(
-                  height: 60,
-                  child: Center(child: CircularProgressIndicator()),
-                );
-              }
+                    height: 60,
+                    child: Center(child: CircularProgressIndicator()));
               final lignes = snap.data!;
-
               return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ...lignes.map((l) => Padding(
-                        padding: const EdgeInsets.only(bottom: 6),
-                        child: _buildLigneItem(l),
-                      )),
-                  const Divider(),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '${Strings.delivery}: ${c.fraisLivraison.toStringAsFixed(2)} €',
-                        style:
-                            AppTypography.bodyMedium().copyWith(fontSize: 12),
-                      ),
-                      Text(
-                        '${Strings.get('Réduction', 'Discount')}: ${c.reduction.toStringAsFixed(2)} €',
-                        style:
-                            AppTypography.bodyMedium().copyWith(fontSize: 12),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  if (!isRestaurantView) _buildClientButtons(c, status),
-                  if (isRestaurantView)
-                    _buildRestaurantButtons(c, status, canCancel, canConfirm),
-                ],
-              );
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ...lignes.map((l) => Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Row(children: [
+                            Expanded(
+                                child: Text(
+                                    dishNames[l.platID] ?? 'Plat #${l.platID}',
+                                    style: AppTypography.bodyMedium())),
+                            Text('x${l.quantite}',
+                                style: AppTypography.labelMedium()),
+                            const SizedBox(width: 12),
+                            Text('${l.prixUnitaire.toStringAsFixed(2)} €',
+                                style: AppTypography.bodyMedium(
+                                    color: AppColors.brand)),
+                          ]),
+                        )),
+                    const Divider(),
+                    Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                              'Livraison: ${c.fraisLivraison.toStringAsFixed(2)} €',
+                              style: AppTypography.bodyMedium()
+                                  .copyWith(fontSize: 12)),
+                          Text('Réduction: ${c.reduction.toStringAsFixed(2)} €',
+                              style: AppTypography.bodyMedium()
+                                  .copyWith(fontSize: 12)),
+                        ]),
+                    const SizedBox(height: 12),
+                    if (!widget.showRestaurantOrders)
+                      Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            OutlinedButton.icon(
+                              onPressed: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (_) => ChatScreen(
+                                          withUserID: c.restaurateurID,
+                                          withUsername: 'Restaurateur'))),
+                              icon: const Icon(Icons.chat_rounded, size: 16),
+                              label: const Text('Message'),
+                              style: OutlinedButton.styleFrom(
+                                  minimumSize: Size.zero,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 8)),
+                            ),
+                            if (status == CommandeStatus.confirmed)
+                              ElevatedButton.icon(
+                                onPressed: () =>
+                                    _showRate(c.commandeID, c.restauID),
+                                icon: const Icon(Icons.star_rounded,
+                                    size: 16, color: AppColors.accent),
+                                label: const Text('Noter'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.accentLight,
+                                  foregroundColor: AppColors.accent,
+                                  minimumSize: Size.zero,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 8),
+                                ),
+                              ),
+                          ]),
+                    if (widget.showRestaurantOrders)
+                      Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                        OutlinedButton.icon(
+                          onPressed: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => ChatScreen(
+                                      withUserID: c.userID,
+                                      withUsername:
+                                          'Client #${c.commandeID}'))),
+                          icon: const Icon(Icons.chat_rounded, size: 16),
+                          label: const Text('Message'),
+                          style: OutlinedButton.styleFrom(
+                              minimumSize: Size.zero,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 8)),
+                        ),
+                        const SizedBox(width: 6),
+                        ElevatedButton(
+                          onPressed: status == CommandeStatus.cancelled
+                              ? null
+                              : () => updateStatus(
+                                  c.commandeID, CommandeStatus.cancelled),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.error,
+                            foregroundColor: Colors.white,
+                            minimumSize: Size.zero,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 8),
+                          ),
+                          child: const Text('Annuler',
+                              style: TextStyle(fontSize: 12)),
+                        ),
+                        const SizedBox(width: 6),
+                        ElevatedButton(
+                          onPressed: status == CommandeStatus.confirmed
+                              ? null
+                              : () => updateStatus(
+                                  c.commandeID, CommandeStatus.confirmed),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.success,
+                            foregroundColor: Colors.white,
+                            minimumSize: Size.zero,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 8),
+                          ),
+                          child: const Text('Confirmer',
+                              style: TextStyle(fontSize: 12)),
+                        ),
+                        const SizedBox(width: 6),
+                        OutlinedButton.icon(
+                          onPressed: () => _showAssignLivreur(c.commandeID),
+                          icon: const Icon(Icons.person_add_rounded, size: 16),
+                          label: const Text('Livreur'),
+                          style: OutlinedButton.styleFrom(
+                              minimumSize: Size.zero,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 8)),
+                        ),
+                      ]),
+                  ]);
             },
           ),
         ],
@@ -423,7 +557,7 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
                 MaterialPageRoute(
                   builder: (_) => ChatScreen(
                     withUserID: c.restaurateurID,
-                    withUsername: Strings.get('Restaurateur', 'Restaurant owner'),
+                    withUsername: 'Restaurateur',
                   ),
                 ),
               );
@@ -431,8 +565,8 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
               print('Erreur navigation ChatScreen: $e');
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(Strings.get("Erreur lors de l'ouverture du chat", 'Error opening chat')),
+                  const SnackBar(
+                    content: Text('Erreur lors de l\'ouverture du chat'),
                     backgroundColor: AppColors.error,
                   ),
                 );
@@ -440,7 +574,7 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
             }
           },
           icon: const Icon(Icons.chat_rounded, size: 16),
-          label: Text(Strings.get('Message', 'Message')),
+          label: const Text('Message'),
           style: OutlinedButton.styleFrom(
             minimumSize: Size.zero,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -451,7 +585,7 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
             onPressed: () => _showRate(c.commandeID, c.restauID),
             icon: const Icon(Icons.star_rounded,
                 size: 16, color: AppColors.accent),
-            label: Text(Strings.get('Noter', 'Rate')),
+            label: const Text('Noter'),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.accentLight,
               foregroundColor: AppColors.accent,
@@ -476,12 +610,12 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
             MaterialPageRoute(
               builder: (_) => ChatScreen(
                 withUserID: c.userID,
-                withUsername: '${Strings.get('Client', 'Client')} #${c.commandeID}',
+                withUsername: 'Client #${c.commandeID}',
               ),
             ),
           ),
           icon: const Icon(Icons.chat_rounded, size: 16),
-          label: Text(Strings.get('Message', 'Message')),
+          label: const Text('Message'),
           style: OutlinedButton.styleFrom(
             minimumSize: Size.zero,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -497,7 +631,7 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
               minimumSize: Size.zero,
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             ),
-            child: Text(Strings.cancel, style: const TextStyle(fontSize: 12)),
+            child: const Text('Annuler', style: TextStyle(fontSize: 12)),
           ),
         if (canConfirm)
           ElevatedButton(
@@ -509,12 +643,12 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
               minimumSize: Size.zero,
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             ),
-            child: Text(Strings.confirm, style: const TextStyle(fontSize: 12)),
+            child: const Text('Confirmer', style: TextStyle(fontSize: 12)),
           ),
         OutlinedButton.icon(
           onPressed: () => _showAssignLivreur(c.commandeID),
           icon: const Icon(Icons.person_add_rounded, size: 16),
-          label: Text(Strings.get('Livreur', 'Driver')),
+          label: const Text('Livreur'),
           style: OutlinedButton.styleFrom(
             minimumSize: Size.zero,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -533,7 +667,7 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                dishNames[l.platID] ?? '${Strings.get('Plat', 'Dish')} #${l.platID}',
+                dishNames[l.platID] ?? 'Plat #${l.platID}',
                 style: AppTypography.bodyMedium(),
               ),
               const SizedBox(height: 2),
@@ -557,7 +691,7 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
           children: [
             Expanded(
               child: Text(
-                dishNames[l.platID] ?? '${Strings.get('Plat', 'Dish')} #${l.platID}',
+                dishNames[l.platID] ?? 'Plat #${l.platID}',
                 style: AppTypography.bodyMedium(),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -583,19 +717,72 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
     );
   }
 
+  Widget _buildPendingFullPage() {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        const SizedBox(height: 40),
+        Container(
+            width: 100,
+            height: 100,
+            decoration: BoxDecoration(
+                color: AppColors.accent.withValues(alpha: 0.12),
+                shape: BoxShape.circle),
+            child: const Icon(Icons.hourglass_bottom_rounded,
+                color: AppColors.accent, size: 48)),
+        const SizedBox(height: 28),
+        Text('Restaurant en cours de validation',
+            textAlign: TextAlign.center,
+            style: AppTypography.headlineMedium().copyWith(fontSize: 20)),
+        const SizedBox(height: 12),
+        Text(
+            'Votre restaurant est en cours d\'examen par nos administrateurs. Vous pourrez recevoir des commandes dès qu\'il sera validé.',
+            textAlign: TextAlign.center,
+            style: AppTypography.bodyLarge(color: AppColors.inkMuted)),
+        const SizedBox(height: 32),
+        Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+                color: AppColors.card,
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+                border: Border.all(color: AppColors.border, width: 0.5)),
+            child: Column(children: [
+              Row(children: [
+                Icon(Icons.email_rounded, size: 18, color: AppColors.accent),
+                const SizedBox(width: 10),
+                Expanded(
+                    child: Text('Vous serez notifié par email',
+                        style: AppTypography.bodyMedium()
+                            .copyWith(fontSize: 13)))
+              ]),
+              const Divider(height: 24),
+              Row(children: [
+                Icon(Icons.receipt_long_rounded,
+                    size: 18, color: AppColors.accent),
+                const SizedBox(width: 10),
+                Expanded(
+                    child: Text('Et recevoir des commandes',
+                        style: AppTypography.bodyMedium()
+                            .copyWith(fontSize: 13)))
+              ]),
+            ])),
+      ]),
+    );
+  }
+
   Future<void> _showAssignLivreur(int id) async {
     final users = await Users.fetchUsersFromDB();
     final livreurs = users.where((u) => u.roleID == 5).toList();
     if (!mounted) return;
     if (livreurs.isEmpty) {
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(Strings.get('Aucun livreur.', 'No driver available.'))));
+          .showSnackBar(const SnackBar(content: Text('Aucun livreur.')));
       return;
     }
     showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
-              title: Text(Strings.get('Assigner un livreur', 'Assign a driver')),
+              title: const Text('Assigner un livreur'),
               content: SizedBox(
                 width: double.maxFinite,
                 child: ListView.builder(
@@ -608,11 +795,40 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
                               '${livreurs[i].firstname} ${livreurs[i].lastname}'),
                           onTap: () async {
                             Navigator.pop(ctx);
-                            await LivreurApi.assignLivreur(id, livreurs[i].userID);
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                      content: Text(Strings.get('Livreur assigné.', 'Driver assigned.'))));
-                              loadOrders();
+                            try {
+                              final cloudFunction =
+                                  ParseCloudFunction('assignLivreur');
+                              final response =
+                                  await cloudFunction.execute(parameters: {
+                                'commandeID': id,
+                                'livreurID': livreurs[i].userID,
+                              });
+
+                              if (response.success) {
+                                await Commande.refreshLocalCommandes();
+                                await loadOrders();
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text(
+                                            'Livreur assigné avec succès!')),
+                                  );
+                                }
+                              } else {
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                        content: Text(
+                                            'Erreur: ${response.error?.message}')),
+                                  );
+                                }
+                              }
+                            } catch (e) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Erreur: $e')),
+                                );
+                              }
                             }
                           },
                         )),
@@ -620,7 +836,7 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
               actions: [
                 TextButton(
                     onPressed: () => Navigator.pop(ctx),
-                    child: Text(Strings.cancel))
+                    child: const Text('Annuler'))
               ],
             ));
   }
@@ -643,7 +859,7 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setD) => AlertDialog(
-          title: Text(Strings.get('Noter le restaurant', 'Rate the restaurant')),
+          title: const Text('Noter le restaurant'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -657,13 +873,13 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        Strings.get('Plats commandés :', 'Ordered dishes:'),
+                      const Text(
+                        'Plats commandés :',
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 4),
                       ...lignes.map((l) => Text(
-                            '• ${dishNames[l.platID] ?? '${Strings.get('Plat', 'Dish')} #${l.platID}'} x${l.quantite}',
+                            '• ${dishNames[l.platID] ?? 'Plat #${l.platID}'} x${l.quantite}',
                             style: const TextStyle(fontSize: 12),
                           )),
                     ],
@@ -688,10 +904,10 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
               const SizedBox(height: 8),
               TextField(
                 controller: ctrl,
-                decoration: InputDecoration(
-                  labelText: Strings.get('Votre commentaire (optionnel)', 'Your comment (optional)'),
-                  border: const OutlineInputBorder(),
-                  hintText: Strings.get('Partagez votre expérience...', 'Share your experience...'),
+                decoration: const InputDecoration(
+                  labelText: 'Votre commentaire (optionnel)',
+                  border: OutlineInputBorder(),
+                  hintText: 'Partagez votre expérience...',
                 ),
                 maxLines: 3,
                 maxLength: 500,
@@ -704,7 +920,7 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
                 ctrl.dispose();
                 Navigator.pop(ctx);
               },
-              child: Text(Strings.get('Plus tard', 'Later')),
+              child: const Text('Plus tard'),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -713,7 +929,7 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
                 if (session.userId == null) {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(Strings.get('Utilisateur non connecté', 'User not logged in'))),
+                      const SnackBar(content: Text('Utilisateur non connecté')),
                     );
                   }
                   Navigator.pop(ctx);
@@ -739,8 +955,8 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
                 if (mounted) {
                   if (response.success) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(Strings.get('Merci pour votre avis !', 'Thank you for your review!')),
+                      const SnackBar(
+                        content: Text('Merci pour votre avis !'),
                         backgroundColor: AppColors.success,
                       ),
                     );
@@ -748,7 +964,7 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
-                            '${Strings.error}: ${response.error?.message ?? "Inconnue"}'),
+                            'Erreur: ${response.error?.message ?? "Inconnue"}'),
                         backgroundColor: AppColors.error,
                       ),
                     );
@@ -759,7 +975,7 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
                 backgroundColor: AppColors.accent,
                 foregroundColor: Colors.white,
               ),
-              child: Text(Strings.get('Envoyer', 'Send')),
+              child: const Text('Envoyer'),
             ),
           ],
         ),
@@ -776,12 +992,7 @@ class _DeliveryTracker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final steps = ['assigned', 'picked_up', 'in_transit', 'delivered'];
-    final labels = [
-      Strings.get('Prépa.', 'Prep'),
-      Strings.get('Récupéré', 'Picked up'),
-      Strings.get('En route', 'In transit'),
-      Strings.get('Livré', 'Delivered')
-    ];
+    final labels = ['Prépa.', 'Récupéré', 'En route', 'Livré'];
     final icons = [
       Icons.restaurant_rounded,
       Icons.shopping_bag_rounded,
@@ -860,7 +1071,7 @@ class _DeliveryTracker extends StatelessWidget {
                       decoration: BoxDecoration(
                           color: AppColors.ink.withValues(alpha: 0.7),
                           borderRadius: BorderRadius.circular(4)),
-                       child: Text(Strings.get('Toucher pour agrandir', 'Tap to enlarge'),
+                      child: const Text('Toucher pour agrandir',
                           style:
                               TextStyle(color: Colors.white, fontSize: 10)))),
             ]),
@@ -923,7 +1134,7 @@ class _DeliveryMapPageState extends State<DeliveryMapPage> {
         bounds?.center ?? LatLng(widget.livreurLat, widget.livreurLng);
     return Scaffold(
       backgroundColor: AppColors.surface,
-      appBar: AppBar(title: Text(Strings.get('Suivi livraison', 'Delivery tracking'))),
+      appBar: AppBar(title: const Text('Suivi livraison')),
       body: Stack(children: [
         FlutterMap(
           options: MapOptions(
@@ -946,23 +1157,23 @@ class _DeliveryMapPageState extends State<DeliveryMapPage> {
                   point: LatLng(widget.livreurLat, widget.livreurLng),
                   width: 50,
                   height: 50,
-                  child: Column(children: [
-                    const Icon(Icons.delivery_dining,
+                  child: Column(children: const [
+                    Icon(Icons.delivery_dining,
                         color: AppColors.brand, size: 32),
-                    Text(Strings.get('Livreur', 'Driver'),
+                    Text('Livreur',
                         style:
-                            const TextStyle(fontSize: 9, fontWeight: FontWeight.bold))
+                            TextStyle(fontSize: 9, fontWeight: FontWeight.bold))
                   ])),
               if (widget.clientLat != null)
                 Marker(
                     point: LatLng(widget.clientLat!, widget.clientLng!),
                     width: 50,
                     height: 50,
-                    child: Column(children: [
-                      const Icon(Icons.home_rounded,
+                    child: Column(children: const [
+                      Icon(Icons.home_rounded,
                           color: AppColors.accent, size: 32),
-                      Text(Strings.get('Client', 'Client'),
-                          style: const TextStyle(
+                      Text('Client',
+                          style: TextStyle(
                               fontSize: 9, fontWeight: FontWeight.bold))
                     ])),
             ]),

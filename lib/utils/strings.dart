@@ -244,6 +244,7 @@ class Strings {
       case 'benin_phone_format': return get('Format : 8 chiffres', 'Format: 8 digits');
       case 'phone_length': return fallback ?? get('Numéro invalide', 'Invalid number');
       case 'password': return get('Mot de passe', 'Password');
+      case 'new_password': return get('Nouveau mot de passe', 'New password');
       case 'confirm_password': return get('Confirmer le mot de passe', 'Confirm password');
       case 'confirm_password_required': return get('Confirmation requise', 'Confirmation required');
       case 'passwords_do_not_match': return get('Les mots de passe ne correspondent pas', 'Passwords do not match');
@@ -253,6 +254,41 @@ class Strings {
       case 'login_subtitle': return get('Connectez-vous à votre compte', 'Log in to your account');
       case 'login_failed': return get('Identifiants incorrects', 'Invalid credentials');
       case 'connect_error': return connectError;
+      // Additional keys from features branch
+      case 'dont_have_account': return get("Pas de compte ? S'inscrire", "Don't have an account? Sign up");
+      case 'splash_subtitle': return get('Des plats faits maison, livrés chez vous', 'Homemade dishes, delivered to you');
+      case 'splash_loading': return get('Chargement...', 'Loading...');
+      case 'skip': return get('Passer', 'Skip');
+      case 'next': return get('Suivant', 'Next');
+      case 'reset_password': return get('Réinitialiser le mot de passe', 'Reset password');
+      case 'reset_password_title': return get('Mot de passe oublié', 'Forgot password');
+      case 'reset_password_subtitle': return get('Entrez votre email pour réinitialiser', 'Enter your email to reset');
+      case 'forgotten_password': return get('Mot de passe oublié', 'Forgot password');
+      case 'forgotten_password_title': return get('Mot de passe oublié', 'Forgot password');
+      case 'forgotten_password_subtitle': return get('Entrez votre email pour recevoir un code', 'Enter your email to receive a code');
+      case 'enter_password': return get('Entrez votre mot de passe', 'Enter your password');
+      case 'max_13_chars': return get('Maximum 13 caractères', 'Max 13 characters');
+      case 'min_6_chars': return get('Minimum 6 caractères', 'Min 6 characters');
+      case 'form_invalid': return get('Formulaire invalide', 'Invalid form');
+      case 'internet_required': return get('Connexion Internet requise', 'Internet connection required');
+      case 'invalid_or_expired_code': return get('Code invalide ou expiré', 'Invalid or expired code');
+      case 'no_account_for_email': return get('Aucun compte pour cet email', 'No account for this email');
+      case 'reset_code_send_failed': return get('Échec envoi du code', 'Failed to send code');
+      case 'reset_code_sent': return get('Code envoyé !', 'Code sent!');
+      case 'username_or_email': return get("Nom d'utilisateur ou email", 'Username or email');
+      case 'user_not_found': return get('Utilisateur non trouvé', 'User not found');
+      case 'verification_code_hint': return get('Entrez le code à 6 chiffres', 'Enter the 6-digit code');
+      case 'verify_code': return get('Vérifier le code', 'Verify code');
+      case 'verify_email': return get('Envoyer le code', 'Send code');
+      case 'verification_code': return get('Code de vérification', 'Verification code');
+      case 'same_password_error': return get('Le nouveau mot de passe est identique à l\'actuel', 'New password is same as current');
+      // Onboarding steps
+      case 'onboarding_step_1_title': return get('Des plats faits maison', 'Homemade dishes');
+      case 'onboarding_step_1_body': return get('Découvrez les meilleurs plats faits maison près de chez vous, préparés avec passion.', 'Discover the best homemade dishes near you, made with passion.');
+      case 'onboarding_step_2_title': return get('Livraison rapide', 'Fast delivery');
+      case 'onboarding_step_2_body': return get('Commandez en quelques clics et faites-vous livrer rapidement où que vous soyez.', 'Order in a few clicks and get fast delivery wherever you are.');
+      case 'onboarding_step_3_title': return get('Devenez restaurateur', 'Become a home chef');
+      case 'onboarding_step_3_body': return get('Partagez vos talents culinaires et vendez vos plats maison sur Dios Délices.', 'Share your culinary talents and sell your homemade dishes on Dios Délices.');
       default: return fallback ?? key;
     }
   }

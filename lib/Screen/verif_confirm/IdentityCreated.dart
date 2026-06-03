@@ -1,21 +1,26 @@
 import 'package:flutter/material.dart';
+import '../../theme/app_theme.dart';
 import '../AnimatedSplashScreen.dart';
 
 class IdentityCreated extends StatelessWidget {
+  const IdentityCreated({super.key});
+
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
           leading: IconButton(
-            icon: Icon(Icons.home), // Icône personnalisée (ex: home)
-            onPressed: () {
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => AnimatedSplashScreen()),
-                    (Route<dynamic> route) => false,
-              );
-            },
-          )),
+        icon: const Icon(Icons.home),
+        onPressed: () {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+                builder: (context) => const AnimatedSplashScreen()),
+            (Route<dynamic> route) => false,
+          );
+        },
+      )),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -24,34 +29,35 @@ class IdentityCreated extends StatelessWidget {
           children: [
             Text(
               "Votre demande a bien été prise en compte.",
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              style: AppTypography.titleLarge(color: colorScheme.onSurface),
               textAlign: TextAlign.center,
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             Text(
               "Vous recevrez un mail lorsque nos administrateurs auront examiné vos informations.",
-              style: TextStyle(fontSize: 16),
+              style: AppTypography.bodyMedium(color: colorScheme.onSurface),
               textAlign: TextAlign.center,
             ),
-            SizedBox(height: 30),
+            const SizedBox(height: 30),
             Center(
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
+                  backgroundColor: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
                   foregroundColor: Colors.white,
-                  textStyle: TextStyle(
+                  textStyle: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
                   ),
                 ),
                 onPressed: () async {
                   Navigator.pushAndRemoveUntil(
                     context,
-                    MaterialPageRoute(builder: (context) => AnimatedSplashScreen()),
-                        (Route<dynamic> route) => false,
+                    MaterialPageRoute(
+                        builder: (context) => const AnimatedSplashScreen()),
+                    (Route<dynamic> route) => false,
                   );
                 },
                 child: const Text("Retourner à l'accueil"),

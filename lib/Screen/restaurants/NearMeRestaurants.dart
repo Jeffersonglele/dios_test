@@ -2,8 +2,8 @@ import 'package:dios_delices/Screen/restaurants/RestaurantDetails.dart';
 import 'package:dios_delices/services/nearby_service.dart';
 import 'package:dios_delices/modeles/users.dart';
 import 'package:dios_delices/core/app_role.dart';
+import 'package:dios_delices/theme/app_theme.dart';
 import 'package:flutter/material.dart';
-import '../../utils/strings.dart';
 
 class NearMeRestaurants extends StatefulWidget {
   const NearMeRestaurants({super.key});
@@ -36,7 +36,8 @@ class _NearMeRestaurantsState extends State<NearMeRestaurants> {
 
   bool _isProRestaurant(int userID) {
     final user = Users.getUsersByUserId(_users, userID);
-    return user != null && AppRole.fromId(user.roleID) == AppRole.microRestaurant;
+    return user != null &&
+        AppRole.fromId(user.roleID) == AppRole.microRestaurant;
   }
 
   Future<void> _loadRestaurants() async {
@@ -93,9 +94,14 @@ class _NearMeRestaurantsState extends State<NearMeRestaurants> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
-        title: Text(Strings.get('Restaurants à proximité', 'Nearby restaurants')),
+        title: Text('Restaurants à proximité',
+            style: TextStyle(color: colorScheme.onSurface)),
+        backgroundColor: colorScheme.surface,
+        elevation: 0,
+        iconTheme: IconThemeData(color: colorScheme.onSurface),
       ),
       body: RefreshIndicator(
         onRefresh: _loadRestaurants,
@@ -104,11 +110,15 @@ class _NearMeRestaurantsState extends State<NearMeRestaurants> {
           children: [
             TextField(
               controller: _searchController,
+              style: TextStyle(color: colorScheme.onSurface),
               decoration: InputDecoration(
-                hintText: Strings.get('Rechercher un restaurant ou une cuisine', 'Search a restaurant or cuisine'),
-                prefixIcon: const Icon(Icons.search),
+                hintText: 'Rechercher un restaurant ou une cuisine',
+                hintStyle:
+                    TextStyle(color: colorScheme.onSurface.withOpacity(0.5)),
+                prefixIcon: Icon(Icons.search,
+                    color: colorScheme.onSurface.withOpacity(0.5)),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: AppColors.resolve(AppColors.card, AppDarkColors.card),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide.none,
@@ -136,35 +146,49 @@ class _NearMeRestaurantsState extends State<NearMeRestaurants> {
                   onTap: () => _updateDistance(20),
                 ),
                 FilterChip(
-                  label: Text(Strings.get('Ouverts maintenant', 'Open now')),
+                  label: Text('Ouverts maintenant',
+                      style: TextStyle(
+                          color: _openOnly
+                              ? Colors.white
+                              : colorScheme.onSurface)),
                   selected: _openOnly,
+                  selectedColor: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+                  checkmarkColor: Colors.white,
                   onSelected: _updateOpenOnly,
                 ),
               ],
             ),
             const SizedBox(height: 16),
             if (_isLoading)
-              const Center(child: CircularProgressIndicator())
+              Center(
+                  child: CircularProgressIndicator(
+                      color: AppColors.resolve(AppColors.brand, AppDarkColors.brand)))
             else if (_visibleRestaurants.isEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 48),
                 child: Center(
-                  child: Text(Strings.get('Aucun restaurant trouvé avec ces filtres.', 'No restaurant found with these filters.')),
+                  child: Text('Aucun restaurant trouvé avec ces filtres.',
+                      style: TextStyle(color: colorScheme.onSurface)),
                 ),
               )
             else
               ..._visibleRestaurants.map(
                 (result) => Card(
                   margin: const EdgeInsets.only(bottom: 14),
+                  color: AppColors.resolve(AppColors.card, AppDarkColors.card),
+                  elevation: 1,
                   child: ListTile(
                     contentPadding: const EdgeInsets.all(12),
-                    leading: _RestaurantAvatar(imageUrl: result.restaurant.image),
+                    leading:
+                        _RestaurantAvatar(imageUrl: result.restaurant.image),
                     title: Row(
                       children: [
                         Expanded(
                           child: Text(
                             result.restaurant.name,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: colorScheme.onSurface),
                           ),
                         ),
                         if (_isProRestaurant(result.restaurant.userID))
@@ -172,21 +196,22 @@ class _NearMeRestaurantsState extends State<NearMeRestaurants> {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: Colors.amber.shade100,
+                              color: AppColors.resolve(AppColors.accentLight, AppDarkColors.accentLight),
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: const Row(
+                            child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(Icons.verified,
-                                    size: 12, color: Colors.amber),
-                                SizedBox(width: 2),
+                                    size: 12,
+                                    color: AppColors.resolve(AppColors.accent, AppDarkColors.accent)),
+                                const SizedBox(width: 2),
                                 Text(
                                   'PRO',
                                   style: TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.bold,
-                                    color: Colors.amber,
+                                    color: AppColors.resolve(AppColors.accent, AppDarkColors.accent),
                                   ),
                                 ),
                               ],
@@ -198,16 +223,22 @@ class _NearMeRestaurantsState extends State<NearMeRestaurants> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const SizedBox(height: 4),
-                        Text('${result.distanceKm.toStringAsFixed(2)} km'),
+                        Text('${result.distanceKm.toStringAsFixed(2)} km',
+                            style: TextStyle(
+                                color: colorScheme.onSurface.withOpacity(0.7))),
                         Text(
                           result.restaurant.categories.isEmpty
                               ? result.restaurant.openingHours
                               : result.restaurant.categories,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              color: colorScheme.onSurface.withOpacity(0.7)),
                         ),
                         Text(
-                          '${Strings.deliveryFee} ${result.restaurant.deliveryFee.toStringAsFixed(2)}',
+                          'Livraison ${result.restaurant.deliveryFee.toStringAsFixed(2)}',
+                          style: TextStyle(
+                              color: colorScheme.onSurface.withOpacity(0.7)),
                         ),
                       ],
                     ),
@@ -215,17 +246,21 @@ class _NearMeRestaurantsState extends State<NearMeRestaurants> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          result.restaurant.isOpen == 1
+                          result.restaurant.isCurrentlyOpen
                               ? Icons.check_circle
                               : Icons.remove_circle,
-                          color: result.restaurant.isOpen == 1
+                          color: result.restaurant.isCurrentlyOpen
                               ? Colors.green
                               : Colors.grey,
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          result.restaurant.isOpen == 1 ? Strings.open : Strings.closed,
-                          style: const TextStyle(fontSize: 12),
+                          result.restaurant.isCurrentlyOpen
+                              ? 'Ouvert'
+                              : 'Fermé',
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: colorScheme.onSurface.withOpacity(0.7)),
                         ),
                       ],
                     ),
@@ -262,9 +297,15 @@ class _DistanceChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return ChoiceChip(
-      label: Text(label),
+      label: Text(label,
+          style: TextStyle(
+              color: selected ? Colors.white : colorScheme.onSurface)),
       selected: selected,
+      selectedColor:
+          AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+      checkmarkColor: Colors.white,
       onSelected: (_) => onTap(),
     );
   }

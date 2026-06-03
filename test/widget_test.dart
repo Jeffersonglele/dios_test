@@ -11,6 +11,6 @@ import 'package:dios_delices/main.dart';
 
 void main() {
   test('MyApp can be instantiated', () {
-    expect(const MyApp(), isA<Widget>());
+    expect(const MyApp(initialDarkMode: false), isA<Widget>());
   });
 }

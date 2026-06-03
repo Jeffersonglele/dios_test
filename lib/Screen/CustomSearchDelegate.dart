@@ -3,27 +3,23 @@ import 'package:dios_delices/Screen/restaurants/RestaurantDetails.dart';
 import 'package:dios_delices/modeles/dish.dart';
 import 'package:dios_delices/modeles/restaurant.dart';
 import 'package:dios_delices/theme/app_theme.dart';
-import '../utils/strings.dart';
 import '../widgets/dios_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 class CustomSearchDelegate extends SearchDelegate<void> {
   @override
-  String get searchFieldLabel => Strings.search;
-
-  @override
   List<Widget>? buildActions(BuildContext context) => [
         IconButton(
           onPressed: () => query = '',
-          icon: const Icon(Icons.clear_rounded, color: AppColors.inkMuted),
+          icon: Icon(Icons.clear_rounded, color: AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted)),
         ),
       ];
 
   @override
   Widget? buildLeading(BuildContext context) => IconButton(
         onPressed: () => close(context, null),
-        icon: const Icon(Icons.arrow_back_rounded, color: AppColors.ink),
+        icon: Icon(Icons.arrow_back_rounded, color: AppColors.resolve(AppColors.ink, AppDarkColors.ink)),
       );
 
   @override
@@ -33,6 +29,7 @@ class CustomSearchDelegate extends SearchDelegate<void> {
   Widget buildSuggestions(BuildContext context) => _buildResults(context);
 
   Widget _buildResults(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return FutureBuilder<_SearchData>(
       future: _loadData(),
       builder: (context, snap) {
@@ -49,9 +46,9 @@ class CustomSearchDelegate extends SearchDelegate<void> {
         if (matchingRestos.isEmpty && matchingDishes.isEmpty) {
           return Center(
             child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Icon(Icons.search_off_rounded, size: 56, color: AppColors.border),
+              Icon(Icons.search_off_rounded, size: 56, color: AppColors.resolve(AppColors.border, AppDarkColors.border)),
               const SizedBox(height: 12),
-              Text(Strings.get('Aucun résultat pour', 'No results for') + ' "$query"', style: AppTypography.bodyMedium()),
+              Text('Aucun résultat pour "$query"', style: AppTypography.bodyMedium(color: colorScheme.onSurface.withOpacity(0.7))),
             ]),
           );
         }
@@ -62,25 +59,25 @@ class CustomSearchDelegate extends SearchDelegate<void> {
             if (matchingRestos.isNotEmpty) ...[
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
-                child: Text(Strings.restaurants, style: AppTypography.titleMedium()),
+                child: Text('Restaurants', style: AppTypography.titleMedium(color: colorScheme.onSurface)),
               ),
               ...matchingRestos.map((r) => Container(
                 margin: const EdgeInsets.only(bottom: 8),
                 decoration: BoxDecoration(
-                  color: AppColors.card,
+                  color: AppColors.resolve(AppColors.card, AppDarkColors.card),
                   borderRadius: BorderRadius.circular(AppRadius.lg),
-                  border: Border.all(color: AppColors.border, width: 0.5),
+                  border: Border.all(color: AppColors.resolve(AppColors.border, AppDarkColors.border), width: 0.5),
                 ),
                 child: ListTile(
                   leading: Container(
                     width: 44, height: 44,
-                    decoration: BoxDecoration(color: AppColors.brandSurface, borderRadius: BorderRadius.circular(AppRadius.sm)),
-                    child: const Icon(Icons.storefront_rounded, color: AppColors.brand, size: 22),
+                    decoration: BoxDecoration(color: AppColors.resolve(AppColors.brandSurface, AppDarkColors.brandSurface), borderRadius: BorderRadius.circular(AppRadius.sm)),
+                    child: Icon(Icons.storefront_rounded, color: AppColors.resolve(AppColors.brand, AppDarkColors.brand), size: 22),
                   ),
-                  title: Text(r.name, style: AppTypography.labelMedium()),
+                  title: Text(r.name, style: AppTypography.labelMedium(color: colorScheme.onSurface)),
                   subtitle: Text(r.categories.isNotEmpty ? r.categories : r.openingHours,
-                      style: AppTypography.bodyMedium()),
-                  trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.inkSubtle),
+                      style: AppTypography.bodyMedium(color: colorScheme.onSurface.withOpacity(0.7))),
+                  trailing: Icon(Icons.chevron_right_rounded, color: AppColors.resolve(AppColors.inkSubtle, AppDarkColors.inkSubtle)),
                   onTap: () {
                     Navigator.push(context, CupertinoPageRoute(
                         builder: (_) => RestaurantDetails(restaurant_id: r.restaurantID)));
@@ -91,24 +88,24 @@ class CustomSearchDelegate extends SearchDelegate<void> {
             if (matchingDishes.isNotEmpty) ...[
               Padding(
                 padding: const EdgeInsets.only(top: 8, bottom: 8),
-                child: Text(Strings.get('Plats', 'Dishes'), style: AppTypography.titleMedium()),
+                child: Text('Plats', style: AppTypography.titleMedium(color: colorScheme.onSurface)),
               ),
               ...matchingDishes.map((d) => Container(
                 margin: const EdgeInsets.only(bottom: 8),
                 decoration: BoxDecoration(
-                  color: AppColors.card,
+                  color: AppColors.resolve(AppColors.card, AppDarkColors.card),
                   borderRadius: BorderRadius.circular(AppRadius.lg),
-                  border: Border.all(color: AppColors.border, width: 0.5),
+                  border: Border.all(color: AppColors.resolve(AppColors.border, AppDarkColors.border), width: 0.5),
                 ),
                 child: ListTile(
                   leading: ClipRRect(
                     borderRadius: BorderRadius.circular(AppRadius.sm),
                   child: DiosImage(url: d.image, width: 44, height: 44),
                   ),
-                  title: Text(d.name ?? 'Plat', style: AppTypography.labelMedium()),
+                  title: Text(d.name ?? 'Plat', style: AppTypography.labelMedium(color: colorScheme.onSurface)),
                   subtitle: Text('${d.price?.toStringAsFixed(2) ?? '0'} €',
-                      style: AppTypography.bodyMedium(color: AppColors.brand)),
-                  trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.inkSubtle),
+                      style: AppTypography.bodyMedium(color: AppColors.resolve(AppColors.brand, AppDarkColors.brand))),
+                  trailing: Icon(Icons.chevron_right_rounded, color: AppColors.resolve(AppColors.inkSubtle, AppDarkColors.inkSubtle)),
                   onTap: () {
                     Navigator.push(context, CupertinoPageRoute(
                         builder: (_) => DishDetails(from_page: 0, dish_id: d.dishID)));

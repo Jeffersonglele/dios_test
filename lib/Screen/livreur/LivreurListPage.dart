@@ -4,7 +4,6 @@ import 'package:dios_delices/providers/data_version_notifier.dart';
 import 'package:dios_delices/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
-import '../../utils/strings.dart';
 
 class LivreurListPage extends StatefulWidget {
   final String? country;
@@ -99,7 +98,7 @@ class _LivreurListPageState extends State<LivreurListPage> {
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: AppBar(
-        title: Text(Strings.get('Gestion des livreurs', 'Driver Management')),
+        title: const Text('Gestion des livreurs'),
         centerTitle: true,
         actions: [
           IconButton(
@@ -127,7 +126,7 @@ class _LivreurListPageState extends State<LivreurListPage> {
                     onChanged: (v) => setState(() => _searchQuery = v),
                     style: AppTypography.bodyLarge().copyWith(fontSize: 14),
                     decoration: InputDecoration(
-                      hintText: Strings.get('Rechercher un livreur...', 'Search a driver...'),
+                      hintText: 'Rechercher un livreur...',
                       hintStyle: AppTypography.bodyMedium().copyWith(fontSize: 14),
                       prefixIcon: Icon(Icons.search_rounded,
                           color: AppColors.inkSubtle, size: 20),
@@ -157,19 +156,19 @@ class _LivreurListPageState extends State<LivreurListPage> {
                         color: AppColors.inkMuted, size: 20),
                     const SizedBox(width: 4),
                     Text(
-                      _filterStatus == 'tous' ? Strings.all :
-                      _filterStatus == 'en_ligne' ? Strings.online :
-                      _filterStatus == 'hors_ligne' ? Strings.get('Hors ligne', 'Offline') :
-                      _filterStatus == 'permis_valide' ? Strings.get('Permis vérifié', 'License verified') : Strings.get('Permis en attente', 'License pending'),
+                      _filterStatus == 'tous' ? 'Tous' :
+                      _filterStatus == 'en_ligne' ? 'En ligne' :
+                      _filterStatus == 'hors_ligne' ? 'Hors ligne' :
+                      _filterStatus == 'permis_valide' ? 'Permis ✓' : 'Permis ?',
                       style: AppTypography.labelMedium().copyWith(fontSize: 12),
                     ),
                   ]),
                   itemBuilder: (_) => [
-                    PopupMenuItem(value: 'tous', child: Text(Strings.all)),
-                    PopupMenuItem(value: 'en_ligne', child: Text(Strings.online)),
-                    PopupMenuItem(value: 'hors_ligne', child: Text(Strings.get('Hors ligne', 'Offline'))),
-                    PopupMenuItem(value: 'permis_valide', child: Text(Strings.get('Permis validé', 'License verified'))),
-                    PopupMenuItem(value: 'permis_en_attente', child: Text(Strings.get('Permis en attente', 'License pending'))),
+                    PopupMenuItem(value: 'tous', child: Text('Tous')),
+                    PopupMenuItem(value: 'en_ligne', child: Text('En ligne')),
+                    PopupMenuItem(value: 'hors_ligne', child: Text('Hors ligne')),
+                    PopupMenuItem(value: 'permis_valide', child: Text('Permis validé')),
+                    PopupMenuItem(value: 'permis_en_attente', child: Text('Permis en attente')),
                   ],
                 ),
               ),
@@ -182,7 +181,7 @@ class _LivreurListPageState extends State<LivreurListPage> {
               Text('${filtered.length} livreur(s)',
                   style: AppTypography.bodyMedium().copyWith(fontSize: 12)),
               const Spacer(),
-              Text('${_livreurs.where((u) => u.isOnline == true).length} ${Strings.get('en ligne', 'online')}',
+              Text('${_livreurs.where((u) => u.isOnline == true).length} en ligne',
                   style: AppTypography.labelMedium(color: AppColors.success).copyWith(fontSize: 11)),
             ]),
           ),
@@ -199,7 +198,7 @@ class _LivreurListPageState extends State<LivreurListPage> {
                             Icon(Icons.delivery_dining_outlined,
                                 size: 64, color: AppColors.inkSubtle),
                             const SizedBox(height: 12),
-                            Text(Strings.get('Aucun livreur trouvé', 'No driver found'),
+                            Text('Aucun livreur trouvé',
                                 style: AppTypography.bodyLarge(color: AppColors.inkMuted)),
                           ],
                         ),
@@ -267,7 +266,7 @@ class _LivreurListPageState extends State<LivreurListPage> {
                         ),
                       ),
                       const SizedBox(width: 4),
-                      Text(isOnline ? Strings.online : Strings.get('Hors ligne', 'Offline'),
+                      Text(isOnline ? 'En ligne' : 'Hors ligne',
                           style: TextStyle(
                             fontSize: 11, fontWeight: FontWeight.w600,
                             color: isOnline ? AppColors.success : AppColors.inkSubtle,
@@ -294,7 +293,7 @@ class _LivreurListPageState extends State<LivreurListPage> {
                     borderRadius: BorderRadius.circular(99),
                   ),
                   child: Text(
-                    permisOk ? Strings.get('Permis vérifié', 'Verified') : Strings.pending,
+                    permisOk ? 'Permis ✓' : 'En attente',
                     style: TextStyle(
                       fontSize: 10, fontWeight: FontWeight.w700,
                       color: permisOk ? AppColors.success : AppColors.accent,
@@ -311,7 +310,7 @@ class _LivreurListPageState extends State<LivreurListPage> {
                         color: AppColors.successLight,
                         borderRadius: BorderRadius.circular(99),
                       ),
-                      child: Text(Strings.validate,
+                      child: Text('Valider',
                           style: TextStyle(
                             fontSize: 10, fontWeight: FontWeight.w700,
                             color: AppColors.success,
@@ -345,16 +344,16 @@ class _LivreurListPageState extends State<LivreurListPage> {
                 color: AppColors.success, size: 18),
           ),
           const SizedBox(width: 10),
-          Text(Strings.get('Valider le permis', 'Validate license'), style: AppTypography.titleMedium()),
+          Text('Valider le permis', style: AppTypography.titleMedium()),
         ]),
         content: Text(
-          '${Strings.get("Confirmer la validation du permis de", "Confirm license validation for")} ${livreur.firstname} ${livreur.lastname} ?',
+          'Confirmer la validation du permis de ${livreur.firstname} ${livreur.lastname} ?',
           style: AppTypography.bodyLarge(),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text(Strings.cancel,
+            child: Text('Annuler',
                 style: AppTypography.labelMedium(color: AppColors.inkMuted)),
           ),
           ElevatedButton(
@@ -362,7 +361,7 @@ class _LivreurListPageState extends State<LivreurListPage> {
               Navigator.pop(ctx);
               _validatePermis(livreur);
             },
-            child: Text(Strings.validate),
+            child: const Text('Valider'),
           ),
         ],
       ),
@@ -380,7 +379,7 @@ class _LivreurListPageState extends State<LivreurListPage> {
         if (mounted) {
           setState(() => livreur.permisVerified = true);
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('${livreur.firstname} : ${Strings.get("Permis validé", "License validated")}'),
+            content: Text('Permis de ${livreur.firstname} validé'),
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(AppRadius.md)),
@@ -390,7 +389,7 @@ class _LivreurListPageState extends State<LivreurListPage> {
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(Strings.get('Erreur lors de la validation', 'Validation error')),
+          content: const Text('Erreur lors de la validation'),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppRadius.md)),

@@ -4,7 +4,6 @@ import 'package:dios_delices/modeles/dish.dart';
 import 'package:dios_delices/modeles/restaurant.dart';
 import 'package:dios_delices/services/favorites_service.dart';
 import 'package:dios_delices/theme/app_theme.dart';
-import 'package:dios_delices/utils/strings.dart';
 import '../widgets/dios_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -67,7 +66,7 @@ class _FavoritesState extends State<Favorites> {
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text(Strings.favorites, style: AppTypography.headlineLarge()),
+                          Text('Mes favoris', style: AppTypography.headlineLarge()),
                           const SizedBox(height: 4),
                           Text('Retrouvez vos restaurants et plats préférés.',
                               style: AppTypography.bodyMedium()),
@@ -90,7 +89,7 @@ class _FavoritesState extends State<Favorites> {
                     const SliverToBoxAdapter(child: SizedBox(height: 16)),
                     if (_tab == 'restaurants')
                       favoriteRestaurants.isEmpty
-                          ? _emptySliver(Strings.noFavorites)
+                          ? _emptySliver('Aucun restaurant en favori.')
                           : SliverList(
                               delegate: SliverChildBuilderDelegate(
                                 (_, i) => _RestaurantCard(favoriteRestaurants[i]),
@@ -99,7 +98,7 @@ class _FavoritesState extends State<Favorites> {
                             )
                     else
                       favoriteDishes.isEmpty
-                          ? _emptySliver(Strings.noFavorites)
+                          ? _emptySliver('Aucun plat en favori.')
                           : SliverList(
                               delegate: SliverChildBuilderDelegate(
                                 (_, i) => _DishCard(favoriteDishes[i]),

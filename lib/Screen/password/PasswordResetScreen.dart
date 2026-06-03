@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_pw_validator/flutter_pw_validator.dart';
+import 'package:flutter/services.dart';
+import 'package:pin_code_fields/pin_code_fields.dart';
 import '../../theme/app_theme.dart';
 import '../../Controller/UiController.dart';
 import '../../mails/mails.dart';
 import '../../modeles/users.dart';
-import '../../services/password_reset_validation.dart';
 import '../../utils/toast.dart';
 import '../../utils/strings.dart';
 import 'PasswordChangeSuccessScreen.dart';
@@ -22,13 +22,19 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
   final newPwdCtrl = TextEditingController();
   final confirmCtrl = TextEditingController();
   final simpleUIController = SimpleUIController();
-  final validatorKey = GlobalKey<FlutterPwValidatorState>();
   final _formKey = GlobalKey<FormState>();
   bool isLoading = false;
   bool isCodeVerified = false;
 
   @override
-  void dispose() { codeCtrl.dispose(); newPwdCtrl.dispose(); confirmCtrl.dispose(); super.dispose(); }
+  void dispose() {
+    Future.microtask(() {
+      try { codeCtrl.dispose(); } catch (_) {}
+      try { newPwdCtrl.dispose(); } catch (_) {}
+      try { confirmCtrl.dispose(); } catch (_) {}
+    });
+    super.dispose();
+  }
 
   Future<void> verifyCode() async {
     final valid = await verifyEmailCode(email: widget.email, code: codeCtrl.text.trim());
@@ -39,6 +45,14 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
     setState(() => isCodeVerified = true);
   }
 
+  bool _isPasswordValid(String pwd) {
+    if (pwd.length < 8) return false;
+    final hasUpper = pwd.contains(RegExp(r'[A-Z]'));
+    final hasDigit = pwd.contains(RegExp(r'[0-9]'));
+    final hasSpecial = pwd.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'));
+    return hasUpper && hasDigit && hasSpecial;
+  }
+
   Future<void> resetPassword() async {
     if (!isCodeVerified) { verifyCode(); return; }
     if (!_formKey.currentState!.validate()) return;
@@ -46,98 +60,185 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
     final user = await Users.getUsersByEmail(widget.listusers, widget.email);
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(Strings.of('user_not_found'))));
-      setState(() => isLoading = false);
-      return;
-    }
-    final validation = await PasswordResetValidation.validate(newPassword: newPwdCtrl.text, confirmPassword: confirmCtrl.text, currentPasswordHash: user.password);
-    if (validation != PasswordResetValidationResult.valid) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(
-          validation == PasswordResetValidationResult.sameAsCurrentPassword ? Strings.of('same_password_error') : Strings.of('form_invalid'))));
-      setState(() => isLoading = false);
-      return;
+      setState(() => isLoading = false); return;
     }
     final encrypted = await Users.encryptPassword(newPwdCtrl.text);
     final result = await Users.updatePassword(user.userID, encrypted);
     setState(() => isLoading = false);
-    result == "success"
-        ? Navigator.push(context, MaterialPageRoute(builder: (_) => const PasswordChangeSuccessScreen()))
-        : Toast(context, "Erreur : $result", false);
+    if (result == "success") {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => const PasswordChangeSuccessScreen()));
+    } else {
+      Toast(context, "Erreur : $result", false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = isDark ? AppDarkColors.surface : AppColors.surface;
+    final cardColor = isDark ? AppDarkColors.card : AppColors.card;
+    final inkColor = isDark ? AppDarkColors.ink : AppColors.ink;
+    final inkMuted = isDark ? AppDarkColors.inkMuted : AppColors.inkMuted;
+
     return Scaffold(
-      backgroundColor: AppColors.surface,
-      appBar: AppBar(),
-      body: Padding(
+      backgroundColor: surface,
+      appBar: AppBar(backgroundColor: surface),
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Form(
           key: _formKey,
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             const SizedBox(height: 40),
-            Text(Strings.of('reset_password_title'), style: AppTypography.headlineLarge()),
+            Text(Strings.of('reset_password_title'), style: AppTypography.headlineLarge(color: inkColor)),
             const SizedBox(height: 8),
-            Text(Strings.of('reset_password_subtitle'), style: AppTypography.bodyLarge(color: AppColors.inkMuted)),
+            Text(Strings.of('reset_password_subtitle'), style: AppTypography.bodyLarge(color: inkMuted)),
             const SizedBox(height: 28),
             if (!isCodeVerified) ...[
-              TextFormField(
-                controller: codeCtrl, keyboardType: TextInputType.number,
-                style: AppTypography.bodyLarge(),
-                decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.verified_user_outlined),
-                  labelText: Strings.of('verification_code'),
-                  hintText: Strings.of('verification_code_hint'),
+              PinCodeTextField(
+                appContext: context,
+                length: 6,
+                controller: codeCtrl,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                animationType: AnimationType.fade,
+                pinTheme: PinTheme(
+                  shape: PinCodeFieldShape.box,
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                  fieldHeight: 48, fieldWidth: 44,
+                  activeFillColor: cardColor,
+                  inactiveFillColor: cardColor,
+                  selectedFillColor: cardColor,
+                  activeColor: AppColors.brand,
+                  inactiveColor: AppColors.border,
+                  selectedColor: AppColors.brand,
+                ),
+                onCompleted: (_) => verifyCode(),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(width: double.infinity, height: 56,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.brand, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg))),
+                  onPressed: verifyCode, child: Text(Strings.of('verify_code'), style: AppTypography.labelMedium(color: Colors.white)))),
+          ] else ...[
+              ListenableBuilder(
+                listenable: simpleUIController,
+                builder: (_, __) => TextFormField(
+                  controller: newPwdCtrl, style: AppTypography.bodyLarge(color: inkColor),
+                  obscureText: simpleUIController.isObscure,
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.lock_outline_rounded),
+                    suffixIcon: IconButton(icon: Icon(simpleUIController.isObscure ? Icons.visibility_off_outlined : Icons.visibility_outlined), onPressed: () => simpleUIController.isObscureActive()),
+                    hintText: Strings.of('new_password'),
+                    filled: true, fillColor: cardColor,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.lg), borderSide: BorderSide(color: AppColors.border)),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.lg), borderSide: BorderSide(color: AppColors.border)),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.lg), borderSide: BorderSide(color: AppColors.brand, width: 1.5)),
+                  ),
+                  validator: (v) {
+                    if (v == null || v.isEmpty) return Strings.of('enter_password');
+                    if (!_isPasswordValid(v)) return Strings.get('Min 8 car, 1 maj, 1 chiffre, 1 spécial', 'Min 8 chars, 1 upper, 1 digit, 1 special');
+                    return null;
+                  },
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
+              if (newPwdCtrl.text.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                _PasswordStrengthIndicator(controller: newPwdCtrl),
+              ],
+              const SizedBox(height: 14),
+              ListenableBuilder(
+                listenable: simpleUIController,
+                builder: (_, __) => TextFormField(
+                  controller: confirmCtrl, style: AppTypography.bodyLarge(color: inkColor),
+                  obscureText: simpleUIController.isObscure,
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.lock_outline_rounded),
+                    suffixIcon: IconButton(icon: Icon(simpleUIController.isObscure ? Icons.visibility_off_outlined : Icons.visibility_outlined), onPressed: () => simpleUIController.isObscureActive()),
+                    hintText: Strings.of('confirm_password'),
+                    filled: true, fillColor: cardColor,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.lg), borderSide: BorderSide(color: AppColors.border)),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.lg), borderSide: BorderSide(color: AppColors.border)),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.lg), borderSide: BorderSide(color: AppColors.brand, width: 1.5)),
+                  ),
+                  validator: (v) {
+                    if (v == null || v.isEmpty) return Strings.of('confirm_password_required');
+                    if (v != newPwdCtrl.text) return Strings.of('passwords_do_not_match');
+                    return null;
+                  },
                 ),
               ),
               const SizedBox(height: 20),
               SizedBox(width: double.infinity, height: 56,
-                child: ElevatedButton(onPressed: verifyCode, child: Text(Strings.of('verify_code')))),
-            ] else ...[
-              ListenableBuilder(listenable: simpleUIController, builder: (_, __) => TextFormField(
-                controller: newPwdCtrl, style: AppTypography.bodyLarge(),
-                obscureText: simpleUIController.isObscure,
-                decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.lock_outline_rounded),
-                  suffixIcon: IconButton(
-                    icon: Icon(simpleUIController.isObscure ? Icons.visibility_off_outlined : Icons.visibility_outlined),
-                    onPressed: () => simpleUIController.isObscureActive(),
-                  ),
-                  hintText: Strings.of('new_password'),
-                ),
-              )),
-              const SizedBox(height: 14),
-              FlutterPwValidator(key: validatorKey, controller: newPwdCtrl,
-                  minLength: 8, uppercaseCharCount: 1, numericCharCount: 3, specialCharCount: 1,
-                  width: 400, height: 150, onSuccess: () {}, onFail: () {}),
-              const SizedBox(height: 14),
-              ListenableBuilder(listenable: simpleUIController, builder: (_, __) => TextFormField(
-                controller: confirmCtrl, style: AppTypography.bodyLarge(),
-                obscureText: simpleUIController.isObscure,
-                decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.lock_outline_rounded),
-                  suffixIcon: IconButton(
-                    icon: Icon(simpleUIController.isObscure ? Icons.visibility_off_outlined : Icons.visibility_outlined),
-                    onPressed: () => simpleUIController.isObscureActive(),
-                  ),
-                  hintText: Strings.of('confirm_password'),
-                ),
-                validator: (v) {
-                  if (v == null || v.isEmpty) return Strings.of('confirm_password_required');
-                  if (v != newPwdCtrl.text) return Strings.of('passwords_do_not_match');
-                  return null;
-                },
-              )),
-              const SizedBox(height: 20),
-              SizedBox(width: double.infinity, height: 56,
                 child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.brand, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg))),
                   onPressed: isLoading ? null : resetPassword,
-                  child: isLoading ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : Text(Strings.of('reset_password')),
+                  child: isLoading ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : Text(Strings.of('reset_password'), style: AppTypography.labelMedium(color: Colors.white)),
                 )),
             ],
           ]),
         ),
       ),
     );
+  }
+}
+
+class _PasswordStrengthIndicator extends StatefulWidget {
+  const _PasswordStrengthIndicator({required this.controller});
+  final TextEditingController controller;
+  @override
+  State<_PasswordStrengthIndicator> createState() => _PasswordStrengthIndicatorState();
+}
+
+class _PasswordStrengthIndicatorState extends State<_PasswordStrengthIndicator> {
+  bool _hasMin = false, _hasUpper = false, _hasNumber = false, _hasSpecial = false;
+
+  @override
+  void initState() { super.initState(); widget.controller.addListener(_check); _check(); }
+  @override
+  void dispose() { widget.controller.removeListener(_check); super.dispose(); }
+
+  void _check() {
+    final t = widget.controller.text;
+    setState(() {
+      _hasMin = t.length >= 8;
+      _hasUpper = t.contains(RegExp(r'[A-Z]'));
+      _hasNumber = RegExp(r'\d').allMatches(t).length >= 3;
+      _hasSpecial = t.contains(RegExp(r'[^a-zA-Z0-9\s]'));
+    });
+  }
+
+  int get _score => (_hasMin ? 1 : 0) + (_hasUpper ? 1 : 0) + (_hasNumber ? 1 : 0) + (_hasSpecial ? 1 : 0);
+
+  Color get _c {
+    switch (_score) { case 4: return AppColors.success; case 3: return AppColors.accent; case 2: return const Color(0xFFF59E0B); default: return AppColors.error; }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? AppDarkColors.card : AppColors.surfaceWarm;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(AppRadius.md), border: Border.all(color: AppColors.border.withValues(alpha: 0.5))),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: List.generate(4, (i) => Expanded(child: AnimatedContainer(duration: const Duration(milliseconds: 200), height: 4, margin: EdgeInsets.only(right: i < 3 ? 4 : 0), decoration: BoxDecoration(color: i < _score ? _c : AppColors.border, borderRadius: BorderRadius.circular(999)))))),
+        const SizedBox(height: 8),
+        Wrap(spacing: 12, runSpacing: 4, children: [
+          _Cr(ok: _hasMin, label: Strings.get('8 caractères min.', '8 chars min.')),
+          _Cr(ok: _hasUpper, label: Strings.get('1 majuscule', '1 uppercase')),
+          _Cr(ok: _hasNumber, label: Strings.get('3 chiffres', '3 digits')),
+          _Cr(ok: _hasSpecial, label: Strings.get('1 caractère spécial', '1 special char')),
+        ]),
+      ]),
+    );
+  }
+
+  Widget _Cr({required bool ok, required String label}) {
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(ok ? Icons.check_circle_rounded : Icons.circle_outlined, size: 13, color: ok ? AppColors.success : AppColors.inkSubtle),
+      const SizedBox(width: 4),
+      Text(label, style: TextStyle(fontSize: 11, color: ok ? AppColors.success : AppColors.inkMuted)),
+    ]);
   }
 }

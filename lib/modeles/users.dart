@@ -404,6 +404,7 @@ class Users extends HiveObject {
     required String lastname,
     required String email,
     required String telephone,
+    String? image,
   }) async {
     var cloudFunction = ParseCloudFunction('update1User');
     var params = <String, dynamic>{
@@ -412,6 +413,7 @@ class Users extends HiveObject {
       'lastname': lastname,
       'email': email,
       'telephone': telephone,
+      if (image != null) 'image': image,
     };
     try {
       final ParseResponse parseResponse =

@@ -58,6 +58,7 @@ class Restaurant extends HiveObject {
   String currency;
 
   String openingDays;
+  bool get isCurrentlyOpen => isOpen == 1;
   double minOrderAmount;
   double deliveryRadius;
   String closedDates;
@@ -224,6 +225,7 @@ class Restaurant extends HiveObject {
     bool trainingCompleted = false,
     String currency = 'EUR',
     String openingDays = 'Lun,Mar,Mer,Jeu,Ven,Sam',
+    String recoveryMode = 'delivery',
     double minOrderAmount = 0,
     double deliveryRadius = 10,
     String closedDates = '',
@@ -286,6 +288,7 @@ class Restaurant extends HiveObject {
       'trainingCompleted': trainingCompleted,
       'currency': currency,
       'openingDays': openingDays,
+      'recoveryMode': recoveryMode,
       'minOrderAmount': minOrderAmount,
       'deliveryRadius': deliveryRadius,
       'closedDates': closedDates,

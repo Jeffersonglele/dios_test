@@ -4,7 +4,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'DishDetails.dart';
 import '../widgets/dios_image.dart';
-import '../utils/strings.dart';
 
 class MealsOfACategory extends StatefulWidget {
   final int? categoryId;
@@ -35,14 +34,14 @@ class _MealsOfACategoryState extends State<MealsOfACategory> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.surface,
-      appBar: AppBar(title: Text(widget.categoryName ?? Strings.get('Plats', 'Dishes'))),
+      appBar: AppBar(title: Text(widget.categoryName ?? 'Plats')),
       body: RefreshIndicator(
         color: AppColors.brand,
         onRefresh: _loadDishes,
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : _dishes.isEmpty
-                ? Center(child: Text(Strings.get('Aucun plat', 'No dish'), style: AppTypography.bodyMedium()))
+                ? Center(child: Text('Aucun plat.', style: AppTypography.bodyMedium()))
                 : ListView.builder(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
                     itemCount: _dishes.length,
@@ -63,7 +62,7 @@ class _MealsOfACategoryState extends State<MealsOfACategory> {
                             child: Padding(
                               padding: const EdgeInsets.all(12),
                               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                Text(_dishes[i].name ?? Strings.get('Plat', 'Dish'), style: AppTypography.titleMedium()),
+                                Text(_dishes[i].name ?? 'Plat', style: AppTypography.titleMedium()),
                                 const SizedBox(height: 4),
                                 Text(_dishes[i].description ?? '', maxLines: 2, overflow: TextOverflow.ellipsis,
                                     style: AppTypography.bodyMedium()),

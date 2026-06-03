@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/strings.dart';
 import '../authentification/Login.dart';
 
 class PasswordChangeSuccessScreen extends StatelessWidget {
   const PasswordChangeSuccessScreen({super.key});
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = isDark ? AppDarkColors.surface : AppColors.surface;
+    final inkMuted = isDark ? AppDarkColors.inkMuted : AppColors.inkMuted;
+
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: surface,
       body: SafeArea(
         child: Center(
           child: Padding(
@@ -18,23 +23,20 @@ class PasswordChangeSuccessScreen extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: AppColors.successLight,
-                  boxShadow: [
-                    BoxShadow(color: AppColors.success.withValues(alpha: 0.2), blurRadius: 20, offset: const Offset(0, 8)),
-                  ],
+                  boxShadow: [BoxShadow(color: AppColors.success.withValues(alpha: 0.2), blurRadius: 20, offset: const Offset(0, 8))],
                 ),
                 child: const Icon(Icons.check_rounded, color: AppColors.success, size: 48),
               ),
               const SizedBox(height: 28),
-              Text('Mot de passe réinitialisé !', style: AppTypography.headlineMedium(), textAlign: TextAlign.center),
+              Text(Strings.get('Mot de passe réinitialisé !', 'Password reset!'), style: AppTypography.headlineMedium(), textAlign: TextAlign.center),
               const SizedBox(height: 12),
-              Text('Votre mot de passe a été changé avec succès. Vous pouvez maintenant vous connecter.',
-                  style: AppTypography.bodyLarge(color: AppColors.inkMuted), textAlign: TextAlign.center),
+              Text(Strings.get('Votre mot de passe a été changé avec succès. Vous pouvez maintenant vous connecter.', 'Your password has been changed successfully. You can now log in.'), style: AppTypography.bodyLarge(color: inkMuted), textAlign: TextAlign.center),
               const SizedBox(height: 32),
               SizedBox(width: double.infinity, height: 56,
                 child: ElevatedButton(
-                  onPressed: () => Navigator.pushAndRemoveUntil(context,
-                      MaterialPageRoute(builder: (_) => const Login()), (_) => false),
-                  child: const Text('Se connecter'),
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.brand, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg))),
+                  onPressed: () => Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const Login()), (_) => false),
+                  child: Text(Strings.get('Se connecter', 'Log in'), style: AppTypography.labelMedium(color: Colors.white)),
                 )),
             ]),
           ),

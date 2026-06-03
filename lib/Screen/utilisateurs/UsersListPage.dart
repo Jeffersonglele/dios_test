@@ -6,7 +6,6 @@ import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import '../../modeles/users.dart';
 import '../../modeles/identity.dart';
 import '../../widgets/dios_image.dart';
-import '../../utils/strings.dart';
 
 class UsersListPage extends StatefulWidget {
   final String country;
@@ -129,7 +128,7 @@ class _UsersListPageState extends State<UsersListPage> {
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: AppBar(
-        title: Text('${Strings.users} · ${widget.country}'),
+        title: Text('Utilisateurs · ${widget.country}'),
         centerTitle: true,
       ),
       body: Column(
@@ -151,7 +150,7 @@ class _UsersListPageState extends State<UsersListPage> {
                     onChanged: (v) => setState(() {}),
                     style: AppTypography.bodyLarge().copyWith(fontSize: 14),
                     decoration: InputDecoration(
-                      hintText: '${Strings.search}...',
+                      hintText: 'Rechercher...',
                       hintStyle: AppTypography.bodyMedium().copyWith(fontSize: 14),
                       prefixIcon: Icon(Icons.search_rounded, color: AppColors.inkSubtle, size: 20),
                       border: InputBorder.none,
@@ -210,7 +209,7 @@ class _UsersListPageState extends State<UsersListPage> {
                       activeColor: AppColors.accent,
                       onChanged: (v) => setState(() => showOnlyWaitingForValidation = v),
                     ),
-                    Text(Strings.pending, style: AppTypography.labelMedium().copyWith(fontSize: 12)),
+                    Text('En attente', style: AppTypography.labelMedium().copyWith(fontSize: 12)),
                     const SizedBox(width: 8),
                   ],
                 ),
@@ -233,7 +232,7 @@ class _UsersListPageState extends State<UsersListPage> {
                             Icon(Icons.people_outline_rounded,
                                 size: 64, color: AppColors.inkSubtle),
                             const SizedBox(height: 12),
-                            Text(Strings.get('Aucun utilisateur trouvé', 'No user found'),
+                            Text('Aucun utilisateur trouvé',
                                 style: AppTypography.bodyLarge(color: AppColors.inkMuted)),
                           ],
                         ),
@@ -332,7 +331,7 @@ class _UsersListPageState extends State<UsersListPage> {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            isVerified ? Strings.validated : isRejected ? Strings.rejected : Strings.pending,
+                            isVerified ? 'Validé' : isRejected ? 'Rejeté' : 'En attente',
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
@@ -405,17 +404,17 @@ class _UsersListPageState extends State<UsersListPage> {
             child: const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 18),
           ),
           const SizedBox(width: 10),
-          Text(Strings.get('Rejeter le profil', 'Reject profile'), style: AppTypography.titleMedium()),
+          Text('Rejeter le profil', style: AppTypography.titleMedium()),
         ]),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text('${Strings.rejectReason} pour ${user.firstname} ${user.lastname} :',
+          Text('Motif du rejet pour ${user.firstname} ${user.lastname} :',
               style: AppTypography.bodyMedium()),
           const SizedBox(height: 12),
           TextField(
             controller: remarkCtrl,
             maxLines: 3,
             decoration: InputDecoration(
-              hintText: Strings.get('Saisissez votre remarque...', 'Enter your remark...'),
+              hintText: 'Saisissez votre remarque...',
               filled: true,
               fillColor: AppColors.surfaceWarm,
               border: OutlineInputBorder(
@@ -428,7 +427,7 @@ class _UsersListPageState extends State<UsersListPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text(Strings.cancel,
+            child: Text('Annuler',
                 style: AppTypography.labelMedium(color: AppColors.inkMuted)),
           ),
           ElevatedButton(
@@ -437,7 +436,7 @@ class _UsersListPageState extends State<UsersListPage> {
               Navigator.pop(ctx);
               _rejectUsers(user, remarkCtrl.text);
             },
-            child: Text(Strings.reject),
+            child: const Text('Rejeter'),
           ),
         ],
       ),
@@ -451,7 +450,7 @@ class _UsersListPageState extends State<UsersListPage> {
       if (mounted) {
         setState(() => user.identity = "Verified");
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('${user.firstname} : ${Strings.get("Profil validé", "Profile validated")}'),
+          content: Text('Profil de ${user.firstname} validé avec succès'),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
         ));
@@ -466,7 +465,7 @@ class _UsersListPageState extends State<UsersListPage> {
       if (mounted) {
         setState(() => user.identity = "Rejected");
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('${user.firstname} : ${Strings.get("Profil rejeté", "Profile rejected")}'),
+          content: Text('Profil de ${user.firstname} rejeté'),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
         ));

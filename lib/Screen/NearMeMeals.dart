@@ -1,5 +1,6 @@
 import 'package:dios_delices/Screen/DishDetails.dart';
 import 'package:dios_delices/services/nearby_service.dart';
+import 'package:dios_delices/theme/app_theme.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
@@ -16,8 +17,8 @@ class _NearMeMealsState extends State<NearMeMeals> {
   List<NearbyDishResult> _allDishes = [];
   List<NearbyDishResult> _visibleDishes = [];
   bool _isLoading = true;
+  bool _showAll = true; // "Tout" is selected by default
   bool _openRestaurantsOnly = false;
-  double _maxDistanceKm = 10;
 
   @override
   void initState() {
@@ -39,7 +40,7 @@ class _NearMeMealsState extends State<NearMeMeals> {
 
     try {
       final dishes = await NearbyService.getNearbyDishes(
-        maxDistanceKm: _maxDistanceKm,
+        maxDistanceKm: _showAll ? 100 : 10,
         openRestaurantsOnly: _openRestaurantsOnly,
       );
 
@@ -84,9 +85,9 @@ class _NearMeMealsState extends State<NearMeMeals> {
     }
   }
 
-  Future<void> _updateDistance(double distanceKm) async {
+  Future<void> _updateShowAll(bool value) async {
     setState(() {
-      _maxDistanceKm = distanceKm;
+      _showAll = value;
     });
     await _loadNearbyDishes();
   }
@@ -100,9 +101,14 @@ class _NearMeMealsState extends State<NearMeMeals> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Plats à proximité'),
+        title: Text('Plats à proximité',
+            style: TextStyle(color: colorScheme.onSurface)),
+        backgroundColor: colorScheme.surface,
+        elevation: 0,
+        iconTheme: IconThemeData(color: colorScheme.onSurface),
       ),
       body: RefreshIndicator(
         onRefresh: _loadNearbyDishes,
@@ -111,11 +117,15 @@ class _NearMeMealsState extends State<NearMeMeals> {
           children: [
             TextField(
               controller: _searchController,
+              style: TextStyle(color: colorScheme.onSurface),
               decoration: InputDecoration(
                 hintText: 'Rechercher un plat ou un restaurant',
-                prefixIcon: const Icon(Icons.search),
+                hintStyle:
+                    TextStyle(color: colorScheme.onSurface.withOpacity(0.5)),
+                prefixIcon: Icon(Icons.search,
+                    color: colorScheme.onSurface.withOpacity(0.5)),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: AppColors.resolve(AppColors.card, AppDarkColors.card),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide.none,
@@ -127,65 +137,73 @@ class _NearMeMealsState extends State<NearMeMeals> {
               spacing: 8,
               runSpacing: 8,
               children: [
-                _FilterChip(
-                  label: '5 km',
-                  selected: _maxDistanceKm == 5,
-                  onTap: () => _updateDistance(5),
-                ),
-                _FilterChip(
-                  label: '10 km',
-                  selected: _maxDistanceKm == 10,
-                  onTap: () => _updateDistance(10),
-                ),
-                _FilterChip(
-                  label: '20 km',
-                  selected: _maxDistanceKm == 20,
-                  onTap: () => _updateDistance(20),
+                FilterChip(
+                  label: Text('Tout',
+                      style: TextStyle(
+                          color:
+                              _showAll ? Colors.white : colorScheme.onSurface)),
+                  selected: _showAll,
+                  selectedColor: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+                  checkmarkColor: Colors.white,
+                  onSelected: _updateShowAll,
                 ),
                 FilterChip(
-                  label: const Text('Restos ouverts'),
+                  label: Text('Restos ouverts',
+                      style: TextStyle(
+                          color: _openRestaurantsOnly
+                              ? Colors.white
+                              : colorScheme.onSurface)),
                   selected: _openRestaurantsOnly,
+                  selectedColor: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+                  checkmarkColor: Colors.white,
                   onSelected: _updateOpenOnly,
                 ),
               ],
             ),
             const SizedBox(height: 16),
             if (_isLoading)
-              const Center(child: CircularProgressIndicator())
+              Center(
+                  child: CircularProgressIndicator(
+                      color: AppColors.resolve(AppColors.brand, AppDarkColors.brand)))
             else if (_visibleDishes.isEmpty)
-              const Padding(
-                padding: EdgeInsets.only(top: 48),
+              Padding(
+                padding: const EdgeInsets.only(top: 48),
                 child: Center(
-                  child: Text('Aucun plat trouvé avec ces filtres.'),
+                  child: Text('Aucun plat trouvé avec ces filtres.',
+                      style: TextStyle(color: colorScheme.onSurface)),
                 ),
               )
             else
               ..._visibleDishes.map(
                 (result) => Card(
                   margin: const EdgeInsets.only(bottom: 14),
+                  color: AppColors.resolve(AppColors.card, AppDarkColors.card),
+                  elevation: 1,
                   child: ListTile(
                     contentPadding: const EdgeInsets.all(12),
                     leading: _DishAvatar(imageUrl: result.dish.image),
                     title: Text(
                       result.dish.name ?? 'Plat',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: colorScheme.onSurface),
                     ),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const SizedBox(height: 4),
-                        Text(result.restaurant.name),
+                        Text(result.restaurant.name ?? 'Restaurant',
+                            style: TextStyle(
+                                color: colorScheme.onSurface.withOpacity(0.7))),
                         Text(
-                          '${result.distanceKm.toStringAsFixed(2)} km | ${result.dish.nb_servings ?? 0} portions',
-                        ),
-                        Text(
-                          '${result.dish.price?.toStringAsFixed(2) ?? '0.00'} | ${result.dish.categories ?? ''}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                          '${result.dish.nb_orders} commandes | ${result.dish.nb_servings ?? 0} portions',
+                          style: TextStyle(
+                              color: colorScheme.onSurface.withOpacity(0.7)),
                         ),
                       ],
                     ),
-                    trailing: const Icon(Icons.chevron_right),
+                    trailing: Icon(Icons.chevron_right,
+                        color: colorScheme.onSurface.withOpacity(0.5)),
                     onTap: () {
                       Navigator.push(
                         context,
@@ -220,9 +238,15 @@ class _FilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return ChoiceChip(
-      label: Text(label),
+      label: Text(label,
+          style: TextStyle(
+              color: selected ? Colors.white : colorScheme.onSurface)),
       selected: selected,
+      selectedColor:
+          AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+      checkmarkColor: Colors.white,
       onSelected: (_) => onTap(),
     );
   }
@@ -246,8 +270,7 @@ class _DishAvatar extends StatelessWidget {
     return CircleAvatar(
       radius: 28,
       backgroundImage: NetworkImage(imageUrl!),
-      onBackgroundImageError: (_, __) {},
-      child: hasImage ? null : const Icon(Icons.restaurant_menu),
+      child: const Icon(Icons.restaurant_menu),
     );
   }
 }
