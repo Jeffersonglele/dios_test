@@ -6,6 +6,8 @@ import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:email_validator/email_validator.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../Constant/Constant.dart';
 import '../../Controller/UiController.dart';
 import '../../core/app_role.dart';
@@ -319,7 +321,15 @@ class _SignUpViewState extends State<SignUpView> {
                   );
                   sendVerificationEmail(context, emailCtrl.text);
                   Toast(context, "Compte créé ! Vérifiez votre email.", true);
-                  if (mounted) Users.chooseCurvedNavigation(_signupRole, _selectedCountry, context);
+                  if (mounted) {
+                    final prefs = await SharedPreferences.getInstance();
+                    final welcomeKey = 'has_seen_welcome_$result';
+                    await prefs.setBool(welcomeKey, true);
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (_) => WelcomeScreen()),
+                    );
+                  }
                 } else {
                   debugPrint('Signup error: $result');
                   Toast(context, "Erreur : $result", false);

@@ -1,3 +1,4 @@
+import 'package:geolocator/geolocator.dart';
 import 'package:dios_delices/providers/theme_provider.dart';
 import 'package:dios_delices/Screen/DishDetails.dart';
 import 'package:dios_delices/Screen/MealsOfACategory.dart';
@@ -58,6 +59,14 @@ void main() async {
   Hive.registerAdapter(LigneCommandeAdapter());
 
   await NotificationService.initialize();
+
+  // Demande de géolocalisation (comme pour les notifs)
+  try {
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      await Geolocator.requestPermission();
+    }
+  } catch (_) {}
 
   final prefs = await SharedPreferences.getInstance();
   darkModeNotifier.value = prefs.getBool('dark_mode') ?? false;
