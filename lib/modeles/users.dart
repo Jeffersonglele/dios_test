@@ -127,16 +127,19 @@ class Users extends HiveObject {
       status: map['status']?.toString() ?? '',
       identity: map['identity']?.toString() ?? '',
       addressID: int.tryParse(map['addressID']?.toString() ?? '0') ?? 0,
-      last_login: map['last_login'] != null && map['last_login']['iso'] != null
-          ? DateTime.tryParse(map['last_login']['iso'])
+      last_login: map['last_login'] != null
+          ? DateTime.tryParse(map['last_login'].toString())
           : null,
       image: map['image']?.toString() ?? '',
       birthDate: map['birthDate']?.toString(),
-      consentRGPD: map['consentRGPD'] == true || map['consentRGPD']?.toString() == 'true',
+      consentRGPD: map['consentRGPD'] == true ||
+          map['consentRGPD']?.toString() == 'true',
       consentDate: map['consentDate']?.toString(),
       permisType: map['permisType']?.toString(),
-      permisVerified: map['permisVerified'] == true || map['permisVerified']?.toString() == 'true',
-      isOnline: map['isOnline'] == true || map['isOnline']?.toString() == 'true',
+      permisVerified: map['permisVerified'] == true ||
+          map['permisVerified']?.toString() == 'true',
+      isOnline:
+          map['isOnline'] == true || map['isOnline']?.toString() == 'true',
     );
   }
 
@@ -176,13 +179,13 @@ class Users extends HiveObject {
       country: country ?? this.country,
       status: status ?? this.status,
       identity: identity ?? this.identity,
-        addressID: addressID ?? this.addressID,
-        birthDate: birthDate ?? this.birthDate,
-        consentRGPD: consentRGPD ?? this.consentRGPD,
-        consentDate: consentDate ?? this.consentDate,
-        permisType: permisType ?? this.permisType,
-        permisVerified: permisVerified ?? this.permisVerified,
-        isOnline: isOnline ?? this.isOnline,
+      addressID: addressID ?? this.addressID,
+      birthDate: birthDate ?? this.birthDate,
+      consentRGPD: consentRGPD ?? this.consentRGPD,
+      consentDate: consentDate ?? this.consentDate,
+      permisType: permisType ?? this.permisType,
+      permisVerified: permisVerified ?? this.permisVerified,
+      isOnline: isOnline ?? this.isOnline,
     );
   }
 
@@ -221,7 +224,7 @@ class Users extends HiveObject {
       }
     }
 
-    var params = <String, dynamic>{
+    final params = <String, dynamic>{
       if (userID != null) 'userID': userID,
       'roleID': roleID,
       'firstname': firstname,
@@ -232,7 +235,7 @@ class Users extends HiveObject {
       'password': password,
       'telephone': telephone,
       'password_crypte': password_crypte,
-      'last_login': last_login?.toIso8601String(),
+      if (last_login != null) 'last_login': last_login.toIso8601String(),
       'image': imageUrl,
       'status': status,
       'identity': identity,

@@ -99,10 +99,8 @@ class _CartState extends ConsumerState<Cart> {
     return items.first['meal']['country']?.toString() ?? 'France';
   }
 
-  String _currencyCode(String country) =>
-      country == 'France' ? 'eur' : 'xof';
-  String _currencySymbol(String country) =>
-      country == 'France' ? '€' : 'FCFA';
+  String _currencyCode(String country) => country == 'France' ? 'eur' : 'xof';
+  String _currencySymbol(String country) => country == 'France' ? '€' : 'FCFA';
 
   double _lineTotal(Map<String, dynamic> item) {
     final unitPrice = (item['meal']['price'] as num?)?.toDouble() ?? 0.0;
@@ -146,9 +144,8 @@ class _CartState extends ConsumerState<Cart> {
     final deliveryNotifier = ref.read(selectedDeliveryProvider.notifier);
 
     final allowedOptions = ['En Livraison', 'À Emporter'];
-    final safeOption = allowedOptions.contains(selectedOption)
-        ? selectedOption
-        : 'À Emporter';
+    final safeOption =
+        allowedOptions.contains(selectedOption) ? selectedOption : 'À Emporter';
 
     // Adresse utilisateur par défaut
     if (selectedAddress == null) {
@@ -180,8 +177,7 @@ class _CartState extends ConsumerState<Cart> {
               Icon(Icons.shopping_basket_outlined,
                   size: 80, color: AppColors.border),
               const SizedBox(height: 20),
-              Text('Votre panier est vide',
-                  style: AppTypography.titleMedium()),
+              Text('Votre panier est vide', style: AppTypography.titleMedium()),
               const SizedBox(height: 8),
               Text('Ajoutez des plats faits maison !',
                   style: AppTypography.bodyMedium()),
@@ -215,8 +211,8 @@ class _CartState extends ConsumerState<Cart> {
                       currencySymbol: cs,
                       onDelete: () {
                         cartNotifier.removeFromCart(index);
-                        Toast(context,
-                            "${item['meal']['meal_name']} supprimé", true);
+                        Toast(context, "${item['meal']['meal_name']} supprimé",
+                            true);
                       },
                       onQuantityChanged: (qty) =>
                           cartNotifier.updateQuantity(index, qty),
@@ -235,8 +231,8 @@ class _CartState extends ConsumerState<Cart> {
                           decoration: BoxDecoration(
                             color: AppColors.card,
                             borderRadius: BorderRadius.circular(AppRadius.lg),
-                            border: Border.all(
-                                color: AppColors.border, width: 0.5),
+                            border:
+                                Border.all(color: AppColors.border, width: 0.5),
                           ),
                           child: DropdownButtonHideUnderline(
                             child: DropdownButton<String>(
@@ -274,8 +270,7 @@ class _CartState extends ConsumerState<Cart> {
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: AppColors.successLight,
-                          borderRadius:
-                              BorderRadius.circular(AppRadius.md),
+                          borderRadius: BorderRadius.circular(AppRadius.md),
                         ),
                         child: Row(
                           children: [
@@ -356,8 +351,8 @@ class _CartState extends ConsumerState<Cart> {
                   const SizedBox(height: 14),
                   _SummaryRow('Sous-total', _formatAmount(cartTotal, cc, cs)),
                   if (safeOption == 'En Livraison')
-                    _SummaryRow(
-                        'Frais de livraison', _formatAmount(deliveryFee, cc, cs)),
+                    _SummaryRow('Frais de livraison',
+                        _formatAmount(deliveryFee, cc, cs)),
                   if (_appliedPromo != null)
                     _SummaryRow(
                       'Réduction',
@@ -387,8 +382,7 @@ class _CartState extends ConsumerState<Cart> {
                               color: !_payOnline
                                   ? AppColors.brandSurface
                                   : AppColors.card,
-                              borderRadius:
-                                  BorderRadius.circular(AppRadius.lg),
+                              borderRadius: BorderRadius.circular(AppRadius.lg),
                               border: Border.all(
                                 color: !_payOnline
                                     ? AppColors.brand
@@ -423,8 +417,7 @@ class _CartState extends ConsumerState<Cart> {
                               color: _payOnline
                                   ? AppColors.brandSurface
                                   : AppColors.card,
-                              borderRadius:
-                                  BorderRadius.circular(AppRadius.lg),
+                              borderRadius: BorderRadius.circular(AppRadius.lg),
                               border: Border.all(
                                 color: _payOnline
                                     ? AppColors.brand
@@ -461,8 +454,7 @@ class _CartState extends ConsumerState<Cart> {
       // ── Bouton Commander sticky ─────────────────────
       bottomNavigationBar: cartItems.isNotEmpty
           ? Container(
-              padding:
-                  const EdgeInsets.fromLTRB(20, 12, 20, 20),
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
               decoration: BoxDecoration(
                 color: AppColors.surface,
                 boxShadow: [
@@ -478,16 +470,16 @@ class _CartState extends ConsumerState<Cart> {
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
-                    onPressed:
-                        cartItems.isNotEmpty && !_isSubmittingPayment
-                            ? () => _payOnline
-                                ? _handleFedapayPayment()
-                                : _handleOrder()
-                            : null,
-                    child: Text(
+                    onPressed: cartItems.isNotEmpty && !_isSubmittingPayment
+                        ? () => _payOnline
+                            ? _handleFedapayPayment()
+                            : _handleOrder()
+                        : null,
+                    child: // Dans le bouton Commander, remplacer :
+                        Text(
                       _isSubmittingPayment
                           ? 'Traitement...'
-                          : 'Commander · $_currencySymbol($country) ${_formatAmount(payableTotal, cc, cs)}',
+                          : 'Commander · ${_formatAmount(payableTotal, cc, cs)}',
                       style: AppTypography.labelLarge(color: Colors.white),
                     ),
                   ),
@@ -534,10 +526,13 @@ class _CartState extends ConsumerState<Cart> {
     setState(() => _isSubmittingPayment = true);
     try {
       final commandeId = await createOrder(
-        cartItems, fee,
+        cartItems,
+        fee,
         option == "En Livraison" ? selectedAddress?.addressID : null,
-        null, ref,
-        currencyCode: cc, reduction: discount,
+        null,
+        ref,
+        currencyCode: cc,
+        reduction: discount,
         promoCode: _appliedPromo?.code,
       );
       if (commandeId != null) {
@@ -551,16 +546,17 @@ class _CartState extends ConsumerState<Cart> {
           NotificationService.sendOrderNotificationToRestaurateur(
             restaurateurId: currentRestaurant.userID,
             restaurantName: currentRestaurant.name,
-            orderDetails: "Commande #$commandeId",
             totalAmount: total.clamp(0.0, double.infinity),
             orderId: int.tryParse(commandeId),
           );
         }
         cartNotifier.clearCart();
         if (mounted) {
-          Navigator.pushReplacement(context,
-              MaterialPageRoute(builder: (_) =>
-                  OrderConfirmationPage(commandeId: commandeId)));
+          Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                  builder: (_) =>
+                      OrderConfirmationPage(commandeId: commandeId)));
         }
       } else {
         Toast(context, "Impossible de créer la commande.", false);
@@ -585,15 +581,20 @@ class _CartState extends ConsumerState<Cart> {
     final cc = _currencyCode(country);
     final fee = option == "En Livraison" ? calculateDeliveryFee(items) : 0.0;
     final discount = _appliedPromo?.discountAmount ?? 0.0;
-    final total = (_subtotal(items) + fee - discount).clamp(0.0, double.infinity);
+    final total =
+        (_subtotal(items) + fee - discount).clamp(0.0, double.infinity);
     final currencyIso = cc == 'XOF' ? 'XOF' : 'EUR';
 
     setState(() => _isSubmittingPayment = true);
     try {
       final commandeId = await createOrder(
-        cartItems, fee,
+        cartItems,
+        fee,
         option == "En Livraison" ? selectedAddress?.addressID : null,
-        null, ref, currencyCode: cc, reduction: discount,
+        null,
+        ref,
+        currencyCode: cc,
+        reduction: discount,
         promoCode: _appliedPromo?.code,
       );
       if (commandeId == null) {
@@ -605,10 +606,13 @@ class _CartState extends ConsumerState<Cart> {
       final currentUser = Users.getUsersByUserId(usersList, session.userId);
 
       final body = {
-        'amount': total, 'currency': currencyIso,
+        'amount': total,
+        'currency': currencyIso,
         'commandeID': int.tryParse(commandeId),
-        'customerName': '${currentUser?.firstname ?? ""} ${currentUser?.lastname ?? ""}',
-        'customerEmail': currentUser?.email ?? '', 'country': country,
+        'customerName':
+            '${currentUser?.firstname ?? ""} ${currentUser?.lastname ?? ""}',
+        'customerEmail': currentUser?.email ?? '',
+        'country': country,
       };
       final response = await http.post(
         Uri.parse('${AppConfig.vercelBackendUrl}/api/fedapay-initiate'),
@@ -625,22 +629,23 @@ class _CartState extends ConsumerState<Cart> {
           }
           final restaurantId = cartItems.first['restaurant']['restau_id'];
           final restaurantsList = await Restaurant.fetchRestaurantsFromDB();
-          final currentRestaurant =
-              Restaurant.getRestaurantByRestaurantId(restaurantsList, restaurantId);
+          final currentRestaurant = Restaurant.getRestaurantByRestaurantId(
+              restaurantsList, restaurantId);
           if (currentRestaurant != null) {
             NotificationService.sendOrderNotificationToRestaurateur(
               restaurateurId: currentRestaurant.userID,
               restaurantName: currentRestaurant.name,
-              orderDetails: "Commande #$commandeId",
               totalAmount: total,
               orderId: int.tryParse(commandeId),
             );
           }
           cartNotifier.clearCart();
           if (mounted) {
-            Navigator.pushReplacement(context,
-                MaterialPageRoute(builder: (_) =>
-                    OrderConfirmationPage(commandeId: commandeId)));
+            Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                    builder: (_) =>
+                        OrderConfirmationPage(commandeId: commandeId)));
           }
         } else {
           Toast(context, "Erreur: URL de paiement introuvable.", false);
@@ -670,27 +675,27 @@ class _CartState extends ConsumerState<Cart> {
     final currentRestaurant =
         Restaurant.getRestaurantByRestaurantId(restaurantsList, restaurantId);
 
-    final subtotal =
-        _subtotal(List<Map<String, dynamic>>.from(cartItems));
+    final subtotal = _subtotal(List<Map<String, dynamic>>.from(cartItems));
     final totalAmount =
         (subtotal + deliveryFee - reduction).clamp(0.0, double.infinity);
 
-    final items = cartItems.map((item) => {
-      "id_plat": item["meal"]["mealID"],
-      "quantite": item["order"]["quantity"],
-      "prix": item["meal"]["price"],
-      "reduction": reduction,
-      "fraisLivraison": deliveryFee,
-      if (idPaiement != null) "moyen_paiement_id": idPaiement,
-      if (idAdresse != null) "id_adresse_livraison": idAdresse,
-      "options": (item["optionDetails"] ?? {}).map(
-        (k, v) => MapEntry(k.toString(), {
-          "name": v["name"].toString(),
-          "price": (v["price"] as num).toDouble(),
-        }),
-      ),
-    }).toList();
-
+    final items = cartItems
+        .map((item) => {
+              "id_plat": item["meal"]["mealID"],
+              "quantite": item["order"]["quantity"],
+              "prix": item["meal"]["price"],
+              "reduction": reduction,
+              "fraisLivraison": deliveryFee,
+              if (idPaiement != null) "moyen_paiement_id": idPaiement,
+              if (idAdresse != null) "id_adresse_livraison": idAdresse,
+              "options": (item["optionDetails"] ?? {}).map(
+                (k, v) => MapEntry(k.toString(), {
+                  "name": v["name"].toString(),
+                  "price": (v["price"] as num).toDouble(),
+                }),
+              ),
+            })
+        .toList();
     final params = <String, dynamic>{
       "userID": current_userID,
       "restaurantId": restaurantId,
@@ -726,7 +731,8 @@ class _SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(title, style: AppTypography.titleMedium().copyWith(fontSize: 17));
+    return Text(title,
+        style: AppTypography.titleMedium().copyWith(fontSize: 17));
   }
 }
 
@@ -789,7 +795,8 @@ class _CartItemCard extends StatelessWidget {
     final maxQty = (meal["number_of_servings"] as num?)?.toInt() ?? 99;
 
     String format(double v) {
-      if (currencyCode == 'eur') return '${v.toStringAsFixed(2)} $currencySymbol';
+      if (currencyCode == 'eur')
+        return '${v.toStringAsFixed(2)} $currencySymbol';
       return '${v.round()} $currencySymbol';
     }
 
@@ -848,10 +855,10 @@ class _CartItemCard extends StatelessWidget {
                         item["optionDetails"] is Map)
                       ...(item["optionDetails"] as Map)
                           .entries
-                          .map<Widget>((e) {
-                        final info = e.value as Map<String, dynamic>;
+                          .map<Widget>((entry) {
+                        final info = entry.value as Map<String, dynamic>;
                         return Text(
-                          '${info["title"] ?? ""}: ${info["name"] ?? ""}',
+                          '${entry.key}: ${info["name"] ?? ""}',
                           style: AppTypography.labelMedium(
                               color: AppColors.inkSubtle),
                         );
@@ -924,47 +931,47 @@ class OrderConfirmationPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
-      body: OrderConfettiCelebration(
-        child: SafeArea(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(32),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const AnimatedSuccessCheck(),
-                  const SizedBox(height: 28),
-                Text('Commande confirmée !',
-                    style: AppTypography.headlineMedium(),
-                    textAlign: TextAlign.center),
-                const SizedBox(height: 12),
-                Text(
-                  'Votre commande #$commandeId a été passée avec succès.',
-                  style: AppTypography.bodyLarge(color: AppColors.inkMuted),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 32),
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => OrderTrackingPage(
-                            highlightedCommandeId: commandeId),
+        backgroundColor: AppColors.surface,
+        body: OrderConfettiCelebration(
+          child: SafeArea(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const AnimatedSuccessCheck(),
+                    const SizedBox(height: 28),
+                    Text('Commande confirmée !',
+                        style: AppTypography.headlineMedium(),
+                        textAlign: TextAlign.center),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Votre commande #$commandeId a été passée avec succès.',
+                      style: AppTypography.bodyLarge(color: AppColors.inkMuted),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 32),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => OrderTrackingPage(
+                                highlightedCommandeId: commandeId),
+                          ),
+                        ),
+                        child: const Text('Suivre ma commande'),
                       ),
                     ),
-                    child: const Text('Suivre ma commande'),
-                  ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
-        ),
-      ),
-      ));
+        ));
   }
 }
 
@@ -1041,9 +1048,13 @@ class _DeliveryAddressModalState extends State<DeliveryAddressModal> {
 
       if (result is int) {
         final newAddr = {
-          "object": "Livraison", "objectID": result,
-          "city": city, "state": country,
-          "fullAddress": fullAddress, "lat": lat, "long": long,
+          "object": "Livraison",
+          "objectID": result,
+          "city": city,
+          "state": country,
+          "fullAddress": fullAddress,
+          "lat": lat,
+          "long": long,
         };
         selectedAddressId = result;
         selectedAddress = delivery.Address.fromMap(newAddr);
@@ -1069,7 +1080,9 @@ class _DeliveryAddressModalState extends State<DeliveryAddressModal> {
       return;
     }
     final result = await delivery.Address.deleteAddress(
-      addressID: id, object: object, objectID: widget.userId,
+      addressID: id,
+      object: object,
+      objectID: widget.userId,
     );
     if (result == "success") {
       await widget.onRefreshAddresses();
@@ -1093,8 +1106,8 @@ class _DeliveryAddressModalState extends State<DeliveryAddressModal> {
       expand: false,
       builder: (_, scrollController) {
         return Padding(
-          padding: EdgeInsets.fromLTRB(20, 12, 20,
-              MediaQuery.of(context).viewInsets.bottom + 20),
+          padding: EdgeInsets.fromLTRB(
+              20, 12, 20, MediaQuery.of(context).viewInsets.bottom + 20),
           child: Column(
             children: [
               // Poignée
@@ -1114,36 +1127,38 @@ class _DeliveryAddressModalState extends State<DeliveryAddressModal> {
                   controller: scrollController,
                   children: [
                     ...widget.filteredAddresses.map((addr) => Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      decoration: BoxDecoration(
-                        color: AppColors.card,
-                        borderRadius: BorderRadius.circular(AppRadius.md),
-                        border: Border.all(
-                          color: selectedAddressId == addr['objectID']
-                              ? AppColors.brand
-                              : AppColors.border,
-                          width: selectedAddressId == addr['objectID'] ? 1.5 : 0.5,
-                        ),
-                      ),
-                      child: ListTile(
-                        title: Text(addr['fullAddress'] ?? ''),
-                        leading: Radio<int>(
-                          value: addr['objectID'],
-                          groupValue: selectedAddressId,
-                          onChanged: (v) => setState(() {
-                            selectedAddressId = v;
-                            selectedAddress =
-                                delivery.Address.fromMap(addr);
-                          }),
-                        ),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.delete_outline,
-                              color: AppColors.error, size: 20),
-                          onPressed: () => deleteAddress(
-                              addr['addressID'], addr['object']),
-                        ),
-                      ),
-                    )),
+                          margin: const EdgeInsets.only(bottom: 8),
+                          decoration: BoxDecoration(
+                            color: AppColors.card,
+                            borderRadius: BorderRadius.circular(AppRadius.md),
+                            border: Border.all(
+                              color: selectedAddressId == addr['objectID']
+                                  ? AppColors.brand
+                                  : AppColors.border,
+                              width: selectedAddressId == addr['objectID']
+                                  ? 1.5
+                                  : 0.5,
+                            ),
+                          ),
+                          child: ListTile(
+                            title: Text(addr['fullAddress'] ?? ''),
+                            leading: Radio<int>(
+                              value: addr['objectID'],
+                              groupValue: selectedAddressId,
+                              onChanged: (v) => setState(() {
+                                selectedAddressId = v;
+                                selectedAddress =
+                                    delivery.Address.fromMap(addr);
+                              }),
+                            ),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.delete_outline,
+                                  color: AppColors.error, size: 20),
+                              onPressed: () => deleteAddress(
+                                  addr['addressID'], addr['object']),
+                            ),
+                          ),
+                        )),
                     if (!showForm)
                       TextButton.icon(
                         onPressed: () => setState(() => showForm = true),
