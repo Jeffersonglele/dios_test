@@ -1,8 +1,9 @@
-// cart_provider.dart - Version corrigée
-
 import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../modeles/restaurant.dart';
 import '../modeles/users.dart';
 
@@ -18,7 +19,7 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
   Future<String> addToCart(
     int mealID,
     String name,
-    double price,
+    double basePrice,
     String image,
     int quantity,
     int maxServings,
@@ -30,29 +31,40 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
     List<String?>? rawOptions,
   }) async {
     try {
-      final existingIndex =
-          state.indexWhere((item) => item['meal']['meal_name'] == name);
-
       List<Users> usersList = await Users.fetchUsersFromDB();
       List<Restaurant> restaurantsList =
           await Restaurant.fetchRestaurantsFromDB();
 
       Users? currentUser = Users.getUsersByUserId(usersList, user_id);
-      Restaurant? restaurant =
-          Restaurant.getRestaurantByRestaurantId(restaurantsList, restau_id);
 
-      if (currentUser == null || restaurant == null) return 'error';
+      Restaurant? restaurant = Restaurant.getRestaurantByRestaurantId(
+        restaurantsList,
+        restau_id,
+      );
 
-      double finalPrice = price + optionPrice;
+      if (currentUser == null || restaurant == null) {
+        return 'error';
+      }
 
+      // IMPORTANT:
+      // - meal.price doit contenir UNIQUEMENT le prix de base (sans options)
+      // - optionPrice est stocké séparément
+      // Ainsi le panier fait (unitPrice + optionPrice) et évite la double addition.
+      double finalPrice = basePrice;
+
+      // Vérification restaurant unique
       if (state.isNotEmpty) {
         final existingRestaurantId = state.first['restaurant']['restau_id'];
+
         if (existingRestaurantId != restau_id) {
           return 'different_restaurant';
         }
       }
 
-      // Construction des options formatées
+      // =========================
+      // Construction des options
+      // =========================
+
       Map<String, dynamic> formattedOptions = {};
       Map<String, dynamic> optionDetails = {};
 
@@ -62,46 +74,78 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
               index < rawOptions.length &&
               rawOptions[index] != null) {
             final parts = rawOptions[index]!.split(':');
+
             final optionTitle =
                 parts.isNotEmpty ? parts.first.trim() : 'Option ${index + 1}';
 
-            // Extraire le prix de l'option
+            // Format attendu :
+            // Nutella|500
+
+            final splitValue = value.split('|');
+
+            final choiceName = splitValue[0].trim();
+
             double optionPriceValue = 0.0;
-            if (parts.length > 1) {
-              final priceMatch = RegExp(r'([\d.,]+)').firstMatch(parts[1]);
-              if (priceMatch != null) {
-                optionPriceValue = double.tryParse(
-                        priceMatch.group(0)!.replaceAll(',', '.')) ??
-                    0.0;
-              }
+
+            if (splitValue.length > 1) {
+              optionPriceValue = double.tryParse(
+                    splitValue[1].replaceAll(',', '.'),
+                  ) ??
+                  0.0;
             }
 
             formattedOptions[optionTitle] = {
-              'choice': value,
+              'choice': choiceName,
               'price': optionPriceValue,
             };
 
             optionDetails[optionTitle] = {
-              'name': value,
+              'name': choiceName,
               'price': optionPriceValue,
             };
           }
         });
       }
 
+      // =====================================
+      // Vérification si plat déjà dans panier
+      // =====================================
+
+      final existingIndex = state.indexWhere(
+        (item) =>
+            item['meal']['meal_name'] == name &&
+            mapEquals(
+              Map<String, dynamic>.from(item['options'] ?? {}),
+              formattedOptions,
+            ),
+      );
+
+      // =========================
+      // Mise à jour quantité
+      // =========================
+
       if (existingIndex != -1) {
-        final newQuantity =
-            state[existingIndex]['order']['quantity'] + quantity;
+        final currentQuantity = state[existingIndex]['order']['quantity'];
+
+        final newQuantity = currentQuantity + quantity;
+
         if (newQuantity <= maxServings) {
           state[existingIndex]['order']['quantity'] = newQuantity;
+
+          total += finalPrice * quantity;
         }
       } else {
+        // =========================
+        // Ajout nouvel article
+        // =========================
+
         state = [
           ...state,
           {
             "meal": {
               "mealID": mealID,
               "meal_name": name,
+              "base_price": basePrice,
               "price": finalPrice,
               "image": image,
               "number_of_servings": maxServings,
@@ -111,8 +155,8 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
               "quantity": quantity,
             },
             "options": formattedOptions,
-            "optionDetails": optionDetails, // ← AJOUTER CETTE LIGNE
-            "optionPrice": optionPrice, // ← AJOUTER CETTE LIGNE
+            "optionDetails": optionDetails,
+            "optionPrice": optionPrice,
             "user": {
               "email": currentUser.email,
               "firstname": currentUser.firstname,
@@ -127,10 +171,12 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
             },
           },
         ];
+
+        total += finalPrice * quantity;
       }
 
-      total += finalPrice * quantity;
       _saveCart();
+
       return 'success';
     } catch (e) {
       print('Erreur addToCart: $e');
@@ -138,11 +184,26 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
     }
   }
 
+  // =========================
+  // Supprimer article
+  // =========================
+
   void removeFromCart(int index) {
-    total -= state[index]['meal']['price'] * state[index]['order']['quantity'];
-    state = [...state.sublist(0, index), ...state.sublist(index + 1)];
+    final item = state[index];
+
+    total -= item['meal']['price'] * item['order']['quantity'];
+
+    state = [
+      ...state.sublist(0, index),
+      ...state.sublist(index + 1),
+    ];
+
     _saveCart();
   }
+
+  // =========================
+  // Sauvegarde locale
+  // =========================
 
   void _saveCart() {
     SharedPreferences.getInstance().then((prefs) {
@@ -155,6 +216,7 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
         return {
           'mealID': meal['mealID'],
           'meal_name': meal['meal_name'],
+          'base_price': meal['base_price'],
           'price': meal['price'],
           'image': meal['image'],
           'country': meal['country'],
@@ -166,29 +228,54 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
           'optionPrice': item['optionPrice'],
         };
       }).toList();
-      prefs.setString('saved_cart', jsonEncode(serialized));
+
+      prefs.setString(
+        'saved_cart',
+        jsonEncode(serialized),
+      );
     });
   }
 
+  // =========================
+  // Chargement panier
+  // =========================
+
   Future<void> _loadCart() async {
     final prefs = await SharedPreferences.getInstance();
+
     final saved = prefs.getString('saved_cart');
+
     if (saved == null) return;
+
     try {
       final List items = jsonDecode(saved);
+
       for (final i in items) {
         await addToCart(
           i['mealID'],
           i['meal_name'],
-          (i['price'] as num).toDouble(),
+
+          // IMPORTANT :
+          // on recharge le prix de base
+          // PAS le prix final
+          (i['base_price'] as num).toDouble(),
+
           i['image'] ?? '',
+
           i['quantity'],
+
           99,
+
           i['country'] ?? 'France',
+
           i['user_id'],
+
           i['restau_id'],
+
           optionPrice: (i['optionPrice'] as num?)?.toDouble() ?? 0.0,
+
           selectedChoices: {},
+
           rawOptions: [],
         );
       }
@@ -197,26 +284,47 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
     }
   }
 
+  // =========================
+  // Vider panier
+  // =========================
+
   void clearCart() {
     state = [];
+
     total = 0.0;
+
     _saveCart();
   }
 
-  void updateQuantity(int index, int newQuantity) {
+  // =========================
+  // Modifier quantité
+  // =========================
+
+  void updateQuantity(
+    int index,
+    int newQuantity,
+  ) {
     final item = state[index];
+
     final oldQuantity = item['order']['quantity'];
+
     final price = item['meal']['price'];
 
     final quantityDiff = newQuantity - oldQuantity;
+
     total += price * quantityDiff;
+
     state[index]['order']['quantity'] = newQuantity;
+
     state = List.from(state);
+
     _saveCart();
   }
 }
 
 final cartStateProvider =
-    StateNotifierProvider<CartNotifier, List<Map<String, dynamic>>>((ref) {
-  return CartNotifier();
-});
+    StateNotifierProvider<CartNotifier, List<Map<String, dynamic>>>(
+  (ref) {
+    return CartNotifier();
+  },
+);
