@@ -198,6 +198,12 @@ class Dish extends HiveObject {
       }
     }
 
+    // IMPORTANT: S'assurer que price est correctement formaté
+    double finalPrice = price;
+    if (price.toString().contains(',')) {
+      finalPrice = double.parse(price.toString().replaceAll(',', '.'));
+    }
+
     var params = <String, dynamic>{
       if (dishID != null) 'dishID': dishID,
       'userID': userID,
@@ -210,7 +216,7 @@ class Dish extends HiveObject {
       'note': note,
       'nb_orders': nb_orders,
       'image': image == null ? img_url : imageUrl,
-      'price': price,
+      'price': finalPrice, // Utiliser le prix corrigé
       'nb_servings': nb_servings,
       'restauID': restauID,
       'status': status,
@@ -226,7 +232,6 @@ class Dish extends HiveObject {
         if (response['success'] == false) {
           return "Erreur : ${response['error']}";
         } else {
-          // L'ID du restau est utile pour la mise à jour, pour l'ajout il est généré par le serveur
           int updatedDishID = dishID ?? response['dishID'];
 
           Dish dish = Dish(
@@ -241,7 +246,7 @@ class Dish extends HiveObject {
               name: name,
               image: image == null ? img_url : imageUrl,
               userID: userID,
-              price: price,
+              price: finalPrice, // Utiliser le prix corrigé
               nb_servings: nb_servings,
               restauID: restauID,
               status: status,

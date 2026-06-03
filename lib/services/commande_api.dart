@@ -1,21 +1,24 @@
-import 'dart:convert';
-
-import 'package:http/http.dart' as http;
+import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 
 class CommandeApi {
   const CommandeApi._();
 
-  static Future<void> updateOrderStatus(String commandeId, String status) async {
-    final response = await http.put(
-      Uri.parse(
-        "https://dios-delices-backend.vercel.app/api/update-order-status?id=$commandeId",
-      ),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({"status": status}),
-    );
+  static Future<void> updateOrderStatus(
+      String commandeId, String status) async {
+    // Utiliser Parse Cloud Function au lieu de HTTP direct
+    final cloudFunction = ParseCloudFunction('updateOrderStatus');
+    final response = await cloudFunction.execute(parameters: {
+      'commandeID': int.tryParse(commandeId),
+      'status': status,
+    });
 
-    if (response.statusCode != 200) {
-      throw Exception("Echec mise a jour statut commande");
+    if (!response.success) {
+      throw Exception("Erreur cloud: ${response.error?.message ?? 'Inconnue'}");
+    }
+
+    final result = response.result as Map<String, dynamic>;
+    if (result['success'] != true) {
+      throw Exception(result['error'] ?? 'Erreur inconnue');
     }
   }
 }

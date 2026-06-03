@@ -11,10 +11,11 @@ import '../../providers/users_provider.dart';
 import '../../services/session_service.dart';
 import '../../utils/DeviseFormat.dart';
 import '../../utils/HashtagTextInputFormatter.dart';
-import '../../utils/ThousandSeparatorInputFormatter.dart';
 import '../../utils/toast.dart';
 
 class DishFormPage extends ConsumerStatefulWidget {
+  const DishFormPage({super.key});
+
   @override
   _DishFormPageState createState() => _DishFormPageState();
 }
@@ -22,6 +23,8 @@ class DishFormPage extends ConsumerStatefulWidget {
 class _DishFormPageState extends ConsumerState<DishFormPage> {
   String country = "";
   int currentUser_restau = 0;
+  bool isLoading = false;
+  bool _isMounted = false;
 
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _nameController = TextEditingController();
@@ -29,493 +32,599 @@ class _DishFormPageState extends ConsumerState<DishFormPage> {
   List<String> _selectedHashtags = [];
   final TextEditingController _priceController = TextEditingController();
   final TextEditingController _nbServingsController = TextEditingController();
-  final TextEditingController _restauIDController = TextEditingController();
 
-  List<TextEditingController> _optionControllers = [
-    TextEditingController(),
-    TextEditingController(),
-    TextEditingController(),
-  ];
+  // Structure améliorée pour les options
+  List<DishOption> _options = [];
 
-  File? _image;
-
-  void _removeOption(int index) {
-    setState(() {
-      // Supprime le contenu à l'index donné
-      _optionControllers[index].clear();
-
-      // Décale les options suivantes
-      for (int i = index; i < 2; i++) {
-        _optionControllers[i].text = _optionControllers[i + 1].text;
-      }
-
-      // Vide la dernière option
-      _optionControllers[2].clear();
-    });
-  }
-
-
-  // Méthode pour ouvrir l'image picker
-  Future<void> _pickImage() async {
-    final ImagePicker _picker = ImagePicker();
-
-    showModalBottomSheet(
-        context: context,
-        builder: (BuildContext bc) {
-          return SafeArea(
-            child: Wrap(
-              children: <Widget>[
-                ListTile(
-                    leading: Icon(Icons.photo_library),
-                    title: Text('Galerie'),
-                    onTap: () async {
-                      final XFile? image =
-                          await _picker.pickImage(source: ImageSource.gallery);
-                      if (image != null) {
-                        setState(() {
-                          _image = File(image.path);
-                        });
-                      }
-                      Navigator.of(context).pop();
-                    }),
-                ListTile(
-                  leading: Icon(Icons.photo_camera),
-                  title: Text('Caméra'),
-                  onTap: () async {
-                    final XFile? image =
-                        await _picker.pickImage(source: ImageSource.camera);
-                    if (image != null) {
-                      setState(() {
-                        _image = File(image.path);
-                      });
-                    }
-                    Navigator.of(context).pop();
-                  },
-                ),
-              ],
-            ),
-          );
-        });
-  }
+  File? _selectedImage;
 
   @override
   void initState() {
     super.initState();
+    _isMounted = true;
     _initializeData();
   }
 
   @override
   void dispose() {
+    _isMounted = false;
     _nameController.dispose();
     _descriptionController.dispose();
     _priceController.dispose();
     _nbServingsController.dispose();
-    _restauIDController.dispose();
     super.dispose();
   }
 
-  void clearFields() {
-    _nameController.clear();
-    _descriptionController.clear();
-    _priceController.clear();
-    _nbServingsController.clear();
-    _restauIDController.clear();
+  void _updateState(VoidCallback callback) {
+    if (_isMounted && mounted) {
+      setState(callback);
+    }
+  }
+
+  double _parsePrice(String value) {
+    if (value.trim().isEmpty) return 0.0;
+    // Supprimer les espaces
+    String cleaned = value.replaceAll(' ', '');
+    // Remplacer la virgule par un point
+    cleaned = cleaned.replaceAll(',', '.');
+    // S'assurer qu'il n'y a qu'un seul point
+    final parts = cleaned.split('.');
+    if (parts.length > 2) {
+      cleaned = parts[0] + '.' + parts.sublist(1).join('');
+    }
+    double result = double.tryParse(cleaned) ?? 0.0;
+    // Arrondir à 2 décimales
+    return double.parse(result.toStringAsFixed(2));
+  }
+
+  // Nettoie le nombre de portions
+  int _parseServings(String value) {
+    if (value.trim().isEmpty) return 0;
+    return int.tryParse(value.replaceAll(' ', '')) ?? 0;
+  }
+
+  void _removeOption(int index) {
+    _updateState(() {
+      _options.removeAt(index);
+    });
+  }
+
+  void _editOption(int index) {
+    _showOptionDialog(optionToEdit: _options[index], optionIndex: index);
+  }
+
+  Future<void> _pickImage() async {
+    final ImagePicker picker = ImagePicker();
+
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext bc) {
+        return SafeArea(
+          child: Wrap(
+            children: <Widget>[
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Galerie'),
+                onTap: () async {
+                  final XFile? image =
+                      await picker.pickImage(source: ImageSource.gallery);
+                  if (image != null && mounted) {
+                    _updateState(() => _selectedImage = File(image.path));
+                  }
+                  if (mounted) Navigator.of(context).pop();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_camera),
+                title: const Text('Caméra'),
+                onTap: () async {
+                  final XFile? image =
+                      await picker.pickImage(source: ImageSource.camera);
+                  if (image != null && mounted) {
+                    _updateState(() => _selectedImage = File(image.path));
+                  }
+                  if (mounted) Navigator.of(context).pop();
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _initializeData() async {
+    try {
+      final session = await SessionService.readSession();
+      _updateState(() {
+        country = session.country;
+        currentUser_restau = session.restaurantId ?? 0;
+      });
+    } catch (e) {
+      debugPrint("Erreur d'initialisation: $e");
+    }
+  }
+
+  void _clearFields() {
+    _updateState(() {
+      _nameController.clear();
+      _descriptionController.clear();
+      _priceController.clear();
+      _nbServingsController.clear();
+      _selectedHashtags = [];
+      _options = [];
+      _selectedImage = null;
+    });
+  }
+
+  Future<void> _submitForm() async {
+    // Vérification restaurant
+    if (currentUser_restau <= 0) {
+      Toast(
+          context,
+          "Restaurant non configuré. Veuillez d'abord configurer votre restaurant.",
+          false);
+      return;
+    }
+
+    // Validation du formulaire
+    if (!_formKey.currentState!.validate()) {
+      Toast(context, "Veuillez remplir tous les champs obligatoires", false);
+      return;
+    }
+
+    // Récupération de l'utilisateur depuis la session (solution fiable)
     final session = await SessionService.readSession();
-    country = session.country;
-    currentUser_restau = session.restaurantId ?? 0;
+
+    if (session.userId == null) {
+      Toast(context, "Utilisateur non connecté. Veuillez vous reconnecter.",
+          false);
+      return;
+    }
+
+    final userId = session.userId!;
+
+    _updateState(() => isLoading = true);
+
+    try {
+      // Formatage des options
+      String option1 = "";
+      String option2 = "";
+      String option3 = "";
+
+      for (int i = 0; i < _options.length && i < 3; i++) {
+        final opt = _options[i];
+        String choices = opt.choices.join(" / ");
+        String optionText = "${opt.name}: $choices";
+        if (opt.price > 0) {
+          optionText += " / ${opt.price.toStringAsFixed(2)} €";
+        }
+        if (i == 0) {
+          option1 = optionText;
+        } else if (i == 1) {
+          option2 = optionText;
+        } else if (i == 2) {
+          option3 = optionText;
+        }
+      }
+
+      // Préparation de l'image
+      ParseFile? parseFile;
+      if (_selectedImage != null) {
+        String fileName = p.basename(_selectedImage!.path);
+        String extension = p.extension(fileName);
+        String newFileName =
+            "${_nameController.text}_${DateTime.now().millisecondsSinceEpoch}$extension";
+        parseFile = ParseFile(File(_selectedImage!.path), name: newFileName);
+      }
+
+      // Appel à la fonction de création
+      String result = await Dish.manageDish(
+        userID: userId,
+        nb_orders: 0,
+        note: 0.0,
+        categories: _selectedHashtags.join(', '),
+        description: _descriptionController.text,
+        option1: option1,
+        option2: option2,
+        option3: option3,
+        name: _nameController.text,
+        price: _parsePrice(_priceController.text),
+        nb_servings: _parseServings(_nbServingsController.text),
+        restauID: currentUser_restau,
+        status: 1,
+        image: parseFile,
+      );
+
+      if (!mounted) return;
+
+      if (result == "success") {
+        Toast(context, "Plat ajouté avec succès", true);
+        _clearFields();
+        Navigator.of(context).pop(true);
+      } else {
+        Toast(context, "Erreur : $result", false);
+      }
+    } catch (e) {
+      debugPrint("Erreur submission: $e");
+      if (mounted) {
+        Toast(context, "Erreur technique : ${e.toString()}", false);
+      }
+    } finally {
+      if (mounted) _updateState(() => isLoading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    var size = MediaQuery.of(context).size;
+    final size = MediaQuery.of(context).size;
+    final currency = country == "France" ? "€" : "FCFA";
 
     return GestureDetector(
-      onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+      onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
-        appBar: AppBar(),
-        body: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(height: size.height * 0.01),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 20.0),
-                    child: Text(
-                      'Votre plat',
-                      style: kLoginTitleStyle(size),
+        appBar: AppBar(
+          title: const Text('Ajouter un plat'),
+          backgroundColor: Colors.red,
+          foregroundColor: Colors.white,
+          elevation: 0,
+        ),
+        body: Stack(
+          children: [
+            SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Nom du plat
+                    _buildTextField(
+                      controller: _nameController,
+                      hintText: "Nom du plat",
+                      icon: Icons.restaurant,
+                      validator: (v) => v == null || v.isEmpty
+                          ? "Nom requis"
+                          : v.length < 4
+                              ? "Au moins 4 caractères"
+                              : null,
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  // Champ pour le nom du dish
-                  _buildTextField(
-                    controller: _nameController,
-                    hintText: "Nom du plat",
-                    icon: Icons.restaurant,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Entrez le nom de votre plat';
-                      } else if (value.length < 4) {
-                        return 'Au moins 4 caractères';
-                      }
-                      return null;
-                    },
-                  ),
-                  SizedBox(height: size.height * 0.02),
-                  HashtagTextInputFormatter(
-                    onHashtagsChanged: (hashtags) {
-                      setState(() {
-                        _selectedHashtags =
-                            hashtags; // Mettre à jour les hashtags sélectionnés
-                      });
-                    },
-                  ),
-                  SizedBox(height: size.height * 0.02),
-                  // Champ pour le nombre de portions
-                  _buildTextField(
-                    controller: _nbServingsController,
-                    inputFormatters: <TextInputFormatter>[
-                      FilteringTextInputFormatter.digitsOnly,
-                      LengthLimitingTextInputFormatter(3),
-                      // Limite la saisie à 3 chiffres
-                      ThousandSeparatorInputFormatter(),
-                    ],
-                    hintText: "Nombre de portions",
-                    icon: Icons.fastfood,
-                    keyboardType: TextInputType.number,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Un nombre de portions est requis. Vous pourrez le modifier';
-                      } else if (int.tryParse(value.replaceAll(' ', '')) ==
-                          null) {
-                        return 'Entrez un nombre valide';
-                      }
-                      return null;
-                    },
-                  ),
-                  SizedBox(height: size.height * 0.02),
-                  // Champ pour le prix
-                  country == "France"
-                      ? _buildTextField(
-                          controller: _priceController,
-                          hintText: "Prix du plat (en euro €)",
-                          icon: Icons.money,
-                          keyboardType:
-                              TextInputType.numberWithOptions(decimal: true),
-                          inputFormatters: <TextInputFormatter>[
-                            FilteringTextInputFormatter.allow(
-                                RegExp(r'^\d{0,2}(,\d{0,2})?')),
-                            // Autorise 2 chiffres pour la partie entière et 2 pour la décimale
-                            LengthLimitingTextInputFormatter(5),
-                            // Limite la saisie à 3 chiffres
-                            FrenchFormat(decimalRange: 2)
-                          ],
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Entrez un prix';
-                            } else if (double.tryParse(value
-                                    .replaceAll(' ', '')
-                                    .replaceAll(',', '.')) ==
-                                null) {
-                              return 'Entrez un prix valide';
-                            }
-                            return null;
-                          },
-                        )
-                      : _buildTextField(
-                          controller: _priceController,
-                          hintText: "Prix du plat",
-                          icon: Icons.money,
-                          keyboardType:
-                              TextInputType.numberWithOptions(decimal: true),
-                          inputFormatters: <TextInputFormatter>[
-                            FilteringTextInputFormatter.digitsOnly,
-                            // Autorise 2 chiffres pour la partie entière et 2 pour la décimale
-                            LengthLimitingTextInputFormatter(5),
-                            // Limite la saisie à 3 chiffres
-                            CFAFormat(),
-                            // Utilise le format CFA,
-                          ],
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Entrez un prix';
-                            } else if (double.tryParse(value
-                                    .replaceAll(' ', '')
-                                    .replaceAll(',', '.')) ==
-                                null) {
-                              return 'Entrez un prix valide';
-                            }
-                            return null;
-                          },
-                        ),
-                  SizedBox(height: size.height * 0.02),
-                  // Champ pour la description
-                  _buildTextField(
-                    controller: _descriptionController,
-                    hintText:
-                        "Description du plat (donnez-nous quelques informations)",
-                    keyboardType: TextInputType.multiline,
-                    icon: Icons.info,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Entrez une description';
-                      }
-                      return null;
-                    },
-                    maxLines: null,
-                  ),
-                  SizedBox(height: size.height * 0.02),
-                  ElevatedButton(
-                    onPressed: () {
-                      int firstEmptyIndex = _optionControllers.indexWhere((c) => c.text.isEmpty);
-                      if (firstEmptyIndex == -1) {
-                        Toast(context, "Vous ne pouvez ajouter que 3 options", false);
-                      } else {
-                        _showOptionDialog(optionIndex: firstEmptyIndex);
-                      }
-                    },
-                    child: Text("+ Ajouter une option"),
-                  ),
-                  SizedBox(height: size.height * 0.02),
-                  Column(
-                    children: List.generate(3, (index) {
-                      if (_optionControllers[index].text.isEmpty) return SizedBox();
+                    const SizedBox(height: 16),
 
-                      // EXTRACT DISPLAYABLE DATA
-                      String displayText = _optionControllers[index].text;
-                      try {
-                        List<String> parts = displayText.split(':');
-                        String nom = parts[0].trim();
-                        List<String> choixList = parts.length > 1 ? parts[1].split('/').map((e) => e.trim()).toList() : [];
-                        String? prix = choixList.length > 3 ? choixList.last : null;
-                        List<String> choix = choixList.length > 3 ? choixList.sublist(0, choixList.length - 1) : choixList;
+                    // Hashtags
+                    HashtagTextInputFormatter(
+                      onHashtagsChanged: (tags) =>
+                          _updateState(() => _selectedHashtags = tags),
+                    ),
+                    const SizedBox(height: 16),
 
-                        displayText = "$nom: ${choix.join(' / ')}";
-                        if (prix != null && prix.isNotEmpty) {
-                          displayText += " / $prix ${country == "France" ? "€" : "FCFA"}";
-                        }
-                      } catch (_) {
-                        // fallback, laisse tel quel
-                      }
-
-                      return ListTile(
-                        title: Text(displayText),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: Icon(Icons.edit),
-                              onPressed: () => _showOptionDialog(optionIndex: index),
-                            ),
-                            IconButton(
-                              icon: Icon(Icons.delete),
-                              onPressed: () => _removeOption(index),
-                            ),
-                          ],
-                        ),
-                      );
-                    }),
-                  ),
-                  SizedBox(height: size.height * 0.02),
-                  // Sélection de l'image
-                  Center(
-                    child: Column(
-                      children: <Widget>[
-                        _image == null
-                            ? const Text(
-                                'Aucune image sélectionnée',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              )
-                            : Image.file(_image!, width: 100, height: 60),
-                        SizedBox(height: 10),
-                        ElevatedButton(
-                          onPressed: _pickImage,
-                          child: const Text(
-                            'Sélectionner une image',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
+                    // Portions
+                    _buildTextField(
+                      controller: _nbServingsController,
+                      hintText: "Nombre de portions",
+                      icon: Icons.fastfood,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(3)
                       ],
+                      validator: (v) {
+                        if (v == null || v.isEmpty) {
+                          return "Nombre de portions requis";
+                        }
+                        if (int.tryParse(v.replaceAll(' ', '')) == null) {
+                          return "Nombre invalide";
+                        }
+                        return null;
+                      },
                     ),
-                  ),
-                  SizedBox(height: size.height * 0.02),
-                  // Bouton de validation
-                  Center(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        foregroundColor: Colors.white,
-                        textStyle: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                      ),
-                      onPressed: () async {
-                        if (_formKey.currentState!.validate()) {
-                          final user = ref.read(usersProvider);
-                          if (user != null) {
-                            ParseFile? parseFile;
-                            final _image = this._image;
+                    const SizedBox(height: 16),
 
-                            if (_image != null) {
-                              String fileName =
-                                  p.basename(_image.path); // Get the file name
-                              String extension = p.extension(
-                                  fileName); // Get the file extension (.jpg, .png)
+                    // Prix
+                    _buildTextField(
+                      controller: _priceController,
+                      hintText: "Prix du plat ($currency)",
+                      icon: Icons.money,
+                      keyboardType:
+                          TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: country == "France"
+                          ? [
+                              FilteringTextInputFormatter.allow(
+                                  RegExp(r'^\d{0,2}(,\d{0,2})?')),
+                              LengthLimitingTextInputFormatter(5)
+                            ]
+                          : [
+                              FilteringTextInputFormatter.digitsOnly,
+                              LengthLimitingTextInputFormatter(5)
+                            ],
+                      validator: (v) {
+                        if (v == null || v.isEmpty) return "Prix requis";
+                        if (_parsePrice(v) <= 0 && v.trim() != "0") {
+                          return "Prix invalide";
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
 
-                              // Check if name and user ID are not empty
-                              if (_nameController.text.isNotEmpty &&
-                                  user.userID != null) {
-                                String nom_image = _nameController.text +
-                                    "_" +
-                                    user.userID.toString(); // New image name
-                                String newFileName =
-                                    "$nom_image$extension"; // Combine name and extension
+                    // Description
+                    _buildTextField(
+                      controller: _descriptionController,
+                      hintText: "Description du plat",
+                      icon: Icons.description,
+                      maxLines: 3,
+                      validator: (v) =>
+                          v == null || v.isEmpty ? "Description requise" : null,
+                    ),
+                    const SizedBox(height: 16),
 
-                                // Create the ParseFile with the new name
-                                parseFile = ParseFile(File(_image.path),
-                                    name: newFileName);
-                                print("parseFile created: " +
-                                    parseFile.toString());
-                              } else {
-                                print(
-                                    "Erreur : nom ou ID utilisateur manquant");
-                                return;
-                              }
-                            }
-
-                            String createResult = await Dish.manageDish(
-                              userID: user.userID,
-                              nb_orders: 0,
-                              note: 0.0,
-                              categories: _selectedHashtags.join(', '),
-                              description: _descriptionController.text,
-                              option1: _optionControllers[0].text,
-                              option2: _optionControllers[1].text,
-                              option3: _optionControllers[2].text,
-                              name: _nameController.text,
-                              price: double.tryParse(_priceController.text) ?? 0.0,
-                              nb_servings: int.tryParse(_nbServingsController.text) ?? 0,
-                              restauID: currentUser_restau,
-                              status: 1,
-                              image: parseFile,
-                            );
-
-                            Toast(
-                                context,
-                                createResult == "success"
-                                    ? "Plat ajouté avec succès"
-                                    : "Erreur : $createResult",
-                                createResult == "success"
-                                    ? true
-                                    : false);
-
-                            if (createResult == "success") {
-                              clearFields();
-                              Navigator.of(context).pop();
-                            } else {
-                              print("Error: $createResult");
-                            }
-                          }
+                    // Bouton ajouter option
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        if (_options.length >= 3) {
+                          Toast(context, "Maximum 3 options", false);
+                        } else {
+                          _showOptionDialog(optionIndex: _options.length);
                         }
                       },
-                      child: const Text('Valider'),
+                      icon: const Icon(Icons.add),
+                      label: const Text("Ajouter une option"),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey.shade200,
+                        foregroundColor: Colors.black87,
+                      ),
                     ),
-                  ),
-                  SizedBox(height: size.height * 0.2),
-                ],
+                    const SizedBox(height: 12),
+
+                    // Liste des options
+                    ..._buildOptionsList(),
+                    const SizedBox(height: 16),
+
+                    // Image
+                    _buildImageSection(),
+                    const SizedBox(height: 30),
+
+                    // Bouton valider
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        onPressed: isLoading ? null : _submitForm,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: isLoading
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                    color: Colors.white, strokeWidth: 2))
+                            : const Text("VALIDER",
+                                style: TextStyle(
+                                    fontSize: 16, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                    const SizedBox(height: 40),
+                  ],
+                ),
               ),
             ),
-          ),
+            if (isLoading)
+              Container(
+                color: Colors.black.withValues(alpha: 0.5),
+                child: const Center(child: CircularProgressIndicator()),
+              ),
+          ],
         ),
       ),
     );
   }
 
-  void _showOptionDialog({required int optionIndex}) {
-    final existing = _optionControllers[optionIndex].text;
+  Widget _buildImageSection() {
+    return Center(
+      child: Column(
+        children: [
+          if (_selectedImage != null)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.file(
+                _selectedImage!,
+                height: 120,
+                width: 120,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    height: 120,
+                    width: 120,
+                    color: Colors.grey.shade200,
+                    child: const Icon(Icons.broken_image, size: 40),
+                  );
+                },
+              ),
+            )
+          else
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: [
+                  Icon(Icons.image_outlined,
+                      size: 40, color: Colors.grey.shade600),
+                  const SizedBox(height: 8),
+                  Text("Aucune image",
+                      style: TextStyle(color: Colors.grey.shade600)),
+                ],
+              ),
+            ),
+          const SizedBox(height: 10),
+          TextButton.icon(
+            onPressed: _pickImage,
+            icon: const Icon(Icons.photo_library),
+            label: const Text("Choisir une image"),
+          ),
+        ],
+      ),
+    );
+  }
 
-    List<String> parts = existing.split(": ");
-    String nomInitial = parts.length > 1 ? parts[0] : "";
-    List<String> choixParts = parts.length > 1 ? parts[1].split("/") : ["", "", "", ""];
+  List<Widget> _buildOptionsList() {
+    List<Widget> widgets = [];
+    for (int i = 0; i < _options.length; i++) {
+      final option = _options[i];
+      String display = "${option.name}: ${option.choices.join(' / ')}";
+      if (option.price > 0) {
+        display +=
+            " / ${option.price.toStringAsFixed(2)} ${country == "France" ? "€" : "FCFA"}";
+      }
 
-    TextEditingController nomController = TextEditingController(text: nomInitial);
-    TextEditingController choix1Controller = TextEditingController(text: choixParts.isNotEmpty ? choixParts[0].trim() : "");
-    TextEditingController choix2Controller = TextEditingController(text: choixParts.length > 1 ? choixParts[1].trim() : "");
-    TextEditingController choix3Controller = TextEditingController(text: choixParts.length > 2 ? choixParts[2].trim() : "");
-    TextEditingController prixController = TextEditingController(text: choixParts.length > 3 ? choixParts[3].trim() : "");
+      widgets.add(Card(
+        margin: const EdgeInsets.only(bottom: 8),
+        child: ListTile(
+          leading: Icon(Icons.tune, color: Colors.red, size: 20),
+          title: Text(display, style: const TextStyle(fontSize: 13)),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                  icon: const Icon(Icons.edit, size: 20),
+                  onPressed: () => _editOption(i)),
+              IconButton(
+                  icon: const Icon(Icons.delete, size: 20, color: Colors.red),
+                  onPressed: () => _removeOption(i)),
+            ],
+          ),
+        ),
+      ));
+    }
+    return widgets;
+  }
+
+  void _showOptionDialog({DishOption? optionToEdit, int? optionIndex}) {
+    final bool isEditing = optionToEdit != null;
+    final int targetIndex = optionIndex ?? (_options.length);
+
+    TextEditingController nomCtrl =
+        TextEditingController(text: isEditing ? optionToEdit.name : "");
+    TextEditingController c1Ctrl = TextEditingController(
+        text: isEditing && optionToEdit.choices.isNotEmpty
+            ? optionToEdit.choices[0]
+            : "");
+    TextEditingController c2Ctrl = TextEditingController(
+        text: isEditing && optionToEdit.choices.length > 1
+            ? optionToEdit.choices[1]
+            : "");
+    TextEditingController c3Ctrl = TextEditingController(
+        text: isEditing && optionToEdit.choices.length > 2
+            ? optionToEdit.choices[2]
+            : "");
+    TextEditingController prixCtrl = TextEditingController(
+        text: isEditing && optionToEdit.price > 0
+            ? optionToEdit.price.toString()
+            : "");
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text("Option ${optionIndex + 1}"),
+        title:
+            Text(isEditing ? "Modifier l'option" : "Option ${targetIndex + 1}"),
         content: SingleChildScrollView(
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
-                controller: nomController,
-                decoration: InputDecoration(labelText: "Nom de l'option"),
-              ),
+                  controller: nomCtrl,
+                  decoration:
+                      const InputDecoration(labelText: "Nom de l'option")),
+              const SizedBox(height: 8),
               TextField(
-                controller: choix1Controller,
-                decoration: InputDecoration(labelText: "Choix 1"),
-              ),
+                  controller: c1Ctrl,
+                  decoration: const InputDecoration(
+                      labelText: "Choix 1 (obligatoire)")),
+              const SizedBox(height: 8),
               TextField(
-                controller: choix2Controller,
-                decoration: InputDecoration(labelText: "Choix 2"),
-              ),
+                  controller: c2Ctrl,
+                  decoration:
+                      const InputDecoration(labelText: "Choix 2 (optionnel)")),
+              const SizedBox(height: 8),
               TextField(
-                controller: choix3Controller,
-                decoration: InputDecoration(labelText: "Choix 3"),
-              ),
+                  controller: c3Ctrl,
+                  decoration:
+                      const InputDecoration(labelText: "Choix 3 (optionnel)")),
+              const SizedBox(height: 8),
               TextField(
-                controller: prixController,
+                controller: prixCtrl,
                 keyboardType: TextInputType.numberWithOptions(decimal: true),
                 inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'^\d{0,3}(,\d{0,2})?$')),
-                  LengthLimitingTextInputFormatter(6), // Par exemple : "999,99"
+                  FilteringTextInputFormatter.allow(
+                      RegExp(r'^\d{0,6}(,\d{0,2})?$')),
+                  LengthLimitingTextInputFormatter(8)
                 ],
-                decoration: InputDecoration(labelText: "Prix de l'option (format 00,00)"),
+                decoration: const InputDecoration(
+                    labelText: "Prix de l'option (obligatoire, ex: 2,50)"),
               ),
             ],
           ),
         ),
         actions: [
           TextButton(
-            child: Text("Annuler"),
-            onPressed: () => Navigator.pop(context),
-          ),
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Annuler")),
           TextButton(
-            child: Text("Valider"),
             onPressed: () {
-              String nom = nomController.text.trim();
-              String c1 = choix1Controller.text.trim();
-              String c2 = choix2Controller.text.trim();
-              String c3 = choix3Controller.text.trim();
-              String prix = prixController.text.trim();
+              String nom = nomCtrl.text.trim();
+              String choix1 = c1Ctrl.text.trim();
+              String prixStr = prixCtrl.text.trim();
 
-              if (nom.isEmpty || c1.isEmpty || prix.isEmpty) {
-                Toast(context, "Nom, choix 1 et prix sont obligatoires", false);
+              if (nom.isEmpty) {
+                Toast(context, "Le nom de l'option est obligatoire", false);
+                return;
+              }
+              if (choix1.isEmpty) {
+                Toast(context, "Au moins un choix est obligatoire", false);
+                return;
+              }
+              if (prixStr.isEmpty) {
+                Toast(context, "Le prix de l'option est obligatoire", false);
                 return;
               }
 
-              String result = "$nom: $c1 / $c2 / $c3 / $prix";
+              double prix = _parsePrice(prixStr);
+              if (prix <= 0 && prixStr != "0") {
+                Toast(context, "Prix invalide", false);
+                return;
+              }
 
-              setState(() {
-                _optionControllers[optionIndex].text = result;
+              List<String> choices = [choix1];
+              if (c2Ctrl.text.trim().isNotEmpty) {
+                choices.add(c2Ctrl.text.trim());
+              }
+              if (c3Ctrl.text.trim().isNotEmpty) {
+                choices.add(c3Ctrl.text.trim());
+              }
+
+              final newOption = DishOption(
+                name: nom,
+                choices: choices,
+                price: prix,
+              );
+
+              _updateState(() {
+                if (isEditing && optionIndex != null) {
+                  _options[optionIndex] = newOption;
+                } else {
+                  _options.add(newOption);
+                }
               });
 
               Navigator.pop(context);
             },
+            child: const Text("Valider"),
           ),
         ],
       ),
@@ -534,9 +643,12 @@ class _DishFormPageState extends ConsumerState<DishFormPage> {
     return TextFormField(
       controller: controller,
       decoration: InputDecoration(
-        prefixIcon: Icon(icon),
+        prefixIcon: Icon(icon, color: Colors.red),
         hintText: hintText,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.red)),
       ),
       validator: validator,
       keyboardType: keyboardType,
@@ -544,4 +656,17 @@ class _DishFormPageState extends ConsumerState<DishFormPage> {
       maxLines: maxLines,
     );
   }
+}
+
+// Structure de données pour les options
+class DishOption {
+  final String name;
+  final List<String> choices;
+  final double price;
+
+  DishOption({
+    required this.name,
+    required this.choices,
+    required this.price,
+  });
 }

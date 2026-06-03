@@ -40,11 +40,20 @@ class _SignUpViewState extends State<SignUpView> {
   String _selectedCountry = "Bénin";
 
   final Map<String, String> _countryCodes = {
-    "France": "+33", "Bénin": "+229", "Côte d'Ivoire": "+225"};
+    "France": "+33",
+    "Bénin": "+229",
+    "Côte d'Ivoire": "+225"
+  };
   final Map<String, String> _countryFlags = {
-    "France": "🇫🇷", "Bénin": "🇧🇯", "Côte d'Ivoire": "🇨🇮"};
+    "France": "🇫🇷",
+    "Bénin": "🇧🇯",
+    "Côte d'Ivoire": "🇨🇮"
+  };
   final Map<String, int> _phoneLengths = {
-    "France": 10, "Bénin": 10, "Côte d'Ivoire": 8};
+    "France": 10,
+    "Bénin": 10,
+    "Côte d'Ivoire": 8
+  };
 
   final _formKey = GlobalKey<FormState>();
   final validatorKey = GlobalKey<FlutterPwValidatorState>();
@@ -72,7 +81,8 @@ class _SignUpViewState extends State<SignUpView> {
         form: _buildForm(),
         footer: GestureDetector(
           onTap: () {
-            Navigator.push(context, CupertinoPageRoute(builder: (_) => const Login()));
+            Navigator.push(
+                context, CupertinoPageRoute(builder: (_) => const Login()));
             _formKey.currentState?.reset();
             _clearFields();
             simpleUIController.isObscure = true;
@@ -115,16 +125,26 @@ class _SignUpViewState extends State<SignUpView> {
                       duration: AppMotion.fast,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       decoration: BoxDecoration(
-                        color: _signupRole == 2 ? AppColors.card : Colors.transparent,
+                        color: _signupRole == 2
+                            ? AppColors.card
+                            : Colors.transparent,
                         borderRadius: BorderRadius.circular(AppRadius.md),
                         boxShadow: _signupRole == 2
-                            ? [BoxShadow(color: AppColors.ink.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))]
+                            ? [
+                                BoxShadow(
+                                    color:
+                                        AppColors.ink.withValues(alpha: 0.04),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2))
+                              ]
                             : null,
                       ),
                       child: Center(
                         child: Text('Client',
                             style: AppTypography.labelMedium(
-                                color: _signupRole == 2 ? AppColors.brand : AppColors.inkMuted)),
+                                color: _signupRole == 2
+                                    ? AppColors.brand
+                                    : AppColors.inkMuted)),
                       ),
                     ),
                   ),
@@ -136,16 +156,26 @@ class _SignUpViewState extends State<SignUpView> {
                       duration: AppMotion.fast,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       decoration: BoxDecoration(
-                        color: _signupRole == 5 ? AppColors.card : Colors.transparent,
+                        color: _signupRole == 5
+                            ? AppColors.card
+                            : Colors.transparent,
                         borderRadius: BorderRadius.circular(AppRadius.md),
                         boxShadow: _signupRole == 5
-                            ? [BoxShadow(color: AppColors.ink.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))]
+                            ? [
+                                BoxShadow(
+                                    color:
+                                        AppColors.ink.withValues(alpha: 0.04),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2))
+                              ]
                             : null,
                       ),
                       child: Center(
                         child: Text('Livreur',
                             style: AppTypography.labelMedium(
-                                color: _signupRole == 5 ? AppColors.brand : AppColors.inkMuted)),
+                                color: _signupRole == 5
+                                    ? AppColors.brand
+                                    : AppColors.inkMuted)),
                       ),
                     ),
                   ),
@@ -172,30 +202,65 @@ class _SignUpViewState extends State<SignUpView> {
           const SizedBox(height: 16),
 
           // Champs
-          _field(firstnameCtrl, Strings.of('firstname'), Icons.person_outline_rounded,
-              (v) => v == null || v.isEmpty ? Strings.of('enter_firstname') : v.length < 4 ? Strings.of('min_4_chars') : null),
+          _field(
+              firstnameCtrl,
+              Strings.of('firstname'),
+              Icons.person_outline_rounded,
+              (v) => v == null || v.isEmpty
+                  ? Strings.of('enter_firstname')
+                  : v.length < 4
+                      ? Strings.of('min_4_chars')
+                      : null),
           const SizedBox(height: 14),
-          _field(lastnameCtrl, Strings.of('lastname'), Icons.person_outline_rounded,
-              (v) => v == null || v.isEmpty ? Strings.of('enter_lastname') : v.length < 4 ? Strings.of('min_4_chars') : null),
+          _field(
+              lastnameCtrl,
+              Strings.of('lastname'),
+              Icons.person_outline_rounded,
+              (v) => v == null || v.isEmpty
+                  ? Strings.of('enter_lastname')
+                  : v.length < 4
+                      ? Strings.of('min_4_chars')
+                      : null),
           const SizedBox(height: 14),
-          _field(usernameCtrl, Strings.of('username'), Icons.alternate_email_rounded,
-              (v) => v == null || v.isEmpty ? Strings.of('enter_username') : v.length < 4 ? Strings.of('min_4_chars') : null),
+          _field(
+              usernameCtrl,
+              Strings.of('username'),
+              Icons.alternate_email_rounded,
+              (v) => v == null || v.isEmpty
+                  ? Strings.of('enter_username')
+                  : v.length < 4
+                      ? Strings.of('min_4_chars')
+                      : null),
           const SizedBox(height: 14),
-          _field(emailCtrl, Strings.of('email'), Icons.email_outlined,
-              (v) => !EmailValidator.validate(v!) ? Strings.of('enter_valid_email') : null),
+          _field(
+              emailCtrl,
+              Strings.of('email'),
+              Icons.email_outlined,
+              (v) => !EmailValidator.validate(v!)
+                  ? Strings.of('enter_valid_email')
+                  : null),
           const SizedBox(height: 14),
 
           // Pays
           DropdownButtonFormField<String>(
             value: _selectedCountry,
             isExpanded: true,
-            decoration: const InputDecoration(prefixIcon: Icon(Icons.flag_outlined)),
-            selectedItemBuilder: (_) => _countryCodes.keys.map((c) =>
-                Align(alignment: Alignment.centerLeft,
-                    child: Text('${_countryFlags[c]} $c ${_countryCodes[c]}'))).toList(),
-            onChanged: (v) => setState(() { _selectedCountry = v!; telephoneCtrl.clear(); }),
-            items: _countryCodes.keys.map((c) =>
-                DropdownMenuItem(value: c, child: Text('${_countryFlags[c]} $c ${_countryCodes[c]}'))).toList(),
+            decoration:
+                const InputDecoration(prefixIcon: Icon(Icons.flag_outlined)),
+            selectedItemBuilder: (_) => _countryCodes.keys
+                .map((c) => Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('${_countryFlags[c]} $c ${_countryCodes[c]}')))
+                .toList(),
+            onChanged: (v) => setState(() {
+              _selectedCountry = v!;
+              telephoneCtrl.clear();
+            }),
+            items: _countryCodes.keys
+                .map((c) => DropdownMenuItem(
+                    value: c,
+                    child: Text('${_countryFlags[c]} $c ${_countryCodes[c]}')))
+                .toList(),
           ),
           const SizedBox(height: 14),
 
@@ -209,14 +274,17 @@ class _SignUpViewState extends State<SignUpView> {
                 : [FilteringTextInputFormatter.digitsOnly],
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.phone_outlined),
-              hintText: _selectedCountry == 'Bénin' ? '01 xx xx xx xx' : Strings.of('phone_number'),
+              hintText: _selectedCountry == 'Bénin'
+                  ? '01 xx xx xx xx'
+                  : Strings.of('phone_number'),
             ),
             validator: (v) {
               if (v == null || v.isEmpty) return Strings.of('enter_phone');
               if (_selectedCountry == 'Bénin' && !isValidBeninLocalPhone(v))
                 return Strings.of('benin_phone_format');
               if (phoneDigits(v).length != _phoneLengths[_selectedCountry]!)
-                return Strings.of('phone_length', {'count': '${_phoneLengths[_selectedCountry]}'});
+                return Strings.of('phone_length',
+                    {'count': '${_phoneLengths[_selectedCountry]}'});
               return null;
             },
           ),
@@ -233,7 +301,8 @@ class _SignUpViewState extends State<SignUpView> {
                 prefixIcon: const Icon(Icons.lock_outline_rounded),
                 suffixIcon: IconButton(
                   icon: Icon(simpleUIController.isObscure
-                      ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined),
                   onPressed: () => simpleUIController.isObscureActive(),
                 ),
                 hintText: Strings.of('password'),
@@ -266,14 +335,17 @@ class _SignUpViewState extends State<SignUpView> {
                 prefixIcon: const Icon(Icons.lock_outline_rounded),
                 suffixIcon: IconButton(
                   icon: Icon(simpleUIController.isObscure
-                      ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined),
                   onPressed: () => simpleUIController.isObscureActive(),
                 ),
                 hintText: Strings.of('confirm_password'),
               ),
               validator: (v) {
-                if (v == null || v.isEmpty) return Strings.of('confirm_password_required');
-                if (v != passwordCtrl.text) return Strings.of('passwords_do_not_match');
+                if (v == null || v.isEmpty)
+                  return Strings.of('confirm_password_required');
+                if (v != passwordCtrl.text)
+                  return Strings.of('passwords_do_not_match');
                 return null;
               },
             ),
@@ -286,9 +358,11 @@ class _SignUpViewState extends State<SignUpView> {
             activeColor: AppColors.brand,
             checkColor: Colors.white,
             side: const BorderSide(color: AppColors.border, width: 1.5),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
             title: Text(Strings.of('terms_acceptance'),
-                style: AppTypography.bodyMedium(color: _isSelected ? AppColors.ink : AppColors.brand)),
+                style: AppTypography.bodyMedium(
+                    color: _isSelected ? AppColors.ink : AppColors.brand)),
             value: _isSelected,
             onChanged: (v) => setState(() => _isSelected = v!),
             controlAffinity: ListTileControlAffinity.leading,
@@ -306,7 +380,8 @@ class _SignUpViewState extends State<SignUpView> {
                   Toast(context, "Veuillez accepter les conditions.", false);
                   return;
                 }
-                final encrypted = await Users.encryptPassword(passwordCtrl.text);
+                final encrypted =
+                    await Users.encryptPassword(passwordCtrl.text);
                 final result = await Users.manageUser(
                   roleID: _signupRole,
                   password: passwordCtrl.text,
@@ -317,12 +392,16 @@ class _SignUpViewState extends State<SignUpView> {
                   email: emailCtrl.text,
                   telephone: phoneDigits(telephoneCtrl.text),
                   country: _selectedCountry,
-                  status: '', identity: '', addressID: 0,
+                  status: '',
+                  identity: '',
+                  addressID: 0,
                 );
                 if (result is int) {
                   sendVerificationEmail(context, emailCtrl.text);
                   Toast(context, "Compte créé ! Vérifiez votre email.", true);
-                  if (mounted) Users.chooseCurvedNavigation(_signupRole, _selectedCountry, context);
+                  if (mounted)
+                    Users.chooseCurvedNavigation(
+                        _signupRole, _selectedCountry, context);
                 } else {
                   debugPrint('Signup error: $result');
                   Toast(context, "Erreur : $result", false);
@@ -350,8 +429,12 @@ class _SignUpViewState extends State<SignUpView> {
   }
 
   void _clearFields() {
-    firstnameCtrl.clear(); lastnameCtrl.clear(); usernameCtrl.clear();
-    emailCtrl.clear(); passwordCtrl.clear(); passwordConfirmCtrl.clear();
+    firstnameCtrl.clear();
+    lastnameCtrl.clear();
+    usernameCtrl.clear();
+    emailCtrl.clear();
+    passwordCtrl.clear();
+    passwordConfirmCtrl.clear();
     telephoneCtrl.clear();
   }
 }

@@ -1,7 +1,8 @@
+// cart_provider.dart - Version corrigée
+
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import '../modeles/restaurant.dart';
 import '../modeles/users.dart';
 
@@ -15,112 +16,126 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
   List<Map<String, dynamic>> get items => List.unmodifiable(state);
 
   Future<String> addToCart(
-      int mealID,
-      String name,
-      double price,
-      String image,
-      int quantity,
-      int maxServings,
-      String country,
-      int user_id,
-      int restau_id, {
-        Map<int, String>? selectedChoices,
-        double optionPrice = 0.0,
-        List<String?>? rawOptions,
-      }) async {
-    final existingIndex = state.indexWhere((item) => item['meal']['meal_name'] == name);
+    int mealID,
+    String name,
+    double price,
+    String image,
+    int quantity,
+    int maxServings,
+    String country,
+    int user_id,
+    int restau_id, {
+    Map<int, String>? selectedChoices,
+    double optionPrice = 0.0,
+    List<String?>? rawOptions,
+  }) async {
+    try {
+      final existingIndex =
+          state.indexWhere((item) => item['meal']['meal_name'] == name);
 
-    List<Users> usersList = await Users.fetchUsersFromDB();
-    List<Restaurant> restaurantsList = await Restaurant.fetchRestaurantsFromDB();
+      List<Users> usersList = await Users.fetchUsersFromDB();
+      List<Restaurant> restaurantsList =
+          await Restaurant.fetchRestaurantsFromDB();
 
-    Users? currentUser = Users.getUsersByUserId(usersList, user_id);
-    Restaurant? restaurant = Restaurant.getRestaurantByRestaurantId(restaurantsList, restau_id);
+      Users? currentUser = Users.getUsersByUserId(usersList, user_id);
+      Restaurant? restaurant =
+          Restaurant.getRestaurantByRestaurantId(restaurantsList, restau_id);
 
-    if (currentUser == null || restaurant == null) return 'error';
+      if (currentUser == null || restaurant == null) return 'error';
 
-    double finalPrice = price;
+      double finalPrice = price + optionPrice;
 
-    if (state.isNotEmpty) {
-      final existingRestaurantId = state.first['restaurant']['restau_id'];
-      if (existingRestaurantId != restau_id) {
-        return 'different_restaurant';
+      if (state.isNotEmpty) {
+        final existingRestaurantId = state.first['restaurant']['restau_id'];
+        if (existingRestaurantId != restau_id) {
+          return 'different_restaurant';
+        }
       }
-    }
 
-    if (existingIndex != -1) {
-      state[existingIndex]['order']['quantity'] += quantity;
-      if (state[existingIndex]['order']['quantity'] > maxServings) {
-        state[existingIndex]['order']['quantity'] = maxServings;
-      }
-    } else {
-      state = [
-        ...state,
-        {
-          "meal": {
-            "mealID": mealID,
-            "meal_name": name,
-            "price": finalPrice,
-            "image": image,
-            "number_of_servings": maxServings,
-            "country": country,
-            "options": selectedChoices ?? {},
-          },
-          "order": {
-            "quantity": quantity,
-          },
-          "optionPrice": optionPrice,
-          "optionDetails": selectedChoices != null
-              ? selectedChoices.map((index, value) {
-            // 🔹 Récupère le titre de l’option (ex: "Toppings")
-            String title = "";
-            if (rawOptions != null && index < rawOptions.length && rawOptions[index] != null) {
-              final parts = rawOptions[index]!.split(':');
-              if (parts.isNotEmpty) title = parts.first.trim();
-            }
+      // Construction des options formatées
+      Map<String, dynamic> formattedOptions = {};
+      Map<String, dynamic> optionDetails = {};
 
-            // 🔹 Extraire nom & prix depuis le choix formaté (ex: "Nutella (1.3 €)")
-            //final priceMatch = RegExp(r'([\d.,]+)').firstMatch(value);
-            //final nameMatch = RegExp(r'^(.*?)\s*\(').firstMatch(value);
+      if (selectedChoices != null && selectedChoices.isNotEmpty) {
+        selectedChoices.forEach((index, value) {
+          if (rawOptions != null &&
+              index < rawOptions.length &&
+              rawOptions[index] != null) {
+            final parts = rawOptions[index]!.split(':');
+            final optionTitle =
+                parts.isNotEmpty ? parts.first.trim() : 'Option ${index + 1}';
 
-            String priceStr = '';
-            if (rawOptions != null && index < rawOptions.length && rawOptions[index] != null) {
-              final parts = rawOptions[index]!.split(':');
-              if (parts.length > 1) {
-                final choixList = parts[1].split('/').map((e) => e.trim()).toList();
-                if (choixList.isNotEmpty) {
-                  priceStr = choixList.last.replaceAll(',', '.');
-                }
+            // Extraire le prix de l'option
+            double optionPriceValue = 0.0;
+            if (parts.length > 1) {
+              final priceMatch = RegExp(r'([\d.,]+)').firstMatch(parts[1]);
+              if (priceMatch != null) {
+                optionPriceValue = double.tryParse(
+                        priceMatch.group(0)!.replaceAll(',', '.')) ??
+                    0.0;
               }
             }
-            final price = double.tryParse(priceStr) ?? 0.0;
-            final name = value; // juste le nom du choix
 
-            return MapEntry(index, {
-              'title': title,   // ✅ nom de l'option (Sucre, Toppings...)
-              'name': name,     // ✅ choix fait (Nutella, 10%, Oui...)
-              'price': price,   // ✅ prix numérique
-            });
-          })
-              : {},
-          "user": {
-            "email": currentUser.email ?? "email inconnu",
-            "firstname": currentUser.firstname ?? "Prénom inconnu",
-            "user_id": user_id,
+            formattedOptions[optionTitle] = {
+              'choice': value,
+              'price': optionPriceValue,
+            };
+
+            optionDetails[optionTitle] = {
+              'name': value,
+              'price': optionPriceValue,
+            };
+          }
+        });
+      }
+
+      if (existingIndex != -1) {
+        final newQuantity =
+            state[existingIndex]['order']['quantity'] + quantity;
+        if (newQuantity <= maxServings) {
+          state[existingIndex]['order']['quantity'] = newQuantity;
+        }
+      } else {
+        state = [
+          ...state,
+          {
+            "meal": {
+              "mealID": mealID,
+              "meal_name": name,
+              "price": finalPrice,
+              "image": image,
+              "number_of_servings": maxServings,
+              "country": country,
+            },
+            "order": {
+              "quantity": quantity,
+            },
+            "options": formattedOptions,
+            "optionDetails": optionDetails, // ← AJOUTER CETTE LIGNE
+            "optionPrice": optionPrice, // ← AJOUTER CETTE LIGNE
+            "user": {
+              "email": currentUser.email,
+              "firstname": currentUser.firstname,
+              "user_id": user_id,
+            },
+            "restaurant": {
+              "name": restaurant.name,
+              "restau_id": restau_id,
+              "delivery_fee": restaurant.deliveryFee,
+              "opening_hours": restaurant.openingHours,
+              "is_open": restaurant.isOpen,
+            },
           },
-          "restaurant": {
-            "name": restaurant.name ?? "Restaurant inconnu",
-            "restau_id": restau_id,
-            "delivery_fee": restaurant.deliveryFee,
-            "opening_hours": restaurant.openingHours,
-            "is_open": restaurant.isOpen,
-          },
-        },
-      ];
+        ];
+      }
+
+      total += finalPrice * quantity;
+      _saveCart();
+      return 'success';
+    } catch (e) {
+      print('Erreur addToCart: $e');
+      return 'error';
     }
-
-    total += finalPrice * quantity;
-    _saveCart();
-    return 'success';
   }
 
   void removeFromCart(int index) {
@@ -131,16 +146,25 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
 
   void _saveCart() {
     SharedPreferences.getInstance().then((prefs) {
-      final serialized = state.map((item) => {
-        'mealID': item['meal']['mealID'],
-        'meal_name': item['meal']['meal_name'],
-        'price': item['meal']['price'],
-        'image': item['meal']['image'],
-        'country': item['meal']['country'],
-        'quantity': item['order']['quantity'],
-        'restau_id': item['restaurant']['restau_id'],
-        'user_id': item['user']['user_id'],
-        'optionPrice': item['meal']['optionPrice'] ?? 0.0,
+      final serialized = state.map((item) {
+        final meal = item['meal'];
+        final order = item['order'];
+        final restaurant = item['restaurant'];
+        final user = item['user'];
+
+        return {
+          'mealID': meal['mealID'],
+          'meal_name': meal['meal_name'],
+          'price': meal['price'],
+          'image': meal['image'],
+          'country': meal['country'],
+          'quantity': order['quantity'],
+          'restau_id': restaurant['restau_id'],
+          'user_id': user['user_id'],
+          'options': item['options'],
+          'optionDetails': item['optionDetails'],
+          'optionPrice': item['optionPrice'],
+        };
       }).toList();
       prefs.setString('saved_cart', jsonEncode(serialized));
     });
@@ -154,12 +178,23 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
       final List items = jsonDecode(saved);
       for (final i in items) {
         await addToCart(
-          i['mealID'], i['meal_name'], (i['price'] as num).toDouble(),
-          i['image'] ?? '', i['quantity'], 99, i['country'] ?? 'France',
-          i['user_id'], i['restau_id'],
+          i['mealID'],
+          i['meal_name'],
+          (i['price'] as num).toDouble(),
+          i['image'] ?? '',
+          i['quantity'],
+          99,
+          i['country'] ?? 'France',
+          i['user_id'],
+          i['restau_id'],
+          optionPrice: (i['optionPrice'] as num?)?.toDouble() ?? 0.0,
+          selectedChoices: {},
+          rawOptions: [],
         );
       }
-    } catch (_) {}
+    } catch (e) {
+      print('Erreur chargement panier: $e');
+    }
   }
 
   void clearCart() {
@@ -174,20 +209,14 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
     final price = item['meal']['price'];
 
     final quantityDiff = newQuantity - oldQuantity;
-
-    // On ne touche pas à optionPrice ici !
     total += price * quantityDiff;
-
     state[index]['order']['quantity'] = newQuantity;
-
-    // Déclencher la mise à jour de l’UI
     state = List.from(state);
     _saveCart();
   }
-
-
 }
 
-final cartStateProvider = StateNotifierProvider<CartNotifier, List<Map<String, dynamic>>>((ref) {
+final cartStateProvider =
+    StateNotifierProvider<CartNotifier, List<Map<String, dynamic>>>((ref) {
   return CartNotifier();
 });

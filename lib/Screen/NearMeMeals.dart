@@ -37,36 +37,51 @@ class _NearMeMealsState extends State<NearMeMeals> {
       _isLoading = true;
     });
 
-    final dishes = await NearbyService.getNearbyDishes(
-      maxDistanceKm: _maxDistanceKm,
-      openRestaurantsOnly: _openRestaurantsOnly,
-    );
+    try {
+      final dishes = await NearbyService.getNearbyDishes(
+        maxDistanceKm: _maxDistanceKm,
+        openRestaurantsOnly: _openRestaurantsOnly,
+      );
 
-    if (!mounted) return;
-    setState(() {
-      _allDishes = dishes;
-      _isLoading = false;
-    });
-    _applyFilters();
+      if (mounted) {
+        setState(() {
+          _allDishes = dishes;
+          _isLoading = false;
+        });
+        _applyFilters();
+      }
+    } catch (e) {
+      print('Erreur chargement plats: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _allDishes = [];
+          _visibleDishes = [];
+        });
+      }
+    }
   }
 
   void _applyFilters() {
     final query = _searchController.text.trim().toLowerCase();
     final catFilter = widget.category?.toLowerCase();
+
     final filtered = _allDishes.where((result) {
-      final haystack =
-          '${result.dish.name} ${result.dish.categories} ${result.restaurant.name}'
-              .toLowerCase();
+      final dishName = result.dish.name?.toLowerCase() ?? '';
+      final dishCat = result.dish.categories?.toLowerCase() ?? '';
+      final restoName = result.restaurant.name?.toLowerCase() ?? '';
+
+      final haystack = '$dishName $dishCat $restoName';
       final matchesQuery = query.isEmpty || haystack.contains(query);
-      final matchesCategory = catFilter == null ||
-          (result.dish.categories?.toLowerCase().contains(catFilter) ?? false);
+      final matchesCategory = catFilter == null || dishCat.contains(catFilter);
       return matchesQuery && matchesCategory;
     }).toList();
 
-    if (!mounted) return;
-    setState(() {
-      _visibleDishes = filtered;
-    });
+    if (mounted) {
+      setState(() {
+        _visibleDishes = filtered;
+      });
+    }
   }
 
   Future<void> _updateDistance(double distanceKm) async {

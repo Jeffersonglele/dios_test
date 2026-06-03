@@ -24,18 +24,23 @@ import 'package:flutter/services.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'config/app_config.dart';
 import 'services/notification_service.dart';
+import 'services/session_service.dart';
 import 'theme/app_theme.dart';
+import 'theme/theme_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Initialisation du format de date français
   await initializeDateFormatting('fr', null);
 
+  // Configuration de la barre système
   SystemChrome.setEnabledSystemUIMode(
     SystemUiMode.edgeToEdge,
     overlays: [SystemUiOverlay.top],
   );
 
+  // Initialisation Parse
   try {
     await Parse().initialize(
       AppConfig.parseApplicationId,
@@ -45,118 +50,128 @@ void main() async {
       liveQueryUrl: AppConfig.parseLiveQueryUrl,
       debug: kDebugMode && AppConfig.enableParseDebugLogs,
     );
+    debugPrint('✅ Parse initialized successfully');
   } catch (e) {
-    debugPrint('Failed to initialize Parse: $e');
+    debugPrint('❌ Failed to initialize Parse: $e');
   }
 
-  // NOTE: On Flutter Web, path_provider does not provide a documents directory.
-  // Hive can be initialized with an in-memory store instead.
-  if (kIsWeb) {
-    await Hive.initFlutter();
-  } else {
-    final appDocumentDirectory =
-        await path_provider.getApplicationDocumentsDirectory();
-    await Hive.initFlutter(appDocumentDirectory.path);
+  // Initialisation Hive
+  try {
+    if (kIsWeb) {
+      await Hive.initFlutter();
+    } else {
+      final appDocumentDirectory =
+          await path_provider.getApplicationDocumentsDirectory();
+      await Hive.initFlutter(appDocumentDirectory.path);
+    }
+
+    // Enregistrement des adaptateurs
+    Hive.registerAdapter(UsersAdapter());
+    Hive.registerAdapter(RestaurantAdapter());
+    Hive.registerAdapter(DishAdapter());
+    Hive.registerAdapter(AddressAdapter());
+    Hive.registerAdapter(IdentityAdapter());
+    Hive.registerAdapter(CommandeAdapter());
+    Hive.registerAdapter(MoyenPaiementAdapter());
+    Hive.registerAdapter(LigneCommandeAdapter());
+
+    debugPrint('✅ Hive initialized successfully');
+  } catch (e) {
+    debugPrint('❌ Failed to initialize Hive: $e');
   }
 
-  Hive.registerAdapter(UsersAdapter());
-  Hive.registerAdapter(RestaurantAdapter());
-  Hive.registerAdapter(DishAdapter());
-  Hive.registerAdapter(AddressAdapter());
-  Hive.registerAdapter(IdentityAdapter());
-  Hive.registerAdapter(CommandeAdapter());
-  Hive.registerAdapter(MoyenPaiementAdapter());
-  Hive.registerAdapter(LigneCommandeAdapter());
+  // Initialisation des notifications
+  try {
+    await NotificationService.initialize();
 
-  await NotificationService.initialize();
+    // S'abonner aux notifications si l'utilisateur est déjà connecté
+    final session = await SessionService.readSession();
+    if (session.isLoggedIn) {
+      await NotificationService.subscribeToRestaurantNotifications();
+    }
+    debugPrint('✅ Notifications initialized successfully');
+  } catch (e) {
+    debugPrint('❌ Failed to initialize notifications: $e');
+  }
 
-  // Détection du dark mode au lancement
+  // Lecture du dark mode depuis SharedPreferences
   final prefs = await SharedPreferences.getInstance();
-  final darkMode = prefs.getBool('dark_mode') ?? false;
+  final isDarkMode = prefs.getBool('dark_mode') ?? false;
 
-  runApp(MyApp(initialDarkMode: darkMode));
+  runApp(
+    ProviderScope(
+      child: MyApp(initialDarkMode: isDarkMode),
+    ),
+  );
 }
 
-class MyApp extends StatefulWidget {
+class MyApp extends ConsumerStatefulWidget {
   final bool initialDarkMode;
   const MyApp({super.key, required this.initialDarkMode});
 
   @override
-  State<MyApp> createState() => _MyAppState();
+  ConsumerState<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> {
-  late bool _darkMode;
-
+class _MyAppState extends ConsumerState<MyApp> {
   @override
   void initState() {
     super.initState();
-    _darkMode = widget.initialDarkMode;
-    _listenDarkMode();
-  }
-
-  void _listenDarkMode() async {
-    // Écoute les changements de SharedPreferences
-    SharedPreferences.getInstance().then((prefs) {
-      // Relit périodiquement (ou utilise une autre approche)
-      // Pour une solution plus robuste, on pourrait utiliser un ChangeNotifier
+    // Initialiser le thème avec la valeur de SharedPreferences
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final themeNotifier = ref.read(themeModeProvider.notifier);
+      final targetMode =
+          widget.initialDarkMode ? ThemeMode.dark : ThemeMode.light;
+      // Comparer et changer si nécessaire
+      // Utiliser un paramètre stocké pour éviter d'appeler toggleTheme inutilement
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    // Relit à chaque build pour réagir aux changements du toggle Settings
-    return FutureBuilder<bool>(
-      future: SharedPreferences.getInstance()
-          .then((p) => p.getBool('dark_mode') ?? false),
-      builder: (context, snapshot) {
-        final isDark = snapshot.data ?? _darkMode;
-        return ProviderScope(
-          child: MaterialApp(
-            title: 'Dios Délices',
-            debugShowCheckedModeBanner: false,
-            theme: AppTheme.light(),
-            darkTheme: AppTheme.dark(),
-            themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
-            builder: (context, child) {
-              final media = MediaQuery.of(context);
-              final factor = media.textScaleFactor.clamp(0.8, 1.5);
-              // Force le system UI overlay pour le dark mode
-              final brightness = isDark ? Brightness.dark : Brightness.light;
-              return AnnotatedRegion<SystemUiOverlayStyle>(
-                value: SystemUiOverlayStyle(
-                  statusBarColor: Colors.transparent,
-                  statusBarIconBrightness:
-                      isDark ? Brightness.light : Brightness.dark,
-                  systemNavigationBarColor:
-                      isDark ? AppDarkColors.surface : AppColors.surface,
-                  systemNavigationBarIconBrightness:
-                      isDark ? Brightness.light : Brightness.dark,
-                ),
-                child: MediaQuery(
-                  data: media.copyWith(
-                    textScaleFactor: factor,
-                    platformBrightness: brightness,
-                  ),
-                  child: child!,
-                ),
-              );
-            },
-            home: const SafeArea(child: AnimatedSplashScreen()),
-            routes: <String, WidgetBuilder>{
-              ANIMATED_SPLASH: (BuildContext context) =>
-                  const AnimatedSplashScreen(),
-              SIGNUP_SCREEN: (BuildContext context) => const SignUpView(),
-              LOGIN: (BuildContext context) => const Login(),
-              FOOD_DETAILS: (BuildContext context) =>
-                  DishDetails(from_page: 0, dish_id: 0),
-              MEALS_OF_A_CATEGORY: (BuildContext context) =>
-                  const MealsOfACategory(),
-            },
-            initialRoute: "/",
+    final themeMode = ref.watch(themeModeProvider);
+    final isDark = themeMode == ThemeMode.dark;
+
+    return MaterialApp(
+      title: 'Dios Délices',
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: themeMode,
+      builder: (context, child) {
+        final media = MediaQuery.of(context);
+        final factor = media.textScaleFactor.clamp(0.8, 1.5);
+
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness:
+                isDark ? Brightness.light : Brightness.dark,
+            statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+            systemNavigationBarColor:
+                isDark ? AppDarkColors.surface : AppColors.surface,
+            systemNavigationBarIconBrightness:
+                isDark ? Brightness.light : Brightness.dark,
+          ),
+          child: MediaQuery(
+            data: media.copyWith(
+              textScaleFactor: factor,
+              platformBrightness: isDark ? Brightness.dark : Brightness.light,
+            ),
+            child: child!,
           ),
         );
       },
+      home: const SafeArea(child: AnimatedSplashScreen()),
+      routes: <String, WidgetBuilder>{
+        ANIMATED_SPLASH: (BuildContext context) => const AnimatedSplashScreen(),
+        SIGNUP_SCREEN: (BuildContext context) => const SignUpView(),
+        LOGIN: (BuildContext context) => const Login(),
+        FOOD_DETAILS: (BuildContext context) =>
+            DishDetails(from_page: 0, dish_id: 0),
+        MEALS_OF_A_CATEGORY: (BuildContext context) => const MealsOfACategory(),
+      },
+      initialRoute: "/",
     );
   }
 }
