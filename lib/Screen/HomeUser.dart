@@ -15,6 +15,7 @@ import '../services/session_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/dios_image.dart';
 import '../utils/DateTime.dart';
+import '../utils/strings.dart';
 import 'FoodCategories.dart';
 import 'NearMeMeals.dart';
 import 'restaurants/NearMeRestaurants.dart';
@@ -151,8 +152,8 @@ class _HomeUserState extends State<HomeUser> {
                 // ── Restaurants proches ────────────────────
                 SliverToBoxAdapter(
                   child: _buildSectionTitle(
-                    'Restaurants près de chez vous',
-                    actionText: 'Voir plus',
+                    Strings.get('Restaurants près de chez vous', 'Restaurants near you'),
+                    actionText: Strings.get('Voir plus', 'See more'),
                     onTap: () => Navigator.push(context,
                         CupertinoPageRoute(builder: (_) => const NearMeRestaurants())),
                   ),
@@ -168,8 +169,8 @@ class _HomeUserState extends State<HomeUser> {
                 // ── Plats populaires ───────────────────────
                 SliverToBoxAdapter(
                   child: _buildSectionTitle(
-                    'Plats près de chez vous',
-                    actionText: 'Voir plus',
+                    Strings.get('Plats près de chez vous', 'Dishes near you'),
+                    actionText: Strings.get('Voir plus', 'See more'),
                     onTap: () => Navigator.push(context,
                         CupertinoPageRoute(builder: (_) => const NearMeMeals())),
                   ),
@@ -214,7 +215,7 @@ class _HomeUserState extends State<HomeUser> {
                         color: AppColors.brand, size: 18),
                     const SizedBox(width: 6),
                     Text(
-                      'À proximité',
+                      Strings.get('À proximité', 'Nearby'),
                       style: AppTypography.labelMedium(color: AppColors.ink),
                     ),
                     const Icon(Icons.keyboard_arrow_down_rounded,
@@ -250,8 +251,8 @@ class _HomeUserState extends State<HomeUser> {
           RichText(
             text: TextSpan(
               style: AppTypography.headlineLarge(),
-              children: const [
-                TextSpan(text: 'Bon appétit '),
+              children: [
+                TextSpan(text: '${Strings.get("Bon appétit", "Enjoy your meal")} '),
                 TextSpan(
                   text: '!',
                   style: TextStyle(color: AppColors.accent),
@@ -261,7 +262,7 @@ class _HomeUserState extends State<HomeUser> {
           ),
           const SizedBox(height: 4),
           Text(
-            'Découvrez les meilleurs plats faits maison',
+            Strings.get('Découvrez les meilleurs plats faits maison', 'Discover the best homemade dishes'),
             style: AppTypography.bodyMedium(),
           ),
           // Barre de recherche
@@ -275,14 +276,14 @@ class _HomeUserState extends State<HomeUser> {
   // ── Catégories ──────────────────────────────────────────
   Widget _buildCategoryChips() {
     final categories = [
-      {'icon': Icons.restaurant_rounded, 'label': 'Tout'},
+      {'icon': Icons.restaurant_rounded, 'label': Strings.get('Tout', 'All')},
       {'icon': Icons.star_rounded, 'label': '⭐ 4+'},
       {'icon': Icons.euro_rounded, 'label': '-10€'},
-      {'icon': Icons.language_rounded, 'label': '#africain'},
-      {'icon': Icons.eco_rounded, 'label': '#végétarien'},
-      {'icon': Icons.cake_rounded, 'label': '#dessert'},
-      {'icon': Icons.fastfood_rounded, 'label': '#fast-food'},
-      {'icon': Icons.ramen_dining_rounded, 'label': '#asiatique'},
+      {'icon': Icons.language_rounded, 'label': Strings.get('#africain', '#african')},
+      {'icon': Icons.eco_rounded, 'label': Strings.get('#végétarien', '#vegetarian')},
+      {'icon': Icons.cake_rounded, 'label': Strings.get('#dessert', '#dessert')},
+      {'icon': Icons.fastfood_rounded, 'label': Strings.get('#fast-food', '#fast-food')},
+      {'icon': Icons.ramen_dining_rounded, 'label': Strings.get('#asiatique', '#asian')},
     ];
 
     return Container(
@@ -397,7 +398,7 @@ class _HomeUserState extends State<HomeUser> {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              '$_excludedCount restaurant(s) hors zone de livraison sur $_totalCount.',
+              Strings.get('$_excludedCount restaurant(s) hors zone de livraison sur $_totalCount.', '$_excludedCount out of $_totalCount restaurant(s) outside delivery zone.'),
               style: AppTypography.labelMedium(color: AppColors.inkMuted),
             ),
           ),
@@ -591,7 +592,7 @@ class _HomeUserState extends State<HomeUser> {
           onPressed: () => Navigator.push(context,
               CupertinoPageRoute(builder: (_) => FoodCategories())),
           icon: const Icon(Icons.grid_view_rounded, size: 20),
-          label: const Text('Explorer toutes les catégories'),
+          label: Text(Strings.get('Explorer toutes les catégories', 'Explore all categories')),
         ),
       ),
     );

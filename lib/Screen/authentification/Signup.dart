@@ -143,7 +143,7 @@ class _SignUpViewState extends State<SignUpView> {
                             : null,
                       ),
                       child: Center(
-                        child: Text('Client',
+                        child: Text(Strings.get('Client', 'Customer'),
                             style: AppTypography.labelMedium(
                                 color: _signupRole == 2
                                     ? AppColors.brand
@@ -174,7 +174,7 @@ class _SignUpViewState extends State<SignUpView> {
                             : null,
                       ),
                       child: Center(
-                        child: Text('Livreur',
+                        child: Text(Strings.get('Livreur', 'Driver'),
                             style: AppTypography.labelMedium(
                                 color: _signupRole == 5
                                     ? AppColors.brand
@@ -190,14 +190,14 @@ class _SignUpViewState extends State<SignUpView> {
             const SizedBox(height: 14),
             DropdownButtonFormField<String>(
               value: _permisType,
-              decoration: const InputDecoration(
-                labelText: 'Type de véhicule',
-                prefixIcon: Icon(Icons.motorcycle_outlined),
+              decoration: InputDecoration(
+                labelText: Strings.get('Type de véhicule', 'Vehicle type'),
+                prefixIcon: const Icon(Icons.motorcycle_outlined),
               ),
-              items: const [
-                DropdownMenuItem(value: 'moto', child: Text('Moto / Scooter')),
-                DropdownMenuItem(value: 'velo', child: Text('Vélo')),
-                DropdownMenuItem(value: 'voiture', child: Text('Voiture')),
+              items: [
+                DropdownMenuItem(value: 'moto', child: Text(Strings.get('Moto / Scooter', 'Motorcycle / Scooter'))),
+                DropdownMenuItem(value: 'velo', child: Text(Strings.get('Vélo', 'Bicycle'))),
+                DropdownMenuItem(value: 'voiture', child: Text(Strings.get('Voiture', 'Car'))),
               ],
               onChanged: (v) => setState(() => _permisType = v!),
             ),
@@ -286,8 +286,7 @@ class _SignUpViewState extends State<SignUpView> {
               if (_selectedCountry == 'Bénin' && !isValidBeninLocalPhone(v))
                 return Strings.of('benin_phone_format');
               if (phoneDigits(v).length != _phoneLengths[_selectedCountry]!)
-                return Strings.of('phone_length',
-                    {'count': '${_phoneLengths[_selectedCountry]}'});
+                return Strings.get('${_phoneLengths[_selectedCountry]} chiffres requis', '${_phoneLengths[_selectedCountry]} digits required');
               return null;
             },
           ),
@@ -372,7 +371,7 @@ class _SignUpViewState extends State<SignUpView> {
               onPressed: () async {
                 if (!_formKey.currentState!.validate()) return;
                 if (!_isSelected) {
-                  Toast(context, "Veuillez accepter les conditions.", false);
+                  Toast(context, Strings.get("Veuillez accepter les conditions.", "Please accept the terms."), false);
                   return;
                 }
                 final encrypted =
@@ -399,7 +398,7 @@ class _SignUpViewState extends State<SignUpView> {
                     email: emailCtrl.text,
                   );
                   sendVerificationEmail(context, emailCtrl.text);
-                  Toast(context, "Compte créé ! Vérifiez votre email.", true);
+                  Toast(context, Strings.get("Compte créé ! Vérifiez votre email.", "Account created! Check your email."), true);
                   if (mounted) {
                     Navigator.pushReplacement(
                       context,
@@ -422,7 +421,7 @@ class _SignUpViewState extends State<SignUpView> {
                   }
                 } else {
                   debugPrint('Signup error: $result');
-                  Toast(context, "Erreur : $result", false);
+                  Toast(context, '${Strings.error} : $result', false);
                 }
               },
               child: Text(Strings.of('signup')),
@@ -493,13 +492,13 @@ class _PasswordRequirementsState extends State<_PasswordRequirements> {
   @override
   Widget build(BuildContext context) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      _req(_hasMin, 'Au moins 8 caractères'),
+      _req(_hasMin, Strings.get('Au moins 8 caractères', 'At least 8 characters')),
       const SizedBox(height: 4),
-      _req(_hasUpper, '1 majuscule'),
+      _req(_hasUpper, Strings.get('1 majuscule', '1 uppercase')),
       const SizedBox(height: 4),
-      _req(_hasNumber, '3 chiffres'),
+      _req(_hasNumber, Strings.get('3 chiffres', '3 digits')),
       const SizedBox(height: 4),
-      _req(_hasSpecial, '1 caractère spécial'),
+      _req(_hasSpecial, Strings.get('1 caractère spécial', '1 special character')),
     ]);
   }
 

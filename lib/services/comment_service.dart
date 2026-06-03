@@ -109,7 +109,6 @@ class CommentService {
             .toList();
       }
     } catch (e) {
-      print('Error fetching comments: $e');
     }
     return [];
   }

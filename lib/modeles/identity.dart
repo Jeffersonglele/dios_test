@@ -162,7 +162,6 @@ class Identity extends HiveObject {
 
   static Future<List<Identity>> fetchIdentitiesFromDB() async {
     List<Identity> identityList = await DatabaseHelper.readAllIdentities();
-    print("fetchIdentitiesFromDB " + identityList.toString());
     return identityList;
   }
 

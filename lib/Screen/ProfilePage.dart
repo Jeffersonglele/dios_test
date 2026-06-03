@@ -1,8 +1,8 @@
-import 'package:dios_delices/l10n/app_localizations.dart';
 import 'package:dios_delices/modeles/users.dart';
 import 'package:dios_delices/providers/data_version_notifier.dart';
 import 'package:dios_delices/services/session_service.dart';
 import 'package:dios_delices/theme/app_theme.dart';
+import 'package:dios_delices/utils/strings.dart';
 import 'package:flutter/material.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -66,7 +66,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 color: AppColors.brand, size: 18),
           ),
           const SizedBox(width: 10),
-          Text(AppLocalizations.of(ctx)!.editProfileTitle,
+          Text(Strings.editProfileTitle,
               style: AppTypography.titleMedium().copyWith(fontSize: 16)),
         ]),
         content: Form(
@@ -75,7 +75,7 @@ class _ProfilePageState extends State<ProfilePage> {
             TextField(
               controller: firstnameCtrl,
               decoration: InputDecoration(
-                labelText: AppLocalizations.of(ctx)!.firstName,
+                labelText: Strings.firstName,
                 prefixIcon:
                     const Icon(Icons.person_outline_rounded, size: 20),
               ),
@@ -84,7 +84,7 @@ class _ProfilePageState extends State<ProfilePage> {
             TextField(
               controller: lastnameCtrl,
               decoration: InputDecoration(
-                labelText: AppLocalizations.of(ctx)!.lastName,
+                labelText: Strings.lastName,
                 prefixIcon:
                     const Icon(Icons.person_outline_rounded, size: 20),
               ),
@@ -94,7 +94,7 @@ class _ProfilePageState extends State<ProfilePage> {
               controller: emailCtrl,
               keyboardType: TextInputType.emailAddress,
               decoration: InputDecoration(
-                labelText: AppLocalizations.of(ctx)!.email,
+                labelText: Strings.email,
                 prefixIcon: const Icon(Icons.email_outlined, size: 20),
               ),
             ),
@@ -103,7 +103,7 @@ class _ProfilePageState extends State<ProfilePage> {
               controller: phoneCtrl,
               keyboardType: TextInputType.phone,
               decoration: InputDecoration(
-                labelText: AppLocalizations.of(ctx)!.phone,
+                labelText: Strings.phone,
                 prefixIcon: const Icon(Icons.phone_outlined, size: 20),
               ),
             ),
@@ -112,7 +112,7 @@ class _ProfilePageState extends State<ProfilePage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text(AppLocalizations.of(ctx)!.cancel,
+            child: Text(Strings.cancel,
                 style:
                     AppTypography.labelMedium(color: AppColors.inkMuted)),
           ),
@@ -122,8 +122,8 @@ class _ProfilePageState extends State<ProfilePage> {
                   lastnameCtrl.text.trim().isEmpty ||
                   emailCtrl.text.trim().isEmpty ||
                   phoneCtrl.text.trim().isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text('Tous les champs sont requis')));
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text(Strings.allFieldsRequired)));
                 return;
               }
               final result = await Users.updateProfile(
@@ -141,14 +141,14 @@ class _ProfilePageState extends State<ProfilePage> {
               if (!ctx.mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                 content: Text(result == 'success'
-                    ? AppLocalizations.of(context)!.profileUpdated
-                    : result.toString()),
+                  ? Strings.profileUpdated
+                  : result.toString()),
                 behavior: SnackBarBehavior.floating,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(AppRadius.md)),
               ));
             },
-            child: const Text('Enregistrer'),
+            child: Text(Strings.save),
           ),
         ],
       ),
@@ -157,12 +157,11 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     final user = _user;
 
     return Scaffold(
       backgroundColor: AppColors.surface,
-      appBar: AppBar(title: Text(l10n.myProfile)),
+      appBar: AppBar(title: Text(Strings.profile)),
       body: user == null
           ? const Center(child: CircularProgressIndicator())
           : ListView(
@@ -218,13 +217,13 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                   child: Column(children: [
                     _infoTile(Icons.person_outline_rounded,
-                        '${l10n.firstName} / ${l10n.lastName}',
+                        '${Strings.firstName} / ${Strings.lastName}',
                         '${user.firstname} ${user.lastname}'),
                     const Divider(height: 1, indent: 56),
-                    _infoTile(Icons.email_outlined, l10n.email,
+                    _infoTile(Icons.email_outlined, Strings.email,
                         user.email),
                     const Divider(height: 1, indent: 56),
-                    _infoTile(Icons.phone_outlined, l10n.phone,
+                    _infoTile(Icons.phone_outlined, Strings.phone,
                         user.telephone),
                   ]),
                 ),
@@ -237,7 +236,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   child: ElevatedButton.icon(
                     onPressed: _showEditDialog,
                     icon: const Icon(Icons.edit_rounded, size: 20),
-                    label: Text(l10n.editProfile),
+                    label: Text(Strings.modify),
                   ),
                 ),
                 const SizedBox(height: 40),

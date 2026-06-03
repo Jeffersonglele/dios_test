@@ -13,6 +13,7 @@ import '../../providers/cart_provider.dart' as cartP;
 import '../../services/favorites_service.dart';
 import '../../services/session_service.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/strings.dart';
 import '../../widgets/dios_image.dart';
 import '../../widgets/micro_interactions.dart';
 import '../../utils/stars.dart';
@@ -214,7 +215,7 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
                         color: (current_restaurant!.isOpen == 1 ? AppColors.success : AppColors.error).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(999),
                       ),
-                      child: Text(current_restaurant!.isOpen == 1 ? 'Ouvert' : 'Fermé',
+                      child: Text(current_restaurant!.isOpen == 1 ? Strings.open : Strings.closed,
                           style: TextStyle(
                             color: current_restaurant!.isOpen == 1 ? AppColors.success : AppColors.error,
                             fontSize: 12, fontWeight: FontWeight.w700,
@@ -298,7 +299,7 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
                                 isEditMode = false;
                               });
                             },
-                            child: const Text('Annuler'),
+                            child: Text(Strings.cancel),
                           ),
                         ),
                       ElevatedButton(
@@ -325,15 +326,15 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
                               img_url: current_restaurant?.image,
                             );
                             if (result == "success") {
-                              Toast(context, "Restaurant mis à jour", true);
+                              Toast(context, Strings.restaurantUpdated, true);
                               await loadData();
                             } else {
-                              Toast(context, "Erreur : $result", false);
+                              Toast(context, '${Strings.error} : $result', false);
                             }
                           }
                           setState(() => isEditMode = !isEditMode);
                         },
-                        child: Text(isEditMode ? 'Valider' : 'Modifier'),
+                        child: Text(isEditMode ? Strings.validate : Strings.modify),
                       ),
                     ]),
                   ],

@@ -101,7 +101,6 @@ class MoyenPaiement extends HiveObject {
 
   static Future<List<MoyenPaiement>> fetchMoyensPaiementFromDB() async {
     List<MoyenPaiement> list = await DatabaseHelper.readAllMoyensPaiement();
-    print("fetchMoyensPaiementFromDB → ${list.length} éléments");
     return list;
   }
 

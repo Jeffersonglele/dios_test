@@ -1,4 +1,5 @@
 import 'package:dios_delices/theme/app_theme.dart';
+import 'package:dios_delices/utils/strings.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -12,7 +13,7 @@ class ContactPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: AppBar(
-        title: const Text('Nous contacter'),
+        title: Text(Strings.contactUs),
         backgroundColor: AppColors.brand,
         foregroundColor: Colors.white,
       ),
@@ -39,7 +40,7 @@ class ContactPage extends StatelessWidget {
           const SizedBox(height: 32),
           _ContactTile(
             icon: Icons.email,
-            title: 'Email',
+            title: Strings.email,
             subtitle: 'contact@diosdelices.com',
             color: AppColors.brand,
             onTap: () async {
@@ -58,7 +59,7 @@ class ContactPage extends StatelessWidget {
           const SizedBox(height: 12),
           _ContactTile(
             icon: Icons.phone,
-            title: 'Téléphone',
+            title: Strings.phone,
             subtitle: '+229 01 23 45 67 89',
             color: AppColors.brand,
             onTap: () async {
@@ -71,7 +72,7 @@ class ContactPage extends StatelessWidget {
           const SizedBox(height: 12),
           _ContactTile(
             icon: Icons.chat,
-            title: 'Chat',
+            title: Strings.chat,
             subtitle: 'Disponible de 9h à 18h',
             color: AppColors.brand,
             onTap: () {

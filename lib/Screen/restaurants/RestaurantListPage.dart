@@ -5,6 +5,7 @@ import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import '../../modeles/restaurant.dart';
 import '../../modeles/users.dart';
 import '../../widgets/dios_image.dart';
+import '../../utils/strings.dart';
 import '../../utils/toast.dart';
 import 'RestaurantDetails.dart';
 
@@ -131,7 +132,7 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: AppBar(
-        title: Text('Restaurants · ${widget.country}'),
+        title: Text('${Strings.restaurants} · ${widget.country}'),
         centerTitle: true,
       ),
       body: Column(
@@ -152,7 +153,7 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
                     onChanged: (v) => setState(() {}),
                     style: AppTypography.bodyLarge().copyWith(fontSize: 14),
                     decoration: InputDecoration(
-                      hintText: 'Rechercher un restaurant...',
+                      hintText: Strings.get('Rechercher un restaurant...', 'Search a restaurant...'),
                       hintStyle: AppTypography.bodyMedium().copyWith(fontSize: 14),
                       prefixIcon: Icon(Icons.search_rounded, color: AppColors.inkSubtle, size: 20),
                       border: InputBorder.none,
@@ -210,7 +211,7 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
                       activeColor: AppColors.accent,
                       onChanged: (v) => setState(() => showOnlyWaitingForValidation = v),
                     ),
-                    Text('En attente', style: AppTypography.labelMedium().copyWith(fontSize: 12)),
+                    Text(Strings.pending, style: AppTypography.labelMedium().copyWith(fontSize: 12)),
                     const SizedBox(width: 8),
                   ],
                 ),
@@ -232,7 +233,7 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
                             Icon(Icons.storefront_outlined,
                                 size: 64, color: AppColors.inkSubtle),
                             const SizedBox(height: 12),
-                            Text('Aucun restaurant trouvé',
+                            Text(Strings.get('Aucun restaurant trouvé', 'No restaurant found'),
                                 style: AppTypography.bodyLarge(color: AppColors.inkMuted)),
                           ],
                         ),
@@ -327,7 +328,7 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            isValid ? 'Validé' : isRejected ? 'Rejeté' : 'En attente',
+                            isValid ? Strings.validated : isRejected ? Strings.rejected : Strings.pending,
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
@@ -421,17 +422,17 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
             child: const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 18),
           ),
           const SizedBox(width: 10),
-          Text('Rejeter le restaurant', style: AppTypography.titleMedium()),
+          Text(Strings.get('Rejeter le restaurant', 'Reject restaurant'), style: AppTypography.titleMedium()),
         ]),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text('Motif du rejet pour "${restaurant.name}" :',
+          Text('${Strings.rejectReason} pour "${restaurant.name}" :',
               style: AppTypography.bodyMedium()),
           const SizedBox(height: 12),
           TextField(
             controller: remarkCtrl,
             maxLines: 3,
             decoration: InputDecoration(
-              hintText: 'Saisissez votre remarque...',
+              hintText: Strings.get('Saisissez votre remarque...', 'Enter your remark...'),
               filled: true,
               fillColor: AppColors.surfaceWarm,
               border: OutlineInputBorder(
@@ -444,7 +445,7 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Annuler',
+            child: Text(Strings.cancel,
                 style: AppTypography.labelMedium(color: AppColors.inkMuted)),
           ),
           ElevatedButton(
@@ -453,7 +454,7 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
               Navigator.pop(ctx);
               _rejectRestaurant(restaurant, remarkCtrl.text);
             },
-            child: const Text('Rejeter'),
+            child: Text(Strings.reject),
           ),
         ],
       ),

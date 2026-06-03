@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../utils/strings.dart';
 import '../AnimatedSplashScreen.dart';
 
 class WaitRestaurantValidation extends StatelessWidget {
@@ -23,13 +24,13 @@ class WaitRestaurantValidation extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Text(
-              "Votre restaurant n'a pas encore été validé.",
+              Strings.restaurantNotValidated,
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
             SizedBox(height: 20),
             Text(
-              "Vous recevrez un mail si votre idée de restaurant est acceptée.",
+              Strings.willReceiveMail,
               style: TextStyle(fontSize: 16),
               textAlign: TextAlign.center,
             ),
@@ -54,7 +55,7 @@ class WaitRestaurantValidation extends StatelessWidget {
                         (Route<dynamic> route) => false,
                   );
                 },
-                child: const Text("Retourner à l'accueil"),
+                child: Text(Strings.comeBackHome),
               ),
             )
           ],

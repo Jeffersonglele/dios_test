@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../Constant/Constant.dart';
@@ -67,10 +68,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   }
 
   Future<void> _continue() async {
-    final session = await SessionService.readSession();
-    if (mounted) {
-      Users.chooseCurvedNavigation(session.role.id, session.country, context);
-    }
+    if (mounted) Navigator.of(context).pop(true);
   }
 
   @override
@@ -92,9 +90,9 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     child: SlideTransition(
                       position: _textSlide,
                       child: Column(children: [
-                        Text('Bienvenue !', style: AppTypography.headlineLarge(), textAlign: TextAlign.center),
+                        Text(Strings.welcome, style: AppTypography.headlineLarge(), textAlign: TextAlign.center),
                         const SizedBox(height: 12),
-                        Text('Votre compte a été créé avec succès.\nDécouvrez les meilleurs plats faits maison près de chez vous.',
+                        Text(Strings.welcomeSubtitle,
                             style: AppTypography.bodyLarge(color: AppColors.inkMuted), textAlign: TextAlign.center),
                       ]),
                     ),
@@ -108,7 +106,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                         height: 56,
                         child: ElevatedButton(
                           onPressed: _continue,
-                          child: const Text('Découvrir'),
+                          child: Text(Strings.discover),
                         ),
                       ),
                     ),
@@ -184,7 +182,7 @@ class _LoginState extends ConsumerState<Login> {
       }
     } catch (e) {
       debugPrint('Login error: $e');
-      Toast(context, 'Erreur de connexion. Vérifiez votre réseau.', false);
+      Toast(context, Strings.connectError, false);
       _handleLoginFailure();
     }
   }
@@ -208,6 +206,10 @@ class _LoginState extends ConsumerState<Login> {
   }
 
   void _handleApprovedUser(Users user) async {
+    if (user.status == 'deleted_pending') {
+      Toast(context, Strings.get('Ce compte est en cours de suppression.', 'This account is being deleted.'), false);
+      return;
+    }
     if (user.country.trim().isEmpty) {
       Navigator.pushReplacement(context, CupertinoPageRoute(
           builder: (_) => StartAddressSaving(userID: user.userID, roleID: user.roleID)));
@@ -281,15 +283,28 @@ class _LoginState extends ConsumerState<Login> {
 
   Future<void> firstLogin(Users user) async {
     NotificationService.subscribeToRestaurantNotifications();
-    final prefs = await SharedPreferences.getInstance();
-    final welcomeKey = 'has_seen_welcome_${user.userID}';
-    final hasSeenWelcome = prefs.getBool(welcomeKey) ?? false;
 
-    if (!hasSeenWelcome) {
-      await prefs.setBool(welcomeKey, true);
+    final role = AppRole.fromId(user.roleID);
+    if (role.isAdmin) {
+      await Users.updateDerniereConnexion(user.userID);
+      if (mounted) Users.chooseCurvedNavigation(user.roleID, user.country, context);
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final key = 'welcomed_${user.userID}';
+    final alreadyShown = prefs.getBool(key) ?? false;
+
+    if (!alreadyShown) {
       if (mounted) {
-        Navigator.push(context, CupertinoPageRoute(builder: (_) => const WelcomeScreen()));
+        final result = await Navigator.push<bool>(
+          context, CupertinoPageRoute(builder: (_) => const WelcomeScreen()));
+        if (result == true) {
+          await prefs.setBool(key, true);
+        }
       }
+      await Users.updateDerniereConnexion(user.userID);
+      if (mounted) Users.chooseCurvedNavigation(user.roleID, user.country, context);
     } else {
       await Users.updateDerniereConnexion(user.userID);
       if (mounted) {

@@ -3,6 +3,7 @@ import 'package:dios_delices/services/nearby_service.dart';
 import 'package:dios_delices/modeles/users.dart';
 import 'package:dios_delices/core/app_role.dart';
 import 'package:flutter/material.dart';
+import '../../utils/strings.dart';
 
 class NearMeRestaurants extends StatefulWidget {
   const NearMeRestaurants({super.key});
@@ -94,7 +95,7 @@ class _NearMeRestaurantsState extends State<NearMeRestaurants> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Restaurants à proximité'),
+        title: Text(Strings.get('Restaurants à proximité', 'Nearby restaurants')),
       ),
       body: RefreshIndicator(
         onRefresh: _loadRestaurants,
@@ -104,7 +105,7 @@ class _NearMeRestaurantsState extends State<NearMeRestaurants> {
             TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Rechercher un restaurant ou une cuisine',
+                hintText: Strings.get('Rechercher un restaurant ou une cuisine', 'Search a restaurant or cuisine'),
                 prefixIcon: const Icon(Icons.search),
                 filled: true,
                 fillColor: Colors.white,
@@ -135,7 +136,7 @@ class _NearMeRestaurantsState extends State<NearMeRestaurants> {
                   onTap: () => _updateDistance(20),
                 ),
                 FilterChip(
-                  label: const Text('Ouverts maintenant'),
+                  label: Text(Strings.get('Ouverts maintenant', 'Open now')),
                   selected: _openOnly,
                   onSelected: _updateOpenOnly,
                 ),
@@ -145,10 +146,10 @@ class _NearMeRestaurantsState extends State<NearMeRestaurants> {
             if (_isLoading)
               const Center(child: CircularProgressIndicator())
             else if (_visibleRestaurants.isEmpty)
-              const Padding(
-                padding: EdgeInsets.only(top: 48),
+              Padding(
+                padding: const EdgeInsets.only(top: 48),
                 child: Center(
-                  child: Text('Aucun restaurant trouvé avec ces filtres.'),
+                  child: Text(Strings.get('Aucun restaurant trouvé avec ces filtres.', 'No restaurant found with these filters.')),
                 ),
               )
             else
@@ -206,7 +207,7 @@ class _NearMeRestaurantsState extends State<NearMeRestaurants> {
                           overflow: TextOverflow.ellipsis,
                         ),
                         Text(
-                          'Livraison ${result.restaurant.deliveryFee.toStringAsFixed(2)}',
+                          '${Strings.deliveryFee} ${result.restaurant.deliveryFee.toStringAsFixed(2)}',
                         ),
                       ],
                     ),
@@ -223,7 +224,7 @@ class _NearMeRestaurantsState extends State<NearMeRestaurants> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          result.restaurant.isOpen == 1 ? 'Ouvert' : 'Fermé',
+                          result.restaurant.isOpen == 1 ? Strings.open : Strings.closed,
                           style: const TextStyle(fontSize: 12),
                         ),
                       ],

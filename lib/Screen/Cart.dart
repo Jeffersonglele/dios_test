@@ -20,6 +20,7 @@ import '../services/notification_service.dart';
 import '../services/promo_service.dart';
 import '../services/session_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/strings.dart';
 import '../utils/toast.dart';
 import '../widgets/animations.dart';
 import '../widgets/dios_image.dart';
@@ -169,7 +170,7 @@ class _CartState extends ConsumerState<Cart> {
     if (cartItems.isEmpty) {
       return Scaffold(
         backgroundColor: AppColors.surface,
-        appBar: AppBar(title: const Text('Votre Panier')),
+        appBar: AppBar(title: Text(Strings.cart)),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -190,7 +191,7 @@ class _CartState extends ConsumerState<Cart> {
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: AppBar(
-        title: Text('Votre Panier',
+        title: Text(Strings.cart,
             style: AppTypography.titleLarge().copyWith(fontSize: 20)),
       ),
       body: Column(
@@ -349,9 +350,9 @@ class _CartState extends ConsumerState<Cart> {
                   const SizedBox(height: 24),
                   _SectionTitle('Résumé'),
                   const SizedBox(height: 14),
-                  _SummaryRow('Sous-total', _formatAmount(cartTotal, cc, cs)),
+                  _SummaryRow(Strings.subtotal, _formatAmount(cartTotal, cc, cs)),
                   if (safeOption == 'En Livraison')
-                    _SummaryRow('Frais de livraison',
+                    _SummaryRow(Strings.deliveryFee,
                         _formatAmount(deliveryFee, cc, cs)),
                   if (_appliedPromo != null)
                     _SummaryRow(
@@ -361,7 +362,7 @@ class _CartState extends ConsumerState<Cart> {
                     ),
                   const Divider(height: 20),
                   _SummaryRow(
-                    'Total',
+                    Strings.total,
                     _formatAmount(payableTotal, cc, cs),
                     isBold: true,
                     valueColor: AppColors.brand,
@@ -479,7 +480,7 @@ class _CartState extends ConsumerState<Cart> {
                         Text(
                       _isSubmittingPayment
                           ? 'Traitement...'
-                          : 'Commander · ${_formatAmount(payableTotal, cc, cs)}',
+                          : '${Strings.order} · ${_formatAmount(payableTotal, cc, cs)}',
                       style: AppTypography.labelLarge(color: Colors.white),
                     ),
                   ),
@@ -536,7 +537,7 @@ class _CartState extends ConsumerState<Cart> {
         promoCode: _appliedPromo?.code,
       );
       if (commandeId != null) {
-        Toast(context, "Commande confirmée !", true);
+        Toast(context, '${Strings.orderConfirmed} !', true);
         final restaurantId = cartItems.first['restaurant']['restau_id'];
         final restaurantsList = await Restaurant.fetchRestaurantsFromDB();
         final currentRestaurant = Restaurant.getRestaurantByRestaurantId(
@@ -944,7 +945,7 @@ class OrderConfirmationPage extends StatelessWidget {
                   children: [
                     const AnimatedSuccessCheck(),
                     const SizedBox(height: 28),
-                    Text('Commande confirmée !',
+                    Text('${Strings.orderConfirmed} !',
                         style: AppTypography.headlineMedium(),
                         textAlign: TextAlign.center),
                     const SizedBox(height: 12),

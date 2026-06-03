@@ -31,10 +31,6 @@ class NotificationService {
       initializationSettings,
       onDidReceiveNotificationResponse: _onNotificationTapped,
     );
-
-    if (kDebugMode) {
-      debugPrint('Service de notifications initialisé');
-    }
   }
 
   static void _onNotificationTapped(NotificationResponse response) {
@@ -144,7 +140,6 @@ class NotificationService {
         await installation.save();
 
         if (kDebugMode) {
-          debugPrint('Installation créée pour le restaurateur $userId');
         }
       }
     } catch (e) {

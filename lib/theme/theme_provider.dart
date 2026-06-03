@@ -37,3 +37,7 @@ final themeProvider = Provider<ThemeData>((ref) {
   final themeMode = ref.watch(themeModeProvider);
   return themeMode == ThemeMode.dark ? AppTheme.darkTheme : AppTheme.lightTheme;
 });
+
+final localeProvider = StateProvider<Locale>((ref) {
+  return const Locale('fr');
+});

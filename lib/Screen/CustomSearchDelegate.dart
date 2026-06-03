@@ -3,11 +3,15 @@ import 'package:dios_delices/Screen/restaurants/RestaurantDetails.dart';
 import 'package:dios_delices/modeles/dish.dart';
 import 'package:dios_delices/modeles/restaurant.dart';
 import 'package:dios_delices/theme/app_theme.dart';
+import '../utils/strings.dart';
 import '../widgets/dios_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 class CustomSearchDelegate extends SearchDelegate<void> {
+  @override
+  String get searchFieldLabel => Strings.search;
+
   @override
   List<Widget>? buildActions(BuildContext context) => [
         IconButton(
@@ -47,7 +51,7 @@ class CustomSearchDelegate extends SearchDelegate<void> {
             child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
               Icon(Icons.search_off_rounded, size: 56, color: AppColors.border),
               const SizedBox(height: 12),
-              Text('Aucun résultat pour "$query"', style: AppTypography.bodyMedium()),
+              Text(Strings.get('Aucun résultat pour', 'No results for') + ' "$query"', style: AppTypography.bodyMedium()),
             ]),
           );
         }
@@ -58,7 +62,7 @@ class CustomSearchDelegate extends SearchDelegate<void> {
             if (matchingRestos.isNotEmpty) ...[
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
-                child: Text('Restaurants', style: AppTypography.titleMedium()),
+                child: Text(Strings.restaurants, style: AppTypography.titleMedium()),
               ),
               ...matchingRestos.map((r) => Container(
                 margin: const EdgeInsets.only(bottom: 8),
@@ -87,7 +91,7 @@ class CustomSearchDelegate extends SearchDelegate<void> {
             if (matchingDishes.isNotEmpty) ...[
               Padding(
                 padding: const EdgeInsets.only(top: 8, bottom: 8),
-                child: Text('Plats', style: AppTypography.titleMedium()),
+                child: Text(Strings.get('Plats', 'Dishes'), style: AppTypography.titleMedium()),
               ),
               ...matchingDishes.map((d) => Container(
                 margin: const EdgeInsets.only(bottom: 8),

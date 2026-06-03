@@ -1,5 +1,4 @@
 import 'package:geolocator/geolocator.dart';
-import 'package:intl/date_symbol_data_local.dart';
 import 'package:dios_delices/Screen/DishDetails.dart';
 import 'package:dios_delices/Screen/MealsOfACategory.dart';
 import 'package:dios_delices/l10n/app_localizations.dart';
@@ -30,12 +29,10 @@ import 'services/notification_service.dart';
 import 'services/session_service.dart';
 import 'theme/app_theme.dart';
 import 'theme/theme_provider.dart';
+import 'utils/strings.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Initialisation du format de date français
-  await initializeDateFormatting('fr', null);
 
   // Configuration de la barre système
   SystemChrome.setEnabledSystemUIMode(
@@ -83,6 +80,9 @@ void main() async {
     debugPrint('❌ Failed to initialize Hive: $e');
   }
 
+  // Initialisation de la langue
+  await Strings.load();
+
   // Initialisation des notifications
   try {
     await NotificationService.initialize();
@@ -92,7 +92,6 @@ void main() async {
     if (session.isLoggedIn) {
       await NotificationService.subscribeToRestaurantNotifications();
     }
-    debugPrint('✅ Notifications initialized successfully');
   } catch (e) {
     debugPrint('❌ Failed to initialize notifications: $e');
   }
@@ -142,11 +141,13 @@ class _MyAppState extends ConsumerState<MyApp> {
   @override
   Widget build(BuildContext context) {
     final themeMode = ref.watch(themeModeProvider);
+    final appLocale = ref.watch(localeProvider);
     final isDark = themeMode == ThemeMode.dark;
 
     return MaterialApp(
       title: 'Dios Délices',
       debugShowCheckedModeBanner: false,
+      locale: appLocale,
       localizationsDelegates: const [
         AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,

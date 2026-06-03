@@ -8,6 +8,7 @@ import 'package:dios_delices/modeles/ligne_commande.dart';
 import 'package:dios_delices/modeles/restaurant.dart';
 import 'package:dios_delices/modeles/users.dart';
 import 'package:dios_delices/services/commande_api.dart';
+import 'package:dios_delices/services/livreur_api.dart';
 import 'package:dios_delices/services/session_service.dart';
 import 'package:dios_delices/theme/app_theme.dart';
 import 'package:flutter/material.dart';
@@ -16,6 +17,7 @@ import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/strings.dart';
 import 'ChatScreen.dart';
 
 class UserOrdersPage extends StatefulWidget {
@@ -35,10 +37,10 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
     ).hasMatch(text);
 
     if (isInvalidAuth) {
-      return 'Connexion impossible : identifiants de connexion incorrects. Veuillez vous reconnecter.';
+      return Strings.get('Connexion impossible : identifiants de connexion incorrects. Veuillez vous reconnecter.', 'Login failed: incorrect credentials. Please log in again.');
     }
 
-    return 'Erreur : ${e.toString()}';
+    return '${Strings.error} : ${e.toString()}';
   }
 
   List<Commande> commandes = [];
@@ -98,7 +100,7 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
 
     final dn = <int, String>{};
     for (final d in allD) {
-      dn[d.dishID] = d.name ?? 'Plat ${d.dishID}';
+      dn[d.dishID] = d.name ?? '${Strings.get('Plat', 'Dish')} ${d.dishID}';
     }
     final rn = <int, String>{};
     for (final r in allR) {
@@ -130,15 +132,15 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
         title: Text(newStatus == CommandeStatus.confirmed
-            ? 'Confirmer la commande'
-            : 'Annuler la commande'),
+            ? Strings.get('Confirmer la commande', 'Confirm order')
+            : Strings.get('Annuler la commande', 'Cancel order')),
         content: Text(newStatus == CommandeStatus.confirmed
-            ? 'Voulez-vous vraiment confirmer cette commande ?'
-            : 'Voulez-vous vraiment annuler cette commande ?'),
+            ? Strings.get('Voulez-vous vraiment confirmer cette commande ?', 'Do you really want to confirm this order?')
+            : Strings.get('Voulez-vous vraiment annuler cette commande ?', 'Do you really want to cancel this order?')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Non'),
+            child: Text(Strings.get('Non', 'No')),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -148,8 +150,8 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
                   : AppColors.error,
             ),
             child: Text(newStatus == CommandeStatus.confirmed
-                ? 'Oui, confirmer'
-                : 'Oui, annuler'),
+                ? Strings.get('Oui, confirmer', 'Yes, confirm')
+                : Strings.get('Oui, annuler', 'Yes, cancel')),
           ),
         ],
       ),
@@ -172,8 +174,8 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(newStatus == CommandeStatus.confirmed
-                  ? 'Commande confirmée'
-                  : 'Commande annulée'),
+                  ? Strings.get('Commande confirmée', 'Order confirmed')
+                  : Strings.get('Commande annulée', 'Order cancelled')),
               backgroundColor: newStatus == CommandeStatus.confirmed
                   ? AppColors.success
                   : AppColors.error,
@@ -186,7 +188,7 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Erreur: ${e.toString()}'),
+              content: Text('${Strings.error}: ${e.toString()}'),
               backgroundColor: AppColors.error,
               duration: const Duration(seconds: 4),
             ),
@@ -210,7 +212,7 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
       backgroundColor: AppColors.surface,
       appBar: AppBar(
         title: Text(
-            widget.showRestaurantOrders ? 'Commandes reçues' : 'Mes commandes'),
+            widget.showRestaurantOrders ? Strings.orders : Strings.myOrders),
         backgroundColor: AppColors.brand,
         foregroundColor: Colors.white,
       ),
@@ -223,8 +225,8 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
                   ? Center(
                       child: Text(
                           widget.showRestaurantOrders
-                              ? 'Aucune commande reçue.'
-                              : 'Aucune commande trouvée.',
+                              ? Strings.get('Aucune commande reçue.', 'No orders received.')
+                              : Strings.get('Aucune commande trouvée.', 'No orders found.'),
                           style: AppTypography.bodyMedium()))
                   : ListView.builder(
                       padding: const EdgeInsets.fromLTRB(16, 4, 16, 40),
@@ -238,8 +240,9 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
   }
 
   Widget _buildFilters(bool isSmall) {
+    const allKey = 'all';
     final statuses = [
-      'Tous',
+      allKey,
       CommandeStatus.pending,
       CommandeStatus.confirmed,
       CommandeStatus.cancelled
@@ -250,23 +253,23 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         children: statuses.map((s) {
-          final active = statusFilter == (s == 'Tous' ? null : s);
+          final active = statusFilter == (s == allKey ? null : s);
           String label;
-          if (s == 'Tous') {
-            label = 'Tous';
+          if (s == allKey) {
+            label = Strings.get('Toutes', 'All');
           } else if (s == CommandeStatus.pending) {
-            label = 'En attente';
+            label = Strings.pending;
           } else if (s == CommandeStatus.confirmed) {
-            label = 'Confirmées';
+            label = Strings.confirmed;
           } else {
-            label = 'Annulées';
+            label = Strings.cancelled;
           }
 
           return Padding(
             padding: const EdgeInsets.only(right: 8),
             child: GestureDetector(
               onTap: () {
-                setState(() => statusFilter = s == 'Tous' ? null : s);
+                setState(() => statusFilter = s == allKey ? null : s);
                 loadOrders();
               },
               child: AnimatedContainer(
@@ -319,8 +322,8 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
         childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         title: Text(
           isRestaurantView
-              ? 'Commande #${c.commandeID}'
-              : restoNames[c.restauID] ?? 'Commande #${c.commandeID}',
+              ? '${Strings.get('Commande', 'Order')} #${c.commandeID}'
+              : restoNames[c.restauID] ?? '${Strings.get('Commande', 'Order')} #${c.commandeID}',
           style: AppTypography.labelMedium(),
         ),
         subtitle: Column(
@@ -383,12 +386,12 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Livraison: ${c.fraisLivraison.toStringAsFixed(2)} €',
+                        '${Strings.delivery}: ${c.fraisLivraison.toStringAsFixed(2)} €',
                         style:
                             AppTypography.bodyMedium().copyWith(fontSize: 12),
                       ),
                       Text(
-                        'Réduction: ${c.reduction.toStringAsFixed(2)} €',
+                        '${Strings.get('Réduction', 'Discount')}: ${c.reduction.toStringAsFixed(2)} €',
                         style:
                             AppTypography.bodyMedium().copyWith(fontSize: 12),
                       ),
@@ -420,7 +423,7 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
                 MaterialPageRoute(
                   builder: (_) => ChatScreen(
                     withUserID: c.restaurateurID,
-                    withUsername: 'Restaurateur',
+                    withUsername: Strings.get('Restaurateur', 'Restaurant owner'),
                   ),
                 ),
               );
@@ -428,8 +431,8 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
               print('Erreur navigation ChatScreen: $e');
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Erreur lors de l\'ouverture du chat'),
+                  SnackBar(
+                    content: Text(Strings.get("Erreur lors de l'ouverture du chat", 'Error opening chat')),
                     backgroundColor: AppColors.error,
                   ),
                 );
@@ -437,7 +440,7 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
             }
           },
           icon: const Icon(Icons.chat_rounded, size: 16),
-          label: const Text('Message'),
+          label: Text(Strings.get('Message', 'Message')),
           style: OutlinedButton.styleFrom(
             minimumSize: Size.zero,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -448,7 +451,7 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
             onPressed: () => _showRate(c.commandeID, c.restauID),
             icon: const Icon(Icons.star_rounded,
                 size: 16, color: AppColors.accent),
-            label: const Text('Noter'),
+            label: Text(Strings.get('Noter', 'Rate')),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.accentLight,
               foregroundColor: AppColors.accent,
@@ -473,12 +476,12 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
             MaterialPageRoute(
               builder: (_) => ChatScreen(
                 withUserID: c.userID,
-                withUsername: 'Client #${c.commandeID}',
+                withUsername: '${Strings.get('Client', 'Client')} #${c.commandeID}',
               ),
             ),
           ),
           icon: const Icon(Icons.chat_rounded, size: 16),
-          label: const Text('Message'),
+          label: Text(Strings.get('Message', 'Message')),
           style: OutlinedButton.styleFrom(
             minimumSize: Size.zero,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -494,7 +497,7 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
               minimumSize: Size.zero,
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             ),
-            child: const Text('Annuler', style: TextStyle(fontSize: 12)),
+            child: Text(Strings.cancel, style: const TextStyle(fontSize: 12)),
           ),
         if (canConfirm)
           ElevatedButton(
@@ -506,12 +509,12 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
               minimumSize: Size.zero,
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             ),
-            child: const Text('Confirmer', style: TextStyle(fontSize: 12)),
+            child: Text(Strings.confirm, style: const TextStyle(fontSize: 12)),
           ),
         OutlinedButton.icon(
           onPressed: () => _showAssignLivreur(c.commandeID),
           icon: const Icon(Icons.person_add_rounded, size: 16),
-          label: const Text('Livreur'),
+          label: Text(Strings.get('Livreur', 'Driver')),
           style: OutlinedButton.styleFrom(
             minimumSize: Size.zero,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -530,7 +533,7 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                dishNames[l.platID] ?? 'Plat #${l.platID}',
+                dishNames[l.platID] ?? '${Strings.get('Plat', 'Dish')} #${l.platID}',
                 style: AppTypography.bodyMedium(),
               ),
               const SizedBox(height: 2),
@@ -554,7 +557,7 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
           children: [
             Expanded(
               child: Text(
-                dishNames[l.platID] ?? 'Plat #${l.platID}',
+                dishNames[l.platID] ?? '${Strings.get('Plat', 'Dish')} #${l.platID}',
                 style: AppTypography.bodyMedium(),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -586,13 +589,13 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
     if (!mounted) return;
     if (livreurs.isEmpty) {
       ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Aucun livreur.')));
+          .showSnackBar(SnackBar(content: Text(Strings.get('Aucun livreur.', 'No driver available.'))));
       return;
     }
     showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
-              title: const Text('Assigner un livreur'),
+              title: Text(Strings.get('Assigner un livreur', 'Assign a driver')),
               content: SizedBox(
                 width: double.maxFinite,
                 child: ListView.builder(
@@ -605,17 +608,10 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
                               '${livreurs[i].firstname} ${livreurs[i].lastname}'),
                           onTap: () async {
                             Navigator.pop(ctx);
-                            await ParseCloudFunction('assignLivreur')
-                                .execute(parameters: {
-                              'userID':
-                                  (await SessionService.readSession()).userId,
-                              'commandeID': id,
-                              'livreurID': livreurs[i].userID,
-                            });
+                            await LivreurApi.assignLivreur(id, livreurs[i].userID);
                             if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                      content: Text('Livreur assigné.')));
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                      content: Text(Strings.get('Livreur assigné.', 'Driver assigned.'))));
                               loadOrders();
                             }
                           },
@@ -624,7 +620,7 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
               actions: [
                 TextButton(
                     onPressed: () => Navigator.pop(ctx),
-                    child: const Text('Annuler'))
+                    child: Text(Strings.cancel))
               ],
             ));
   }
@@ -647,7 +643,7 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setD) => AlertDialog(
-          title: const Text('Noter le restaurant'),
+          title: Text(Strings.get('Noter le restaurant', 'Rate the restaurant')),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -661,13 +657,13 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Plats commandés :',
+                      Text(
+                        Strings.get('Plats commandés :', 'Ordered dishes:'),
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 4),
                       ...lignes.map((l) => Text(
-                            '• ${dishNames[l.platID] ?? 'Plat #${l.platID}'} x${l.quantite}',
+                            '• ${dishNames[l.platID] ?? '${Strings.get('Plat', 'Dish')} #${l.platID}'} x${l.quantite}',
                             style: const TextStyle(fontSize: 12),
                           )),
                     ],
@@ -692,10 +688,10 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
               const SizedBox(height: 8),
               TextField(
                 controller: ctrl,
-                decoration: const InputDecoration(
-                  labelText: 'Votre commentaire (optionnel)',
-                  border: OutlineInputBorder(),
-                  hintText: 'Partagez votre expérience...',
+                decoration: InputDecoration(
+                  labelText: Strings.get('Votre commentaire (optionnel)', 'Your comment (optional)'),
+                  border: const OutlineInputBorder(),
+                  hintText: Strings.get('Partagez votre expérience...', 'Share your experience...'),
                 ),
                 maxLines: 3,
                 maxLength: 500,
@@ -708,7 +704,7 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
                 ctrl.dispose();
                 Navigator.pop(ctx);
               },
-              child: const Text('Plus tard'),
+              child: Text(Strings.get('Plus tard', 'Later')),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -717,7 +713,7 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
                 if (session.userId == null) {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Utilisateur non connecté')),
+                      SnackBar(content: Text(Strings.get('Utilisateur non connecté', 'User not logged in'))),
                     );
                   }
                   Navigator.pop(ctx);
@@ -743,8 +739,8 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
                 if (mounted) {
                   if (response.success) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Merci pour votre avis !'),
+                      SnackBar(
+                        content: Text(Strings.get('Merci pour votre avis !', 'Thank you for your review!')),
                         backgroundColor: AppColors.success,
                       ),
                     );
@@ -752,7 +748,7 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
-                            'Erreur: ${response.error?.message ?? "Inconnue"}'),
+                            '${Strings.error}: ${response.error?.message ?? "Inconnue"}'),
                         backgroundColor: AppColors.error,
                       ),
                     );
@@ -763,7 +759,7 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
                 backgroundColor: AppColors.accent,
                 foregroundColor: Colors.white,
               ),
-              child: const Text('Envoyer'),
+              child: Text(Strings.get('Envoyer', 'Send')),
             ),
           ],
         ),
@@ -780,7 +776,12 @@ class _DeliveryTracker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final steps = ['assigned', 'picked_up', 'in_transit', 'delivered'];
-    final labels = ['Prépa.', 'Récupéré', 'En route', 'Livré'];
+    final labels = [
+      Strings.get('Prépa.', 'Prep'),
+      Strings.get('Récupéré', 'Picked up'),
+      Strings.get('En route', 'In transit'),
+      Strings.get('Livré', 'Delivered')
+    ];
     final icons = [
       Icons.restaurant_rounded,
       Icons.shopping_bag_rounded,
@@ -859,7 +860,7 @@ class _DeliveryTracker extends StatelessWidget {
                       decoration: BoxDecoration(
                           color: AppColors.ink.withValues(alpha: 0.7),
                           borderRadius: BorderRadius.circular(4)),
-                      child: const Text('Toucher pour agrandir',
+                       child: Text(Strings.get('Toucher pour agrandir', 'Tap to enlarge'),
                           style:
                               TextStyle(color: Colors.white, fontSize: 10)))),
             ]),
@@ -922,7 +923,7 @@ class _DeliveryMapPageState extends State<DeliveryMapPage> {
         bounds?.center ?? LatLng(widget.livreurLat, widget.livreurLng);
     return Scaffold(
       backgroundColor: AppColors.surface,
-      appBar: AppBar(title: const Text('Suivi livraison')),
+      appBar: AppBar(title: Text(Strings.get('Suivi livraison', 'Delivery tracking'))),
       body: Stack(children: [
         FlutterMap(
           options: MapOptions(
@@ -945,23 +946,23 @@ class _DeliveryMapPageState extends State<DeliveryMapPage> {
                   point: LatLng(widget.livreurLat, widget.livreurLng),
                   width: 50,
                   height: 50,
-                  child: Column(children: const [
-                    Icon(Icons.delivery_dining,
+                  child: Column(children: [
+                    const Icon(Icons.delivery_dining,
                         color: AppColors.brand, size: 32),
-                    Text('Livreur',
+                    Text(Strings.get('Livreur', 'Driver'),
                         style:
-                            TextStyle(fontSize: 9, fontWeight: FontWeight.bold))
+                            const TextStyle(fontSize: 9, fontWeight: FontWeight.bold))
                   ])),
               if (widget.clientLat != null)
                 Marker(
                     point: LatLng(widget.clientLat!, widget.clientLng!),
                     width: 50,
                     height: 50,
-                    child: Column(children: const [
-                      Icon(Icons.home_rounded,
+                    child: Column(children: [
+                      const Icon(Icons.home_rounded,
                           color: AppColors.accent, size: 32),
-                      Text('Client',
-                          style: TextStyle(
+                      Text(Strings.get('Client', 'Client'),
+                          style: const TextStyle(
                               fontSize: 9, fontWeight: FontWeight.bold))
                     ])),
             ]),

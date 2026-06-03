@@ -11,6 +11,7 @@ import 'package:path/path.dart' as p;
 import '../../Constant/Constant.dart';
 import '../../providers/users_provider.dart';
 import '../../utils/HashtagTextInputFormatter.dart';
+import '../../utils/strings.dart';
 import '../../utils/phone_number.dart';
 import '../../widgets/brand_avatar_logo.dart';
 import '../AnimatedSplashScreen.dart';
@@ -48,7 +49,7 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
               children: <Widget>[
                 ListTile(
                     leading: Icon(Icons.photo_library),
-                    title: Text('Galerie'),
+                    title: Text(Strings.get('Galerie', 'Gallery')),
                     onTap: () async {
                       final XFile? image =
                           await _picker.pickImage(source: ImageSource.gallery);
@@ -61,7 +62,7 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
                     }),
                 ListTile(
                   leading: Icon(Icons.photo_camera),
-                  title: Text('Caméra'),
+                  title: Text(Strings.get('Caméra', 'Camera')),
                   onTap: () async {
                     final XFile? image =
                         await _picker.pickImage(source: ImageSource.camera);
@@ -149,7 +150,7 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
                   Padding(
                     padding: const EdgeInsets.only(left: 20.0),
                     child: Text(
-                      'Votre restaurant',
+                      Strings.get('Votre restaurant', 'Your restaurant'),
                       style: kLoginTitleStyle(size),
                     ),
                   ),
@@ -157,13 +158,13 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
                   // Champ pour le nom du restaurant
                   _buildTextField(
                     controller: _nameController,
-                    hintText: "Nom du restaurant",
+                    hintText: Strings.restaurantName,
                     icon: Icons.restaurant,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Please enter the name of your restaurant';
+                        return Strings.get('Le nom est requis', 'Name is required');
                       } else if (value.length < 4) {
-                        return 'At least enter 4 characters';
+                        return Strings.get('2 caractères minimum', 'At least 2 characters');
                       }
                       return null;
                     },
@@ -172,13 +173,13 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
                   // Champ pour l'adresse
                   _buildTextField(
                     controller: _addressController,
-                    hintText: "Adresse du restaurant (ou la vôtre)",
+                    hintText: Strings.get("Adresse complète du restaurant", "Full restaurant address"),
                     icon: Icons.location_city,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Please enter an address';
-                      } else if (value.length < 4) {
-                        return 'At least enter 4 characters';
+                        return Strings.get("L'adresse est requise", 'Address is required');
+                      } else if (value.length < 5) {
+                        return Strings.get('5 caractères minimum', 'At least 5 characters');
                       }
                       return null;
                     },
@@ -197,14 +198,14 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
                   _buildTextField(
                     controller: _descriptionController,
                     hintText:
-                        "Description du restaurant (donnez-nous quelques informations)",
+                        Strings.get("Décrivez votre restaurant...", "Describe your restaurant..."),
                     keyboardType: TextInputType.multiline,
                     icon: Icons.info,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Please enter a description';
-                      } else if (value.length < 30) {
-                        return 'At least enter 30 characters';
+                        return Strings.get('La description est requise', 'Description is required');
+                      } else if (value.length < 20) {
+                        return Strings.get('20 caractères minimum', 'At least 20 characters');
                       }
                       return null;
                     },
@@ -213,11 +214,11 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
                   SizedBox(height: size.height * 0.02),
                   _buildTextField(
                     controller: _openingHoursController,
-                    hintText: "Horaires d'ouverture (ex: 09:00 - 20:00)",
+                    hintText: Strings.get("Horaires d'ouverture (ex: 09:00 - 20:00)", "Opening hours (e.g. 09:00 - 20:00)"),
                     icon: Icons.access_time,
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return "Entrez les horaires d'ouverture";
+                        return Strings.get("Entrez les horaires d'ouverture", 'Enter opening hours');
                       }
                       return null;
                     },
@@ -225,7 +226,7 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
                   SizedBox(height: size.height * 0.02),
                   _buildTextField(
                     controller: _deliveryFeeController,
-                    hintText: "Frais de livraison",
+                    hintText: Strings.deliveryFee,
                     icon: Icons.delivery_dining,
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
@@ -235,11 +236,11 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
                     ],
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return 'Entrez les frais de livraison';
+                        return Strings.get('Entrez les frais de livraison', 'Enter delivery fee');
                       }
                       final normalized = value.replaceAll(',', '.');
                       if (double.tryParse(normalized) == null) {
-                        return 'Entrez un montant valide';
+                        return Strings.get('Entrez un montant valide', 'Enter a valid amount');
                       }
                       return null;
                     },
@@ -250,16 +251,16 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
                     child: Column(
                       children: <Widget>[
                         _image == null
-                            ? const Text(
-                                'Aucune image sélectionnée',
+                            ? Text(
+                                Strings.get('Aucune image sélectionnée', 'No image selected'),
                                 style: TextStyle(fontWeight: FontWeight.bold),
                               )
                             : Image.file(_image!, width: 100, height: 60),
                         SizedBox(height: 10),
                         ElevatedButton(
                           onPressed: _pickImage,
-                          child: const Text(
-                            'Sélectionner une image',
+                          child: Text(
+                            Strings.addPhoto,
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
@@ -289,7 +290,7 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
                           if (!isAddressValid) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text("L'adresse saisie est invalide."),
+                                content: Text(Strings.get("L'adresse saisie est invalide.", 'The entered address is invalid.')),
                               ),
                             );
                             return;
@@ -403,7 +404,7 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
                           }
                         }
                       },
-                      child: const Text('Valider'),
+                      child: Text(Strings.validate),
                     ),
                   ),
                   SizedBox(height: size.height * 0.2),

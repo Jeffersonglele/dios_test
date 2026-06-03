@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import '../../modeles/commande.dart';
 import '../../modeles/restaurant.dart';
 import '../../modeles/users.dart';
+import '../../services/livreur_api.dart';
 import '../../services/session_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/toast.dart';
@@ -80,46 +80,33 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
 
   Future<void> _loadDeliveries() async {
     try {
-      // Récupérer les commandes depuis la base locale
-      final allCommandes = await Commande.fetchCommandesFromDB();
-
-      // Filtrer les commandes assignées à ce livreur
-      final myDeliveries = allCommandes
-          .where((c) =>
-              c.livreurID == driverID &&
-              c.deliveryStatus != 'delivered' &&
-              c.deliveryStatus != 'cancelled')
-          .toList();
-
-      // Trier par date
-      myDeliveries.sort((a, b) => b.dateCommande.compareTo(a.dateCommande));
-
-      if (mounted) {
-        setState(() {
-          deliveries = myDeliveries;
-        });
+      final cloudDeliveries = await LivreurApi.getLivreurDeliveries(driverID);
+      if (cloudDeliveries.isNotEmpty) {
+        final list = cloudDeliveries.map((m) => Commande.fromMap(m)).toList()
+          ..sort((a, b) => b.dateCommande.compareTo(a.dateCommande));
+        if (mounted) setState(() => deliveries = list);
+      } else {
+        final allC = await Commande.fetchCommandesFromDB();
+        final myDeliveries = allC.where((c) => c.livreurID == driverID && c.deliveryStatus != 'delivered' && c.deliveryStatus != 'cancelled').toList()
+          ..sort((a, b) => b.dateCommande.compareTo(a.dateCommande));
+        if (mounted) setState(() => deliveries = myDeliveries);
       }
-
-      debugPrint('📦 Livraisons chargées: ${myDeliveries.length}');
-    } catch (e) {
-      debugPrint('❌ Erreur chargement livraisons: $e');
+    } catch (_) {
+      final allC = await Commande.fetchCommandesFromDB();
+      final myDeliveries = allC.where((c) => c.livreurID == driverID && c.deliveryStatus != 'delivered' && c.deliveryStatus != 'cancelled').toList()
+        ..sort((a, b) => b.dateCommande.compareTo(a.dateCommande));
+      if (mounted) setState(() => deliveries = myDeliveries);
     }
   }
 
   Future<void> _loadEarnings() async {
     try {
-      final allCommandes = await Commande.fetchCommandesFromDB();
-      final deliveredCommandes = allCommandes
-          .where(
-              (c) => c.livreurID == driverID && c.deliveryStatus == 'delivered')
-          .toList();
-
-      _totalDeliveries = deliveredCommandes.length;
-      _totalEarnings = deliveredCommandes.fold<double>(
-          0, (sum, c) => sum + c.fraisLivraison);
-    } catch (e) {
-      debugPrint('❌ Erreur chargement gains: $e');
-    }
+      final result = await LivreurApi.getLivreurEarnings(driverID);
+      if (mounted) {
+        _totalDeliveries = (result['totalLivraisons'] as num?)?.toInt() ?? 0;
+        _totalEarnings = (result['totalGains'] as num?)?.toDouble() ?? 0;
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadOnlineStatus() async {
@@ -143,29 +130,11 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
 
   Future<void> _toggleOnline() async {
     setState(() => isOnline = !isOnline);
-
     try {
-      final cloudFunction = ParseCloudFunction('toggleOnlineStatus');
-      final response = await cloudFunction.execute(parameters: {
-        'userID': driverID,
-        'isOnline': isOnline,
-      });
-
-      if (!response.success) {
-        setState(() => isOnline = !isOnline);
-        Toast(context, 'Erreur: ${response.error?.message}', false);
-      } else {
-        Toast(
-            context,
-            isOnline
-                ? '✅ Vous êtes maintenant en ligne'
-                : '⛔ Vous êtes hors ligne',
-            true);
-      }
-    } catch (e) {
-      setState(() => isOnline = !isOnline);
-      Toast(context, 'Erreur lors du changement de statut', false);
-    }
+      final ok = await LivreurApi.toggleOnlineStatus(driverID, isOnline);
+      if (!ok && mounted) { setState(() => isOnline = !isOnline); Toast(context, 'Erreur', false); }
+      else if (mounted) Toast(context, isOnline ? '✅ En ligne' : '⛔ Hors ligne', true);
+    } catch (_) { if (mounted) setState(() => isOnline = !isOnline); }
   }
 
   void _startSharingLocation(int commandeID) {
@@ -183,50 +152,24 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
 
   Future<void> _sendLocation() async {
     if (activeCommandeID == null) return;
-
     try {
-      final pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
-
-      final cloudFunction = ParseCloudFunction('updateLivreurPosition');
-      await cloudFunction.execute(parameters: {
-        'commandeID': activeCommandeID,
-        'lat': pos.latitude,
-        'lng': pos.longitude,
-      });
-    } catch (e) {
-      debugPrint('❌ Erreur envoi position: $e');
-    }
+      final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      await LivreurApi.updatePosition(driverID, pos.latitude, pos.longitude);
+    } catch (_) {}
   }
 
   Future<void> _updateStatus(Commande commande, String newStatus) async {
     try {
-      final cloudFunction = ParseCloudFunction('updateDeliveryStatus');
-      final response = await cloudFunction.execute(parameters: {
-        'commandeID': commande.commandeID,
-        'deliveryStatus': newStatus,
-      });
-
-      if (response.success) {
-        if (newStatus == 'in_transit') {
-          _startSharingLocation(commande.commandeID);
-        } else if (newStatus == 'delivered') {
-          _stopSharingLocation();
-        }
-
+      final ok = await LivreurApi.updateDeliveryStatus(commande.commandeID, newStatus);
+      if (ok) {
+        if (newStatus == 'in_transit') _startSharingLocation(commande.commandeID);
+        if (newStatus == 'delivered') _stopSharingLocation();
         await _load();
-
-        if (mounted) {
-          Toast(context, '✅ Statut mis à jour : $newStatus', true);
-        }
+        if (mounted) Toast(context, '✅ Statut: $newStatus', true);
       } else {
-        Toast(context, '❌ Erreur: ${response.error?.message}', false);
+        if (mounted) Toast(context, 'Erreur', false);
       }
-    } catch (e) {
-      debugPrint('❌ Erreur mise à jour statut: $e');
-      Toast(context, 'Erreur lors de la mise à jour', false);
-    }
+    } catch (_) { if (mounted) Toast(context, 'Erreur', false); }
   }
 
   @override

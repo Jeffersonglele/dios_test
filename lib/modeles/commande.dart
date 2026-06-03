@@ -212,7 +212,6 @@ class Commande extends HiveObject {
 
   static Future<List<Commande>> fetchCommandesFromDB() async {
     List<Commande> list = await DatabaseHelper.readAllCommandes();
-    print("fetchCommandesFromDB → ${list.length} éléments");
     return list;
   }
 

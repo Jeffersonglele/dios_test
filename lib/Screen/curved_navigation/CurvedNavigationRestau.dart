@@ -59,10 +59,12 @@ class _CurvedNavigationRestauState extends State<CurvedNavigationRestau> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.surface,
-      body: PageView(
+      body: SafeArea(
+        child: PageView(
         controller: _pageController,
         onPageChanged: (index) => setState(() => _activePage = index),
         children: _pages,
+      ),
       ),
       bottomNavigationBar: DiosNavBar(
         currentIndex: _activePage,

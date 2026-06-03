@@ -132,13 +132,11 @@ class LigneCommande extends HiveObject {
   static Future<List<LigneCommande>> fetchLignesCommandeFromDB() async {
     final box = await Hive.openBox<LigneCommande>('ligne_commande');
     List<LigneCommande> list = box.values.toList();
-    print("fetchLignesCommandeFromDB → ${list.length} lignes");
     return list;
   }
 
   static Future<List<LigneCommande>> fetchLignesCommandeByCommandeID(int commandeID) async {
     List<LigneCommande> list = await DatabaseHelper.readLignesCommande(commandeID);
-    print("fetchLignesCommandeByCommandeID($commandeID) → ${list.length} lignes");
     return list;
   }
 

@@ -53,6 +53,7 @@ class Dish extends HiveObject {
   String? option3;
 
   String currency;
+  String images;
 
   int stock;
   bool isDailySpecial;
@@ -74,6 +75,7 @@ class Dish extends HiveObject {
     required this.restauID,
     required this.status,
     this.currency = 'EUR',
+    this.images = '',
     this.stock = 99,
     this.isDailySpecial = false,
   });
@@ -91,6 +93,7 @@ class Dish extends HiveObject {
       'note': note,
       'nb_orders': nb_orders,
       'image': image,
+      'images': images,
       'price': price,
       'nb_servings': nb_servings,
       'restauID': restauID,
@@ -112,6 +115,7 @@ class Dish extends HiveObject {
       option3: map['option3']?.toString() ?? '',
       name: map['name']?.toString() ?? '',
       image: map['image']?.toString() ?? '',
+      images: map['images']?.toString() ?? '',
       price: double.tryParse(map['price']?.toString() ?? '0') ?? 0.0,
       nb_servings: int.tryParse(map['nb_servings']?.toString() ?? '0') ?? 0,
       restauID: int.tryParse(map['restauID']?.toString() ?? '0') ?? 0,
@@ -132,6 +136,7 @@ class Dish extends HiveObject {
     String? option3,
     String? name,
     String? image,
+    String? images,
     double? price,
     int? nb_servings,
     int? restauID,
@@ -150,6 +155,7 @@ class Dish extends HiveObject {
       option3: option3 ?? this.option3,
       name: name ?? this.name,
       image: image ?? this.image,
+      images: images ?? this.images,
       price: price ?? this.price,
       nb_servings: nb_servings ?? this.nb_servings,
       restauID: restauID ?? this.restauID,
@@ -174,30 +180,42 @@ class Dish extends HiveObject {
     required int restauID,
     required int status,
     ParseFile? image,
+    List<ParseFile>? extraImages,
     String? img_url,
+    String? images,
     String currency = 'EUR',
   }) async {
     String functionName = dishID == null ? 'add1Dish' : 'update1Dish';
     var cloudFunction = ParseCloudFunction(functionName);
 
-    String? imageUrl = "";
+    String? imageUrl = img_url ?? "";
 
     if (image != null) {
-      final response = await image.save();
-      if (response.success && response.result != null) {
-        imageUrl = (response.result as ParseFile).url ?? img_url;
-
-        final gallery = ParseObject('Gallery')..set('file', image);
-
-        final galleryResponse = await gallery.save();
-
-        if (!galleryResponse.success) {
-          return "Error while saving the Gallery object: ${galleryResponse.error?.message}";
+      try {
+        final response = await image.save();
+        if (response.success && response.result != null) {
+          imageUrl = (response.result as ParseFile).url ?? img_url;
+          try { final g = ParseObject('Gallery')..set('file', image); await g.save(); } catch (_) {}
         }
-      } else {
-        return "Erreur lors de l'upload de l'image: ${response.error?.message}";
+      } catch (_) { imageUrl = img_url ?? ""; }
+    }
+
+    List<String> allUrls = [];
+    if (imageUrl != null && imageUrl!.isNotEmpty) allUrls.add(imageUrl!);
+
+    if (extraImages != null) {
+      for (final img in extraImages) {
+        try {
+          final resp = await img.save();
+          if (resp.success && resp.result != null) {
+            final url = (resp.result as ParseFile).url;
+            if (url != null && url.isNotEmpty) allUrls.add(url);
+          }
+        } catch (_) {}
       }
     }
+
+    final imagesStr = images ?? allUrls.join(',');
 
     // IMPORTANT: S'assurer que price est correctement formaté
     double finalPrice = price;
@@ -217,7 +235,8 @@ class Dish extends HiveObject {
       'note': note,
       'nb_orders': nb_orders,
       'image': image == null ? img_url : imageUrl,
-      'price': finalPrice, // Utiliser le prix corrigé
+      'images': imagesStr,
+      'price': finalPrice,
       'nb_servings': nb_servings,
       'restauID': restauID,
       'status': status,
@@ -246,6 +265,7 @@ class Dish extends HiveObject {
               option3: option3,
               name: name,
               image: image == null ? img_url : imageUrl,
+              images: imagesStr,
               userID: userID,
               price: finalPrice, // Utiliser le prix corrigé
               nb_servings: nb_servings,
@@ -348,6 +368,15 @@ class Dish extends HiveObject {
       return false;
     }
     return true;
+  }
+
+  List<String> getImageUrls() {
+    final urls = <String>[];
+    if (image != null && image!.trim().isNotEmpty) urls.add(image!);
+    if (images.isNotEmpty) {
+      urls.addAll(images.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty));
+    }
+    return urls;
   }
 
   static Future<List<Dish>> fetchDishesFromDB() async {

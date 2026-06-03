@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../utils/strings.dart';
 import '../AnimatedSplashScreen.dart';
 
 class ConfirmationPage extends StatelessWidget {
@@ -23,13 +24,13 @@ class ConfirmationPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Text(
-              "Votre demande a bien été prise en compte.",
+              Strings.demandReceived,
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
             SizedBox(height: 20),
             Text(
-              "Vous serez contacté si votre idée de restaurant est acceptée.",
+              Strings.willBeContacted,
               style: TextStyle(fontSize: 16),
               textAlign: TextAlign.center,
             ),
@@ -54,7 +55,7 @@ class ConfirmationPage extends StatelessWidget {
                         (Route<dynamic> route) => false,
                   );
                 },
-                child: const Text("Retourner à l'accueil"),
+                child: Text(Strings.comeBackHome),
               ),
             )
           ],

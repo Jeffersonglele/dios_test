@@ -9,6 +9,7 @@ import 'package:path/path.dart' as p;
 import '../../Constant/Constant.dart';
 import '../../providers/users_provider.dart';
 import '../../services/session_service.dart';
+import '../../theme/app_theme.dart';
 import '../../utils/DeviseFormat.dart';
 import '../../utils/HashtagTextInputFormatter.dart';
 import '../../utils/toast.dart';
@@ -359,25 +360,55 @@ class _DishFormPageState extends ConsumerState<DishFormPage> {
                     const SizedBox(height: 16),
 
                     // Bouton ajouter option
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        if (_options.length >= 3) {
-                          Toast(context, "Maximum 3 options", false);
-                        } else {
-                          _showOptionDialog(optionIndex: _options.length);
-                        }
-                      },
-                      icon: const Icon(Icons.add),
-                      label: const Text("Ajouter une option"),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.grey.shade200,
-                        foregroundColor: Colors.black87,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Liste des options
-                    ..._buildOptionsList(),
+                    if (_options.isEmpty)
+                      Container(
+                        padding: const EdgeInsets.all(24),
+                        margin: const EdgeInsets.only(top: 12),
+                        decoration: BoxDecoration(
+                          color: AppColors.card,
+                          borderRadius: BorderRadius.circular(AppRadius.lg),
+                          border: Border.all(color: AppColors.border, width: 0.5),
+                        ),
+                        child: Column(children: [
+                          Icon(Icons.tune_rounded, size: 36, color: AppColors.inkSubtle),
+                          const SizedBox(height: 10),
+                          Text('Aucune option', style: AppTypography.bodyMedium(color: AppColors.inkMuted)),
+                          const SizedBox(height: 14),
+                          SizedBox(width: double.infinity, child: OutlinedButton.icon(
+                            onPressed: () { if (_options.length < 3) _showOptionDialog(optionIndex: _options.length); },
+                            icon: Icon(Icons.add_rounded, color: AppColors.brand),
+                            label: const Text('Ajouter une option'),
+                            style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)), side: BorderSide(color: AppColors.brand.withValues(alpha: 0.3))),
+                          )),
+                        ]),
+                      )
+                    else ...[
+                      ..._options.asMap().entries.map((e) {
+                        final i = e.key + 1;
+                        final opt = e.value;
+                        String display = '${opt.name}: ${opt.choices.join(" / ")}';
+                        if (opt.price > 0) display += ' / +${opt.price.toStringAsFixed(2)} ${country == "France" ? "€" : "FCFA"}';
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 10, top: 12),
+                          padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+                          decoration: BoxDecoration(color: AppColors.card, borderRadius: BorderRadius.circular(AppRadius.lg), border: Border.all(color: AppColors.brand.withValues(alpha: 0.15))),
+                          child: Row(children: [
+                            Container(width: 28, height: 28, decoration: BoxDecoration(color: AppColors.brandSurface, borderRadius: BorderRadius.circular(6)), child: Center(child: Text('$i', style: TextStyle(color: AppColors.brand, fontWeight: FontWeight.w600, fontSize: 12)))),
+                            const SizedBox(width: 12),
+                            Expanded(child: Text(display, style: AppTypography.bodyMedium().copyWith(fontSize: 13))),
+                            IconButton(icon: Icon(Icons.edit_rounded, size: 18, color: AppColors.inkMuted), onPressed: () => _editOption(e.key)),
+                            IconButton(icon: Icon(Icons.delete_rounded, size: 18, color: AppColors.error), onPressed: () => _removeOption(e.key)),
+                          ]),
+                        );
+                      }),
+                      if (_options.length < 3)
+                        SizedBox(width: double.infinity, child: OutlinedButton.icon(
+                          onPressed: () => _showOptionDialog(optionIndex: _options.length),
+                          icon: Icon(Icons.add_rounded, color: AppColors.brand),
+                          label: Text('Ajouter une option (${_options.length}/3)'),
+                          style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)), side: BorderSide(color: AppColors.brand.withValues(alpha: 0.25))),
+                        )),
+                    ],
                     const SizedBox(height: 16),
 
                     // Image

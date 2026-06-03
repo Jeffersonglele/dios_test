@@ -1,6 +1,7 @@
 import 'package:dios_delices/Screen/curved_navigation/CurvedNavigationUserAfr.dart';
 import 'package:dios_delices/providers/data_version_notifier.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:gpassword/gpassword.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:hive/hive.dart';
@@ -470,6 +471,33 @@ class Users extends HiveObject {
   }
 
   static Future<String> suppr1User(int userID) async {
+    var cloudFunction = ParseCloudFunction('softDelete1User');
+    var params = <String, dynamic>{
+      'userID': userID,
+    };
+
+    try {
+      final ParseResponse parseResponse =
+          await cloudFunction.execute(parameters: params);
+
+      if (parseResponse.success && parseResponse.result != null) {
+        var response = parseResponse.result as Map<String, dynamic>;
+        if (response['success'] == true) {
+          try { await DatabaseHelper.updateUserStatus(userID, 'deleted_pending'); } catch (_) {}
+          notifyDataChanged();
+          return "success";
+        } else {
+          return "Erreur : ${response['error']}";
+        }
+      } else {
+        return "Erreur : ${parseResponse.error?.message}";
+      }
+    } catch (e) {
+      return "Exception : $e";
+    }
+  }
+
+  static Future<String> permanentlyDeleteUser(int userID) async {
     var cloudFunction = ParseCloudFunction('suppr1User');
     var params = <String, dynamic>{
       'userID': userID,
@@ -482,22 +510,17 @@ class Users extends HiveObject {
       if (parseResponse.success && parseResponse.result != null) {
         var response = parseResponse.result as Map<String, dynamic>;
         if (response['success'] == true) {
-          // User supprimé avec succès
           await DatabaseHelper.deleteUser(userID);
-
           notifyDataChanged();
           return "success";
         } else {
-          // Gestion de l'erreur si l'accès n'a pas pu être supprimé
           return "Erreur : ${response['error']}";
         }
       } else {
-        // Gestion des erreurs de la réponse
-        return "Erreur lors de l'appel de la fonction cloud : ${parseResponse.error?.message}";
+        return "Erreur : ${parseResponse.error?.message}";
       }
     } catch (e) {
-      // Gestion des exceptions
-      return "Exception lors de l'appel de la fonction cloud : $e";
+      return "Exception : $e";
     }
   }
 
@@ -621,48 +644,23 @@ class Users extends HiveObject {
 
   static void chooseCurvedNavigation(
       int userRole, String country, BuildContext context) {
-    // TODO : revoir la page pour un super admin
+    final Widget destination;
     if (userRole == 1 || userRole == 4) {
-      // Si l'utilisateur est un administrateur
-      Navigator.pushReplacement(
-        context,
-        CupertinoPageRoute(
-          builder: (context) => CurvedNavigationAdmin(specified_index: 0),
-        ),
-      );
+      destination = CurvedNavigationAdmin(specified_index: 0);
     } else if (userRole == 3) {
-      // Si l'utilisateur est un restau
-      Navigator.pushReplacement(
-        context,
-        CupertinoPageRoute(
-          builder: (context) => CurvedNavigationRestau(specified_index: 0),
-        ),
-      );
+      destination = CurvedNavigationRestau(specified_index: 0);
     } else if (userRole == 2) {
-      // Si l'utilisateur est un utilisateur normal
-      if (country == "France") {
-        Navigator.pushReplacement(
-          context,
-          CupertinoPageRoute(
-            builder: (context) =>
-                CurvedNavigationUserFrance(specified_index: 0),
-          ),
-        );
-      } else {
-        Navigator.pushReplacement(
-          context,
-          CupertinoPageRoute(
-            builder: (context) => CurvedNavigationUserAfr(specified_index: 0),
-          ),
-        );
-      }
+      destination = country == "France"
+          ? CurvedNavigationUserFrance(specified_index: 0)
+          : CurvedNavigationUserAfr(specified_index: 0);
     } else if (userRole == 5) {
-      Navigator.pushReplacement(
-        context,
-        CupertinoPageRoute(
-          builder: (context) => DeliveryDashboard(),
-        ),
-      );
+      destination = DeliveryDashboard();
+    } else {
+      destination = CurvedNavigationUserFrance(specified_index: 0);
     }
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => destination),
+      (route) => false,
+    );
   }
 }

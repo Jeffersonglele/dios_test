@@ -5,6 +5,7 @@ import 'package:dios_delices/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 
 import '../components/Logout.dart';
+import '../utils/strings.dart';
 import 'UserOrdersPage.dart';
 import '../services/session_service.dart';
 
@@ -21,11 +22,11 @@ class _MyStoreState extends State<MyStore> {
   void initState() {
     super.initState();
     sections = [
-      _StoreSection(Icons.storefront_rounded, 'Mon restaurant', null),
-      _StoreSection(Icons.receipt_long_rounded, 'Mes commandes', const UserOrdersPage(showRestaurantOrders: true)),
-      _StoreSection(Icons.contact_support_rounded, 'Nous contacter', const ContactPage()),
-      _StoreSection(Icons.settings_rounded, 'Paramètres', const Settings()),
-      _StoreSection(Icons.logout_rounded, 'Déconnexion', null, isLogout: true),
+      _StoreSection(Icons.storefront_rounded, Strings.myRestaurant, null),
+      _StoreSection(Icons.receipt_long_rounded, Strings.myOrders, const UserOrdersPage(showRestaurantOrders: true)),
+      _StoreSection(Icons.contact_support_rounded, Strings.contactUs, const ContactPage()),
+      _StoreSection(Icons.settings_rounded, Strings.settings, const Settings()),
+      _StoreSection(Icons.logout_rounded, Strings.logout, null, isLogout: true),
     ];
     _load();
   }
@@ -34,7 +35,7 @@ class _MyStoreState extends State<MyStore> {
     final session = await SessionService.readSession();
     if (session.restaurantId != null) {
       setState(() => sections[0] = _StoreSection(
-        Icons.storefront_rounded, 'Mon restaurant',
+        Icons.storefront_rounded, Strings.myRestaurant,
         RestaurantDetails(restaurant_id: session.restaurantId!)));
     }
   }
@@ -50,7 +51,7 @@ class _MyStoreState extends State<MyStore> {
             const SizedBox(height: 20),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text('Mon espace', style: AppTypography.headlineLarge()),
+              child: Text(Strings.mySpace, style: AppTypography.headlineLarge()),
             ),
             const SizedBox(height: 20),
             Expanded(
@@ -107,7 +108,7 @@ class _MyStoreState extends State<MyStore> {
     }
     if (s.page == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Aucune donnée de restaurant.')),
+        SnackBar(content: Text(Strings.noRestaurantData)),
       );
       return;
     }

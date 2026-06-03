@@ -3,6 +3,7 @@ import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import '../modeles/users.dart';
 import '../services/session_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/strings.dart';
 
 class ChatScreen extends StatefulWidget {
   final int? withUserID;
@@ -130,9 +131,9 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           const SizedBox(width: 10),
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(widget.withUsername ?? 'Messages',
+            Text(widget.withUsername ?? Strings.messages,
                 style: AppTypography.titleMedium().copyWith(fontSize: 17)),
-            const Text('En ligne',
+            Text(Strings.online,
                 style: TextStyle(color: AppColors.success, fontSize: 11)),
           ]),
         ]),
@@ -149,7 +150,7 @@ class _ChatScreenState extends State<ChatScreen> {
           Icon(Icons.chat_bubble_outline_rounded,
               size: 64, color: AppColors.border),
           const SizedBox(height: 16),
-          Text('Aucune conversation.', style: AppTypography.bodyMedium()),
+          Text(Strings.noConversation, style: AppTypography.bodyMedium()),
           const SizedBox(height: 4),
           Text('Vos échanges apparaîtront ici.',
               style: AppTypography.bodyMedium(color: AppColors.inkSubtle)),
@@ -325,7 +326,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     controller: _msgCtrl,
                     style: AppTypography.bodyLarge(),
                     decoration: InputDecoration(
-                      hintText: 'Votre message...',
+                      hintText: Strings.yourMessage,
                       hintStyle:
                           AppTypography.bodyMedium(color: AppColors.inkSubtle),
                       border: InputBorder.none,
