@@ -76,10 +76,15 @@ class CountryPage extends StatelessWidget {
                     context,
                     MaterialPageRoute(
                       builder: (context) {
-                        if (sectionType == "utilisateurs" || sectionType == "administrateurs") {
+                        if (sectionType == "utilisateurs") {
                           return UsersListPage(
                             country: c.name,
-                            roleFilter: sectionType == "administrateurs" ? [1, 4] : null,
+                            roleFilter: const [2, 3],
+                          );
+                        } else if (sectionType == "administrateurs") {
+                          return UsersListPage(
+                            country: c.name,
+                            roleFilter: const [1, 4],
                           );
                         } else if (sectionType == "livreurs") {
                           return LivreurListPage(country: c.name);

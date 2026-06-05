@@ -99,9 +99,13 @@ void main() async {
   // Lecture du dark mode depuis SharedPreferences
   final prefs = await SharedPreferences.getInstance();
   final isDarkMode = prefs.getBool('dark_mode') ?? false;
+  final savedLang = prefs.getString('app_language') ?? 'fr';
 
   runApp(
     ProviderScope(
+      overrides: [
+        localeProvider.overrideWith((ref) => Locale(savedLang)),
+      ],
       child: MyApp(initialDarkMode: isDarkMode),
     ),
   );

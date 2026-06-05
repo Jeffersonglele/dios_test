@@ -27,7 +27,6 @@ class _UsersListPageState extends State<UsersListPage> {
   List<Users> users = [];
   bool isLoading = true;
   _UserStatus filterStatus = _UserStatus.all;
-  String sortBy = 'Nom';
   String searchQuery = '';
   int _currentUserId = 0;
 
@@ -115,17 +114,6 @@ class _UsersListPageState extends State<UsersListPage> {
     });
   }
 
-  void _sortUsers(String criterion) {
-    setState(() {
-      sortBy = criterion;
-      if (criterion == 'Nom') {
-        filteredUsers.sort((a, b) => (a["user"] as Users).firstname.compareTo((b["user"] as Users).firstname));
-      } else if (criterion == 'Username') {
-        filteredUsers.sort((a, b) => (a["user"] as Users).username.compareTo((b["user"] as Users).username));
-      }
-    });
-  }
-
   List<Map<String, dynamic>> get _filteredList {
     var list = filteredUsers;
     if (filterStatus == _UserStatus.pending) {
@@ -139,11 +127,14 @@ class _UsersListPageState extends State<UsersListPage> {
       list = list.where((item) => (item["user"] as Users).identity == "Rejected").toList();
     }
     if (searchQuery.isNotEmpty) {
+      final q = searchQuery.toLowerCase();
       list = list.where((item) {
         final user = item["user"] as Users;
         final fullName = '${user.firstname} ${user.lastname}'.toLowerCase();
-        return fullName.contains(searchQuery.toLowerCase()) ||
-            user.email.toLowerCase().contains(searchQuery.toLowerCase());
+        return fullName.contains(q) ||
+            user.email.toLowerCase().contains(q) ||
+            user.username.toLowerCase().contains(q) ||
+            user.telephone.toLowerCase().contains(q);
       }).toList();
     }
     return list;
@@ -181,46 +172,33 @@ class _UsersListPageState extends State<UsersListPage> {
                       borderRadius: BorderRadius.circular(AppRadius.md),
                       border: Border.all(color: AppColors.border),
                     ),
-                    child: TextField(
-                      controller: _searchCtrl,
-                      onChanged: (v) => setState(() {}),
-                      style: AppTypography.bodyLarge().copyWith(fontSize: 14),
-                      decoration: InputDecoration(
-                        hintText: 'Rechercher...',
-                        hintStyle: AppTypography.bodyMedium().copyWith(fontSize: 14),
-                        prefixIcon: Icon(Icons.search_rounded, color: AppColors.inkSubtle, size: 20),
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                      child: TextField(
+                        controller: _searchCtrl,
+                        onChanged: (v) => setState(() => searchQuery = v),
+                        style: AppTypography.bodyLarge().copyWith(fontSize: 14),
+                        decoration: InputDecoration(
+                          hintText: 'Rechercher nom, email, téléphone...',
+                          hintStyle: AppTypography.bodyMedium().copyWith(fontSize: 14),
+                          prefixIcon: Icon(Icons.search_rounded, color: AppColors.inkSubtle, size: 20),
+                          suffixIcon: searchQuery.isNotEmpty
+                              ? IconButton(
+                                  icon: Icon(Icons.close_rounded, size: 18),
+                                  onPressed: () {
+                                    _searchCtrl.clear();
+                                    setState(() => searchQuery = '');
+                                  },
+                                )
+                              : null,
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
                       ),
-                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
-                Container(
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: AppColors.card,
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: PopupMenuButton<String>(
-                    onSelected: _sortUsers,
-                    offset: const Offset(0, 44),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    ),
-                    itemBuilder: (_) => {'Nom', 'Username'}
-                        .map((c) => PopupMenuItem(value: c, child: Text(c)))
-                        .toList(),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Icon(Icons.sort_rounded, color: AppColors.inkMuted, size: 20),
-                    ),
-                  ),
-                ),
               ]),
             ),
-            // Filter chips
+            // Status filter chips
             SizedBox(
               height: 40,
               child: ListView(

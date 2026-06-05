@@ -422,11 +422,6 @@ class _LoginState extends ConsumerState<Login> {
     final lastLogin = localUser?.last_login ?? user.last_login;
     final isFirst = lastLogin == null;
 
-    print(user);
-    print(localUser?.last_login.toString());
-    print(lastLogin);
-    print(isFirst);
-
     if (isFirst) {
       if (mounted) {
         Navigator.push(

@@ -1788,7 +1788,9 @@ class _ManagementNav extends StatelessWidget {
                 Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (_) => UsersListPage(country: userCountry)));
+                        builder: (_) => UsersListPage(
+                            country: userCountry,
+                            roleFilter: const [2, 3])));
               }
             },
           ),

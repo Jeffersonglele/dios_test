@@ -20,10 +20,14 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
     state = isDark ? ThemeMode.dark : ThemeMode.light;
   }
 
+  void setDarkMode(bool isDark) {
+    state = isDark ? ThemeMode.dark : ThemeMode.light;
+    _saveThemeMode(isDark);
+  }
+
   void toggleTheme() {
     final isDark = state == ThemeMode.dark;
-    state = isDark ? ThemeMode.light : ThemeMode.dark;
-    _saveThemeMode(state == ThemeMode.dark);
+    setDarkMode(!isDark);
   }
 
   Future<void> _saveThemeMode(bool isDark) async {

@@ -26,7 +26,6 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
   List<Restaurant> restaus = [];
   bool isLoading = true;
   _RestaurantStatus filterStatus = _RestaurantStatus.all;
-  String sortBy = 'Nom';
   String searchQuery = '';
 
   final TextEditingController _searchCtrl = TextEditingController();
@@ -107,23 +106,6 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
     });
   }
 
-  void _sortRestaurants(String criterion) {
-    setState(() {
-      sortBy = criterion;
-      if (criterion == 'Nom') {
-        filteredRestaurants.sort((a, b) =>
-            (a["restaurant"] as Restaurant).name.compareTo((b["restaurant"] as Restaurant).name));
-      } else if (criterion == 'Note') {
-        filteredRestaurants.sort((a, b) =>
-            (a["restaurant"] as Restaurant).note.compareTo((b["restaurant"] as Restaurant).note));
-      } else if (criterion == 'Commandes') {
-        filteredRestaurants.sort((a, b) =>
-            (a["restaurant"] as Restaurant).nb_orders
-                .compareTo((b["restaurant"] as Restaurant).nb_orders));
-      }
-    });
-  }
-
   List<Map<String, dynamic>> get _filteredList {
     var list = filteredRestaurants;
     if (filterStatus == _RestaurantStatus.pending) {
@@ -137,9 +119,13 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
       list = list.where((item) => (item["restaurant"] as Restaurant).valid == 2).toList();
     }
     if (searchQuery.isNotEmpty) {
+      final q = searchQuery.toLowerCase();
       list = list.where((item) {
         final rest = item["restaurant"] as Restaurant;
-        return rest.name.toLowerCase().contains(searchQuery.toLowerCase());
+        final user = item["user"] as Users;
+        return rest.name.toLowerCase().contains(q) ||
+            rest.categories.toLowerCase().contains(q) ||
+            '${user.firstname} ${user.lastname}'.toLowerCase().contains(q);
       }).toList();
     }
     return list;
@@ -176,43 +162,30 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
                       borderRadius: BorderRadius.circular(AppRadius.md),
                       border: Border.all(color: AppColors.border),
                     ),
-                    child: TextField(
-                      controller: _searchCtrl,
-                      onChanged: (v) => setState(() {}),
-                      style: AppTypography.bodyLarge().copyWith(fontSize: 14),
-                      decoration: InputDecoration(
-                        hintText: 'Rechercher un restaurant...',
-                        hintStyle: AppTypography.bodyMedium().copyWith(fontSize: 14),
-                        prefixIcon: Icon(Icons.search_rounded, color: AppColors.inkSubtle, size: 20),
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                      child: TextField(
+                        controller: _searchCtrl,
+                        onChanged: (v) => setState(() => searchQuery = v),
+                        style: AppTypography.bodyLarge().copyWith(fontSize: 14),
+                        decoration: InputDecoration(
+                          hintText: 'Rechercher un restaurant...',
+                          hintStyle: AppTypography.bodyMedium().copyWith(fontSize: 14),
+                          prefixIcon: Icon(Icons.search_rounded, color: AppColors.inkSubtle, size: 20),
+                          suffixIcon: searchQuery.isNotEmpty
+                              ? IconButton(
+                                  icon: Icon(Icons.close_rounded, size: 18),
+                                  onPressed: () {
+                                    _searchCtrl.clear();
+                                    setState(() => searchQuery = '');
+                                  },
+                                )
+                              : null,
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
                       ),
-                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
-                Container(
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: AppColors.card,
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: PopupMenuButton<String>(
-                    onSelected: _sortRestaurants,
-                    offset: const Offset(0, 44),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    ),
-                    itemBuilder: (_) => {'Nom', 'Note', 'Commandes'}
-                        .map((c) => PopupMenuItem(value: c, child: Text(c)))
-                        .toList(),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Icon(Icons.sort_rounded, color: AppColors.inkMuted, size: 20),
-                    ),
-                  ),
-                ),
               ]),
             ),
             SizedBox(

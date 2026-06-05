@@ -115,7 +115,9 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
 
     var filtered = <Commande>[];
     for (var c in allC) {
-      if (widget.showRestaurantOrders) {
+      if (session.role.isAdmin) {
+        filtered.add(c);
+      } else if (widget.showRestaurantOrders) {
         if (c.restaurateurID == session.userId) {
           filtered.add(c);
         }

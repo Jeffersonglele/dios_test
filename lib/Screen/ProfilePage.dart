@@ -21,6 +21,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Users? _user;
   File? _newPhoto;
   String _address = '';
+  bool _isAdmin = false;
 
   @override
   void initState() {
@@ -50,6 +51,7 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() {
       _user = user;
       _address = address?.fullAddress ?? '';
+      _isAdmin = session.role.isAdmin;
     });
   }
 
@@ -272,24 +274,26 @@ class _ProfilePageState extends State<ProfilePage> {
                   const SizedBox(height: 24),
 
                   // ── Mes commandes ─────────────────────────
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const UserOrdersPage(
-                                showRestaurantOrders: false),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.receipt_long_rounded, size: 20),
-                      label: const Text('Mes commandes'),
+                  if (!_isAdmin) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const UserOrdersPage(
+                                  showRestaurantOrders: false),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.receipt_long_rounded, size: 20),
+                        label: const Text('Mes commandes'),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
+                    const SizedBox(height: 12),
+                  ],
                   // ── Adresse ────────────────────────────────
                   SizedBox(
                     width: double.infinity,

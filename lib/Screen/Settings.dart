@@ -11,6 +11,7 @@ import 'package:dios_delices/modeles/address.dart';
 import 'package:dios_delices/providers/theme_provider.dart';
 import 'package:dios_delices/services/session_service.dart';
 import 'package:dios_delices/theme/app_theme.dart';
+import 'package:dios_delices/theme/theme_provider.dart' show localeProvider, themeModeProvider;
 import 'package:dios_delices/core/app_role.dart';
 import 'package:flutter/material.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
@@ -102,13 +103,13 @@ class _SettingsState extends ConsumerState<Settings> {
   Future<void> _setLanguage(String code, String label) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('app_language', code);
+    ref.read(localeProvider.notifier).state = Locale(code);
     localeNotifier.value = Locale(code);
     setState(() => _currentLang = label);
   }
 
   Future<void> _toggleDark(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('dark_mode', value);
+    ref.read(themeModeProvider.notifier).setDarkMode(value);
     darkModeNotifier.value = value;
   }
 
