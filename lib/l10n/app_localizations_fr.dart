@@ -616,7 +616,7 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get user_not_found => 'Utilisateur non trouvé';
   @override
-  String get forgotten_password => 'Mot de passe oublié';
+  String get forgotten_password => 'Mot de passe oublié ?';
   @override
   String get forgotten_password_title => 'Mot de passe oublié';
   @override

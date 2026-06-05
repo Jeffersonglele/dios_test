@@ -612,7 +612,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get user_not_found => 'User not found';
   @override
-  String get forgotten_password => 'Forgot password';
+  String get forgotten_password => 'Forgot password ?';
   @override
   String get forgotten_password_title => 'Forgot password';
   @override
