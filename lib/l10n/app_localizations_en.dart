@@ -118,7 +118,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get signup => 'Sign Up';
 
   @override
-  String get email => 'Email';
+  String get email => 'E-mail address';
 
   @override
   String get password => 'Password';
@@ -564,11 +564,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get signup_title => 'Sign Up';
   @override
-  String get signup_subtitle => 'Create your account';
+  String get signup_subtitle => 'Create your account, discover restaurants near you and launch your business with greater peace of mind.';
   @override
   String get login_title => 'Login';
   @override
-  String get login_subtitle => 'Log in to your account';
+  String get login_subtitle => 'Find your space, your orders and your restaurant in seconds.';
   @override
   String get login_failed => 'Invalid credentials';
   @override
@@ -616,7 +616,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get forgotten_password_title => 'Forgot password';
   @override
-  String get forgotten_password_subtitle => 'Enter your email to receive a code';
+  String get forgotten_password_subtitle => 'Enter your email address to receive a secure code.';
   @override
   String get reset_password => 'Reset password';
   @override

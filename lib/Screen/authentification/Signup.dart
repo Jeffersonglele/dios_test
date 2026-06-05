@@ -295,11 +295,6 @@ class _SignUpViewState extends State<SignUpView> {
             },
           ),
           const SizedBox(height: 10),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: _PasswordRequirements(_passwordCtrl),
-          ),
-          const SizedBox(height: 14),
 
           // Indicateurs de force du mot de passe
           _PasswordStrengthIndicator(controller: _passwordCtrl),
@@ -961,67 +956,5 @@ class _TermsCheckbox extends StatelessWidget {
         ],
       ),
     );
-  }
-}
-
-class _PasswordRequirements extends StatefulWidget {
-  final TextEditingController controller;
-  const _PasswordRequirements(this.controller);
-  @override
-  State<_PasswordRequirements> createState() => _PasswordRequirementsState();
-}
-
-class _PasswordRequirementsState extends State<_PasswordRequirements> {
-  bool _hasMin = false,
-      _hasUpper = false,
-      _hasNumber = false,
-      _hasSpecial = false;
-
-  @override
-  void initState() {
-    super.initState();
-    widget.controller.addListener(_check);
-    _check();
-  }
-
-  @override
-  void dispose() {
-    widget.controller.removeListener(_check);
-    super.dispose();
-  }
-
-  void _check() {
-    final t = widget.controller.text;
-    setState(() {
-      _hasMin = t.length >= 8;
-      _hasUpper = t.contains(RegExp(r'[A-Z]'));
-      _hasNumber = RegExp(r'\d').allMatches(t).length >= 3;
-      _hasSpecial = t.contains(RegExp(r'[^a-zA-Z0-9]'));
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      _req(_hasMin, '8 caractères'),
-      const SizedBox(height: 4),
-      _req(_hasUpper, '1 majuscule'),
-      const SizedBox(height: 4),
-      _req(_hasNumber, '3 chiffres'),
-      const SizedBox(height: 4),
-      _req(_hasSpecial, '1 caractère spécial'),
-    ]);
-  }
-
-  Widget _req(bool ok, String label) {
-    return Row(mainAxisSize: MainAxisSize.min, children: [
-      Icon(ok ? Icons.check_circle_rounded : Icons.circle_outlined,
-          size: 16, color: ok ? Colors.green : Colors.grey),
-      const SizedBox(width: 6),
-      Text(label,
-          style:
-              TextStyle(fontSize: 12, color: ok ? Colors.green : Colors.grey)),
-    ]);
   }
 }

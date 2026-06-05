@@ -722,38 +722,37 @@ class _OnboardingBottomSheet extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.md),
 
-            // ── Bloc texte animé ──────────────────────────
-            Expanded(
-              child: Stack(
-                children: List.generate(steps.length, (index) {
-                  final delta = (index - currentPage).abs();
-                  final opacity = (1.0 - delta * 1.5).clamp(0.0, 1.0);
-                  final slideOffset = (currentPage - index) * 0.04;
-                  return Opacity(
-                    opacity: opacity,
-                    child: Transform.translate(
-                      offset: Offset(slideOffset * 30, 0),
-                      child: IgnorePointer(
-                        ignoring: index != currentPage.round(),
-                        child: _OnboardingTextBlock(
-                          titleKey: steps[index].titleKey,
-                          bodyKey: steps[index].bodyKey,
+            // ── Bloc texte animé (scrollable) ─────────────
+            Flexible(
+              child: SingleChildScrollView(
+                child: Stack(
+                  children: List.generate(steps.length, (index) {
+                    final delta = (index - currentPage).abs();
+                    final opacity = (1.0 - delta * 1.5).clamp(0.0, 1.0);
+                    final slideOffset = (currentPage - index) * 0.04;
+                    return Opacity(
+                      opacity: opacity,
+                      child: Transform.translate(
+                        offset: Offset(slideOffset * 30, 0),
+                        child: IgnorePointer(
+                          ignoring: index != currentPage.round(),
+                          child: _OnboardingTextBlock(
+                            titleKey: steps[index].titleKey,
+                            bodyKey: steps[index].bodyKey,
+                          ),
                         ),
                       ),
-                    ),
-                  );
-                }),
+                    );
+                  }),
+                ),
               ),
             ),
 
             const SizedBox(height: AppSpacing.md),
 
             // ── [Dots] ──────── [Bouton Suivant/Commencer] ─
-            // Le bouton utilise des contraintes souples (minWidth)
-            // pour que le label s'affiche toujours sur une seule ligne,
-            // quelle que soit la longueur du texte traduit.
             Row(
               children: [
                 _ElasticDots(
@@ -857,28 +856,24 @@ class _OnboardingTextBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRect(
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              AppLocalizations.of(context)!.localized(titleKey),
-              style:
-                  AppTypography.headlineMedium(color: AppColors.ink).copyWith(
-                height: 1.15,
-                letterSpacing: -0.4,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              AppLocalizations.of(context)!.localized(bodyKey),
-              style: AppTypography.bodyMedium(color: AppColors.inkMuted),
-            ),
-          ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          AppLocalizations.of(context)!.localized(titleKey),
+          style:
+              AppTypography.headlineMedium(color: AppColors.ink).copyWith(
+            height: 1.15,
+            letterSpacing: -0.4,
+          ),
         ),
-      ),
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          AppLocalizations.of(context)!.localized(bodyKey),
+          style: AppTypography.bodyMedium(color: AppColors.inkMuted),
+        ),
+      ],
     );
   }
 }
