@@ -25,7 +25,7 @@ import 'Login.dart';
 // ═══════════════════════════════════════════════════════════
 
 class SignUpView extends StatefulWidget {
-  const SignUpView({Key? key}) : super(key: key);
+  const SignUpView({super.key});
 
   @override
   State<SignUpView> createState() => _SignUpViewState();
@@ -497,9 +497,13 @@ class _RoleSelector extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: AppColors.surfaceWarm,
+        color: AppColors.resolve(
+            AppColors.surfaceWarm, AppDarkColors.surfaceWarm),
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
+        border: Border.all(
+            color: AppColors.resolve(
+                    AppColors.border, AppDarkColors.border)
+                .withValues(alpha: 0.5)),
       ),
       child: Row(
         children: [
@@ -622,12 +626,17 @@ class _VehicleSelector extends StatelessWidget {
                   ),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   decoration: BoxDecoration(
-                    color: selected ? AppColors.brandSurface : AppColors.card,
+                    color: selected
+                        ? AppColors.resolve(AppColors.brandSurface, AppDarkColors.brandSurface)
+                        : AppColors.resolve(
+                            AppColors.card, AppDarkColors.card),
                     borderRadius: BorderRadius.circular(AppRadius.md),
                     border: Border.all(
                       color: selected
-                          ? AppColors.brand.withValues(alpha: 0.4)
-                          : AppColors.border,
+                          ? AppColors.resolve(AppColors.brand, AppDarkColors.brand)
+                              .withValues(alpha: 0.4)
+                          : AppColors.resolve(
+                              AppColors.border, AppDarkColors.border),
                     ),
                   ),
                   child: Column(
@@ -685,7 +694,8 @@ class _SectionLabel extends StatelessWidget {
           width: 28,
           height: 28,
           decoration: BoxDecoration(
-            color: AppColors.brandSurface,
+            color: AppColors.resolve(
+                AppColors.brandSurface, AppDarkColors.brandSurface),
             borderRadius: BorderRadius.circular(AppRadius.sm),
           ),
           child: Icon(icon, size: 15, color: AppColors.brand),
@@ -693,13 +703,16 @@ class _SectionLabel extends StatelessWidget {
         const SizedBox(width: AppSpacing.sm),
         Text(
           label,
-          style: AppTypography.labelLarge(color: AppColors.ink),
+          style: AppTypography.labelLarge(
+              color:
+                  AppColors.resolve(AppColors.ink, AppDarkColors.ink)),
         ),
         const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: Container(
             height: 1,
-            color: AppColors.border,
+            color: AppColors.resolve(
+                AppColors.border, AppDarkColors.border),
           ),
         ),
       ],
@@ -707,9 +720,7 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-// ═══════════════════════════════════════════════════════════
 // _FormField — Champ texte réutilisable
-// ═══════════════════════════════════════════════════════════
 class _FormField extends StatelessWidget {
   const _FormField({
     required this.controller,
@@ -741,9 +752,6 @@ class _FormField extends StatelessWidget {
   }
 }
 
-// ═══════════════════════════════════════════════════════════
-// _PasswordStrengthIndicator — 4 critères visuels
-// ═══════════════════════════════════════════════════════════
 class _PasswordStrengthIndicator extends StatefulWidget {
   const _PasswordStrengthIndicator({required this.controller});
   final TextEditingController controller;
@@ -807,9 +815,13 @@ class _PasswordStrengthIndicatorState
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: AppColors.surfaceWarm,
+        color: AppColors.resolve(
+            AppColors.surfaceWarm, AppDarkColors.surfaceWarm),
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
+        border: Border.all(
+            color: AppColors.resolve(
+                    AppColors.border, AppDarkColors.border)
+                .withValues(alpha: 0.5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -824,7 +836,10 @@ class _PasswordStrengthIndicatorState
                   height: 4,
                   margin: EdgeInsets.only(right: i < 3 ? 4 : 0),
                   decoration: BoxDecoration(
-                    color: filled ? _strengthColor : AppColors.border,
+                    color: filled
+                        ? _strengthColor
+                        : AppColors.resolve(
+                            AppColors.border, AppDarkColors.border),
                     borderRadius: BorderRadius.circular(999),
                   ),
                 ),
@@ -978,7 +993,13 @@ class _PasswordRequirementsState extends State<_PasswordRequirements> {
   @override
   Widget build(BuildContext context) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-
+      _req(_hasMin, '8 caractères'),
+      const SizedBox(height: 4),
+      _req(_hasUpper, '1 majuscule'),
+      const SizedBox(height: 4),
+      _req(_hasNumber, '3 chiffres'),
+      const SizedBox(height: 4),
+      _req(_hasSpecial, '1 caractère spécial'),
     ]);
   }
 

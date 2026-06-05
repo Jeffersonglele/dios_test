@@ -20,7 +20,7 @@ import 'verif_confirm/VerificationPage.dart';
 // ═══════════════════════════════════════════════════════════
 
 class AnimatedSplashScreen extends ConsumerStatefulWidget {
-  const AnimatedSplashScreen({Key? key}) : super(key: key);
+  const AnimatedSplashScreen({super.key});
 
   @override
   ConsumerState<AnimatedSplashScreen> createState() =>
@@ -260,7 +260,7 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
 
 class _SplashView extends StatelessWidget {
   const _SplashView({
-    Key? key,
+    super.key,
     required this.splashController,
     required this.pulseController,
     required this.logoScale,
@@ -269,7 +269,7 @@ class _SplashView extends StatelessWidget {
     required this.textSlide,
     required this.pulse,
     required this.isLoading,
-  }) : super(key: key);
+  });
 
   final AnimationController splashController;
   final AnimationController pulseController;
@@ -301,10 +301,11 @@ class _SplashView extends StatelessWidget {
               vertical: AppSpacing.lg,
             ),
             child: SizedBox(
-              height: MediaQuery.of(context).size.height -
-                  MediaQuery.of(context).padding.top -
-                  MediaQuery.of(context).padding.bottom -
-                  2 * AppSpacing.lg,
+              height: (MediaQuery.of(context).size.height -
+                      MediaQuery.of(context).padding.top -
+                      MediaQuery.of(context).padding.bottom -
+                      2 * AppSpacing.lg)
+                  .clamp(0.0, double.infinity),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -489,13 +490,13 @@ class _LoadingIndicator extends StatelessWidget {
 
 class _OnboardingView extends StatefulWidget {
   const _OnboardingView({
-    Key? key,
+    super.key,
     required this.steps,
     required this.pageController,
     required this.currentPage,
     required this.onNext,
     required this.onSkip,
-  }) : super(key: key);
+  });
 
   final List<_OnboardingStep> steps;
   final PageController pageController;

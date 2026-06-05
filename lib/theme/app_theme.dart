@@ -159,6 +159,22 @@ class AppTypography {
         letterSpacing: 0.2,
         color: color ?? AppColors.inkMuted,
       );
+
+  static TextStyle titleSmall({Color? color}) => GoogleFonts.plusJakartaSans(
+        fontSize: 16,
+        fontWeight: FontWeight.w700,
+        height: 1.25,
+        letterSpacing: -0.1,
+        color: color ?? AppColors.ink,
+      );
+
+  static TextStyle bodySmall({Color? color}) => GoogleFonts.plusJakartaSans(
+        fontSize: 12,
+        fontWeight: FontWeight.w500,
+        height: 1.45,
+        letterSpacing: 0.1,
+        color: color ?? AppColors.inkMuted,
+      );
 }
 
 // ── SPACING SCALE ──────────────────────────────────────────
@@ -179,6 +195,7 @@ class AppRadius {
   static const double md = 16;
   static const double lg = 24;
   static const double xl = 32;
+  static const double full = 9999;
 }
 
 // ── SHADOWS (chaudes, douces, pas grises) ──────────────────
@@ -610,14 +627,15 @@ class _DiosPageTransition extends PageTransitionsBuilder {
 
     return AnimatedBuilder(
       animation: curvedIn,
-      builder: (context, _) {
+      child: child,
+      builder: (context, cachedChild) {
         return Transform.translate(
           offset: Offset((1 - curvedIn.value) * 24, 0),
           child: Transform.scale(
             scale: 0.97 + (0.03 * curvedIn.value),
             child: Opacity(
               opacity: 0.6 + (0.4 * curvedIn.value),
-              child: child,
+              child: cachedChild!,
             ),
           ),
         );

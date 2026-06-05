@@ -5,15 +5,15 @@ class ScreenArguments {
 
   ScreenArguments(this.id, this.fromPage, this.category);
 
-  getId() {
+  int getId() {
     return this.id;
   }
 
-  getFromPage() {
+  int getFromPage() {
     return this.fromPage;
   }
 
-  getFoodCategory() {
+  String getFoodCategory() {
     return this.category;
   }
 }

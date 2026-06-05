@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'session_service.dart';
@@ -13,6 +14,7 @@ class LaunchFlowService {
   const LaunchFlowService._();
 
   static const _hasSeenOnboardingKey = 'hasSeenOnboarding';
+  static const forceOnboardingInDebug = true;
 
   static Future<LaunchDestination> resolveDestination() async {
     final prefs = await SharedPreferences.getInstance();
@@ -21,7 +23,8 @@ class LaunchFlowService {
     final isVerified = prefs.getBool('userVerified') ?? false;
 
     return decideDestination(
-      isFirstLaunch: !hasSeenOnboarding,
+      isFirstLaunch:
+          !hasSeenOnboarding || (kDebugMode && forceOnboardingInDebug),
       session: session,
       isVerified: isVerified,
     );
@@ -43,11 +46,18 @@ class LaunchFlowService {
       return LaunchDestination.home;
     }
 
-    return LaunchDestination.onboarding;
+    return LaunchDestination.signup;
   }
 
   static Future<void> markOnboardingSeen() async {
+    if (kDebugMode && forceOnboardingInDebug) return;
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_hasSeenOnboardingKey, true);
+  }
+
+  static Future<void> resetOnboarding() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_hasSeenOnboardingKey);
   }
 }

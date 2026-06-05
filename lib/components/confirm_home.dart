@@ -8,8 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart'; // Assurez-vous que Riv
 import '../db/database_helper.dart';
 
 class ConfirmFormDialog extends StatefulWidget {
-
-  const ConfirmFormDialog({Key? key}) : super(key: key);
+  const ConfirmFormDialog({super.key});
 
   @override
   _ConfirmFormDialogState createState() => _ConfirmFormDialogState();

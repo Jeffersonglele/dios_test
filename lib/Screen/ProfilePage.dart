@@ -2,9 +2,11 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:dios_delices/l10n/app_localizations.dart';
 import 'package:dios_delices/modeles/users.dart';
+import 'package:dios_delices/modeles/address.dart';
 import 'package:dios_delices/providers/data_version_notifier.dart';
 import 'package:dios_delices/services/session_service.dart';
 import 'package:dios_delices/theme/app_theme.dart';
+import 'package:dios_delices/Screen/LocationPage.dart';
 import 'package:dios_delices/Screen/UserOrdersPage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -18,6 +20,7 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   Users? _user;
   File? _newPhoto;
+  String _address = '';
 
   @override
   void initState() {
@@ -41,7 +44,13 @@ class _ProfilePageState extends State<ProfilePage> {
     final users = await Users.fetchUsersFromDB();
     final user = Users.getUsersByUserId(users, session.userId);
     if (!mounted) return;
-    setState(() => _user = user);
+    final addresses = await Address.fetchAddressesFromDB();
+    final address = Address.getAddressByObject(addresses, 'user', session.userId);
+    if (!mounted) return;
+    setState(() {
+      _user = user;
+      _address = address?.fullAddress ?? '';
+    });
   }
 
   Future<void> _showEditDialog() async {
@@ -253,6 +262,11 @@ class _ProfilePageState extends State<ProfilePage> {
                       const Divider(height: 1, indent: 56),
                       _infoTile(
                           Icons.phone_outlined, l10n.phone, user.telephone),
+                      if (_address.isNotEmpty) ...[
+                        const Divider(height: 1, indent: 56),
+                        _infoTile(Icons.location_on_outlined,
+                            'Adresse', _address),
+                      ],
                     ]),
                   ),
                   const SizedBox(height: 24),
@@ -273,6 +287,30 @@ class _ProfilePageState extends State<ProfilePage> {
                       },
                       icon: const Icon(Icons.receipt_long_rounded, size: 20),
                       label: const Text('Mes commandes'),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // ── Adresse ────────────────────────────────
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        final session = await SessionService.readSession();
+                        if (!mounted) return;
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (ctx) => LocationPage(
+                              objectID: session.userId,
+                              user_roleID: session.role.id,
+                            ),
+                          ),
+                        );
+                        _load();
+                      },
+                      icon: const Icon(Icons.location_on_rounded, size: 20),
+                      label: Text(_address.isEmpty ? 'Ajouter une adresse' : "Modifier l'adresse"),
                     ),
                   ),
                   const SizedBox(height: 12),

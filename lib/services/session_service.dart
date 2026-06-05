@@ -101,18 +101,14 @@ class SessionService {
 
   static Future<void> clearAll() async {
     final prefs = await SharedPreferences.getInstance();
-    final keysToPreserve = prefs.getKeys().where(
-        (k) => k.startsWith('welcome_') || k.startsWith('has_seen_welcome_'));
-    final preserved = <String, Object>{};
-    for (final k in keysToPreserve) {
-      final val = prefs.get(k);
-      if (val != null) preserved[k] = val;
+    final welcomeKeys = prefs.getKeys().where((k) => k.startsWith('has_seen_welcome_'));
+    final welcomeValues = <String, bool>{};
+    for (final k in welcomeKeys) {
+      welcomeValues[k] = prefs.getBool(k) ?? false;
     }
     await prefs.clear();
-    for (final e in preserved.entries) {
-      if (e.value is bool) await prefs.setBool(e.key, e.value as bool);
-      else if (e.value is String) await prefs.setString(e.key, e.value as String);
-      else if (e.value is int) await prefs.setInt(e.key, e.value as int);
+    for (final e in welcomeValues.entries) {
+      await prefs.setBool(e.key, e.value);
     }
   }
 }

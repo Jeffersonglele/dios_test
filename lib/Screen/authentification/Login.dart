@@ -105,7 +105,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.resolve(AppColors.surfaceWarm, AppDarkColors.surfaceWarm),
       body: OrderConfettiCelebration(
         child: SafeArea(
           child: Center(
@@ -123,7 +123,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     height: 88,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: AppColors.brandSurface,
+                      color: AppColors.resolve(AppColors.brandSurface, AppDarkColors.brandSurface),
                       border: Border.all(
                         color: AppColors.brand.withValues(alpha: 0.2),
                         width: 2,
@@ -187,7 +187,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 // ═══════════════════════════════════════════════════════════
 
 class Login extends ConsumerStatefulWidget {
-  const Login({Key? key}) : super(key: key);
+  const Login({super.key});
 
   @override
   ConsumerState<Login> createState() => _LoginState();
@@ -314,28 +314,41 @@ class _LoginState extends ConsumerState<Login> {
 
   void _redirectToMainApp(Users user) async {
     final role = AppRole.fromId(user.roleID);
-    final r = await Restaurant.getRestaurantByUser(_restaus, user.userID);
-    if (r != null) await SessionService.setRestaurantId(r.restaurantID);
-
-    if (role.isProfessional || r != null) {
+    if (role.isProfessional) {
       NotificationService.subscribeToRestaurantNotifications();
-      _handleRestaurantValidation(user, r);
+      _handleRestaurantValidation(user);
     } else {
+      if (role.isIndividual) {
+        final r = await Restaurant.getRestaurantByUser(_restaus, user.userID);
+        if (r != null) await SessionService.setRestaurantId(r.restaurantID);
+      }
       NotificationService.subscribeToRestaurantNotifications();
       _firstLogin(user);
     }
   }
 
-  void _handleRestaurantValidation(Users user, Restaurant? restau) async {
+  void _handleRestaurantValidation(Users user) async {
+    final restau = await Restaurant.getRestaurantByUser(_restaus, user.userID);
     if (!mounted) return;
+
     if (restau == null) {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => RestaurantFormPage()));
-    } else if (restau.valid == 0 || restau.valid == 1) {
+      Navigator.push(
+          context, MaterialPageRoute(builder: (_) => RestaurantFormPage()));
+    } else if (restau.valid == 0) {
+      Navigator.push(context,
+          MaterialPageRoute(builder: (_) => WaitRestaurantValidation()));
+    } else if (restau.valid == 1) {
+      await SessionService.setRestaurantId(restau.restaurantID);
       NotificationService.subscribeToRestaurantNotifications();
-      if (mounted) Users.chooseCurvedNavigation(3, user.country, context);
+      _firstLogin(user);
     } else {
-      Navigator.push(context, MaterialPageRoute(
-          builder: (_) => RestaurantUpdateFormPage(user: user, restaurant: restau)));
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) =>
+              RestaurantUpdateFormPage(user: user, restaurant: restau),
+        ),
+      );
     }
   }
 
@@ -460,12 +473,13 @@ class _LoginState extends ConsumerState<Login> {
                   prefixIcon: const Icon(Icons.person_outline_rounded),
                   hintText: Strings.of('username_or_email'),
                 ),
-                 validator: (v) {
-                   if (v == null || v.isEmpty)
-                     return Strings.of('enter_username');
-                   if (v.length < 4) return Strings.of('min_4_chars');
-                   return null;
-                 },
+                validator: (v) {
+                  if (v == null || v.isEmpty)
+                    return Strings.of('enter_username');
+                  if (v.length < 4) return Strings.of('min_4_chars');
+                  if (v.length > 18) return Strings.of('max_18_chars');
+                  return null;
+                },
               );
             },
           ),

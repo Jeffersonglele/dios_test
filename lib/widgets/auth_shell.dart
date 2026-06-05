@@ -133,7 +133,7 @@ class _AuthHero extends StatelessWidget {
       children: [
         if (compact) ...[
           const SizedBox(height: 46),
-          // Logo dans un cercle avec ombre chaude
+          // Logo circulaire avec ombre chaude
           Container(
             decoration: BoxDecoration(
               shape: BoxShape.circle,
@@ -145,12 +145,26 @@ class _AuthHero extends StatelessWidget {
                 ),
               ],
             ),
-            child: const BrandAvatarLogo(radius: 62),
+            child: ClipOval(
+              child: Image.asset(
+                'assets/images/logo_circulaire.png',
+                width: 200,
+                height: 200,
+                fit: BoxFit.cover,
+              ),
+            ),
           ),
           const SizedBox(height: 30),
         ] else ...[
           const SizedBox(height: 24),
-          const BrandAvatarLogo(radius: 58),
+          ClipOval(
+            child: Image.asset(
+              'assets/images/logo_circulaire.png',
+              width: 116,
+              height: 116,
+              fit: BoxFit.cover,
+            ),
+          ),
           const SizedBox(height: 28),
           // Badge marque pill
           Container(

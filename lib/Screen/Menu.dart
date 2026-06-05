@@ -16,10 +16,13 @@ class Menu extends StatefulWidget {
 
 class _MenuState extends State<Menu> {
   String? country = "";
-  int currentUser_restau = 0;
-  int currentUser_role = 0;
+  int currentUserRestau = 0;
+  int currentUserRole = 0;
   List<Dish> dishes = [];
   List<Dish> filteredDishes = [];
+  List<Dish> displayedDishes = [];
+  bool _isLoading = true;
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -27,16 +30,43 @@ class _MenuState extends State<Menu> {
     loadData();
   }
 
-  void loadData() async {
-    final session = await SessionService.readSession();
-    country = session.country;
-    currentUser_restau = session.restaurantId ?? 0;
-    currentUser_role = session.role.id;
-    final dishesList = await Dish.fetchDishesFromDB();
-    setState(() {
-      dishes = dishesList;
-      filteredDishes = dishes.where((d) => d.restauID == currentUser_restau).toList();
-    });
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> loadData() async {
+    if (!mounted) return;
+    setState(() => _isLoading = true);
+    try {
+      final session = await SessionService.readSession();
+      country = session.country;
+      currentUserRestau = session.restaurantId ?? 0;
+      currentUserRole = session.role.id;
+      final dishesList = await Dish.fetchDishesFromDB();
+      if (mounted) {
+        setState(() {
+          dishes = dishesList;
+          filteredDishes = dishes.where((d) => d.restauID == currentUserRestau).toList();
+          _filterDishes(_searchController.text);
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _filterDishes(String query) {
+    if (query.isEmpty) {
+      displayedDishes = List.from(filteredDishes);
+    } else {
+      displayedDishes = filteredDishes
+          .where((dish) =>
+              (dish.name ?? '').toLowerCase().contains(query.toLowerCase()))
+          .toList();
+    }
   }
 
   @override
@@ -56,7 +86,7 @@ class _MenuState extends State<Menu> {
                 Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text(Strings.get('Votre menu', 'Your menu'), style: AppTypography.headlineLarge()),
-                    Text('${filteredDishes.length} ${Strings.get('plats', 'dishes')}',
+                    Text('${displayedDishes.length} ${Strings.get('plats', 'dishes')}',
                         style: AppTypography.bodyMedium()),
                   ]),
                 ),
@@ -80,7 +110,7 @@ class _MenuState extends State<Menu> {
               ]),
             ),
             Expanded(
-              child: filteredDishes.isEmpty
+              child: displayedDishes.isEmpty
                   ? Center(
                       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                         Icon(Icons.restaurant_menu_rounded, size: 56, color: AppColors.border),
@@ -100,14 +130,14 @@ class _MenuState extends State<Menu> {
                         mainAxisSpacing: 12,
                         childAspectRatio: 0.78,
                       ),
-                      itemCount: filteredDishes.length,
-                      itemBuilder: (_, i) {
-                        final dish = filteredDishes[i];
+                      itemCount: displayedDishes.length,
+                      itemBuilder: (context, i) {
+                        final dish = displayedDishes[i];
                         final curr = country == 'France' ? '€' : 'FCFA';
                         return GestureDetector(
                           onTap: () => Navigator.push(context,
                               CupertinoPageRoute(builder: (_) =>
-                                  DishDetailsMicroRestau(from_page: 2, dish_id: dish.dishID, dish_restau: currentUser_restau)))
+                                  DishDetailsMicroRestau(from_page: 2, dish_id: dish.dishID, dish_restau: currentUserRestau)))
                               .then((_) => loadData()),
                           child: Container(
                             decoration: BoxDecoration(

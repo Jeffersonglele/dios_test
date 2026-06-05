@@ -114,6 +114,14 @@ class DatabaseHelper {
     return usersList;
   }
 
+  static Future<void> saveAllUsers(List<Users> users) async {
+    final Box<Users> usersBox = await Hive.openBox<Users>('users');
+    await usersBox.clear();
+    for (var user in users) {
+      await usersBox.put(user.userID, user);
+    }
+  }
+
   static Future<int> deleteUser(int userID) async {
     final Box<Users> usersBox = await Hive.openBox<Users>('users');
     await usersBox.delete(userID);

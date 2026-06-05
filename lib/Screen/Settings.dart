@@ -2,10 +2,12 @@ import 'package:dios_delices/Screen/legal/LegalPage.dart';
 import 'package:dios_delices/Screen/legal/PrivacyPolicyPage.dart';
 import 'package:dios_delices/Screen/legal/CGVPage.dart';
 import 'package:dios_delices/Screen/ProfilePage.dart';
+import 'package:dios_delices/Screen/LocationPage.dart';
 import 'package:dios_delices/Screen/restaurants/RestaurantFormPage.dart';
 import 'package:dios_delices/components/Logout.dart';
 import 'package:dios_delices/l10n/app_localizations.dart';
 import 'package:dios_delices/modeles/users.dart';
+import 'package:dios_delices/modeles/address.dart';
 import 'package:dios_delices/providers/theme_provider.dart';
 import 'package:dios_delices/services/session_service.dart';
 import 'package:dios_delices/theme/app_theme.dart';
@@ -28,6 +30,7 @@ class _SettingsState extends ConsumerState<Settings> {
   String _currentLang = 'Français';
   String _appVersion = '1.0.0';
   bool _darkMode = false;
+  Address? _currentAddress;
 
   // Notifications settings
   bool _orderNotifications = true;
@@ -46,10 +49,14 @@ class _SettingsState extends ConsumerState<Settings> {
     final session = await SessionService.readSession();
     final prefs = await SharedPreferences.getInstance();
     final langCode = prefs.getString('app_language') ?? 'fr';
+    final addresses = await Address.fetchAddressesFromDB();
+    final userAddress =
+        Address.getAddressByObject(addresses, "User", session.userId);
     if (!mounted) return;
     setState(() {
       _currentRoleId = session.role.id;
       _currentLang = langCode == 'en' ? 'English' : 'Français';
+      _currentAddress = userAddress;
     });
     final darkMode = prefs.getBool('dark_mode') ?? false;
     if (mounted) setState(() => _darkMode = darkMode);
@@ -450,6 +457,25 @@ class _SettingsState extends ConsumerState<Settings> {
                 l10n.myProfile,
                 () => Navigator.push(context,
                     MaterialPageRoute(builder: (_) => const ProfilePage())),
+              ),
+              const Divider(height: 1),
+              _settingRow(
+                Icons.location_on_rounded,
+                _currentAddress?.fullAddress ?? 'Adresse',
+                () async {
+                  final session = await SessionService.readSession();
+                  if (!mounted) return;
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (ctx) => LocationPage(
+                        objectID: session.userId,
+                        user_roleID: session.role.id,
+                      ),
+                    ),
+                  );
+                  _load();
+                },
               ),
               if (!_isAdmin) ...[
                 const Divider(height: 1),

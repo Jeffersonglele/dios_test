@@ -7,12 +7,12 @@ class StarRating extends StatelessWidget {
   final int maxRating;
 
   const StarRating({
-    Key? key,
+    super.key,
     required this.rating,
     this.starSize = 20.0,
     this.color = Colors.amber,
     this.maxRating = 5,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

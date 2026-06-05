@@ -1,25 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../Constant/Constant.dart';
 import '../modeles/dish.dart';
+import '../providers/cart_provider.dart';
 import '../services/favorites_service.dart';
 import '../services/session_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/toast.dart';
 import '../widgets/dios_image.dart';
 import '../widgets/micro_interactions.dart';
 
-class DishDetails extends StatefulWidget {
+class DishDetails extends ConsumerStatefulWidget {
   final int dish_id;
   final int from_page;
 
   const DishDetails({super.key, required this.dish_id, required this.from_page});
 
   @override
-  State<DishDetails> createState() => _DishDetailsState();
+  ConsumerState<DishDetails> createState() => _DishDetailsState();
 }
 
-class _DishDetailsState extends State<DishDetails> {
+class _DishDetailsState extends ConsumerState<DishDetails> {
   String? country = "";
   int currentUser_restau = 0;
   int currentUser_role = 0;
@@ -61,6 +64,37 @@ class _DishDetailsState extends State<DishDetails> {
     final next = await FavoritesService.toggleDishFavorite(widget.dish_id);
     if (!mounted) return;
     setState(() => isFavorite = next);
+  }
+
+  Future<void> _addToCart() async {
+    final session = await SessionService.readSession();
+    final cartNotifier = ref.read(cartStateProvider.notifier);
+    final dish = current_dish!;
+
+    final result = await cartNotifier.addToCart(
+      dish.dishID,
+      dish.name ?? '',
+      dish.price?.toDouble() ?? 0.0,
+      dish.image ?? '',
+      number_of_parts,
+      dish.nb_servings ?? 99,
+      country ?? 'France',
+      session.userId,
+      dish.restauID,
+    );
+
+    if (!mounted) return;
+
+    switch (result) {
+      case 'success':
+        Toast(context, 'Ajouté au panier !', true);
+        break;
+      case 'different_restaurant':
+        Toast(context, 'Vous ne pouvez pas commander de deux restaurants différents.', false);
+        break;
+      default:
+        Toast(context, 'Erreur lors de l\'ajout au panier.', false);
+    }
   }
 
   @override
@@ -250,9 +284,7 @@ class _DishDetailsState extends State<DishDetails> {
               width: double.infinity,
               height: 56,
               child: ElevatedButton.icon(
-                onPressed: () {
-                  // Ajout au panier (logique à connecter au provider)
-                },
+                onPressed: _addToCart,
                 icon: const Icon(Icons.shopping_cart_rounded, size: 20),
                 label: Text('Ajouter au panier · ${(dish.price ?? 0) * number_of_parts} $currency'),
                 style: ElevatedButton.styleFrom(
