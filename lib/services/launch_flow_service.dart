@@ -43,7 +43,7 @@ class LaunchFlowService {
       return LaunchDestination.home;
     }
 
-    return LaunchDestination.signup;
+    return LaunchDestination.onboarding;
   }
 
   static Future<void> markOnboardingSeen() async {
