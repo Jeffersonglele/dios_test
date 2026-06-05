@@ -107,109 +107,117 @@ class _LivreurListPageState extends State<LivreurListPage> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Search bar
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-            child: Row(children: [
-              Expanded(
-                child: Container(
+      body: RefreshIndicator(
+        onRefresh: _load,
+        child: Column(
+          children: [
+            // Search bar
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              child: Row(children: [
+                Expanded(
+                  child: Container(
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: AppColors.card,
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: TextField(
+                      controller: _searchCtrl,
+                      onChanged: (v) => setState(() => _searchQuery = v),
+                      style: AppTypography.bodyLarge().copyWith(fontSize: 14),
+                      decoration: InputDecoration(
+                        hintText: 'Rechercher un livreur...',
+                        hintStyle: AppTypography.bodyMedium().copyWith(fontSize: 14),
+                        prefixIcon: Icon(Icons.search_rounded,
+                            color: AppColors.inkSubtle, size: 20),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
                   height: 44,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
                   decoration: BoxDecoration(
                     color: AppColors.card,
                     borderRadius: BorderRadius.circular(AppRadius.md),
                     border: Border.all(color: AppColors.border),
                   ),
-                  child: TextField(
-                    controller: _searchCtrl,
-                    onChanged: (v) => setState(() => _searchQuery = v),
-                    style: AppTypography.bodyLarge().copyWith(fontSize: 14),
-                    decoration: InputDecoration(
-                      hintText: 'Rechercher un livreur...',
-                      hintStyle: AppTypography.bodyMedium().copyWith(fontSize: 14),
-                      prefixIcon: Icon(Icons.search_rounded,
-                          color: AppColors.inkSubtle, size: 20),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                  child: PopupMenuButton<String>(
+                    onSelected: (v) => setState(() => _filterStatus = v),
+                    offset: const Offset(0, 44),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.md),
                     ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                height: 44,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                decoration: BoxDecoration(
-                  color: AppColors.card,
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: PopupMenuButton<String>(
-                  onSelected: (v) => setState(() => _filterStatus = v),
-                  offset: const Offset(0, 44),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                  ),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(Icons.filter_list_rounded,
-                        color: AppColors.inkMuted, size: 20),
-                    const SizedBox(width: 4),
-                    Text(
-                      _filterStatus == 'tous' ? 'Tous' :
-                      _filterStatus == 'en_ligne' ? 'En ligne' :
-                      _filterStatus == 'hors_ligne' ? 'Hors ligne' :
-                      _filterStatus == 'permis_valide' ? 'Permis ✓' : 'Permis ?',
-                      style: AppTypography.labelMedium().copyWith(fontSize: 12),
-                    ),
-                  ]),
-                  itemBuilder: (_) => [
-                    PopupMenuItem(value: 'tous', child: Text('Tous')),
-                    PopupMenuItem(value: 'en_ligne', child: Text('En ligne')),
-                    PopupMenuItem(value: 'hors_ligne', child: Text('Hors ligne')),
-                    PopupMenuItem(value: 'permis_valide', child: Text('Permis validé')),
-                    PopupMenuItem(value: 'permis_en_attente', child: Text('Permis en attente')),
-                  ],
-                ),
-              ),
-            ]),
-          ),
-          // Stats header
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: Row(children: [
-              Text('${filtered.length} livreur(s)',
-                  style: AppTypography.bodyMedium().copyWith(fontSize: 12)),
-              const Spacer(),
-              Text('${_livreurs.where((u) => u.isOnline == true).length} en ligne',
-                  style: AppTypography.labelMedium(color: AppColors.success).copyWith(fontSize: 11)),
-            ]),
-          ),
-          const SizedBox(height: 4),
-          // List
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : filtered.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.delivery_dining_outlined,
-                                size: 64, color: AppColors.inkSubtle),
-                            const SizedBox(height: 12),
-                            Text('Aucun livreur trouvé',
-                                style: AppTypography.bodyLarge(color: AppColors.inkMuted)),
-                          ],
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: filtered.length,
-                        itemBuilder: (_, i) => _buildLivreurCard(filtered[i]),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.filter_list_rounded,
+                          color: AppColors.inkMuted, size: 20),
+                      const SizedBox(width: 4),
+                      Text(
+                        _filterStatus == 'tous' ? 'Tous' :
+                        _filterStatus == 'en_ligne' ? 'En ligne' :
+                        _filterStatus == 'hors_ligne' ? 'Hors ligne' :
+                        _filterStatus == 'permis_valide' ? 'Permis ✓' : 'Permis ?',
+                        style: AppTypography.labelMedium().copyWith(fontSize: 12),
                       ),
-          ),
-        ],
+                    ]),
+                    itemBuilder: (_) => [
+                      PopupMenuItem(value: 'tous', child: Text('Tous')),
+                      PopupMenuItem(value: 'en_ligne', child: Text('En ligne')),
+                      PopupMenuItem(value: 'hors_ligne', child: Text('Hors ligne')),
+                      PopupMenuItem(value: 'permis_valide', child: Text('Permis validé')),
+                      PopupMenuItem(value: 'permis_en_attente', child: Text('Permis en attente')),
+                    ],
+                  ),
+                ),
+              ]),
+            ),
+            // Stats header
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: Row(children: [
+                Text('${filtered.length} livreur(s)',
+                    style: AppTypography.bodyMedium().copyWith(fontSize: 12)),
+                const Spacer(),
+                Text('${_livreurs.where((u) => u.isOnline == true).length} en ligne',
+                    style: AppTypography.labelMedium(color: AppColors.success).copyWith(fontSize: 11)),
+                if (_livreurs.where((u) => u.permisVerified != true).isNotEmpty) ...[
+                  const SizedBox(width: 8),
+                  Text('${_livreurs.where((u) => u.permisVerified != true).length} en attente',
+                      style: AppTypography.labelMedium(color: AppColors.accent).copyWith(fontSize: 11)),
+                ],
+              ]),
+            ),
+            const SizedBox(height: 4),
+            // List
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : filtered.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.delivery_dining_outlined,
+                                  size: 64, color: AppColors.inkSubtle),
+                              const SizedBox(height: 12),
+                              Text('Aucun livreur trouvé',
+                                  style: AppTypography.bodyLarge(color: AppColors.inkMuted)),
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: filtered.length,
+                          itemBuilder: (_, i) => _buildLivreurCard(filtered[i]),
+                        ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -228,62 +236,80 @@ class _LivreurListPageState extends State<LivreurListPage> {
       ),
       child: Padding(
         padding: const EdgeInsets.all(14),
-        child: Column(
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(children: [
-              // Avatar
-              Container(
-                width: 52, height: 52,
-                decoration: BoxDecoration(
-                  color: AppColors.brandSurface,
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                ),
-                child: Center(
-                  child: Icon(_vehicleIcon(livreur.permisType),
-                      color: AppColors.brand, size: 26),
-                ),
+            // Circular avatar with vehicle icon
+            Container(
+              width: 52, height: 52,
+              decoration: BoxDecoration(
+                color: AppColors.brandSurface,
+                shape: BoxShape.circle,
               ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('${livreur.firstname} ${livreur.lastname}',
-                        style: AppTypography.titleMedium().copyWith(fontSize: 15),
-                        overflow: TextOverflow.ellipsis),
-                    const SizedBox(height: 2),
-                    Text(livreur.email,
-                        style: AppTypography.bodyMedium().copyWith(fontSize: 12)),
-                    const SizedBox(height: 4),
-                    Row(children: [
-                      // Statut en ligne
-                      Container(
-                        width: 8, height: 8,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: isOnline ? AppColors.success : AppColors.inkSubtle,
-                        ),
+              child: Center(
+                child: Icon(_vehicleIcon(livreur.permisType),
+                    color: AppColors.brand, size: 24),
+              ),
+            ),
+            const SizedBox(width: 14),
+            // Middle info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('${livreur.firstname} ${livreur.lastname}',
+                      style: AppTypography.titleMedium().copyWith(fontSize: 15),
+                      overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 2),
+                  Text(livreur.email,
+                      style: AppTypography.bodyMedium().copyWith(fontSize: 12)),
+                  const SizedBox(height: 6),
+                  Row(children: [
+                    // Status dot + text
+                    Container(
+                      width: 8, height: 8,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isOnline ? AppColors.success : AppColors.inkSubtle,
                       ),
-                      const SizedBox(width: 4),
-                      Text(isOnline ? 'En ligne' : 'Hors ligne',
-                          style: TextStyle(
-                            fontSize: 11, fontWeight: FontWeight.w600,
-                            color: isOnline ? AppColors.success : AppColors.inkSubtle,
-                          )),
-                      const SizedBox(width: 12),
-                      // Véhicule
-                      Icon(_vehicleIcon(livreur.permisType),
-                          size: 13, color: AppColors.inkSubtle),
-                      const SizedBox(width: 3),
-                      Text(_vehicleLabel(livreur.permisType),
-                          style: AppTypography.bodyMedium().copyWith(fontSize: 10)),
-                    ]),
-                  ],
-                ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(isOnline ? 'En ligne' : 'Hors ligne',
+                        style: TextStyle(
+                          fontSize: 11, fontWeight: FontWeight.w600,
+                          color: isOnline ? AppColors.success : AppColors.inkSubtle,
+                        )),
+                    const SizedBox(width: 10),
+                    // Vehicle badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceWarm,
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(_vehicleIcon(livreur.permisType),
+                              size: 12, color: AppColors.inkMuted),
+                          const SizedBox(width: 3),
+                          Text(_vehicleLabel(livreur.permisType),
+                              style: TextStyle(
+                                fontSize: 10, fontWeight: FontWeight.w600,
+                                color: AppColors.inkMuted,
+                              )),
+                        ],
+                      ),
+                    ),
+                  ]),
+                ],
               ),
-              // Permis badge
-              Column(children: [
+            ),
+            const SizedBox(width: 8),
+            // Right: permis badge + optional validate
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
@@ -292,12 +318,23 @@ class _LivreurListPageState extends State<LivreurListPage> {
                         : AppColors.accentLight,
                     borderRadius: BorderRadius.circular(99),
                   ),
-                  child: Text(
-                    permisOk ? 'Permis ✓' : 'En attente',
-                    style: TextStyle(
-                      fontSize: 10, fontWeight: FontWeight.w700,
-                      color: permisOk ? AppColors.success : AppColors.accent,
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        permisOk ? Icons.check_circle_rounded : Icons.schedule_rounded,
+                        size: 12,
+                        color: permisOk ? AppColors.success : AppColors.accent,
+                      ),
+                      const SizedBox(width: 3),
+                      Text(
+                        permisOk ? 'Permis' : 'En attente',
+                        style: TextStyle(
+                          fontSize: 10, fontWeight: FontWeight.w700,
+                          color: permisOk ? AppColors.success : AppColors.accent,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 if (!permisOk) ...[
@@ -305,21 +342,21 @@ class _LivreurListPageState extends State<LivreurListPage> {
                   GestureDetector(
                     onTap: () => _showPermisConfirmDialog(livreur),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
                         color: AppColors.successLight,
                         borderRadius: BorderRadius.circular(99),
                       ),
                       child: Text('Valider',
                           style: TextStyle(
-                            fontSize: 10, fontWeight: FontWeight.w700,
+                            fontSize: 11, fontWeight: FontWeight.w700,
                             color: AppColors.success,
                           )),
                     ),
                   ),
                 ],
-              ]),
-            ]),
+              ],
+            ),
           ],
         ),
       ),

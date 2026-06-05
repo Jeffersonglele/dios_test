@@ -10,7 +10,6 @@ import '../../utils/toast.dart';
 import '../../l10n/app_localizations.dart';
 import '../../widgets/auth_shell.dart';
 import 'PasswordChangeSuccessScreen.dart';
-import '../../utils/strings.dart';
 
 class PasswordResetScreen extends StatefulWidget {
   final String email;
@@ -160,16 +159,18 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
 
-    return AuthShell(
-      title: 'Code de vérification',
-      subtitle: isCodeVerified
-          ? 'Entrez votre nouveau mot de passe'
-          : 'Un code a été envoyé à ${widget.email}',
-      form: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+    return Stack(
+      children: [
+        AuthShell(
+          title: 'Code de vérification',
+          subtitle: isCodeVerified
+              ? 'Entrez votre nouveau mot de passe'
+              : 'Un code a été envoyé à ${widget.email}',
+          form: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
             if (!isCodeVerified) ...[
               // Modify email link
               Align(
@@ -222,8 +223,8 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
                   onPressed: _resendCooldown > 0 || isLoading ? null : _resendCode,
                   child: Text(
                     _resendCooldown > 0
-                        ? '${Strings.get('Renvoyer le code', 'Resend code')} ($_resendCooldown s)'
-                        : Strings.get('Renvoyer le code', 'Resend code'),
+                        ? '${loc.resendCode} ($_resendCooldown s)'
+                        : loc.resendCode,
                     style: TextStyle(
                       color: _resendCooldown > 0 ? AppColors.inkMuted : AppColors.brand,
                       fontWeight: FontWeight.w600,
@@ -247,7 +248,7 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
                   ),
                   validator: (v) {
                     if (v == null || v.isEmpty) return loc.enter_password;
-                    if (!_isPasswordValid(v)) return Strings.get('Min 8 car, 1 maj, 1 chiffre, 1 spécial', 'Min 8 chars, 1 upper, 1 digit, 1 special');
+                    if (!_isPasswordValid(v)) return 'Min 8 chars, 1 upper, 1 digit, 1 special';
                     return null;
                   },
                   onChanged: (_) => setState(() {}),
@@ -297,6 +298,21 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
           ],
         ),
       ),
+      ),
+      Positioned(
+        top: MediaQuery.of(context).padding.top + 4,
+        left: 4,
+        child: TextButton.icon(
+          onPressed: () => Navigator.pop(context),
+          icon: const Icon(Icons.arrow_back_ios, size: 18),
+          label: const Text('Retour'),
+          style: TextButton.styleFrom(
+            foregroundColor: AppColors.ink,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+          ),
+        ),
+      ),
+      ],
     );
   }
 }
@@ -346,10 +362,10 @@ class _PasswordStrengthIndicatorState extends State<_PasswordStrengthIndicator> 
         Row(children: List.generate(4, (i) => Expanded(child: AnimatedContainer(duration: const Duration(milliseconds: 200), height: 4, margin: EdgeInsets.only(right: i < 3 ? 4 : 0), decoration: BoxDecoration(color: i < _score ? _c : AppColors.border, borderRadius: BorderRadius.circular(999)))))),
         const SizedBox(height: 8),
         Wrap(spacing: 12, runSpacing: 4, children: [
-          _Cr(ok: _hasMin, label: Strings.get('8 caractères min.', '8 chars min.')),
-          _Cr(ok: _hasUpper, label: Strings.get('1 majuscule', '1 uppercase')),
-          _Cr(ok: _hasNumber, label: Strings.get('3 chiffres', '3 digits')),
-          _Cr(ok: _hasSpecial, label: Strings.get('1 caractère spécial', '1 special char')),
+          _Cr(ok: _hasMin, label: '8 chars min.'),
+          _Cr(ok: _hasUpper, label: '1 uppercase'),
+          _Cr(ok: _hasNumber, label: '3 digits'),
+          _Cr(ok: _hasSpecial, label: '1 special char'),
         ]),
       ]),
     );

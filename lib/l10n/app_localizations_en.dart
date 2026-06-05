@@ -118,7 +118,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get signup => 'Sign Up';
 
   @override
-  String get email => 'E-mail address';
+  String get email => 'Email';
 
   @override
   String get password => 'Password';
@@ -559,88 +559,149 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get onboarding_step_3_body =>
       'Create your restaurant space, publish your dishes, and manage orders from the app.';
+
   @override
   String get already_have_account => 'Already have an account?';
+
   @override
   String get signup_title => 'Sign Up';
+
   @override
-  String get signup_subtitle => 'Create your account, discover restaurants near you and launch your business with greater peace of mind.';
+  String get signup_subtitle =>
+      'Create your account, discover restaurants near you and launch your business with greater peace of mind.';
+
   @override
   String get login_title => 'Login';
+
   @override
-  String get login_subtitle => 'Find your space, your orders and your restaurant in seconds.';
+  String get login_subtitle =>
+      'Find your space, your orders and your restaurant in seconds.';
+
   @override
   String get login_failed => 'Invalid credentials';
+
   @override
-  String get dont_have_account => 'Don\'t have an account? Sign up';
+  String get dont_have_account => 'Don\'t have an account ? Sign up';
+
   @override
   String get firstname => 'First name';
+
   @override
   String get enter_firstname => 'Enter your first name';
+
   @override
   String get lastname => 'Last name';
+
   @override
   String get enter_lastname => 'Enter your last name';
+
   @override
   String get enter_username => 'Enter your username';
+
   @override
   String get enter_valid_email => 'Enter a valid email';
+
   @override
   String get phone_number => 'Phone number';
+
   @override
   String get enter_phone => 'Enter your phone number';
+
   @override
   String get benin_phone_format => 'Format: 8 digits';
+
   @override
   String get new_password => 'New password';
+
   @override
   String get confirm_password => 'Confirm password';
+
   @override
   String get confirm_password_required => 'Confirmation required';
+
   @override
   String get passwords_do_not_match => 'Passwords do not match';
+
   @override
   String get enter_password => 'Enter your password';
+
   @override
   String get min_4_chars => 'Min 4 characters';
+
   @override
   String get min_6_chars => 'Min 6 characters';
+
   @override
   String get max_18_chars => 'Max 18 characters';
+
   @override
   String get username_or_email => 'Username or email';
+
   @override
   String get user_not_found => 'User not found';
+
   @override
   String get forgotten_password => 'Forgot password ?';
+
   @override
   String get forgotten_password_title => 'Forgot password';
+
   @override
-  String get forgotten_password_subtitle => 'Enter your email address to receive a secure code.';
+  String get forgotten_password_subtitle =>
+      'Enter your email to receive a code';
+
   @override
   String get reset_password => 'Reset password';
+
   @override
   String get reset_password_title => 'Forgot password';
+
   @override
   String get reset_password_subtitle => 'Enter your email to reset';
+
   @override
   String get no_account_for_email => 'No account for this email';
+
   @override
   String get reset_code_send_failed => 'Failed to send code';
+
   @override
   String get reset_code_sent => 'Code sent!';
+
   @override
   String get invalid_or_expired_code => 'Invalid or expired code';
+
   @override
   String get verify_code => 'Verify code';
+
   @override
   String get verify_email => 'Send code';
+
+  @override
+  String get password_requirement_hint =>
+      'Min 8 chars, 1 upper, 1 digit, 1 special';
+
+  @override
+  String get min_8_chars => '8 chars min.';
+
+  @override
+  String get require_uppercase => '1 uppercase';
+
+  @override
+  String get require_3_digits => '3 digits';
+
+  @override
+  String get require_special => '1 special char';
+
   @override
   String get internet_required => 'Internet connection required';
+
   @override
   String get next => 'Next';
-  @override
-  String get start => 'Start';
+
   @override
   String get skip => 'Skip';
+
+  @override
+  String get start => 'Start';
 }

@@ -29,7 +29,6 @@ import 'services/notification_service.dart';
 import 'services/session_service.dart';
 import 'theme/app_theme.dart';
 import 'theme/theme_provider.dart';
-import 'utils/strings.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -50,9 +49,7 @@ void main() async {
       liveQueryUrl: AppConfig.parseLiveQueryUrl,
       debug: kDebugMode && AppConfig.enableParseDebugLogs,
     );
-    debugPrint('✅ Parse initialized successfully');
   } catch (e) {
-    debugPrint('❌ Failed to initialize Parse: $e');
   }
 
   // Initialisation Hive
@@ -75,13 +72,8 @@ void main() async {
     Hive.registerAdapter(MoyenPaiementAdapter());
     Hive.registerAdapter(LigneCommandeAdapter());
 
-    debugPrint('✅ Hive initialized successfully');
   } catch (e) {
-    debugPrint('❌ Failed to initialize Hive: $e');
   }
-
-  // Initialisation de la langue
-  await Strings.load();
 
   // Initialisation des notifications
   try {
@@ -93,7 +85,6 @@ void main() async {
       await NotificationService.subscribeToRestaurantNotifications();
     }
   } catch (e) {
-    debugPrint('❌ Failed to initialize notifications: $e');
   }
 
   // Demande de géolocalisation (comme pour les notifs)
@@ -102,7 +93,6 @@ void main() async {
     if (permission == LocationPermission.denied) {
       await Geolocator.requestPermission();
     } else if (permission == LocationPermission.deniedForever) {
-      debugPrint('Géolocalisation refusée définitivement — aller dans Réglages > Confidentialité > Localisation');
     }
   } catch (_) {}
 

@@ -2,8 +2,8 @@ import 'package:dios_delices/Screen/dish/DishFormPage.dart';
 import 'package:dios_delices/modeles/dish.dart';
 import 'package:dios_delices/services/session_service.dart';
 import 'package:dios_delices/theme/app_theme.dart';
+import 'package:dios_delices/l10n/app_localizations.dart';
 import '../widgets/dios_image.dart';
-import '../utils/strings.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'micro_restau/DishDetailsMicroRestau.dart';
@@ -85,8 +85,8 @@ class _MenuState extends State<Menu> {
               child: Row(children: [
                 Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(Strings.get('Votre menu', 'Your menu'), style: AppTypography.headlineLarge()),
-                    Text('${displayedDishes.length} ${Strings.get('plats', 'dishes')}',
+                    Text(AppLocalizations.of(context)!.menu, style: AppTypography.headlineLarge()),
+                    Text('${displayedDishes.length} ${AppLocalizations.of(context)!.servings}',
                         style: AppTypography.bodyMedium()),
                   ]),
                 ),
@@ -115,10 +115,10 @@ class _MenuState extends State<Menu> {
                       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                         Icon(Icons.restaurant_menu_rounded, size: 56, color: AppColors.border),
                         const SizedBox(height: 12),
-                        Text(Strings.get('Aucun plat dans votre menu.', 'No dishes in your menu.'),
+                        Text('No dishes in your menu.',
                             style: AppTypography.bodyMedium()),
                         const SizedBox(height: 4),
-                        Text(Strings.get('Ajoutez votre premier plat !', 'Add your first dish!'),
+                        Text('Add your first dish!',
                             style: AppTypography.bodyMedium(color: AppColors.inkSubtle)),
                       ]),
                     )

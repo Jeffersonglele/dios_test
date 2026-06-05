@@ -1184,111 +1184,287 @@ abstract class AppLocalizations {
   /// **'Create your restaurant space, publish your dishes, and manage orders from the app.'**
   String get onboarding_step_3_body;
 
-  // ── Clés supplémentaires ──
+  /// No description provided for @already_have_account.
+  ///
+  /// In en, this message translates to:
+  /// **'Already have an account?'**
   String get already_have_account;
+
+  /// No description provided for @signup_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign Up'**
   String get signup_title;
+
+  /// No description provided for @signup_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Create your account, discover restaurants near you and launch your business with greater peace of mind.'**
   String get signup_subtitle;
+
+  /// No description provided for @login_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Login'**
   String get login_title;
+
+  /// No description provided for @login_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Find your space, your orders and your restaurant in seconds.'**
   String get login_subtitle;
+
+  /// No description provided for @login_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid credentials'**
   String get login_failed;
+
+  /// No description provided for @dont_have_account.
+  ///
+  /// In en, this message translates to:
+  /// **'Don\'t have an account ? Sign up'**
   String get dont_have_account;
+
+  /// No description provided for @firstname.
+  ///
+  /// In en, this message translates to:
+  /// **'First name'**
   String get firstname;
+
+  /// No description provided for @enter_firstname.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your first name'**
   String get enter_firstname;
+
+  /// No description provided for @lastname.
+  ///
+  /// In en, this message translates to:
+  /// **'Last name'**
   String get lastname;
+
+  /// No description provided for @enter_lastname.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your last name'**
   String get enter_lastname;
+
+  /// No description provided for @enter_username.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your username'**
   String get enter_username;
+
+  /// No description provided for @enter_valid_email.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid email'**
   String get enter_valid_email;
+
+  /// No description provided for @phone_number.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone number'**
   String get phone_number;
+
+  /// No description provided for @enter_phone.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your phone number'**
   String get enter_phone;
+
+  /// No description provided for @benin_phone_format.
+  ///
+  /// In en, this message translates to:
+  /// **'Format: 8 digits'**
   String get benin_phone_format;
+
+  /// No description provided for @new_password.
+  ///
+  /// In en, this message translates to:
+  /// **'New password'**
   String get new_password;
+
+  /// No description provided for @confirm_password.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm password'**
   String get confirm_password;
+
+  /// No description provided for @confirm_password_required.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirmation required'**
   String get confirm_password_required;
+
+  /// No description provided for @passwords_do_not_match.
+  ///
+  /// In en, this message translates to:
+  /// **'Passwords do not match'**
   String get passwords_do_not_match;
+
+  /// No description provided for @enter_password.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your password'**
   String get enter_password;
+
+  /// No description provided for @min_4_chars.
+  ///
+  /// In en, this message translates to:
+  /// **'Min 4 characters'**
   String get min_4_chars;
+
+  /// No description provided for @min_6_chars.
+  ///
+  /// In en, this message translates to:
+  /// **'Min 6 characters'**
   String get min_6_chars;
+
+  /// No description provided for @max_18_chars.
+  ///
+  /// In en, this message translates to:
+  /// **'Max 18 characters'**
   String get max_18_chars;
+
+  /// No description provided for @username_or_email.
+  ///
+  /// In en, this message translates to:
+  /// **'Username or email'**
   String get username_or_email;
+
+  /// No description provided for @user_not_found.
+  ///
+  /// In en, this message translates to:
+  /// **'User not found'**
   String get user_not_found;
+
+  /// No description provided for @forgotten_password.
+  ///
+  /// In en, this message translates to:
+  /// **'Forgot password ?'**
   String get forgotten_password;
+
+  /// No description provided for @forgotten_password_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Forgot password'**
   String get forgotten_password_title;
+
+  /// No description provided for @forgotten_password_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your email to receive a code'**
   String get forgotten_password_subtitle;
+
+  /// No description provided for @reset_password.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset password'**
   String get reset_password;
+
+  /// No description provided for @reset_password_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Forgot password'**
   String get reset_password_title;
+
+  /// No description provided for @reset_password_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your email to reset'**
   String get reset_password_subtitle;
+
+  /// No description provided for @no_account_for_email.
+  ///
+  /// In en, this message translates to:
+  /// **'No account for this email'**
   String get no_account_for_email;
+
+  /// No description provided for @reset_code_send_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to send code'**
   String get reset_code_send_failed;
+
+  /// No description provided for @reset_code_sent.
+  ///
+  /// In en, this message translates to:
+  /// **'Code sent!'**
   String get reset_code_sent;
+
+  /// No description provided for @invalid_or_expired_code.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid or expired code'**
   String get invalid_or_expired_code;
+
+  /// No description provided for @verify_code.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify code'**
   String get verify_code;
+
+  /// No description provided for @verify_email.
+  ///
+  /// In en, this message translates to:
+  /// **'Send code'**
   String get verify_email;
+
+  /// No description provided for @password_requirement_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Min 8 chars, 1 upper, 1 digit, 1 special'**
+  String get password_requirement_hint;
+
+  /// No description provided for @min_8_chars.
+  ///
+  /// In en, this message translates to:
+  /// **'8 chars min.'**
+  String get min_8_chars;
+
+  /// No description provided for @require_uppercase.
+  ///
+  /// In en, this message translates to:
+  /// **'1 uppercase'**
+  String get require_uppercase;
+
+  /// No description provided for @require_3_digits.
+  ///
+  /// In en, this message translates to:
+  /// **'3 digits'**
+  String get require_3_digits;
+
+  /// No description provided for @require_special.
+  ///
+  /// In en, this message translates to:
+  /// **'1 special char'**
+  String get require_special;
+
+  /// No description provided for @internet_required.
+  ///
+  /// In en, this message translates to:
+  /// **'Internet connection required'**
   String get internet_required;
+
+  /// No description provided for @next.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
   String get next;
-  String get start;
+
+  /// No description provided for @skip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip'**
   String get skip;
 
-  /// Lookup dynamique par clé (pour onboarding entre autres)
-  String localized(String key) {
-    switch (key) {
-      case 'splash_subtitle': return splash_subtitle;
-      case 'splash_loading': return splash_loading;
-      case 'onboarding_step_1_title': return onboarding_step_1_title;
-      case 'onboarding_step_1_body': return onboarding_step_1_body;
-      case 'onboarding_step_2_title': return onboarding_step_2_title;
-      case 'onboarding_step_2_body': return onboarding_step_2_body;
-      case 'onboarding_step_3_title': return onboarding_step_3_title;
-      case 'onboarding_step_3_body': return onboarding_step_3_body;
-      case 'start': return start;
-      case 'skip': return skip;
-      case 'next': return next;
-      case 'login': return login;
-      case 'login_title': return login_title;
-      case 'login_subtitle': return login_subtitle;
-      case 'login_failed': return login_failed;
-      case 'signup': return signup;
-      case 'signup_title': return signup_title;
-      case 'signup_subtitle': return signup_subtitle;
-      case 'dont_have_account': return dont_have_account;
-      case 'firstname': return firstname;
-      case 'enter_firstname': return enter_firstname;
-      case 'lastname': return lastname;
-      case 'enter_lastname': return enter_lastname;
-      case 'username': return username;
-      case 'enter_username': return enter_username;
-      case 'email': return email;
-      case 'enter_valid_email': return enter_valid_email;
-      case 'phone_number': return phone_number;
-      case 'enter_phone': return enter_phone;
-      case 'benin_phone_format': return benin_phone_format;
-      case 'password': return password;
-      case 'new_password': return new_password;
-      case 'confirm_password': return confirm_password;
-      case 'confirm_password_required': return confirm_password_required;
-      case 'passwords_do_not_match': return passwords_do_not_match;
-      case 'enter_password': return enter_password;
-      case 'min_4_chars': return min_4_chars;
-      case 'min_6_chars': return min_6_chars;
-      case 'max_18_chars': return max_18_chars;
-      case 'username_or_email': return username_or_email;
-      case 'user_not_found': return user_not_found;
-      case 'forgotten_password': return forgotten_password;
-      case 'forgotten_password_title': return forgotten_password_title;
-      case 'forgotten_password_subtitle': return forgotten_password_subtitle;
-      case 'reset_password': return reset_password;
-      case 'reset_password_title': return reset_password_title;
-      case 'reset_password_subtitle': return reset_password_subtitle;
-      case 'already_have_account': return already_have_account;
-      case 'no_account_for_email': return no_account_for_email;
-      case 'reset_code_send_failed': return reset_code_send_failed;
-      case 'reset_code_sent': return reset_code_sent;
-      case 'invalid_or_expired_code': return invalid_or_expired_code;
-      case 'verify_code': return verify_code;
-      case 'verify_email': return verify_email;
-      case 'internet_required': return internet_required;
-      default: return key;
-    }
-  }
+  /// No description provided for @start.
+  ///
+  /// In en, this message translates to:
+  /// **'Start'**
+  String get start;
 }
 
 class _AppLocalizationsDelegate
@@ -1309,6 +1485,7 @@ class _AppLocalizationsDelegate
 }
 
 AppLocalizations lookupAppLocalizations(Locale locale) {
+  // Lookup logic when only language code is specified.
   switch (locale.languageCode) {
     case 'en':
       return AppLocalizationsEn();

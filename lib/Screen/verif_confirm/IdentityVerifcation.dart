@@ -280,9 +280,7 @@ class _IdentityVerificationState extends ConsumerState<IdentityVerification> {
         'subject': 'Nouvelle identité en attente de vérification',
         'text': "Connectez-vous pour valider ou non l'utilisateur.",
       });
-      print('Email envoyé avec succès');
     } catch (e) {
-      print('Erreur lors de l\'envoi de l\'email: $e');
     }
   }
 

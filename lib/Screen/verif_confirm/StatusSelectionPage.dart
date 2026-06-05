@@ -49,7 +49,6 @@ class _StatusSelectionPageState extends ConsumerState<StatusSelectionPage> {
         });
       }
     } catch (e) {
-      print("Error loading user: $e");
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -140,12 +139,9 @@ class _StatusSelectionPageState extends ConsumerState<StatusSelectionPage> {
   }
 
   Future<void> _handleStatusSelected(String status) async {
-    print("=== Button pressed: $status ===");
     final int roleID = status == "Particulier" ? 2 : 3;
-    print("Selected roleID: $roleID");
 
     if (_user == null) {
-      print("=== Utilisateur non trouvé ===");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -158,7 +154,6 @@ class _StatusSelectionPageState extends ConsumerState<StatusSelectionPage> {
     }
 
     if (roleID == 2) {
-      print("=== Creating restaurant for particulier ===");
       final fictifName = "La cuisine de ${_user!.firstname}";
       try {
         final String createResult = await Restaurant.manageRestaurant(
@@ -171,17 +166,12 @@ class _StatusSelectionPageState extends ConsumerState<StatusSelectionPage> {
           location: "",
           name: fictifName,
         );
-        print("Restaurant creation result: $createResult");
       } catch (e) {
-        print("Error creating restaurant: $e");
       }
     }
 
-    print("=== Updating user country and role ===");
     try {
       await Users.updateCountryAndRole(_user!.userID, widget.country, roleID);
-      print("User updated successfully");
-      print("=== Navigating to StartIdentityVerification ===");
       if (mounted) {
         Navigator.push(
           context,
@@ -194,7 +184,6 @@ class _StatusSelectionPageState extends ConsumerState<StatusSelectionPage> {
         );
       }
     } catch (e) {
-      print("Error updating user: $e");
     }
   }
 }

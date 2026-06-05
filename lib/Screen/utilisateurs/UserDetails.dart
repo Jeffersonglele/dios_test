@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dios_delices/Screen/restaurants/RestaurantDetails.dart';
 import 'package:dios_delices/modeles/restaurant.dart';
+import 'package:dios_delices/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,7 +10,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
-import '../../Constant/Constant.dart';
 import '../../modeles/identity.dart';
 import '../../modeles/users.dart';
 import '../../utils/toast.dart';
@@ -98,7 +98,6 @@ class _UserDetailsState extends ConsumerState<UserDetails> {
           type_profil = "Administrateur";
         } else if (current_user?.roleID == 2) {
           type_profil = "Particulier";
-          print("Particulier");
         } else if (current_user?.roleID == 3) {
           type_profil = "Restaurateur";
         } else if (current_user?.roleID == 4) {
@@ -107,7 +106,6 @@ class _UserDetailsState extends ConsumerState<UserDetails> {
 
       });
     } catch (e) {
-      print("Erreur lors du chargement des données : $e");
     }
   }
 
@@ -166,10 +164,8 @@ class _UserDetailsState extends ConsumerState<UserDetails> {
         'subject': subject,
         'text': messageText,
       });
-      print('Email envoyé avec succès');
       return true;
     } catch (e) {
-      print('Erreur lors de l\'envoi de l\'email: $e');
       return false;
     }
   }
@@ -179,227 +175,227 @@ class _UserDetailsState extends ConsumerState<UserDetails> {
     var size = MediaQuery.of(context).size;
 
     if (current_user == null) {
-      return Center(child: CircularProgressIndicator());
+      return Scaffold(
+        backgroundColor: AppColors.surface,
+        body: const Center(child: CircularProgressIndicator()),
+      );
     }
+
+    final isVerified = current_user!.identity == "Verified";
+    final isRejected = current_user!.identity == "Rejected";
 
     return GestureDetector(
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
       child: Scaffold(
-        backgroundColor: Colors.white,
-        appBar: AppBar(),
+        backgroundColor: AppColors.surface,
+        appBar: AppBar(
+          backgroundColor: AppColors.surface,
+          foregroundColor: AppColors.ink,
+          elevation: 0,
+          title: Text(
+            '${current_user!.firstname} ${current_user!.lastname}',
+            style: AppTypography.titleMedium(),
+          ),
+        ),
         body: SingleChildScrollView(
-          child: Center(
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+          child: Column(
+            children: [
+              // ── Photo + status ──
+              Stack(
+                alignment: Alignment.topRight,
                 children: [
-                  SizedBox(height: size.height * 0.03),
-                  Stack(
-                    children: [
-                      Container(
-                        constraints:
-                            BoxConstraints.expand(height: 300.0, width: 400),
-                        padding: EdgeInsets.only(
-                            left: 16.0, bottom: 8.0, right: 16.0),
-                        margin: EdgeInsets.only(
-                            left: 16.0, bottom: 8.0, right: 16.0),
-                        decoration: BoxDecoration(
-                          image: DecorationImage(
-                            image: NetworkImage(current_identity?.photo ??
-                                "https://parsefiles.back4app.com/9qBeGGwSGOQ1iWOJ1UNUXt40NhgwwgbHJYGpV1zg/4f636282d677d999cd624580cdec2ff7_no_image.png"),
-                            fit: BoxFit.cover,
+                  Container(
+                    height: 260,
+                    width: double.infinity,
+                    margin: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      image: DecorationImage(
+                        image: NetworkImage(current_identity?.photo ??
+                            "https://parsefiles.back4app.com/9qBeGGwSGOQ1iWOJ1UNUXt40NhgwwgbHJYGpV1zg/4f636282d677d999cd624580cdec2ff7_no_image.png"),
+                        fit: BoxFit.cover,
+                      ),
+                      borderRadius: BorderRadius.circular(AppRadius.xl),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 20, right: 20),
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: AppColors.card,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Center(
+                        child: Container(
+                          width: 12,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isVerified
+                                ? AppColors.success
+                                : isRejected
+                                    ? AppColors.error
+                                    : AppColors.accent,
                           ),
-                          borderRadius: BorderRadius.all(Radius.circular(30)),
                         ),
-                        child: Stack(
-                          children: <Widget>[
-                            Positioned(
-                              right: 0.0,
-                              top: 5,
-                              child: Container(
-                                width: 30,
-                                height: 30,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(8),
-                                  // Coins arrondis
-                                  color: Colors.white,
-                                ),
-                                child: Align(
-                                  alignment: Alignment.center,
-                                  child: CircleAvatar(
-                                    radius: 6, // Taille du cercle
-                                    backgroundColor:
-                                        isAvailable ? Colors.green : Colors.red,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(height: 8),
-                      SizedBox(height: size.height * 0.02),
-                    ],
-                  ),
-                  SizedBox(height: size.height * 0.02),
-                  Row(
-                    children: [
-                      SizedBox(width: 25),
-                      Text(
-                          current_user!.firstname +
-                              " " +
-                              current_user!.lastname,
-                          style: kLoginSubtitleStyle(size)),
-                      Spacer(),
-                      Text(
-                        "..",
-                        style: TextStyle(
-                            color: Colors.red,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 20),
-                      ),
-                      SizedBox(width: 20),
-                    ],
-                  ),
-                  SizedBox(height: size.height * 0.02),
-                  Row(
-                    children: [
-                      SizedBox(width: 25),
-                      Text("Type de profil : ", style: TextStyle(fontSize: 16)),
-                      Text(type_profil, style: TextStyle(fontSize: 16, color: Colors.red, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                  SizedBox(height: 3),
-                  Row(
-                    children: [
-                      SizedBox(width: 25),
-                      Text("Pièce d'identité :",
-                          style: TextStyle(fontSize: 16)),
-                      IconButton(
-                        icon: Icon(Icons.camera_alt),
-                        onPressed: () => _handleFilePreview(
-                            context, current_identity?.piece_identite ?? ""),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: size.height * 0.02),
-                  current_user?.identity != "Verified" ? Row(
-                    children: [
-                      SizedBox(width: 25),
-                      Text(
-                        "Valider le profil : ",
-                        style:
-                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.check, color: Colors.green),
-                        onPressed: () => _validateUsers(current_user!),
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.close, color: Colors.red),
-                        onPressed: () => _showRejectDialog(current_user!),
-                      ),
-                    ],
-                  ) : SizedBox(),
-                  SizedBox(height: 8),
-                  current_user_restaurant == null ? SizedBox() :Row(
-                    children: [
-                      SizedBox(width: 25),
-                      Text(
-                        "Restaurant ",
-                        style:
-                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                  current_user_restaurant == null ? SizedBox() : Card(
-                    margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    elevation: 5,
-                    child: Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            leading: ClipRRect(
-                              borderRadius: BorderRadius.circular(8.0),
-                              child: SizedBox(
-                                width: 60,
-                                height: 60,
-                                child: DiosImage(
-                                  url: current_user_restaurant?.image,
-                                  width: 60,
-                                  height: 60,
-                                ),
-                              ),
-                            ),
-                            title: Text(
-                              current_user_restaurant?.name ?? "Nom non défini",
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            subtitle: Text(
-                              current_user_restaurant?.categories ?? "",
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            trailing: Icon(Icons.chevron_right),
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => RestaurantDetails(
-                                    restaurant_id: current_user_restaurant!.restaurantID,
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-
-                        ],
                       ),
                     ),
                   ),
-                  SizedBox(height: 8),
-                  Center(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                ],
+              ),
+
+              // ── Infos ──
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       children: [
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 10.0),
-                          child: ElevatedButton(
-                            onPressed: () async {
-                              setState(() {
-                                nameController.text =
-                                    current_user?.firstname ?? "";
-                                lastnameController.text =
-                                    current_user?.lastname ?? "";
-                              });
-                            },
-                            child: Text('Modifier',
-                                style: TextStyle(color: Colors.white)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red,
-                              foregroundColor: Colors.white,
-                              textStyle: TextStyle(
-                                  fontSize: 18, fontWeight: FontWeight.bold),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(15),
-                              ),
-                            ),
+                        Expanded(
+                          child: Text(
+                            '${current_user!.firstname} ${current_user!.lastname}',
+                            style: AppTypography.headlineMedium(),
                           ),
                         ),
                       ],
                     ),
-                  ),
-                  SizedBox(height: size.height * 0.05),
-                ],
+                    const SizedBox(height: 8),
+                    _infoRow('Email', current_user!.email),
+                    _infoRow('Téléphone', current_user!.telephone),
+                    _infoRow('Pays', current_user!.country),
+                    _infoRow('Type de profil', type_profil),
+                    _infoRow('Identité',
+                        isVerified ? 'Validée' : isRejected ? 'Rejetée' : 'En attente'),
+                    const SizedBox(height: 12),
+
+                    // ── Pièce d'identité ──
+                    Row(
+                      children: [
+                        Text("Pièce d'identité :",
+                            style: AppTypography.titleMedium()),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: const Icon(Icons.remove_red_eye_outlined),
+                          color: AppColors.brand,
+                          onPressed: () => _handleFilePreview(
+                              context, current_identity?.piece_identite ?? ""),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // ── Boutons validation ──
+                    if (!isVerified)
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              icon: const Icon(Icons.check_rounded),
+                              label: const Text('Valider'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.success,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(AppRadius.lg)),
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                              ),
+                              onPressed: () => _validateUsers(current_user!),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              icon: const Icon(Icons.close_rounded),
+                              label: const Text('Rejeter'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppColors.error,
+                                side: const BorderSide(color: AppColors.error),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(AppRadius.lg)),
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                              ),
+                              onPressed: () => _showRejectDialog(current_user!),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                    const SizedBox(height: 20),
+
+                    // ── Restaurant associé ──
+                    if (current_user_restaurant != null) ...[
+                      Text("Restaurant associé",
+                          style: AppTypography.titleMedium()),
+                      const SizedBox(height: 8),
+                      Card(
+                        margin: EdgeInsets.zero,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppRadius.lg)),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.all(8),
+                          leading: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: SizedBox(
+                              width: 56,
+                              height: 56,
+                              child: DiosImage(
+                                url: current_user_restaurant?.image,
+                                width: 56,
+                                height: 56,
+                              ),
+                            ),
+                          ),
+                          title: Text(
+                            current_user_restaurant?.name ?? "Nom non défini",
+                            style: AppTypography.titleMedium().copyWith(fontSize: 16),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          subtitle: Text(
+                            current_user_restaurant?.categories ?? "",
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => RestaurantDetails(
+                                restaurant_id: current_user_restaurant!.restaurantID,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                    SizedBox(height: size.height * 0.05),
+                  ],
+                ),
               ),
-            ),
+            ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _infoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(label,
+                style: AppTypography.bodyMedium()
+                    .copyWith(fontSize: 13, color: AppColors.inkMuted)),
+          ),
+          Expanded(
+            child: Text(value,
+                style: AppTypography.bodyLarge().copyWith(fontSize: 14)),
+          ),
+        ],
       ),
     );
   }

@@ -68,10 +68,7 @@ class _HomeUserState extends State<HomeUser> {
     final usersList = await Users.fetchUsersFromDB();
     final restausList = await Restaurant.fetchRestaurantsFromDB();
     final addressList = await Address.fetchAddressesFromDB();
-    print('DEBUG: Loaded ${restausList.length} restaurants from DB:');
     for (final r in restausList) {
-      print(
-          'DEBUG: - ${r.name} (id: ${r.restaurantID}, cats: ${r.categories})');
     }
     if (!mounted) return;
     setState(() {
@@ -82,7 +79,6 @@ class _HomeUserState extends State<HomeUser> {
       _allRestaus = restausList;
       _addresses = addressList;
     });
-    print('DEBUG: Current user ID: $_currentUserID');
     await _filterByProximity();
     if (mounted) setState(() => _isLoading = false);
   }
@@ -93,27 +89,19 @@ class _HomeUserState extends State<HomeUser> {
     int excluded = 0;
     bool foundUserAddress = false;
 
-    print(
-        'DEBUG: Starting _filterByProximity, _allRestaus has ${_allRestaus.length} restaurants');
 
     for (final addr in _addresses) {
-      print(
-          'DEBUG: Checking address, objectID: ${addr.objectID}, object: ${addr.object}');
       if (addr.objectID != _currentUserID || addr.object != 'User') continue;
       foundUserAddress = true;
-      print('DEBUG: Found user address');
 
       for (final r in _allRestaus) {
-        print('DEBUG: Checking restaurant ${r.name}');
         final owner = Users.getUsersByUserId(_users, r.userID);
         if (owner == null) {
-          print('DEBUG: Skipping ${r.name} - no owner');
           excluded++;
           continue;
         }
         final rAddr = Address.getAddressByObject(_addresses, 'User', r.userID);
         if (rAddr == null) {
-          print('DEBUG: Skipping ${r.name} - no restaurant address');
           excluded++;
           continue;
         }
@@ -123,14 +111,11 @@ class _HomeUserState extends State<HomeUser> {
           final rLat = double.parse(rAddr.lat ?? '');
           final rLon = double.parse(rAddr.long ?? '');
           if (_haversine(uLat, uLon, rLat, rLon) <= maxKm) {
-            print('DEBUG: Adding ${r.name} (within range)');
             nearby.add(r);
           } else {
-            print('DEBUG: Skipping ${r.name} (too far)');
             excluded++;
           }
         } catch (e) {
-          print('DEBUG: Skipping ${r.name} - error calculating distance: $e');
           excluded++;
         }
       }
@@ -138,8 +123,6 @@ class _HomeUserState extends State<HomeUser> {
 
     // If no user address found, just show all restaurants
     if (!foundUserAddress) {
-      print(
-          'DEBUG: No user address found, showing all ${_allRestaus.length} restaurants');
       nearby = List.from(_allRestaus);
       excluded = 0;
     }
@@ -150,17 +133,13 @@ class _HomeUserState extends State<HomeUser> {
         _excludedCount = excluded;
         _totalCount = nearby.length + excluded;
       });
-      print('DEBUG: Filtered to ${nearby.length} nearby restaurants');
     }
     _filterByCategory();
   }
 
   void _filterByCategory() {
-    print(
-        'DEBUG: _filterByCategory called, selectedIndex: $_selectedCategoryIndex');
     if (_selectedCategoryIndex == 0) {
       // "Tout" is selected, show all
-      print('DEBUG: Showing all ${_allRestaus.length} restaurants');
       if (mounted) {
         setState(() {
           _restaus = _allRestaus;
@@ -172,20 +151,16 @@ class _HomeUserState extends State<HomeUser> {
         .label
         .toLowerCase()
         .replaceAll(' ', '-');
-    print('DEBUG: Filtering for category: $selectedCat');
     if (mounted) {
       setState(() {
         _restaus = _allRestaus.where((r) {
           // Check if restaurant's categories contain the selected category (with # prefix or not)
           final restauCats = r.categories.toLowerCase();
-          print('DEBUG: Restaurant ${r.name} has categories: $restauCats');
           final matches = restauCats.contains('#$selectedCat') ||
               restauCats.contains(selectedCat);
-          if (matches) print('DEBUG: Matched ${r.name}');
           return matches;
         }).toList();
       });
-      print('DEBUG: Filtered to ${_restaus.length} restaurants');
     }
   }
 

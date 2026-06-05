@@ -40,7 +40,6 @@ Future<String?> _sendCodeViaCloud({
     if (!response.success) return null;
     return code;
   } catch (e) {
-    print('Erreur envoi code: $e');
     return null;
   }
 }
@@ -74,7 +73,6 @@ Future<bool> verifyEmailCode({
     }
     return false;
   } catch (e) {
-    print('Erreur vérification code: $e');
     return false;
   }
 }

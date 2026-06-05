@@ -25,10 +25,8 @@ void main() async {
 
   final client = HttpClient();
 
-  print('🗑  Nettoyage des anciens comptes seed...');
   await _deleteSeedUsers(client, masterKey);
 
-  print('\n📦 Création des classes...');
   final classes = [
     {'name': 'Users', 'fields': {'username': 'String', 'password': 'String', 'roleID': 'Number', 'firstname': 'String', 'lastname': 'String', 'email': 'String', 'telephone': 'Number', 'country': 'String', 'status': 'String', 'identity': 'String', 'addressID': 'Number', 'isOnline': 'Boolean'}},
     {'name': 'Restaurant', 'fields': {'restaurantID': 'Number', 'userID': 'Number', 'name': 'String', 'description': 'String', 'location': 'String', 'categories': 'String', 'note': 'Number', 'nb_orders': 'Number', 'image': 'String', 'valid': 'Number', 'isOpen': 'Number', 'openingHours': 'String', 'deliveryFee': 'Number', 'date_creation': 'Date'}},
@@ -59,18 +57,13 @@ void main() async {
       final response = await request.close();
       final respBody = await response.transform(utf8.decoder).join();
       if (response.statusCode == 200 || response.statusCode == 201) {
-        print('  ✅ ${c['name']}');
       } else if (respBody.contains('already exists') || response.statusCode == 409) {
-        print('  ⏭ ${c['name']} (existe déjà)');
       } else {
-        print('  ⚠️ ${c['name']} ${response.statusCode}: $respBody');
       }
     } catch (e) {
-      print('  ❌ ${c['name']}: $e');
     }
   }
 
-  print('\n👤 Création des utilisateurs...');
   final users = [
     {'username': 'admin', 'password': 'admin123', 'roleID': 1, 'firstname': 'Admin', 'lastname': 'Dios', 'email': 'admin@diosdelices.com', 'country': 'France'},
     {'username': 'awa.cuisine', 'password': 'awa123', 'roleID': 4, 'firstname': 'Awa', 'lastname': 'Cuisine', 'email': 'awa@cuisine.com', 'country': "Côte d'Ivoire"},
@@ -78,12 +71,10 @@ void main() async {
   ];
 
   for (final u in users) {
-    final ok = await _createUser(client, masterKey, u);
-    if (!ok) print('  ❌ ${u['username']} échoué');
+    await _createUser(client, masterKey, u);
   }
 
   client.close();
-  print('\n🎉 Terminé. Déploie cloud/main.js puis lance l\'app.');
 }
 
 Future<void> _deleteSeedUsers(HttpClient client, String masterKey) async {
@@ -109,7 +100,6 @@ Future<void> _deleteUser(HttpClient client, String masterKey, String username) a
         delReq.headers.set('X-Parse-Application-Id', appId);
         delReq.headers.set('X-Parse-Master-Key', masterKey);
         await delReq.close();
-        print('  🗑  $username supprimé');
       }
     }
   } catch (_) {}
@@ -135,9 +125,7 @@ Future<bool> _createUser(HttpClient client, String masterKey, Map<String, dynami
     if (response.statusCode != 201) {
       // Peut-être déjà existant ? On tente de récupérer l'objectId
       if (response.statusCode == 202 || response.statusCode == 409) {
-        print('  ⏭ ${u['username']} _User existe déjà');
       } else {
-        print('  ❌ ${u['username']} _User: ${response.statusCode} $respBody');
         return false;
       }
     }
@@ -169,14 +157,11 @@ Future<bool> _createUser(HttpClient client, String masterKey, Map<String, dynami
     respBody = await response.transform(utf8.decoder).join();
 
     if (response.statusCode == 201) {
-      print('  ✅ ${u['username']} créé');
       return true;
     } else {
-      print('  ❌ ${u['username']} Users: ${response.statusCode} $respBody');
       return false;
     }
   } catch (e) {
-    print('  ❌ ${u['username']}: $e');
     return false;
   }
 }

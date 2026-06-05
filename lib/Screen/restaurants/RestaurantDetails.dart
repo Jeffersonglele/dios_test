@@ -122,7 +122,8 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
     final size = MediaQuery.of(context).size;
     if (current_restaurant == null) return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
-    final isOwner = currentUser_role == 1 || currentUser_role == 4 || restau_de_luser_connecte;
+    final isOwner = restau_de_luser_connecte;
+    final canFavorite = !restau_de_luser_connecte && currentUser_role != 1 && currentUser_role != 4;
 
     return GestureDetector(
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
@@ -148,7 +149,7 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
                 onPressed: () => Navigator.pop(context),
               ),
               actions: [
-                if (!restau_de_luser_connecte)
+                if (canFavorite)
                   Padding(
                     padding: const EdgeInsets.only(right: 12),
                     child: AnimatedLikeButton(

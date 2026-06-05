@@ -546,13 +546,13 @@ class _OnboardingViewState extends State<_OnboardingView>
           position: _entrySlide,
           child: Column(
             children: [
-              // ── Zone image — 62% de l'écran ──────────────
+              // ── Zone image — 55% de l'écran ──────────────
               _OnboardingImageZone(
                 steps: widget.steps,
                 pageController: widget.pageController,
                 currentPage: widget.currentPage,
                 bgColor: bgColor,
-                height: screenH * 0.62,
+                height: screenH * 0.55,
                 onSkip: widget.onSkip,
               ),
               // ── Zone texte basse ─────────────────────────
@@ -739,8 +739,10 @@ class _OnboardingBottomSheet extends StatelessWidget {
                         child: IgnorePointer(
                           ignoring: index != currentPage.round(),
                           child: _OnboardingTextBlock(
-                            titleKey: steps[index].titleKey,
-                            bodyKey: steps[index].bodyKey,
+                            title: AppLocalizations.of(context)!
+                                .localized(steps[index].titleKey),
+                            body: AppLocalizations.of(context)!
+                                .localized(steps[index].bodyKey),
                           ),
                         ),
                       ),
@@ -844,15 +846,37 @@ class _NextButton extends StatelessWidget {
   }
 }
 
+// ── Extension pour la résolution dynamique ────────────────
+extension AppLocalizationsDynamic on AppLocalizations {
+  String localized(String key) {
+    switch (key) {
+      case 'onboarding_step_1_title':
+        return onboarding_step_1_title;
+      case 'onboarding_step_1_body':
+        return onboarding_step_1_body;
+      case 'onboarding_step_2_title':
+        return onboarding_step_2_title;
+      case 'onboarding_step_2_body':
+        return onboarding_step_2_body;
+      case 'onboarding_step_3_title':
+        return onboarding_step_3_title;
+      case 'onboarding_step_3_body':
+        return onboarding_step_3_body;
+      default:
+        return key;
+    }
+  }
+}
+
 // ── Bloc texte ────────────────────────────────────────────
 class _OnboardingTextBlock extends StatelessWidget {
   const _OnboardingTextBlock({
-    required this.titleKey,
-    required this.bodyKey,
+    required this.title,
+    required this.body,
   });
 
-  final String titleKey;
-  final String bodyKey;
+  final String title;
+  final String body;
 
   @override
   Widget build(BuildContext context) {
@@ -861,7 +885,7 @@ class _OnboardingTextBlock extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          AppLocalizations.of(context)!.localized(titleKey),
+          title,
           style:
               AppTypography.headlineMedium(color: AppColors.ink).copyWith(
             height: 1.15,
@@ -870,7 +894,7 @@ class _OnboardingTextBlock extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.sm),
         Text(
-          AppLocalizations.of(context)!.localized(bodyKey),
+          body,
           style: AppTypography.bodyMedium(color: AppColors.inkMuted),
         ),
       ],

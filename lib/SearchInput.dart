@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'Screen/CustomSearchDelegate.dart';
 import 'theme/app_theme.dart';
-import '../utils/strings.dart';
 
 class SearchInput extends StatefulWidget {
   const SearchInput({super.key, this.onTap});
@@ -50,7 +49,7 @@ class _SearchInputState extends State<SearchInput> {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  Strings.get('Rechercher des plats, des commerces ...', 'Search dishes, stores...'),
+                  'Search dishes, stores...',
                   style: AppTypography.bodyLarge(color: AppColors.inkSubtle),
                 ),
               ),

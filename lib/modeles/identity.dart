@@ -204,11 +204,9 @@ class Identity extends HiveObject {
           await DatabaseHelper.createIdentity(identity);
         }
       } else {
-        print('❌ Échec de récupération des identités : ${response.error?.message}');
         return false;
       }
     } catch (e) {
-      print('❌ Erreur lors de l’appel à la fonction cloud : $e');
       return false;
     }
 

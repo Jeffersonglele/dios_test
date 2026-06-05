@@ -199,8 +199,6 @@ class DatabaseHelper {
       dish_db.nb_servings = dish.nb_servings;
       dish_db.status = dish.status;
       await dishBox.put(dish.dishID, dish_db);
-      print("dish image  " + dish.image.toString());
-      print("dishID image  " + dish_db.image.toString());
       return dish_db;
     }
 
@@ -248,7 +246,6 @@ class DatabaseHelper {
   }
 
   static Future<void> addAddress(Address address) async {
-    print("function addAddress");
     var addressBox = await Hive.openBox<Address>('address');
 
     if (address.objectID != null) {
@@ -308,14 +305,11 @@ class DatabaseHelper {
 
   // ajouter une identité
   static Future<void> addIdentity(Identity identity) async {
-    print("function addIdentity");
     var identityBox = await Hive.openBox<Identity>('identity');
 
     if (identity.identityID != null) {
-      print("identity.identityID != null");
       await identityBox.put(identity.identityID, identity);
     } else {
-      print("else identity.identityID != null");
     // Enregistre sans clé spécifique (Hive assigne un ID auto)
       await identityBox.add(identity);
     }

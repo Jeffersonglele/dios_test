@@ -96,9 +96,7 @@ class _RestaurantUpdateFormPageState
         'subject': 'Nouvelle demande de Restaurant',
         'text': 'Nom du restaurant: $name\nAdresse: $address\nTéléphone: $phone',
       });
-      print('Email envoyé avec succès');
     } catch (e) {
-      print('Erreur lors de l\'envoi de l\'email: $e');
     }
   }
 
@@ -364,11 +362,7 @@ class _RestaurantUpdateFormPageState
                                 // Create the ParseFile with the new name
                                 parseFile = ParseFile(File(_image.path),
                                     name: newFileName);
-                                print("parseFile created: " +
-                                    parseFile.toString());
                               } else {
-                                print(
-                                    "Erreur : nom ou ID utilisateur manquant");
                                 return;
                               }
                             }
@@ -412,7 +406,6 @@ class _RestaurantUpdateFormPageState
                               );
                             } else {
                               Toast(context, "$createResult", false);
-                              print("Error: $createResult");
                             }
                           }
                         }

@@ -235,7 +235,6 @@ class Restaurant extends HiveObject {
     String functionName = restaurantID == null ? 'add1Restaurant' : 'update1Restaurant';
     var cloudFunction = ParseCloudFunction(functionName);
 
-    print("functionName " + functionName);
 
     String imageUrl = "";
 
@@ -258,7 +257,6 @@ class Restaurant extends HiveObject {
         final galleryResponse = await gallery.save();
 
         if (galleryResponse.success) {
-          print("File saved successfully in Gallery object.");
         } else {
 
           return "Error while saving the Gallery object: ${galleryResponse.error?.message}";
@@ -299,7 +297,6 @@ class Restaurant extends HiveObject {
       },
     };
 
-    print("params " + params.toString());
 
     try {
       final ParseResponse parseResponse =
@@ -428,11 +425,9 @@ class Restaurant extends HiveObject {
           await DatabaseHelper.createRestaurant(restaurant);
         }
       } else {
-        print('Failed to retrieve restaurant details: ${response.error?.message}');
         return false;
       }
     } catch (e) {
-      print('Error calling cloud function: $e');
       return false;
     }
     return true;

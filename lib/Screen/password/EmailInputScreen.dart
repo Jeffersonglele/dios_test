@@ -59,15 +59,17 @@ class _EmailInputScreenState extends State<EmailInputScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return AuthShell(
-      title: AppLocalizations.of(context)!.forgotten_password_title,
-      subtitle: AppLocalizations.of(context)!.forgotten_password_subtitle,
-      form: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextFormField(
+    return Stack(
+      children: [
+        AuthShell(
+          title: AppLocalizations.of(context)!.forgotten_password_title,
+          subtitle: AppLocalizations.of(context)!.forgotten_password_subtitle,
+          form: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextFormField(
               controller: emailCtrl,
               keyboardType: TextInputType.emailAddress,
               decoration: InputDecoration(
@@ -94,6 +96,17 @@ class _EmailInputScreenState extends State<EmailInputScreen> {
           ],
         ),
       ),
+    ),
+        Positioned(
+          top: MediaQuery.of(context).padding.top + 8,
+          left: 4,
+          child: IconButton(
+            icon: const Icon(Icons.chevron_left_rounded),
+            color: AppColors.inkMuted,
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+      ],
     );
   }
 }

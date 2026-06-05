@@ -118,7 +118,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get signup => 'Inscription';
 
   @override
-  String get email => 'Adresse email';
+  String get email => 'Email';
 
   @override
   String get password => 'Mot de passe';
@@ -563,88 +563,149 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get onboarding_step_3_body =>
       'Créez votre espace restaurant, publiez vos plats et gérez les commandes depuis l\'app.';
+
   @override
   String get already_have_account => 'Déjà un compte ?';
+
   @override
   String get signup_title => 'Inscription';
+
   @override
-  String get signup_subtitle => 'Crée ton compte, découvre les restos autour de toi et lance ton activité plus sereinement.';
+  String get signup_subtitle =>
+      'Crée ton compte, découvre les restos autour de toi et lance ton activité plus sereinement.';
+
   @override
   String get login_title => 'Connexion';
+
   @override
-  String get login_subtitle => 'Retrouve ton espace, tes commandes et ton restaurant en quelques secondes.';
+  String get login_subtitle =>
+      'Retrouve ton espace, tes commandes et ton restaurant en quelques secondes.';
+
   @override
   String get login_failed => 'Identifiants incorrects';
+
   @override
   String get dont_have_account => 'Pas de compte ? S\'inscrire';
+
   @override
   String get firstname => 'Prénom';
+
   @override
   String get enter_firstname => 'Entrez votre prénom';
+
   @override
   String get lastname => 'Nom';
+
   @override
   String get enter_lastname => 'Entrez votre nom';
+
   @override
   String get enter_username => 'Entrez votre nom d\'utilisateur';
+
   @override
   String get enter_valid_email => 'Entrez un email valide';
+
   @override
   String get phone_number => 'Numéro de téléphone';
+
   @override
   String get enter_phone => 'Entrez votre numéro';
+
   @override
   String get benin_phone_format => 'Format : 8 chiffres';
+
   @override
   String get new_password => 'Nouveau mot de passe';
+
   @override
   String get confirm_password => 'Confirmer le mot de passe';
+
   @override
   String get confirm_password_required => 'Confirmation requise';
+
   @override
   String get passwords_do_not_match => 'Les mots de passe ne correspondent pas';
+
   @override
   String get enter_password => 'Entrez votre mot de passe';
+
   @override
   String get min_4_chars => 'Minimum 4 caractères';
+
   @override
   String get min_6_chars => 'Minimum 6 caractères';
+
   @override
   String get max_18_chars => 'Maximum 18 caractères';
+
   @override
   String get username_or_email => 'Nom d\'utilisateur ou email';
+
   @override
   String get user_not_found => 'Utilisateur non trouvé';
+
   @override
   String get forgotten_password => 'Mot de passe oublié ?';
+
   @override
   String get forgotten_password_title => 'Mot de passe oublié';
+
   @override
-  String get forgotten_password_subtitle => 'Saisissez votre adresse mail pour recevoir un code sécurisé.';
+  String get forgotten_password_subtitle =>
+      'Entrez votre email pour recevoir un code';
+
   @override
   String get reset_password => 'Réinitialiser le mot de passe';
+
   @override
   String get reset_password_title => 'Mot de passe oublié';
+
   @override
   String get reset_password_subtitle => 'Entrez votre email pour réinitialiser';
+
   @override
   String get no_account_for_email => 'Aucun compte pour cet email';
+
   @override
   String get reset_code_send_failed => 'Échec envoi du code';
+
   @override
   String get reset_code_sent => 'Code envoyé !';
+
   @override
   String get invalid_or_expired_code => 'Code invalide ou expiré';
+
   @override
   String get verify_code => 'Vérifier le code';
+
   @override
   String get verify_email => 'Envoyer le code';
+
+  @override
+  String get password_requirement_hint =>
+      'Min 8 car, 1 maj, 1 chiffre, 1 spécial';
+
+  @override
+  String get min_8_chars => '8 caractères min.';
+
+  @override
+  String get require_uppercase => '1 majuscule';
+
+  @override
+  String get require_3_digits => '3 chiffres';
+
+  @override
+  String get require_special => '1 caractère spécial';
+
   @override
   String get internet_required => 'Connexion Internet requise';
+
   @override
   String get next => 'Suivant';
-  @override
-  String get start => 'Commencer';
+
   @override
   String get skip => 'Passer';
+
+  @override
+  String get start => 'Commencer';
 }

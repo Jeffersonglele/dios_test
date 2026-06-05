@@ -71,7 +71,6 @@ class _LocationPageState extends ConsumerState<LocationPage> {
   }
 
   void saveDetectedAddress() async {
-    print("saveDetectedAddress");
 
     // Vérification pour éviter une erreur de type
     String city =
@@ -84,7 +83,6 @@ class _LocationPageState extends ConsumerState<LocationPage> {
             ? locationController.text.split(', ')[3]
             : "";
 
-    print("state " + state);
 
     String fullAddress =
         locationController.text.isNotEmpty ? locationController.text : "";
@@ -104,7 +102,6 @@ class _LocationPageState extends ConsumerState<LocationPage> {
       user_roleID: widget.user_roleID,
     );
 
-    print("validationResult " + validationResult.toString());
 
     if (validationResult == "EXISTING_ADDRESS") {
       setState(() {
@@ -135,7 +132,6 @@ class _LocationPageState extends ConsumerState<LocationPage> {
   }
 
   void saveManualAddress() async {
-    print("saveManualAddress");
 
     String city = cityController.text;
     String state = stateController.text;
@@ -159,7 +155,6 @@ class _LocationPageState extends ConsumerState<LocationPage> {
       double lat = locations.first.latitude;
       double long = locations.first.longitude;
 
-      print("Latitude: $lat, Longitude: $long");
 
       // 📌 Envoyer l'adresse avec les coordonnées GPS
       dynamic validationResult = await Address.manageAddress(
@@ -173,7 +168,6 @@ class _LocationPageState extends ConsumerState<LocationPage> {
         user_roleID: widget.user_roleID,
       );
 
-      print("validationResult " + validationResult.toString());
       if (validationResult == "EXISTING_ADDRESS") {
         setState(() {
           addressExists = true;
@@ -201,7 +195,6 @@ class _LocationPageState extends ConsumerState<LocationPage> {
         Toast(context, validationResult, false);
       }
     } catch (e) {
-      print("Erreur lors de la conversion de l'adresse : $e");
       Toast(context,
           "Impossible de trouver l'adresse, vérifiez les informations.", false);
     }

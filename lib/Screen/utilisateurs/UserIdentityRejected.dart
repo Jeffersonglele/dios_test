@@ -276,9 +276,7 @@ class _UserIdentityRejectedState extends ConsumerState<UserIdentityRejected> {
         'subject': 'Nouvelle identité en attente de vérification',
         'text': "Connectez-vous pour valider ou non l'utilisateur.",
       });
-      print('Email envoyé avec succès');
     } catch (e) {
-      print('Erreur lors de l\'envoi de l\'email: $e');
     }
   }
 
@@ -446,9 +444,6 @@ class _UserIdentityRejectedState extends ConsumerState<UserIdentityRejected> {
                           ),
                           onPressed: () async {
                             if (_userPhoto == null && _identityFile == null) {
-                              print("_userPhoto " + _userPhoto.toString());
-                              print(
-                                  "_identityFile " + _identityFile.toString());
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                     content: Text(

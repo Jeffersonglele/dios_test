@@ -101,12 +101,7 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
     final allD = await Dish.fetchDishesFromDB();
     final allR = await Restaurant.fetchRestaurantsFromDB();
 
-    print("loadOrders: ${allC.length} orders in local DB");
-    print(
-        "loadOrders: Current user ID = ${session.userId} (type: ${session.userId.runtimeType})");
     for (var i = 0; i < allC.length; i++) {
-      print(
-          "loadOrders: AllC[$i] - userID: ${allC[i].userID} (type: ${allC[i].userID.runtimeType}), restaurateurID: ${allC[i].restaurateurID} (type: ${allC[i].restaurateurID.runtimeType})");
     }
 
     final dn = <int, String>{};
@@ -120,31 +115,19 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
 
     var filtered = <Commande>[];
     for (var c in allC) {
-      print("loadOrders: Checking order #${c.commandeID}:");
       if (widget.showRestaurantOrders) {
-        print(
-            "loadOrders:   - c.restaurateurID (${c.restaurateurID}) == session.userId (${session.userId})? ${c.restaurateurID == session.userId}");
         if (c.restaurateurID == session.userId) {
           filtered.add(c);
         }
       } else {
-        print(
-            "loadOrders:   - c.userID (${c.userID}) == session.userId (${session.userId})? ${c.userID == session.userId}");
         if (c.userID == session.userId) {
           filtered.add(c);
         }
       }
     }
-    print(
-        "loadOrders: Filtered orders before status filter: ${filtered.length}");
-    print("loadOrders: Status filter = $statusFilter");
     if (statusFilter != null)
       filtered = filtered.where((c) => c.status == statusFilter).toList();
-    print(
-        "loadOrders: Filtered orders after status filter: ${filtered.length}");
     for (var i = 0; i < filtered.length; i++) {
-      print(
-          "loadOrders: Order $i - ID: ${filtered[i].commandeID}, userID: ${filtered[i].userID}, status: ${filtered[i].status}");
     }
     filtered.sort((a, b) => b.dateCommande.compareTo(a.dateCommande));
 
@@ -228,7 +211,6 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
             ),
           );
         }
-        print('Erreur updateStatus: $e');
       } finally {
         if (mounted) {
           setState(() => isLoading = false);
@@ -240,8 +222,6 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
   @override
   Widget build(BuildContext context) {
     final isSmallScreen = MediaQuery.of(context).size.width < 600;
-    print(
-        "UserOrdersPage.build(): widget.showRestaurantOrders = ${widget.showRestaurantOrders}");
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: AppBar(
@@ -562,7 +542,6 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
                 ),
               );
             } catch (e) {
-              print('Erreur navigation ChatScreen: $e');
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(

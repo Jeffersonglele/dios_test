@@ -97,8 +97,6 @@ class _DishDetailsMicroRestauState
 
       if (currentUser_restau == dish?.restauID) {
         restau_de_luser_connecte = true;
-        print(
-            "restau_de_luser_connecte " + restau_de_luser_connecte.toString());
       }
 
       if (current_dish != null) {
@@ -756,8 +754,6 @@ class _DishDetailsMicroRestauState
                                   }
                                 }
 
-                                print("current_dish!.dishID " +
-                                    current_dish!.dishID.toString());
                                 final addResult = await cartNotifier.addToCart(
                                   current_dish!.dishID,
                                   current_dish?.name ?? "Plat",
@@ -957,7 +953,6 @@ class _DishDetailsMicroRestauState
   List<Widget> _buildSelectableOptions(Dish dish) {
     List<String?> options = [dish.option1, dish.option2, dish.option3];
     List<Widget> widgets = [];
-    print("options " + options.toString());
 
     for (int i = 0; i < options.length; i++) {
       String? opt = options[i];

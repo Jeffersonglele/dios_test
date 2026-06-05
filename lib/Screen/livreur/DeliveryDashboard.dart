@@ -70,7 +70,6 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
         });
       }
     } catch (e) {
-      debugPrint('Erreur chargement: $e');
       if (mounted) {
         Toast(context, 'Erreur de chargement: $e', false);
         setState(() => isLoading = false);
@@ -100,9 +99,7 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
         });
       }
 
-      debugPrint('📦 Livraisons chargées: ${myDeliveries.length}');
     } catch (e) {
-      debugPrint('❌ Erreur chargement livraisons: $e');
     }
   }
 
@@ -118,7 +115,6 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
       _totalEarnings = deliveredCommandes.fold<double>(
           0, (sum, c) => sum + c.fraisLivraison);
     } catch (e) {
-      debugPrint('❌ Erreur chargement gains: $e');
     }
   }
 
@@ -137,7 +133,6 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
         });
       }
     } catch (e) {
-      debugPrint('❌ Erreur chargement statut: $e');
     }
   }
 
@@ -196,7 +191,6 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
         'lng': pos.longitude,
       });
     } catch (e) {
-      debugPrint('❌ Erreur envoi position: $e');
     }
   }
 
@@ -224,7 +218,6 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
         Toast(context, '❌ Erreur: ${response.error?.message}', false);
       }
     } catch (e) {
-      debugPrint('❌ Erreur mise à jour statut: $e');
       Toast(context, 'Erreur lors de la mise à jour', false);
     }
   }

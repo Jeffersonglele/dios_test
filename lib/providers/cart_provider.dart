@@ -133,7 +133,6 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
       _saveCart();
       return 'success';
     } catch (e) {
-      print('Erreur addToCart: $e');
       return 'error';
     }
   }
@@ -193,7 +192,6 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
         );
       }
     } catch (e) {
-      print('Erreur chargement panier: $e');
     }
   }
 

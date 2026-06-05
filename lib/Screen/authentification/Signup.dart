@@ -21,7 +21,6 @@ import '../../services/session_service.dart';
 import '../../widgets/auth_shell.dart';
 import '../verif_confirm/VerificationPage.dart';
 import 'Login.dart';
-import '../../utils/strings.dart';
 
 // ═══════════════════════════════════════════════════════════
 
@@ -258,7 +257,7 @@ class _SignUpViewState extends State<SignUpView> {
                   if (_selectedCountry == 'Bénin' && !isValidBeninLocalPhone(v))
                     return AppLocalizations.of(context)!.benin_phone_format;
                   if (phoneDigits(v).length != _phoneLengths[_selectedCountry]!)
-                    return Strings.get('${_phoneLengths[_selectedCountry]} chiffres', '${_phoneLengths[_selectedCountry]} digits');
+                    return '${_phoneLengths[_selectedCountry]} ${AppLocalizations.of(context)!.benin_phone_format}';
                   return null;
                 },
               );
@@ -396,7 +395,6 @@ class _SignUpViewState extends State<SignUpView> {
                     );
                   }
                 } else {
-                  debugPrint('Signup error: $result');
                   Toast(context, "Erreur : $result", false);
                 }
               },
@@ -449,7 +447,6 @@ class _SignUpViewState extends State<SignUpView> {
           Users.chooseCurvedNavigation(_signupRole, _selectedCountry, context);
         }
       } else {
-        debugPrint('Signup error: $result');
         Toast(context, 'Erreur : $result', false);
       }
     } finally {
@@ -946,8 +943,8 @@ class _TermsCheckbox extends StatelessWidget {
                 text: TextSpan(
                   style: AppTypography.bodyMedium(color: accepted ? AppColors.ink : AppColors.inkMuted),
                   children: [
-                    TextSpan(text: Strings.get('J\'accepte les ', 'I accept the ')),
-                    TextSpan(text: Strings.get('conditions d\'utilisation', 'terms of use'), style: TextStyle(color: AppColors.brand, decoration: TextDecoration.underline)),
+                    TextSpan(text: "J'accepte les "),
+                    TextSpan(text: "conditions d'utilisation", style: TextStyle(color: AppColors.brand, decoration: TextDecoration.underline)),
                   ],
                 ),
               ),

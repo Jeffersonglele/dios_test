@@ -1,3 +1,4 @@
+import 'package:dios_delices/core/app_role.dart';
 import 'package:dios_delices/providers/data_version_notifier.dart';
 import 'package:dios_delices/theme/app_theme.dart';
 import 'package:flutter/material.dart';
@@ -17,12 +18,14 @@ class RestaurantListPage extends StatefulWidget {
   _RestaurantListPageState createState() => _RestaurantListPageState();
 }
 
+enum _RestaurantStatus { all, pending, validated, rejected }
+
 class _RestaurantListPageState extends State<RestaurantListPage> {
   List<Map<String, dynamic>> filteredRestaurants = [];
   List<Users> users = [];
   List<Restaurant> restaus = [];
   bool isLoading = true;
-  bool showOnlyWaitingForValidation = false;
+  _RestaurantStatus filterStatus = _RestaurantStatus.all;
   String sortBy = 'Nom';
   String searchQuery = '';
 
@@ -77,15 +80,17 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
     if (mounted) loadData();
   }
 
-  void loadData() async {
+  Future<void> loadData() async {
     List<Users> usersList = await Users.fetchUsersFromDB();
     List<Restaurant> restausList = await Restaurant.fetchRestaurantsFromDB();
 
     setState(() {
       users = usersList;
       restaus = restausList;
-      _fetchRestaurantsByCountry();
+      filteredRestaurants = [];
+      isLoading = true;
     });
+    await _fetchRestaurantsByCountry();
   }
 
   Future<void> _fetchRestaurantsByCountry() async {
@@ -106,27 +111,49 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
     setState(() {
       sortBy = criterion;
       if (criterion == 'Nom') {
-        filteredRestaurants.sort((a, b) => b["restaurant"].name.compareTo(a["restaurant"].name));
-      } else       if (criterion == 'Note') {
-        filteredRestaurants.sort((a, b) => b["restaurant"].note.compareTo(a["restaurant"].note));
+        filteredRestaurants.sort((a, b) =>
+            (a["restaurant"] as Restaurant).name.compareTo((b["restaurant"] as Restaurant).name));
+      } else if (criterion == 'Note') {
+        filteredRestaurants.sort((a, b) =>
+            (a["restaurant"] as Restaurant).note.compareTo((b["restaurant"] as Restaurant).note));
       } else if (criterion == 'Commandes') {
         filteredRestaurants.sort((a, b) =>
-            b["restaurant"].nb_orders.compareTo(a["restaurant"].nb_orders));
+            (a["restaurant"] as Restaurant).nb_orders
+                .compareTo((b["restaurant"] as Restaurant).nb_orders));
       }
     });
   }
 
   List<Map<String, dynamic>> get _filteredList {
-    if (searchQuery.isEmpty) return filteredRestaurants;
-    return filteredRestaurants.where((item) {
-      final rest = item["restaurant"] as Restaurant;
-      return rest.name.toLowerCase().contains(searchQuery.toLowerCase());
-    }).toList();
+    var list = filteredRestaurants;
+    if (filterStatus == _RestaurantStatus.pending) {
+      list = list.where((item) {
+        final r = item["restaurant"] as Restaurant;
+        return r.valid != 1 && r.valid != 2;
+      }).toList();
+    } else if (filterStatus == _RestaurantStatus.validated) {
+      list = list.where((item) => (item["restaurant"] as Restaurant).valid == 1).toList();
+    } else if (filterStatus == _RestaurantStatus.rejected) {
+      list = list.where((item) => (item["restaurant"] as Restaurant).valid == 2).toList();
+    }
+    if (searchQuery.isNotEmpty) {
+      list = list.where((item) {
+        final rest = item["restaurant"] as Restaurant;
+        return rest.name.toLowerCase().contains(searchQuery.toLowerCase());
+      }).toList();
+    }
+    return list;
   }
 
   @override
   Widget build(BuildContext context) {
     final displayed = _filteredList;
+    final totalInList = filteredRestaurants.length;
+    final pendingCount = filteredRestaurants.where((i) {
+      final r = i["restaurant"] as Restaurant;
+      return r.valid != 1 && r.valid != 2;
+    }).length;
+    final validatedCount = filteredRestaurants.where((i) => (i["restaurant"] as Restaurant).valid == 1).length;
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -134,128 +161,185 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
         title: Text('Restaurants · ${widget.country}'),
         centerTitle: true,
       ),
-      body: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-            child: Row(children: [
-              Expanded(
-                child: Container(
+      body: RefreshIndicator(
+        onRefresh: loadData,
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              child: Row(children: [
+                Expanded(
+                  child: Container(
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: AppColors.card,
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: TextField(
+                      controller: _searchCtrl,
+                      onChanged: (v) => setState(() {}),
+                      style: AppTypography.bodyLarge().copyWith(fontSize: 14),
+                      decoration: InputDecoration(
+                        hintText: 'Rechercher un restaurant...',
+                        hintStyle: AppTypography.bodyMedium().copyWith(fontSize: 14),
+                        prefixIcon: Icon(Icons.search_rounded, color: AppColors.inkSubtle, size: 20),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
                   height: 44,
                   decoration: BoxDecoration(
                     color: AppColors.card,
                     borderRadius: BorderRadius.circular(AppRadius.md),
                     border: Border.all(color: AppColors.border),
                   ),
-                  child: TextField(
-                    controller: _searchCtrl,
-                    onChanged: (v) => setState(() {}),
-                    style: AppTypography.bodyLarge().copyWith(fontSize: 14),
-                    decoration: InputDecoration(
-                      hintText: 'Rechercher un restaurant...',
-                      hintStyle: AppTypography.bodyMedium().copyWith(fontSize: 14),
-                      prefixIcon: Icon(Icons.search_rounded, color: AppColors.inkSubtle, size: 20),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                  child: PopupMenuButton<String>(
+                    onSelected: _sortRestaurants,
+                    offset: const Offset(0, 44),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
+                    itemBuilder: (_) => {'Nom', 'Note', 'Commandes'}
+                        .map((c) => PopupMenuItem(value: c, child: Text(c)))
+                        .toList(),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Icon(Icons.sort_rounded, color: AppColors.inkMuted, size: 20),
                     ),
                   ),
                 ),
+              ]),
+            ),
+            SizedBox(
+              height: 40,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                children: [
+                  _buildChip('Tous', _RestaurantStatus.all),
+                  const SizedBox(width: 8),
+                  _buildChip('En attente', _RestaurantStatus.pending, count: pendingCount),
+                  const SizedBox(width: 8),
+                  _buildChip('Validé', _RestaurantStatus.validated, count: validatedCount),
+                  const SizedBox(width: 8),
+                  _buildChip('Rejeté', _RestaurantStatus.rejected),
+                ],
               ),
-              const SizedBox(width: 8),
-              Container(
-                height: 44,
-                decoration: BoxDecoration(
-                  color: AppColors.card,
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: PopupMenuButton<String>(
-                  onSelected: _sortRestaurants,
-                  offset: const Offset(0, 44),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: Row(children: [
+                Text('${displayed.length} / $totalInList restaurant(s)',
+                    style: AppTypography.bodyMedium().copyWith(fontSize: 12)),
+                const Spacer(),
+                if (pendingCount > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Text('$pendingCount en attente',
+                        style: AppTypography.labelMedium(color: AppColors.accent).copyWith(fontSize: 11)),
                   ),
-                  itemBuilder: (_) => {'Nom', 'Note', 'Commandes'}
-                      .map((c) => PopupMenuItem(value: c, child: Text(c)))
-                      .toList(),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Icon(Icons.sort_rounded, color: AppColors.inkMuted, size: 20),
-                  ),
-                ),
-              ),
-            ]),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: Row(children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                decoration: BoxDecoration(
-                  color: showOnlyWaitingForValidation
-                      ? AppColors.accentLight
-                      : AppColors.card,
-                  borderRadius: BorderRadius.circular(99),
-                  border: Border.all(
-                    color: showOnlyWaitingForValidation
-                        ? AppColors.accent
-                        : AppColors.border,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Switch(
-                      value: showOnlyWaitingForValidation,
-                      activeColor: AppColors.accent,
-                      onChanged: (v) => setState(() => showOnlyWaitingForValidation = v),
-                    ),
-                    Text('En attente', style: AppTypography.labelMedium().copyWith(fontSize: 12)),
-                    const SizedBox(width: 8),
-                  ],
-                ),
-              ),
-              const Spacer(),
-              Text('${displayed.length} restaurant(s)',
-                  style: AppTypography.bodyMedium().copyWith(fontSize: 12)),
-            ]),
-          ),
-          const SizedBox(height: 4),
-          Expanded(
-            child: isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : displayed.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.storefront_outlined,
-                                size: 64, color: AppColors.inkSubtle),
-                            const SizedBox(height: 12),
-                            Text('Aucun restaurant trouvé',
-                                style: AppTypography.bodyLarge(color: AppColors.inkMuted)),
-                          ],
+                if (validatedCount > 0)
+                  Text('$validatedCount validés',
+                      style: AppTypography.labelMedium(color: AppColors.success).copyWith(fontSize: 11)),
+              ]),
+            ),
+            const SizedBox(height: 4),
+            Expanded(
+              child: isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : displayed.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.storefront_outlined,
+                                  size: 64, color: AppColors.inkSubtle),
+                              const SizedBox(height: 12),
+                              Text('Aucun restaurant trouvé',
+                                  style: AppTypography.bodyLarge(color: AppColors.inkMuted)),
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: displayed.length,
+                          itemBuilder: (context, index) {
+                            final item = displayed[index];
+                            final restaurant = item["restaurant"] as Restaurant;
+                            final user = item["user"] as Users;
+                            return _buildRestaurantCard(restaurant, user);
+                          },
                         ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: displayed.length,
-                        itemBuilder: (context, index) {
-                          final item = displayed[index];
-                          final restaurant = item["restaurant"] as Restaurant;
-                          final user = item["user"] as Users;
-
-                          if (showOnlyWaitingForValidation && restaurant.valid == 1) {
-                            return const SizedBox.shrink();
-                          }
-
-                          return _buildRestaurantCard(restaurant, user);
-                        },
-                      ),
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  Widget _buildChip(String label, _RestaurantStatus status, {int? count}) {
+    final selected = filterStatus == status;
+    return GestureDetector(
+      onTap: () => setState(() => filterStatus = status),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.brandSurface : AppColors.card,
+          borderRadius: BorderRadius.circular(99),
+          border: Border.all(
+            color: selected ? AppColors.brand : AppColors.border,
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                color: selected ? AppColors.brand : AppColors.inkMuted,
+              ),
+            ),
+            if (count != null && count > 0) ...[
+              const SizedBox(width: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                decoration: BoxDecoration(
+                  color: selected ? AppColors.brand.withValues(alpha: 0.15) : AppColors.surfaceWarm,
+                  borderRadius: BorderRadius.circular(99),
+                ),
+                child: Text('$count',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: selected ? AppColors.brand : AppColors.inkSubtle)),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _roleBadge(int roleID) {
+    final role = AppRole.fromId(roleID);
+    if (role == AppRole.microRestaurant) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: AppColors.successLight,
+          borderRadius: BorderRadius.circular(99),
+        ),
+        child: Text('Propriétaire',
+            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.inkMuted)),
+      );
+    }
+    return const SizedBox.shrink();
   }
 
   Widget _buildRestaurantCard(Restaurant restaurant, Users user) {
@@ -355,6 +439,8 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
                       ],
                     ),
                   ),
+                  _roleBadge(user.roleID),
+                  const SizedBox(width: 4),
                   Icon(Icons.chevron_right_rounded, color: AppColors.inkSubtle, size: 20),
                 ]),
                 if (!isValid)

@@ -22,13 +22,11 @@ class DatabaseSeeder {
   }
 
   static Future<void> seed() async {
-    debugPrint('🌱 Seeding database...');
 
     for (final u in _users) {
       await _createUser(u);
     }
 
-    debugPrint('🌱 Seed terminé.');
   }
 
   static Future<void> _createUser(_SeedUser u) async {
@@ -39,19 +37,14 @@ class DatabaseSeeder {
     if (!signUpResp.success) {
       if (signUpResp.error?.code == 202) {
         // Déjà créé (via script REST ou manuellement)
-        debugPrint('  ⚡ ${u.username} existe déjà dans _User');
       } else {
-        debugPrint('  ⚠️ ${u.username} signUp impossible, essai login...');
         // Essai 2 : si l'utilisateur existe déjà (créé via REST/manuellement), on se connecte
         final loginResp = await parseUser.login();
         if (!loginResp.success) {
-          debugPrint('  ❌ ${u.username} login aussi échoué. Vérifie Back4App.');
           return;
         }
-        debugPrint('  🔑 ${u.username} connecté');
       }
     } else {
-      debugPrint('  ✅ ${u.username} _User créé');
     }
 
     // Maintenant authentifié → on crée l'enregistrement dans la table custom Users
@@ -76,12 +69,9 @@ class DatabaseSeeder {
 
       final resp = await obj.save();
       if (resp.success) {
-        debugPrint('  ✅ ${u.username} Users table');
       } else {
-        debugPrint('  ❌ ${u.username} Users: ${resp.error?.message}');
       }
     } catch (e) {
-      debugPrint('  ❌ ${u.username} Users: $e');
     }
   }
 

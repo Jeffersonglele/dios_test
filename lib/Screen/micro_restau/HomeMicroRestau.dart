@@ -9,7 +9,7 @@ import 'package:dios_delices/modeles/ligne_commande.dart';
 import 'package:dios_delices/modeles/restaurant.dart';
 import 'package:dios_delices/services/session_service.dart';
 import 'package:dios_delices/theme/app_theme.dart';
-import 'package:dios_delices/utils/strings.dart';
+import 'package:dios_delices/l10n/app_localizations.dart';
 import 'package:dios_delices/utils/toast.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -122,7 +122,7 @@ class _HomeMicroRestauState extends State<HomeMicroRestau> {
     final result = await Dish.updateDishStatus(dish.dishID, avail ? 1 : 0);
     if (!_isMounted) return;
     if (result == "success") {
-      Toast(context, '${Strings.get('Plat', 'Dish')} ${avail ? Strings.available : Strings.unavailable}.', true);
+      Toast(context, 'Dish ${avail ? AppLocalizations.of(context)!.available : AppLocalizations.of(context)!.unavailable}.', true);
       await Dish.getAllDishesDetails();
       await _loadDashboard();
     } else {
@@ -172,7 +172,7 @@ class _HomeMicroRestauState extends State<HomeMicroRestau> {
           backgroundColor: AppColors.brand,
           foregroundColor: Colors.white,
           icon: const Icon(Icons.add_rounded),
-          label: Text(isSmall ? Strings.get('Ajouter', 'Add') : Strings.addDish),
+          label: Text(isSmall ? 'Add' : AppLocalizations.of(context)!.addDish),
         ) : null,
       ),
     );
@@ -191,9 +191,9 @@ class _HomeMicroRestauState extends State<HomeMicroRestau> {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(Strings.get('Bonjour', 'Hello'), style: AppTypography.titleLarge().copyWith(color: Colors.white.withValues(alpha: 0.8), fontSize: isSmall ? 13 : 14)),
+            Text('Hello', style: AppTypography.titleLarge().copyWith(color: Colors.white.withValues(alpha: 0.8), fontSize: isSmall ? 13 : 14)),
             const SizedBox(height: 4),
-            Text(restaurant?.name ?? Strings.get('Votre restaurant', 'Your restaurant'), style: AppTypography.headlineMedium().copyWith(fontSize: isSmall ? 18 : 22, color: Colors.white), overflow: TextOverflow.ellipsis),
+            Text(restaurant?.name ?? AppLocalizations.of(context)!.myRestaurant, style: AppTypography.headlineMedium().copyWith(fontSize: isSmall ? 18 : 22, color: Colors.white), overflow: TextOverflow.ellipsis),
           ])),
           Container(
             width: 44, height: 44,
@@ -232,18 +232,18 @@ class _HomeMicroRestauState extends State<HomeMicroRestau> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(Strings.get('Vue d\'ensemble', 'Overview'), style: AppTypography.titleMedium()),
+        Text(AppLocalizations.of(context)!.overview, style: AppTypography.titleMedium()),
         const SizedBox(height: 12),
         Row(children: [
-          Expanded(child: _BigKpi(Strings.get('Cmd en attente', 'Pending'), '$pendingOrders', AppColors.accent)),
+          Expanded(child: _BigKpi(AppLocalizations.of(context)!.pending, '$pendingOrders', AppColors.accent)),
           const SizedBox(width: 12),
-          Expanded(child: _BigKpi(Strings.get('Cmd confirmées', 'Confirmed'), '$confirmedOrders', AppColors.success)),
+          Expanded(child: _BigKpi(AppLocalizations.of(context)!.confirmed, '$confirmedOrders', AppColors.success)),
         ]),
         const SizedBox(height: 12),
         Row(children: [
-          Expanded(child: _BigKpi(Strings.get('Revenus', 'Revenue'), '$revText $currency', AppColors.brand)),
+          Expanded(child: _BigKpi(AppLocalizations.of(context)!.revenue, '$revText $currency', AppColors.brand)),
           const SizedBox(width: 12),
-          Expanded(child: _BigKpi(Strings.get('Plats', 'Dishes'), '$availableDishes ${Strings.get('dispo', 'avail')}', AppColors.inkMuted)),
+          Expanded(child: _BigKpi(AppLocalizations.of(context)!.myProducts, '$availableDishes ${AppLocalizations.of(context)!.available}', AppColors.inkMuted)),
         ]),
       ]),
     );
@@ -274,16 +274,16 @@ class _HomeMicroRestauState extends State<HomeMicroRestau> {
         decoration: BoxDecoration(color: AppColors.card, borderRadius: BorderRadius.circular(AppRadius.lg), border: Border.all(color: AppColors.border, width: 0.5)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            Text(Strings.orders, style: AppTypography.titleMedium()),
+            Text(AppLocalizations.of(context)!.orders, style: AppTypography.titleMedium()),
             const Spacer(),
-            Text('$totalOrders ${Strings.total}', style: AppTypography.bodyMedium().copyWith(fontSize: 12, color: AppColors.inkMuted)),
+            Text('$totalOrders ${AppLocalizations.of(context)!.total}', style: AppTypography.bodyMedium().copyWith(fontSize: 12, color: AppColors.inkMuted)),
           ]),
           const SizedBox(height: 18),
-          _BarRow(Strings.pending, pendingOrders, totalOrders, AppColors.accent),
+          _BarRow(AppLocalizations.of(context)!.pending, pendingOrders, totalOrders, AppColors.accent),
           const SizedBox(height: 14),
-          _BarRow(Strings.confirmed, confirmedOrders, totalOrders, AppColors.success),
+          _BarRow(AppLocalizations.of(context)!.confirmed, confirmedOrders, totalOrders, AppColors.success),
           const SizedBox(height: 14),
-          _BarRow(Strings.get('Terminées', 'Completed'), (totalOrders - pendingOrders - confirmedOrders).clamp(0, 99999), totalOrders, AppColors.brand),
+          _BarRow(AppLocalizations.of(context)!.delivered, (totalOrders - pendingOrders - confirmedOrders).clamp(0, 99999), totalOrders, AppColors.brand),
         ]),
       ),
     );
@@ -329,7 +329,7 @@ class _HomeMicroRestauState extends State<HomeMicroRestau> {
           Row(children: [
             const Icon(Icons.local_fire_department_rounded, color: AppColors.accent, size: 18),
             const SizedBox(width: 6),
-            Text(Strings.get('Plats populaires', 'Popular dishes'), style: AppTypography.titleMedium()),
+            Text('Popular dishes', style: AppTypography.titleMedium()),
           ]),
           const SizedBox(height: 12),
           ...topDishes.map((d) => Padding(
@@ -344,7 +344,7 @@ class _HomeMicroRestauState extends State<HomeMicroRestau> {
               const SizedBox(width: 10),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(d.name ?? '', style: AppTypography.labelMedium(), maxLines: 1, overflow: TextOverflow.ellipsis),
-                Text('${d.nb_orders} ${Strings.orders}', style: AppTypography.bodyMedium().copyWith(fontSize: 11, color: AppColors.inkMuted)),
+                Text('${d.nb_orders} ${AppLocalizations.of(context)!.orders}', style: AppTypography.bodyMedium().copyWith(fontSize: 11, color: AppColors.inkMuted)),
               ])),
               Text('${d.price?.toStringAsFixed(2)} $currency', style: AppTypography.bodyLarge(color: AppColors.brand).copyWith(fontSize: 14)),
             ]),
@@ -360,13 +360,13 @@ class _HomeMicroRestauState extends State<HomeMicroRestau> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(Strings.get('Actions rapides', 'Quick actions'), style: AppTypography.titleMedium()),
+        Text(AppLocalizations.of(context)!.quickActions, style: AppTypography.titleMedium()),
         const SizedBox(height: 12),
         Wrap(spacing: 10, runSpacing: 10, children: [
-          _ActionChip(Icons.receipt_long_rounded, Strings.orders, () {
+          _ActionChip(Icons.receipt_long_rounded, AppLocalizations.of(context)!.orders, () {
             Navigator.push(context, MaterialPageRoute(builder: (_) => const UserOrdersPage(showRestaurantOrders: true)));
           }, isSmall: isSmall),
-          _ActionChip(Icons.store_mall_directory_outlined, Strings.get('Gérer', 'Manage'), () {
+          _ActionChip(Icons.store_mall_directory_outlined, 'Manage', () {
             if (restaurant == null) return;
             Navigator.push(context, MaterialPageRoute(builder: (_) => RestaurantDetails(restaurant_id: restaurant!.restaurantID))).then((_) {
               if (_isMounted) _refreshRemoteData();
@@ -386,12 +386,12 @@ class _HomeMicroRestauState extends State<HomeMicroRestau> {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(color: AppColors.card, borderRadius: BorderRadius.circular(AppRadius.xl), border: Border.all(color: AppColors.border, width: 0.5)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(Strings.get('Plats et portions', 'Dishes & portions'), style: AppTypography.titleMedium()),
+          Text('Dishes & portions', style: AppTypography.titleMedium()),
           const SizedBox(height: 4),
-          Text(Strings.get('Activez ou désactivez vos plats.', 'Toggle your dishes.'), style: AppTypography.bodyMedium()),
+          Text('Toggle your dishes.', style: AppTypography.bodyMedium()),
           const SizedBox(height: 12),
           if (dishes.isEmpty)
-            Text(Strings.get('Aucun plat enregistré.', 'No dishes registered.'), style: AppTypography.bodyMedium())
+            Text('No dishes registered.', style: AppTypography.bodyMedium())
           else
             ...dishes.take(6).map((dish) => Container(
               margin: const EdgeInsets.only(bottom: 8),
@@ -425,23 +425,23 @@ class _HomeMicroRestauState extends State<HomeMicroRestau> {
         const SizedBox(height: 40),
         Container(width: 100, height: 100, decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.12), shape: BoxShape.circle), child: const Icon(Icons.hourglass_bottom_rounded, color: AppColors.accent, size: 48)),
         const SizedBox(height: 28),
-        Text(Strings.pendingValidation, textAlign: TextAlign.center, style: AppTypography.headlineMedium().copyWith(fontSize: 20)),
+        Text(AppLocalizations.of(context)!.pendingValidation, textAlign: TextAlign.center, style: AppTypography.headlineMedium().copyWith(fontSize: 20)),
         const SizedBox(height: 12),
-        Text(Strings.get('Votre restaurant est en cours d\'examen. Vous pourrez gérer votre restaurant, ajouter des plats et recevoir des commandes dès qu\'il sera validé.', 'Your restaurant is under review. You will be able to manage your restaurant, add dishes and receive orders once validated.'), textAlign: TextAlign.center, style: AppTypography.bodyLarge(color: AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted))),
+        Text('Your restaurant is under review. You will be able to manage your restaurant, add dishes and receive orders once validated.', textAlign: TextAlign.center, style: AppTypography.bodyLarge(color: AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted))),
         const SizedBox(height: 32),
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(color: AppColors.resolve(AppColors.card, AppDarkColors.card), borderRadius: BorderRadius.circular(AppRadius.lg), border: Border.all(color: AppColors.resolve(AppColors.border, AppDarkColors.border), width: 0.5)),
           child: Column(children: [
-            _PRow(Icons.email_rounded, Strings.get('Vous serez notifié par email', 'You will be notified by email')),
+            _PRow(Icons.email_rounded, 'You will be notified by email'),
             const Divider(height: 24),
-            _PRow(Icons.restaurant_menu_rounded, Strings.get('Vous pourrez ajouter vos plats', 'You will be able to add dishes')),
+            _PRow(Icons.restaurant_menu_rounded, 'You will be able to add dishes'),
             const Divider(height: 24),
-            _PRow(Icons.receipt_long_rounded, Strings.get('Et recevoir des commandes', 'And receive orders')),
+            _PRow(Icons.receipt_long_rounded, 'And receive orders'),
           ]),
         ),
         const SizedBox(height: 40),
-        Text(restaurant?.name ?? Strings.get('Votre restaurant', 'Your restaurant'), style: AppTypography.titleMedium().copyWith(fontSize: 16, color: AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted))),
+        Text(restaurant?.name ?? AppLocalizations.of(context)!.myRestaurant, style: AppTypography.titleMedium().copyWith(fontSize: 16, color: AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted))),
       ]),
     );
   }
@@ -459,9 +459,9 @@ class _HomeMicroRestauState extends State<HomeMicroRestau> {
         const SizedBox(height: 60),
         Container(width: 80, height: 80, decoration: BoxDecoration(color: AppColors.brandSurface, shape: BoxShape.circle), child: const Icon(Icons.restaurant_rounded, color: AppColors.brand, size: 40)),
         const SizedBox(height: 20),
-        Text(Strings.get('Aucun restaurant', 'No restaurant'), style: AppTypography.headlineMedium().copyWith(fontSize: 20)),
+        Text(AppLocalizations.of(context)!.noRestaurant, style: AppTypography.headlineMedium().copyWith(fontSize: 20)),
         const SizedBox(height: 8),
-        Text(Strings.get('Créez votre restaurant pour commencer à vendre vos plats.', 'Create your restaurant to start selling your dishes.'), textAlign: TextAlign.center, style: AppTypography.bodyLarge(color: AppColors.inkMuted)),
+        Text(AppLocalizations.of(context)!.createRestaurantPrompt, textAlign: TextAlign.center, style: AppTypography.bodyLarge(color: AppColors.inkMuted)),
       ])),
     );
   }

@@ -52,7 +52,6 @@ class _NearMeMealsState extends State<NearMeMeals> {
         _applyFilters();
       }
     } catch (e) {
-      print('Erreur chargement plats: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;

@@ -35,7 +35,6 @@ class NotificationService {
 
   static void _onNotificationTapped(NotificationResponse response) {
     if (kDebugMode) {
-      debugPrint('Notification tapée: ${response.payload}');
     }
     // Ici vous pouvez naviguer vers une page spécifique
     // Par exemple, vers la page des commandes du restaurateur
@@ -110,7 +109,6 @@ class NotificationService {
       });
 
       if (kDebugMode) {
-        debugPrint('Notification de commande envoyée au restaurateur $restaurateurId');
       }
 
       await _showLocalNotification(
@@ -118,7 +116,6 @@ class NotificationService {
         body: 'Commande de $totalAmount € chez $restaurantName',
       );
     } catch (e) {
-      debugPrint('Erreur notification: $e');
     }
   }
 
@@ -143,7 +140,6 @@ class NotificationService {
         }
       }
     } catch (e) {
-      debugPrint('Erreur abonnement notifications: $e');
     }
   }
 }

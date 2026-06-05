@@ -49,6 +49,7 @@ class Users extends HiveObject {
   @HiveField(10)
   String country;
 
+  bool mustChangePassword;
   String? birthDate;
   bool consentRGPD;
   String? consentDate;
@@ -81,6 +82,7 @@ class Users extends HiveObject {
     required this.status,
     required this.identity,
     required this.addressID,
+    this.mustChangePassword = false,
     this.birthDate,
     this.consentRGPD = false,
     this.consentDate,
@@ -105,6 +107,7 @@ class Users extends HiveObject {
       'status': status,
       'identity': identity,
       'addressID': addressID,
+      'mustChangePassword': mustChangePassword,
       'birthDate': birthDate,
       'consentRGPD': consentRGPD,
       'consentDate': consentDate,
@@ -136,6 +139,8 @@ class Users extends HiveObject {
                   : null))
           : null,
       image: map['image']?.toString() ?? '',
+      mustChangePassword: map['mustChangePassword'] == true ||
+          map['mustChangePassword']?.toString() == 'true',
       birthDate: map['birthDate']?.toString(),
       consentRGPD: map['consentRGPD'] == true ||
           map['consentRGPD']?.toString() == 'true',
@@ -373,15 +378,14 @@ class Users extends HiveObject {
     }
   }
 
-  static Future<String> updatePassword(int userID, String newPassword) async {
-    // Déterminer le nom de la fonction cloud en fonction de l'opération
+  static Future<String> updatePassword(int userID, String newPassword, {bool? mustChangePassword}) async {
     String functionName = 'update1User';
     var cloudFunction = ParseCloudFunction(functionName);
 
-    // Construire les paramètres, y compris userID pour la mise à jour
     var params = <String, dynamic>{
       if (userID != null) 'userID': userID,
-      'password': newPassword
+      'password': newPassword,
+      if (mustChangePassword != null) 'mustChangePassword': mustChangePassword,
     };
 
     try {
@@ -402,7 +406,6 @@ class Users extends HiveObject {
         return "Erreur lors de l'appel de la fonction cloud : ${parseResponse.error?.message}";
       }
     } catch (e) {
-      print("Exception lors de l'appel de la fonction cloud : $e");
       return "Exception lors de l'appel de la fonction cloud : $e";
     }
   }
@@ -476,7 +479,6 @@ class Users extends HiveObject {
         return "Erreur lors de l'appel de la fonction cloud : ${parseResponse.error?.message}";
       }
     } catch (e) {
-      print("Exception lors de l'appel de la fonction cloud : $e");
       return "Exception lors de l'appel de la fonction cloud : $e";
     }
   }
@@ -549,11 +551,9 @@ class Users extends HiveObject {
           await DatabaseHelper.createUser(user);
         }
       } else {
-        print('Failed to retrieve users details: ${response.error?.message}');
         return false;
       }
     } catch (e) {
-      print('Error calling cloud function: $e');
       return false;
     }
     return true;
@@ -576,7 +576,6 @@ class Users extends HiveObject {
       }
       return null;
     } catch (e) {
-      print('loginUser error: $e');
       return null;
     }
   }

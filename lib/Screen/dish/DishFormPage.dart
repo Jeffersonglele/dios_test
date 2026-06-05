@@ -142,7 +142,6 @@ class _DishFormPageState extends ConsumerState<DishFormPage> {
         currentUser_restau = session.restaurantId ?? 0;
       });
     } catch (e) {
-      debugPrint("Erreur d'initialisation: $e");
     }
   }
 
@@ -247,7 +246,6 @@ class _DishFormPageState extends ConsumerState<DishFormPage> {
         Toast(context, "Erreur : $result", false);
       }
     } catch (e) {
-      debugPrint("Erreur submission: $e");
       if (mounted) {
         Toast(context, "Erreur technique : ${e.toString()}", false);
       }

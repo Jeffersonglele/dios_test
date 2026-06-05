@@ -41,7 +41,6 @@ class PromoService {
       }
       return null;
     } catch (e) {
-      print('Promo validation error: $e');
       return null;
     }
   }

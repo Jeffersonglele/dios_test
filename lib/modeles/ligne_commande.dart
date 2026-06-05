@@ -120,11 +120,9 @@ class LigneCommande extends HiveObject {
 
         return true;
       } else {
-        print("Erreur: ${response.error?.message}");
         return false;
       }
     } catch (e) {
-      print("Exception: $e");
       return false;
     }
   }

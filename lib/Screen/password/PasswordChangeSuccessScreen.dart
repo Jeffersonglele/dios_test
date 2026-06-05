@@ -1,6 +1,6 @@
+import 'package:dios_delices/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
-import '../../utils/strings.dart';
 import '../authentification/Login.dart';
 
 class PasswordChangeSuccessScreen extends StatelessWidget {
@@ -28,15 +28,15 @@ class PasswordChangeSuccessScreen extends StatelessWidget {
                 child: const Icon(Icons.check_rounded, color: AppColors.success, size: 48),
               ),
               const SizedBox(height: 28),
-              Text(Strings.get('Mot de passe réinitialisé !', 'Password reset!'), style: AppTypography.headlineMedium(), textAlign: TextAlign.center),
+              Text('Password reset!', style: AppTypography.headlineMedium(), textAlign: TextAlign.center),
               const SizedBox(height: 12),
-              Text(Strings.get('Votre mot de passe a été changé avec succès. Vous pouvez maintenant vous connecter.', 'Your password has been changed successfully. You can now log in.'), style: AppTypography.bodyLarge(color: inkMuted), textAlign: TextAlign.center),
+              Text('Your password has been changed successfully. You can now log in.', style: AppTypography.bodyLarge(color: inkMuted), textAlign: TextAlign.center),
               const SizedBox(height: 32),
               SizedBox(width: double.infinity, height: 56,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(backgroundColor: AppColors.brand, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg))),
                   onPressed: () => Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const Login()), (_) => false),
-                  child: Text(Strings.get('Se connecter', 'Log in'), style: AppTypography.labelMedium(color: Colors.white)),
+                  child: Text(AppLocalizations.of(context)!.login, style: AppTypography.labelMedium(color: Colors.white)),
                 )),
             ]),
           ),

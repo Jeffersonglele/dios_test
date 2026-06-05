@@ -24,6 +24,7 @@ import '../verif_confirm/StatusSelectionPage.dart';
 import '../restaurants/RestaurantUpdateFormPage.dart';
 import '../restaurants/WaitRestaurantValidation.dart';
 import '../password/EmailInputScreen.dart';
+import '../password/FirstLoginPasswordChange.dart';
 import '../verif_confirm/VerificationPage.dart';
 import '../../widgets/animations.dart';
 import '../../widgets/auth_shell.dart';
@@ -48,10 +49,12 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   late final AnimationController _btnCtrl;
   late final Animation<double> _btnFade;
   bool _showButton = false;
+  bool _isAdmin = false;
 
   @override
   void initState() {
     super.initState();
+    _loadRole();
 
     _textCtrl = AnimationController(
       vsync: this,
@@ -95,16 +98,23 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     super.dispose();
   }
 
+  Future<void> _loadRole() async {
+    final session = await SessionService.readSession();
+    if (mounted) {
+      setState(() => _isAdmin = session.role.isAdmin);
+    }
+  }
+
   Future<void> _continue() async {
     final session = await SessionService.readSession();
     if (mounted) {
+      await Users.updateDerniereConnexion(session.userId);
       Users.chooseCurvedNavigation(session.role.id, session.country, context);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       backgroundColor: AppColors.resolve(AppColors.surfaceWarm, AppDarkColors.surfaceWarm),
       body: OrderConfettiCelebration(
@@ -142,13 +152,15 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                       child: Column(
                         children: [
                           Text(
-                            'Bienvenue !',
+                            _isAdmin ? 'Bienvenue Admin !' : 'Bienvenue !',
                             style: AppTypography.headlineLarge(),
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: AppSpacing.sm),
                           Text(
-                            'Votre compte a été créé avec succès.\nDécouvrez les meilleurs plats faits maison près de chez vous.',
+                            _isAdmin
+                                ? 'Votre compte administrateur a été créé avec succès.\nVous pouvez maintenant gérer la plateforme.'
+                                : 'Votre compte a été créé avec succès.\nDécouvrez les meilleurs plats faits maison près de chez vous.',
                             style: AppTypography.bodyLarge(
                               color: AppColors.inkMuted,
                             ),
@@ -256,6 +268,11 @@ class _LoginState extends ConsumerState<Login> {
         country: user.country,
       );
 
+      if (user.mustChangePassword) {
+        if (mounted) Navigator.push(context, CupertinoPageRoute(builder: (_) => FirstLoginPasswordChange(user: user)));
+        return;
+      }
+
       if (role.isAdmin) {
         _firstLogin(user);
       } else if (user.status == 'Verified') {
@@ -264,7 +281,6 @@ class _LoginState extends ConsumerState<Login> {
         _redirectToVerification(user);
       }
     } catch (e) {
-      debugPrint('Login error: $e');
       if (mounted)
         Toast(context, 'Erreur de connexion. Vérifiez votre réseau.', false);
       _onLoginFailed();
@@ -397,12 +413,9 @@ class _LoginState extends ConsumerState<Login> {
 
   Future<void> _firstLogin(Users user) async {
     NotificationService.subscribeToRestaurantNotifications();
-    final prefs = await SharedPreferences.getInstance();
-    final key = 'has_seen_welcome_${user.userID}';
-    final seen = prefs.getBool(key) ?? false;
+    final isFirst = user.last_login == null;
 
-    if (!seen) {
-      await prefs.setBool(key, true);
+    if (isFirst) {
       if (mounted) {
         Navigator.push(
           context,

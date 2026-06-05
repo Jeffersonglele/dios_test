@@ -360,11 +360,9 @@ class Dish extends HiveObject {
           await DatabaseHelper.createDish(dish);
         }
       } else {
-        print('Failed to retrieve dish details: ${response.error?.message}');
         return false;
       }
     } catch (e) {
-      print('Error calling cloud function: $e');
       return false;
     }
     return true;

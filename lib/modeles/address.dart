@@ -103,7 +103,6 @@ class Address extends HiveObject {
       'long': long,
     };
 
-    print("params " + params.toString());
 
     try {
       final ParseResponse parseResponse = await cloudFunction.execute(parameters: params);
@@ -188,11 +187,9 @@ class Address extends HiveObject {
           await DatabaseHelper.createAddress(address);
         }
       } else {
-        print('Failed to retrieve address details: ${response.error?.message}');
         return false;
       }
     } catch (e) {
-      print('Error calling cloud function: $e');
       return false;
     }
     return true;
@@ -204,8 +201,6 @@ class Address extends HiveObject {
   }
 
   static Address? getAddressByObject(List<Address> listAddresses, String object, int objectID) {
-    print("object " + object);
-    print("objectID " + objectID.toString());
     try {
       return listAddresses.firstWhere((address) => address.object == object && address.objectID == objectID);
     } catch (e) {

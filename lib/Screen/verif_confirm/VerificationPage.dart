@@ -13,6 +13,7 @@ import '../../components/showConfetti.dart';
 import '../../utils/toast.dart';
 import '../../widgets/brand_avatar_logo.dart';
 import '../AnimatedSplashScreen.dart';
+import '../../theme/app_theme.dart';
 
 class VerificationPage extends StatefulWidget {
   final String email;
@@ -94,7 +95,6 @@ class _VerificationPageState extends State<VerificationPage> {
     try {
       return await sendVerificationEmail(context, widget.email);
     } catch (e) {
-      print("Erreur lors de l'envoi du mail : $e");
       return false;
     }
   }
@@ -134,22 +134,7 @@ class _VerificationPageState extends State<VerificationPage> {
     var size = MediaQuery.of(context).size;
 
     return Scaffold(
-      appBar: AppBar(
-        actions: [
-          TextButton(
-            onPressed: () async {
-              await SessionService.clearAll();
-              if (!mounted) return;
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => const AnimatedSplashScreen()),
-              );
-            },
-            child: Text("Déconnexion",
-                style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
-          ),
-        ],
-      ),
+      backgroundColor: AppColors.surface,
       body: SingleChildScrollView(
           child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -157,6 +142,35 @@ class _VerificationPageState extends State<VerificationPage> {
             ? MainAxisAlignment.center
             : MainAxisAlignment.start,
         children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 12, left: 4),
+            child: Row(
+              children: [
+                TextButton.icon(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.arrow_back_ios, size: 18),
+                  label: const Text('Retour'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.ink,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
+                ),
+                const Spacer(),
+                TextButton(
+                  onPressed: () async {
+                    await SessionService.clearAll();
+                    if (!mounted) return;
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (_) => const AnimatedSplashScreen()),
+                    );
+                  },
+                  child: Text("Déconnexion",
+                      style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
+                ),
+              ],
+            ),
+          ),
           SizedBox(height: 5),
           size.width > 600
               ? Container() // N'affiche pas l'avatar sur les grands écrans
@@ -290,32 +304,18 @@ class _VerificationPageState extends State<VerificationPage> {
                               role: AppRole.fromId(widget.roleID),
                               country: country,
                             );
-                            await Users.updateDerniereConnexion(widget.userID);
 
                             if (!mounted) return;
 
                             Toast(context, "Vérification réussie", true);
 
-                            final welcomeKey = 'has_seen_welcome_${widget.userID}';
-                            final hasSeenWelcome = prefs.getBool(welcomeKey) ?? false;
-
-                            if (!hasSeenWelcome) {
-                              await prefs.setBool(welcomeKey, true);
-                              if (!mounted) return;
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => WelcomeScreen(),
-                                ),
-                              );
-                            } else {
-                              if (!mounted) return;
-                              Users.chooseCurvedNavigation(
-                                widget.roleID,
-                                country,
-                                context,
-                              );
-                            }
+                            if (!mounted) return;
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => WelcomeScreen(),
+                              ),
+                            );
                           } catch (e) {
                             if (!mounted) return;
 
