@@ -107,6 +107,11 @@ class DatabaseHelper {
     return null; // Retourner null si l'utilisateur n'est pas trouvé
   }
 
+  static Future<Users?> getUser(int userID) async {
+    final Box<Users> usersBox = await Hive.openBox<Users>('users');
+    return usersBox.get(userID);
+  }
+
   static Future<List<Users>> readAllUserss() async {
     final Box<Users> usersBox = await Hive.openBox<Users>('users');
     List<Users> usersList = usersBox.values.toList();

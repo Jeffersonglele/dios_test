@@ -295,8 +295,12 @@ class _LoginState extends ConsumerState<Login> {
     user = await Users.loginUser(_nameCtrl.text, _passwordCtrl.text);
     if (user != null) {
       await DatabaseHelper.createUser(user);
+      await Users.getAllUsersDetails(adminUserID: user.userID);
       final fresh = await Users.fetchUsersFromDB();
       if (mounted) setState(() => _users = fresh);
+      for (final u in fresh) {
+        if (u.userID == user.userID) return u;
+      }
       return user;
     }
 
@@ -413,7 +417,15 @@ class _LoginState extends ConsumerState<Login> {
 
   Future<void> _firstLogin(Users user) async {
     NotificationService.subscribeToRestaurantNotifications();
-    final isFirst = user.last_login == null;
+
+    final localUser = await DatabaseHelper.getUser(user.userID);
+    final lastLogin = localUser?.last_login ?? user.last_login;
+    final isFirst = lastLogin == null;
+
+    print(user);
+    print(localUser?.last_login.toString());
+    print(lastLogin);
+    print(isFirst);
 
     if (isFirst) {
       if (mounted) {
