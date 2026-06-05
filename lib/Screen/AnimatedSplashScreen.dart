@@ -283,42 +283,34 @@ class _SplashView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              AppColors.brandLight,
-              AppColors.brand,
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.lg,
-              vertical: AppSpacing.lg,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  AppColors.brandLight,
+                  AppColors.brand,
+                ],
+              ),
             ),
-            child: SizedBox(
-              height: (MediaQuery.of(context).size.height -
-                      MediaQuery.of(context).padding.top -
-                      MediaQuery.of(context).padding.bottom -
-                      2 * AppSpacing.lg)
-                  .clamp(0.0, double.infinity),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const Spacer(flex: 3),
+            child: SizedBox.expand(),
+          ),
+          SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Spacer(flex: 3),
 
-                  // ── Logo animé ─────────────────────────────
-                  AnimatedBuilder(
-                    animation:
-                        Listenable.merge([splashController, pulseController]),
+                Center(
+                  child: AnimatedBuilder(
+                    animation: Listenable.merge([splashController, pulseController]),
                     builder: (context, child) {
                       final introFinished = splashController.value >= 0.55;
-                      final scale =
-                          introFinished ? pulse.value : logoScale.value;
+                      final scale = introFinished ? pulse.value : logoScale.value;
                       final opacity = introFinished
                           ? 1.0
                           : logoOpacity.value.clamp(0.0, 1.0);
@@ -329,24 +321,25 @@ class _SplashView extends StatelessWidget {
                     },
                     child: const _SplashLogo(),
                   ),
+                ),
 
-                  const Spacer(flex: 3),
+                const Spacer(flex: 3),
 
-                  // ── Slogan + loader ─────────────────────────
-                  FadeTransition(
+                Center(
+                  child: FadeTransition(
                     opacity: textOpacity,
                     child: SlideTransition(
                       position: textSlide,
                       child: _SplashTagline(isLoading: isLoading),
                     ),
                   ),
+                ),
 
-                  const Spacer(flex: 2),
-                ],
-              ),
+                const Spacer(flex: 2),
+              ],
             ),
           ),
-        ),
+        ],
       ),
     );
   }
