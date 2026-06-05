@@ -499,7 +499,7 @@ class _LoginState extends ConsumerState<Login> {
                   if (v == null || v.isEmpty)
                     return AppLocalizations.of(context)!.enter_username;
                   if (v.length < 4) return AppLocalizations.of(context)!.min_4_chars;
-                  if (v.length > 18) return AppLocalizations.of(context)!.max_18_chars;
+                  if (v.length > 80) return 'Trop long (max 80 caractères)';
                   return null;
                 },
               );
