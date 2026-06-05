@@ -263,7 +263,7 @@
 - [ ] **Typographie** : `google_fonts` déjà importé, standardiser les styles
 - [ ] **Iconographie** : `font_awesome_flutter` déjà importé
 - [ ] **Responsive** : `size.width > 600` utilisé pour desktop, tester tablettes
-- [ ] **i18n** : `Strings.of('key')` supporte le Français. Ajouter Anglais si besoin.
+- [ ] **l10n** : Français + Anglais 
 
 ---
 

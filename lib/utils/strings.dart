@@ -283,12 +283,12 @@ class Strings {
       case 'verification_code': return get('Code de vérification', 'Verification code');
       case 'same_password_error': return get('Le nouveau mot de passe est identique à l\'actuel', 'New password is same as current');
       // Onboarding steps
-      case 'onboarding_step_1_title': return get('Des plats faits maison', 'Homemade dishes');
+      case 'onboarding_step_1_title': return get('Découvrez les saveurs maison près de vous', 'Homemade dishes');
       case 'onboarding_step_1_body': return get('Découvrez les meilleurs plats faits maison près de chez vous, préparés avec passion.', 'Discover the best homemade dishes near you, made with passion.');
-      case 'onboarding_step_2_title': return get('Livraison rapide', 'Fast delivery');
-      case 'onboarding_step_2_body': return get('Commandez en quelques clics et faites-vous livrer rapidement où que vous soyez.', 'Order in a few clicks and get fast delivery wherever you are.');
-      case 'onboarding_step_3_title': return get('Devenez restaurateur', 'Become a home chef');
-      case 'onboarding_step_3_body': return get('Partagez vos talents culinaires et vendez vos plats maison sur Dios Délices.', 'Share your culinary talents and sell your homemade dishes on Dios Délices.');
+      case 'onboarding_step_2_title': return get('Commandez simplement, où que vous soyez', 'Fast delivery');
+      case 'onboarding_step_2_body': return get('Parcourez les menus, suivez votre panier et retrouvez rapidement vos plats favoris.', 'Order in a few clicks and get fast delivery wherever you are.');
+      case 'onboarding_step_3_title': return get('Vendez vos plats en toute confiance', 'Become a home chef');
+      case 'onboarding_step_3_body': return get('Créez votre espace restaurant, publiez vos plats et gérez les commandes depuis l\'app.', 'Share your culinary talents and sell your homemade dishes on Dios Délices.');
       default: return fallback ?? key;
     }
   }

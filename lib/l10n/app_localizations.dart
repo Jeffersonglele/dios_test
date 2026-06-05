@@ -1135,6 +1135,160 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This account is being deleted.'**
   String get accountBeingDeleted;
+
+  /// No description provided for @splash_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Homemade dishes, delivered to you'**
+  String get splash_subtitle;
+
+  /// No description provided for @splash_loading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading...'**
+  String get splash_loading;
+
+  /// No description provided for @onboarding_step_1_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Discover homemade flavors near you'**
+  String get onboarding_step_1_title;
+
+  /// No description provided for @onboarding_step_1_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Discover the best homemade dishes near you, prepared with passion.'**
+  String get onboarding_step_1_body;
+
+  /// No description provided for @onboarding_step_2_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Order easily, wherever you are'**
+  String get onboarding_step_2_title;
+
+  /// No description provided for @onboarding_step_2_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse menus, track your cart, and quickly find your favorite dishes.'**
+  String get onboarding_step_2_body;
+
+  /// No description provided for @onboarding_step_3_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Sell your dishes with confidence'**
+  String get onboarding_step_3_title;
+
+  /// No description provided for @onboarding_step_3_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Create your restaurant space, publish your dishes, and manage orders from the app.'**
+  String get onboarding_step_3_body;
+
+  // ── Clés supplémentaires ──
+  String get already_have_account;
+  String get signup_title;
+  String get signup_subtitle;
+  String get login_title;
+  String get login_subtitle;
+  String get login_failed;
+  String get dont_have_account;
+  String get firstname;
+  String get enter_firstname;
+  String get lastname;
+  String get enter_lastname;
+  String get enter_username;
+  String get enter_valid_email;
+  String get phone_number;
+  String get enter_phone;
+  String get benin_phone_format;
+  String get new_password;
+  String get confirm_password;
+  String get confirm_password_required;
+  String get passwords_do_not_match;
+  String get enter_password;
+  String get min_4_chars;
+  String get min_6_chars;
+  String get max_18_chars;
+  String get username_or_email;
+  String get user_not_found;
+  String get forgotten_password;
+  String get forgotten_password_title;
+  String get forgotten_password_subtitle;
+  String get reset_password;
+  String get reset_password_title;
+  String get reset_password_subtitle;
+  String get no_account_for_email;
+  String get reset_code_send_failed;
+  String get reset_code_sent;
+  String get invalid_or_expired_code;
+  String get verify_code;
+  String get verify_email;
+  String get internet_required;
+  String get next;
+  String get start;
+  String get skip;
+
+  /// Lookup dynamique par clé (pour onboarding entre autres)
+  String localized(String key) {
+    switch (key) {
+      case 'splash_subtitle': return splash_subtitle;
+      case 'splash_loading': return splash_loading;
+      case 'onboarding_step_1_title': return onboarding_step_1_title;
+      case 'onboarding_step_1_body': return onboarding_step_1_body;
+      case 'onboarding_step_2_title': return onboarding_step_2_title;
+      case 'onboarding_step_2_body': return onboarding_step_2_body;
+      case 'onboarding_step_3_title': return onboarding_step_3_title;
+      case 'onboarding_step_3_body': return onboarding_step_3_body;
+      case 'start': return start;
+      case 'skip': return skip;
+      case 'next': return next;
+      case 'login': return login;
+      case 'login_title': return login_title;
+      case 'login_subtitle': return login_subtitle;
+      case 'login_failed': return login_failed;
+      case 'signup': return signup;
+      case 'signup_title': return signup_title;
+      case 'signup_subtitle': return signup_subtitle;
+      case 'dont_have_account': return dont_have_account;
+      case 'firstname': return firstname;
+      case 'enter_firstname': return enter_firstname;
+      case 'lastname': return lastname;
+      case 'enter_lastname': return enter_lastname;
+      case 'username': return username;
+      case 'enter_username': return enter_username;
+      case 'email': return email;
+      case 'enter_valid_email': return enter_valid_email;
+      case 'phone_number': return phone_number;
+      case 'enter_phone': return enter_phone;
+      case 'benin_phone_format': return benin_phone_format;
+      case 'password': return password;
+      case 'new_password': return new_password;
+      case 'confirm_password': return confirm_password;
+      case 'confirm_password_required': return confirm_password_required;
+      case 'passwords_do_not_match': return passwords_do_not_match;
+      case 'enter_password': return enter_password;
+      case 'min_4_chars': return min_4_chars;
+      case 'min_6_chars': return min_6_chars;
+      case 'max_18_chars': return max_18_chars;
+      case 'username_or_email': return username_or_email;
+      case 'user_not_found': return user_not_found;
+      case 'forgotten_password': return forgotten_password;
+      case 'forgotten_password_title': return forgotten_password_title;
+      case 'forgotten_password_subtitle': return forgotten_password_subtitle;
+      case 'reset_password': return reset_password;
+      case 'reset_password_title': return reset_password_title;
+      case 'reset_password_subtitle': return reset_password_subtitle;
+      case 'already_have_account': return already_have_account;
+      case 'no_account_for_email': return no_account_for_email;
+      case 'reset_code_send_failed': return reset_code_send_failed;
+      case 'reset_code_sent': return reset_code_sent;
+      case 'invalid_or_expired_code': return invalid_or_expired_code;
+      case 'verify_code': return verify_code;
+      case 'verify_email': return verify_email;
+      case 'internet_required': return internet_required;
+      default: return key;
+    }
+  }
 }
 
 class _AppLocalizationsDelegate
@@ -1155,7 +1309,6 @@ class _AppLocalizationsDelegate
 }
 
 AppLocalizations lookupAppLocalizations(Locale locale) {
-  // Lookup logic when only language code is specified.
   switch (locale.languageCode) {
     case 'en':
       return AppLocalizationsEn();

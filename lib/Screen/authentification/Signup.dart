@@ -11,7 +11,7 @@ import '../../core/app_role.dart';
 import '../../modeles/users.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/phone_number.dart';
-import '../../utils/strings.dart';
+import '../../l10n/app_localizations.dart';
 import '../../utils/toast.dart';
 import '../legal/CGVPage.dart';
 import '../legal/LegalPage.dart';
@@ -21,6 +21,7 @@ import '../../services/session_service.dart';
 import '../../widgets/auth_shell.dart';
 import '../verif_confirm/VerificationPage.dart';
 import 'Login.dart';
+import '../../utils/strings.dart';
 
 // ═══════════════════════════════════════════════════════════
 
@@ -83,11 +84,12 @@ class _SignUpViewState extends State<SignUpView> {
   // ── Build ─────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
+
     return GestureDetector(
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
       child: AuthShell(
-        title: Strings.of('signup_title'),
-        subtitle: Strings.of('signup_subtitle'),
+        title: AppLocalizations.of(context)!.signup_title,
+        subtitle: AppLocalizations.of(context)!.signup_subtitle,
         form: _buildForm(),
         footer: _buildFooter(),
       ),
@@ -108,11 +110,11 @@ class _SignUpViewState extends State<SignUpView> {
       },
       child: RichText(
         text: TextSpan(
-          text: Strings.of('already_have_account'),
+          text: AppLocalizations.of(context)!.already_have_account,
           style: AppTypography.bodyLarge(color: AppColors.inkMuted),
           children: [
             TextSpan(
-              text: '  ${Strings.of('login')}',
+              text: '  ${AppLocalizations.of(context)!.login}',
               style: AppTypography.bodyLarge(color: AppColors.brand).copyWith(
                 fontWeight: FontWeight.w700,
               ),
@@ -158,18 +160,18 @@ class _SignUpViewState extends State<SignUpView> {
               Expanded(
                 child: _FormField(
                   controller: _firstnameCtrl,
-                  hint: Strings.of('firstname'),
+                  hint: AppLocalizations.of(context)!.firstname,
                   validator:
-                      _minLengthValidator(4, Strings.of('enter_firstname')),
+                      _minLengthValidator(4, AppLocalizations.of(context)!.enter_firstname),
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: _FormField(
                   controller: _lastnameCtrl,
-                  hint: Strings.of('lastname'),
+                  hint: AppLocalizations.of(context)!.lastname,
                   validator:
-                      _minLengthValidator(4, Strings.of('enter_lastname')),
+                      _minLengthValidator(4, AppLocalizations.of(context)!.enter_lastname),
                 ),
               ),
             ],
@@ -177,9 +179,9 @@ class _SignUpViewState extends State<SignUpView> {
           const SizedBox(height: AppSpacing.sm),
           _FormField(
             controller: _usernameCtrl,
-            hint: Strings.of('username'),
+            hint: AppLocalizations.of(context)!.username,
             prefixIcon: Icons.alternate_email_rounded,
-            validator: _minLengthValidator(4, Strings.of('enter_username')),
+            validator: _minLengthValidator(4, AppLocalizations.of(context)!.enter_username),
           ),
 
           const SizedBox(height: AppSpacing.xl),
@@ -192,11 +194,11 @@ class _SignUpViewState extends State<SignUpView> {
           const SizedBox(height: AppSpacing.sm),
           _FormField(
             controller: _emailCtrl,
-            hint: Strings.of('email'),
+            hint: AppLocalizations.of(context)!.email,
             prefixIcon: Icons.email_outlined,
             keyboardType: TextInputType.emailAddress,
             validator: (v) => !EmailValidator.validate(v ?? '')
-                ? Strings.of('enter_valid_email')
+                ? AppLocalizations.of(context)!.enter_valid_email
                 : null,
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -249,12 +251,12 @@ class _SignUpViewState extends State<SignUpView> {
                   prefixIcon: const Icon(Icons.phone_outlined),
                   hintText: _selectedCountry == 'Bénin'
                       ? '01 xx xx xx xx'
-                      : Strings.of('phone_number'),
+                      : AppLocalizations.of(context)!.phone_number,
                 ),
                 validator: (v) {
-                  if (v == null || v.isEmpty) return Strings.of('enter_phone');
+                  if (v == null || v.isEmpty) return AppLocalizations.of(context)!.enter_phone;
                   if (_selectedCountry == 'Bénin' && !isValidBeninLocalPhone(v))
-                    return Strings.of('benin_phone_format');
+                    return AppLocalizations.of(context)!.benin_phone_format;
                   if (phoneDigits(v).length != _phoneLengths[_selectedCountry]!)
                     return Strings.get('${_phoneLengths[_selectedCountry]} chiffres', '${_phoneLengths[_selectedCountry]} digits');
                   return null;
@@ -281,7 +283,7 @@ class _SignUpViewState extends State<SignUpView> {
                 obscureText: _simpleUIController.isObscure,
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.lock_outline_rounded),
-                  hintText: Strings.of('password'),
+                  hintText: AppLocalizations.of(context)!.password,
                   suffixIcon: IconButton(
                     icon: Icon(_simpleUIController.isObscure
                         ? Icons.visibility_off_outlined
@@ -313,7 +315,7 @@ class _SignUpViewState extends State<SignUpView> {
                 obscureText: _simpleUIController.isObscure,
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.lock_outline_rounded),
-                  hintText: Strings.of('confirm_password'),
+                  hintText: AppLocalizations.of(context)!.confirm_password,
                   suffixIcon: IconButton(
                     icon: Icon(_simpleUIController.isObscure
                         ? Icons.visibility_off_outlined
@@ -323,9 +325,9 @@ class _SignUpViewState extends State<SignUpView> {
                 ),
                 validator: (v) {
                   if (v == null || v.isEmpty)
-                    return Strings.of('confirm_password_required');
+                    return AppLocalizations.of(context)!.confirm_password_required;
                   if (v != _passwordCtrl.text)
-                    return Strings.of('passwords_do_not_match');
+                    return AppLocalizations.of(context)!.passwords_do_not_match;
                   return null;
                 },
               );
@@ -403,7 +405,7 @@ class _SignUpViewState extends State<SignUpView> {
                   Toast(context, "Erreur : $result", false);
                 }
               },
-              child: Text(Strings.of('signup')),
+              child: Text(AppLocalizations.of(context)!.signup),
             ),
           ),
         ],
@@ -464,7 +466,7 @@ class _SignUpViewState extends State<SignUpView> {
   String? Function(String?) _minLengthValidator(int min, String emptyMsg) {
     return (v) {
       if (v == null || v.isEmpty) return emptyMsg;
-      if (v.length < min) return Strings.of('min_4_chars');
+      if (v.length < min) return AppLocalizations.of(context)!.min_4_chars;
       return null;
     };
   }
@@ -494,6 +496,7 @@ class _RoleSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
@@ -540,6 +543,7 @@ class _RoleTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
@@ -605,6 +609,7 @@ class _VehicleSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -688,6 +693,7 @@ class _SectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+
     return Row(
       children: [
         Container(
@@ -738,6 +744,7 @@ class _FormField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+
     final colorScheme = Theme.of(context).colorScheme;
     return TextFormField(
       controller: controller,
@@ -812,6 +819,7 @@ class _PasswordStrengthIndicatorState
 
   @override
   Widget build(BuildContext context) {
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
@@ -871,6 +879,7 @@ class _Criterion extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -911,6 +920,7 @@ class _TermsCheckbox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+
     return GestureDetector(
       onTap: () => onChanged(!accepted),
       child: Row(
@@ -992,6 +1002,7 @@ class _PasswordRequirementsState extends State<_PasswordRequirements> {
 
   @override
   Widget build(BuildContext context) {
+
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       _req(_hasMin, '8 caractères'),
       const SizedBox(height: 4),

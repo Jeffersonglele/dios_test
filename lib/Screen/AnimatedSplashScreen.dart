@@ -12,7 +12,7 @@ import '../services/session_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/toast.dart';
 import '../widgets/brand_avatar_logo.dart';
-import '../utils/strings.dart';
+import '../l10n/app_localizations.dart';
 import 'verif_confirm/VerificationPage.dart';
 
 // ═══════════════════════════════════════════════════════════
@@ -128,7 +128,7 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
     final isConnected = await _checkConnectivity();
     if (!isConnected) {
       if (!mounted) return;
-      Toast(context, Strings.of('internet_required'), false);
+      Toast(context, AppLocalizations.of(context)!.internet_required, false);
       return;
     }
     if (!mounted) return;
@@ -430,7 +430,7 @@ class _SplashTagline extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.sm),
         Text(
-          Strings.of('splash_subtitle'),
+          AppLocalizations.of(context)!.splash_subtitle,
           textAlign: TextAlign.center,
           style: AppTypography.bodyLarge(
             color: Colors.white.withValues(alpha: 0.78),
@@ -467,7 +467,7 @@ class _LoadingIndicator extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.sm),
         Text(
-          Strings.of('splash_loading'),
+          AppLocalizations.of(context)!.splash_loading,
           style: AppTypography.bodyMedium(
             color: Colors.white.withValues(alpha: 0.78),
           ),
@@ -666,7 +666,7 @@ class _SolidSkipButton extends StatelessWidget {
           boxShadow: [AppShadows.subtle],
         ),
         child: Text(
-          Strings.of('skip'),
+          AppLocalizations.of(context)!.skip,
           style: AppTypography.labelMedium().copyWith(
             color: AppColors.inkMuted,
             fontSize: 13,
@@ -836,7 +836,7 @@ class _NextButton extends StatelessWidget {
       ),
       onPressed: onNext,
       child: Text(
-        isLast ? Strings.of('start') : Strings.of('next'),
+        isLast ? AppLocalizations.of(context)!.start : AppLocalizations.of(context)!.next,
         maxLines: 1,
         overflow: TextOverflow.visible,
         softWrap: false,
@@ -864,7 +864,7 @@ class _OnboardingTextBlock extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              Strings.of(titleKey),
+              AppLocalizations.of(context)!.localized(titleKey),
               style:
                   AppTypography.headlineMedium(color: AppColors.ink).copyWith(
                 height: 1.15,
@@ -873,7 +873,7 @@ class _OnboardingTextBlock extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              Strings.of(bodyKey),
+              AppLocalizations.of(context)!.localized(bodyKey),
               style: AppTypography.bodyMedium(color: AppColors.inkMuted),
             ),
           ],

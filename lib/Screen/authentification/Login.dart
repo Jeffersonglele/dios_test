@@ -15,7 +15,7 @@ import '../../db/database_helper.dart';
 import '../../services/session_service.dart';
 import '../../services/notification_service.dart';
 import '../../theme/app_theme.dart';
-import '../../utils/strings.dart';
+import '../../l10n/app_localizations.dart';
 import '../../utils/toast.dart';
 import '../../providers/users_provider.dart';
 import '../restaurants/RestaurantFormPage.dart';
@@ -104,6 +104,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
       backgroundColor: AppColors.resolve(AppColors.surfaceWarm, AppDarkColors.surfaceWarm),
       body: OrderConfettiCelebration(
@@ -378,7 +379,7 @@ class _LoginState extends ConsumerState<Login> {
       _isLoading = false;
       _loginFailed = true;
     });
-    Toast(context, Strings.of('login_failed'), false);
+    Toast(context, AppLocalizations.of(context)!.login_failed, false);
   }
 
   String _indicatif(String c) {
@@ -419,11 +420,12 @@ class _LoginState extends ConsumerState<Login> {
   // ── Build ─────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
+
     return GestureDetector(
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
       child: AuthShell(
-        title: Strings.of('login_title'),
-        subtitle: Strings.of('login_subtitle'),
+        title: AppLocalizations.of(context)!.login_title,
+        subtitle: AppLocalizations.of(context)!.login_subtitle,
         form: _buildForm(),
         footer: _buildFooter(),
       ),
@@ -440,11 +442,11 @@ class _LoginState extends ConsumerState<Login> {
       },
       child: RichText(
         text: TextSpan(
-          text: Strings.of('dont_have_account'),
+          text: AppLocalizations.of(context)!.dont_have_account,
           style: AppTypography.bodyLarge(color: AppColors.inkMuted),
           children: [
             TextSpan(
-              text: '  ${Strings.of('signup')}',
+              text: '  ${AppLocalizations.of(context)!.signup}',
               style: AppTypography.bodyLarge(color: AppColors.brand).copyWith(
                 fontWeight: FontWeight.w700,
               ),
@@ -471,13 +473,13 @@ class _LoginState extends ConsumerState<Login> {
                 textInputAction: TextInputAction.next,
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.person_outline_rounded),
-                  hintText: Strings.of('username_or_email'),
+                  hintText: AppLocalizations.of(context)!.username_or_email,
                 ),
                 validator: (v) {
                   if (v == null || v.isEmpty)
-                    return Strings.of('enter_username');
-                  if (v.length < 4) return Strings.of('min_4_chars');
-                  if (v.length > 18) return Strings.of('max_18_chars');
+                    return AppLocalizations.of(context)!.enter_username;
+                  if (v.length < 4) return AppLocalizations.of(context)!.min_4_chars;
+                  if (v.length > 18) return AppLocalizations.of(context)!.max_18_chars;
                   return null;
                 },
               );
@@ -498,7 +500,7 @@ class _LoginState extends ConsumerState<Login> {
                 onFieldSubmitted: (_) => _performLogin(),
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.lock_outline_rounded),
-                  hintText: Strings.of('password'),
+                  hintText: AppLocalizations.of(context)!.password,
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscurePassword
@@ -511,8 +513,8 @@ class _LoginState extends ConsumerState<Login> {
                 ),
                 validator: (v) {
                   if (v == null || v.isEmpty)
-                    return Strings.of('enter_password');
-                  if (v.length < 7) return Strings.of('min_6_chars');
+                    return AppLocalizations.of(context)!.enter_password;
+                  if (v.length < 7) return AppLocalizations.of(context)!.min_6_chars;
                   return null;
                 },
               );
@@ -541,7 +543,7 @@ class _LoginState extends ConsumerState<Login> {
                 ),
               ),
               child: Text(
-                Strings.of('forgotten_password'),
+                AppLocalizations.of(context)!.forgotten_password,
                 style: AppTypography.labelMedium(color: AppColors.brand),
               ),
             ),
@@ -572,7 +574,7 @@ class _LoginState extends ConsumerState<Login> {
                         valueColor: AlwaysStoppedAnimation(Colors.white),
                       ),
                     )
-                  : Text(Strings.of('login')),
+                  : Text(AppLocalizations.of(context)!.login),
             ),
           ),
         ],
@@ -590,6 +592,7 @@ class _LoginErrorBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
@@ -612,7 +615,7 @@ class _LoginErrorBanner extends StatelessWidget {
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
-              Strings.of('login_failed'),
+              AppLocalizations.of(context)!.login_failed,
               style: AppTypography.labelMedium(color: AppColors.error),
             ),
           ),
