@@ -147,6 +147,8 @@ class _HomeMicroRestauState extends State<HomeMicroRestau> {
     if (_isMounted) setState(fn);
   }
 
+  bool get _restoValid => _restaurant?.valid == 1;
+
   // ── Build ─────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
@@ -155,13 +157,15 @@ class _HomeMicroRestauState extends State<HomeMicroRestau> {
       child: Scaffold(
         backgroundColor: AppColors.resolve(
             AppColors.surface, AppDarkColors.surface),
-        floatingActionButton: _AddDishFAB(
-          onPressed: () async {
-            await Navigator.push(
-                context, CupertinoPageRoute(builder: (_) => DishFormPage()));
-            if (_isMounted) await _refreshRemoteData();
-          },
-        ),
+        floatingActionButton: _restoValid
+            ? _AddDishFAB(
+                onPressed: () async {
+                  await Navigator.push(context,
+                      CupertinoPageRoute(builder: (_) => DishFormPage()));
+                  if (_isMounted) await _refreshRemoteData();
+                },
+              )
+            : null,
         body: RefreshIndicator(
           color:
               AppColors.resolve(AppColors.brand, AppDarkColors.brand),
@@ -182,6 +186,8 @@ class _HomeMicroRestauState extends State<HomeMicroRestau> {
                     if (_restaurant == null)
                       SliverToBoxAdapter(
                           child: _EmptyState(onRefresh: _refreshRemoteData))
+                    else if (!_restoValid)
+                      SliverToBoxAdapter(child: _buildPendingFullPage())
                     else ...[
                       // ── KPIs ──────────────────────────
                       SliverToBoxAdapter(
@@ -226,6 +232,71 @@ class _HomeMicroRestauState extends State<HomeMicroRestau> {
                 ),
         ),
       ),
+    );
+  }
+
+  Widget _buildPendingFullPage() {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        const SizedBox(height: 40),
+        Container(
+          width: 100,
+          height: 100,
+          decoration: BoxDecoration(
+            color: AppColors.accent.withValues(alpha: 0.12),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.hourglass_bottom_rounded,
+              color: AppColors.accent, size: 48),
+        ),
+        const SizedBox(height: 28),
+        Text(
+          'En attente de validation',
+          textAlign: TextAlign.center,
+          style: AppTypography.headlineMedium().copyWith(fontSize: 20),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'Votre restaurant est en cours d\'examen. Vous pourrez gérer votre restaurant, ajouter des plats et recevoir des commandes dès qu\'il sera validé.',
+          textAlign: TextAlign.center,
+          style: AppTypography.bodyLarge(
+            color: AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted),
+          ),
+        ),
+        const SizedBox(height: 32),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.resolve(AppColors.card, AppDarkColors.card),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            border: Border.all(
+              color:
+                  AppColors.resolve(AppColors.border, AppDarkColors.border),
+              width: 0.5,
+            ),
+          ),
+          child: Column(children: [
+            _PRow(Icons.email_rounded,
+                'Vous serez notifié par email'),
+            const Divider(height: 24),
+            _PRow(Icons.restaurant_menu_rounded,
+                'Vous pourrez ajouter vos plats'),
+            const Divider(height: 24),
+            _PRow(Icons.receipt_long_rounded,
+                'Et recevoir des commandes'),
+          ]),
+        ),
+        const SizedBox(height: 40),
+        Text(
+          _restaurant?.name ?? 'Votre restaurant',
+          style: AppTypography.titleMedium().copyWith(
+            fontSize: 16,
+            color:
+                AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted),
+          ),
+        ),
+      ]),
     );
   }
 }
@@ -1407,5 +1478,23 @@ class _EmptySection extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+class _PRow extends StatelessWidget {
+  const _PRow(this.icon, this.text);
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(children: [
+      Icon(icon, size: 18, color: AppColors.accent),
+      const SizedBox(width: 10),
+      Expanded(
+        child: Text(text,
+            style: AppTypography.bodyMedium().copyWith(fontSize: 13)),
+      ),
+    ]);
   }
 }

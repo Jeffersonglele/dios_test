@@ -13,7 +13,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'ChatScreen.dart';
+import '../widgets/rating_dialog.dart';
 
 class CommandeDetailsPage extends StatefulWidget {
   final Commande commande;
@@ -971,7 +973,17 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage> {
                     onPressed: () =>
                         _showRate(_commande.commandeID, _commande.restauID),
                     backgroundColor: AppColors.accent,
-                    foregroundColor: AppColors.accent,
+                    foregroundColor: Colors.white,
+                  ),
+                if (!_isRestaurantView &&
+                    _commande.livreurID != null &&
+                    status == CommandeStatus.confirmed)
+                  _actionButton(
+                    icon: Icons.star_rounded,
+                    label: 'Noter livreur',
+                    onPressed: () => _showRateLivreur(_commande.livreurID!),
+                    backgroundColor: AppColors.success,
+                    foregroundColor: Colors.white,
                   ),
               ],
             ),
@@ -1095,62 +1107,44 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage> {
 
   // ── Notation ──────────────────────────────────────────
   void _showRate(int commandeID, int restauID) {
-    double rating = 5;
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('Noter la commande',
-            style: AppTypography.titleSmall(
-                color: AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
-        content: StatefulBuilder(
-          builder: (ctx, setInnerState) => Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Donnez une note à ce restaurant',
-                  style: AppTypography.bodyMedium(
-                      color: AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted))),
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(5, (i) {
-                  final starIdx = i + 1;
-                  return IconButton(
-                    onPressed: () =>
-                        setInnerState(() => rating = starIdx.toDouble()),
-                    icon: Icon(
-                      starIdx <= rating ? Icons.star : Icons.star_border,
-                      color: AppColors.accent,
-                      size: 36,
-                    ),
-                  );
-                }),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Annuler',
-                style: TextStyle(
-                    color: AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted))),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              _submitRating(commandeID, rating);
-              Navigator.pop(ctx);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            child: const Text('Valider'),
-          ),
-        ],
+      builder: (_) => RatingDialog(
+        targetType: 1,
+        targetID: restauID,
+        title: 'Noter le restaurant',
       ),
-    );
+    ).then((result) {
+      if (result == "success" && mounted) {
+        _loadData();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Merci pour votre avis !'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    });
+  }
+
+  void _showRateLivreur(int livreurID) {
+    showDialog(
+      context: context,
+      builder: (_) => RatingDialog(
+        targetType: 3,
+        targetID: livreurID,
+        title: 'Noter le livreur',
+      ),
+    ).then((result) {
+      if (result == "success" && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Merci pour votre avis sur le livreur !'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    });
   }
 
   static String _deliveryStatusLabel(String? status) {
@@ -1165,34 +1159,6 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage> {
         return 'Livrée';
       default:
         return 'En attente d\'assignation';
-    }
-  }
-
-  Future<void> _submitRating(int commandeID, double rating) async {
-    try {
-      final cloudFunction = ParseCloudFunction('rateCommande');
-      await cloudFunction.execute(parameters: {
-        'commandeID': commandeID,
-        'rating': rating,
-      });
-      await _loadData();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Note enregistrée'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur: ${e.toString()}'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
     }
   }
 }

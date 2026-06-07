@@ -14,7 +14,7 @@ import '../../widgets/dios_image.dart';
 import '../../widgets/micro_interactions.dart';
 import '../../utils/stars.dart';
 import '../../utils/toast.dart';
-import '../../widgets/comment_section.dart';
+import '../../widgets/rating_tags_display.dart';
 import '../DishDetails.dart';
 import 'RestaurantFormPage.dart';
 
@@ -224,6 +224,7 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
                         Text(current_restaurant!.note.toStringAsFixed(1), style: AppTypography.bodyMedium(color: AppColors.inkSubtle)),
                       ]),
                     ),
+                  CharacteristicsDisplay(targetType: 1, targetID: widget.restaurant_id),
 
                   // Adresse
                   if ((current_restaurant!.location ?? '').isNotEmpty)
@@ -302,7 +303,7 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
                   const SizedBox(height: 24),
 
                   // ── Avis ──────────────────────────────
-                  if (currentUser_role == 2 && current_restaurant != null) ...[
+                  if (current_restaurant != null) ...[
                     Container(
                       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
                       decoration: BoxDecoration(
@@ -312,7 +313,7 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
                       child: Text('Avis', style: AppTypography.titleMedium()),
                     ),
                     const SizedBox(height: 12),
-                    CommentSection(targetType: 1, targetID: widget.restaurant_id),
+                    PaginatedComments(targetType: 1, targetID: widget.restaurant_id),
                   ],
 
                   // ── Bouton Modifier ──────────────────

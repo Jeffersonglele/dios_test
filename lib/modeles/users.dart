@@ -1,4 +1,3 @@
-import 'package:dios_delices/Screen/curved_navigation/CurvedNavigationUserAfr.dart';
 import 'package:dios_delices/providers/data_version_notifier.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -8,7 +7,7 @@ import 'package:hive/hive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../Screen/curved_navigation/CurvedNavigationAdmin.dart';
 import '../Screen/curved_navigation/CurvedNavigationRestau.dart';
-import '../Screen/curved_navigation/CurvedNavigationUserFrance.dart';
+import '../Screen/curved_navigation/CurvedNavigationUser.dart';
 import '../Screen/livreur/DeliveryDashboard.dart';
 import '../db/database_helper.dart';
 
@@ -660,13 +659,11 @@ class Users extends HiveObject {
     } else if (userRole == 3) {
       destination = CurvedNavigationRestau(specified_index: 0);
     } else if (userRole == 2) {
-      destination = country == "France"
-          ? CurvedNavigationUserFrance(specified_index: 0)
-          : CurvedNavigationUserAfr(specified_index: 0);
+      destination = CurvedNavigationUser(specified_index: 0, country: country);
     } else if (userRole == 5) {
       destination = DeliveryDashboard();
     } else {
-      destination = CurvedNavigationUserFrance(specified_index: 0);
+      destination = CurvedNavigationUser(specified_index: 0, country: country);
     }
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => destination),

@@ -2,7 +2,6 @@ import 'dart:convert';
 
 import 'package:dios_delices/core/app_role.dart';
 import 'package:dios_delices/core/commande_status.dart';
-
 import 'package:dios_delices/modeles/commande.dart';
 import 'package:dios_delices/modeles/dish.dart';
 import 'package:dios_delices/modeles/ligne_commande.dart';
@@ -19,6 +18,7 @@ import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'ChatScreen.dart';
 import 'CommandeDetailsPage.dart';
+import '../widgets/rating_dialog.dart';
 
 class UserOrdersPage extends StatefulWidget {
   final bool showRestaurantOrders;
@@ -155,30 +155,9 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: Text(newStatus == CommandeStatus.confirmed
-            ? 'Confirmer la commande'
-            : 'Annuler la commande'),
-        content: Text(newStatus == CommandeStatus.confirmed
-            ? 'Voulez-vous vraiment confirmer cette commande ?'
-            : 'Voulez-vous vraiment annuler cette commande ?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Non'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: newStatus == CommandeStatus.confirmed
-                  ? AppColors.success
-                  : AppColors.error,
-            ),
-            child: Text(newStatus == CommandeStatus.confirmed
-                ? 'Oui, confirmer'
-                : 'Oui, annuler'),
-          ),
-        ],
+      builder: (ctx) => _ConfirmDialog(
+        isConfirm: newStatus == CommandeStatus.confirmed,
+        commandeId: id,
       ),
     );
 
@@ -231,11 +210,21 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
   Widget build(BuildContext context) {
     final isSmallScreen = MediaQuery.of(context).size.width < 600;
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor:
+          AppColors.resolve(AppColors.surface, AppDarkColors.surface),
       appBar: AppBar(
-          title: Text(widget.showRestaurantOrders
-              ? 'Commandes reçues'
-              : 'Mes commandes')),
+        title: Text(
+          widget.showRestaurantOrders ? 'Commandes reçues' : 'Mes commandes',
+        ),
+        actions: [
+          if (widget.showRestaurantOrders)
+            _PendingBadge(
+              count: commandes
+                  .where((c) => CommandeStatus.isPending(c.status))
+                  .length,
+            ),
+        ],
+      ),
       body: widget.showRestaurantOrders && !_restoValid
           ? _buildPendingFullPage()
           : Column(children: [
@@ -243,13 +232,9 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
               Expanded(
                 child: isLoading
                     ? const Center(child: CircularProgressIndicator())
-                    : commandes.isEmpty
-                        ? Center(
-                            child: Text(
-                                widget.showRestaurantOrders
-                                    ? 'Aucune commande reçue.'
-                                    : 'Aucune commande trouvée.',
-                                style: AppTypography.bodyMedium()))
+                        : commandes.isEmpty
+                            ? _EmptyOrders(
+                                isRestaurant: widget.showRestaurantOrders)
                         : ListView.builder(
                             padding: const EdgeInsets.fromLTRB(16, 4, 16, 40),
                             itemCount: commandes.length,
@@ -317,396 +302,295 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
     final bool isConfirmed = status == CommandeStatus.confirmed;
     final bool canCancel = !isCancelled && !isConfirmed;
     final bool canConfirm = !isConfirmed && !isCancelled;
+    final dateStr = c.dateCommande.toLocal().toString().split(' ')[0];
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: AppSpacing.md),
       decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.border, width: 0.5),
+        color: AppColors.resolve(AppColors.card, AppDarkColors.card),
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+        border: Border.all(
+          color: statusColor.withValues(alpha: 0.30),
+          width: 0.8,
+        ),
+        boxShadow: [AppShadows.subtle],
       ),
-      child: ExpansionTile(
-        tilePadding: const EdgeInsets.symmetric(horizontal: 16),
-        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        title: Text(
-            widget.showRestaurantOrders
-                ? 'Commande #${c.commandeID}'
-                : restoNames[c.restauID] ?? 'Commande #${c.commandeID}',
-            style: AppTypography.labelMedium()),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: Icon(Icons.open_in_new_rounded,
-                  size: 18, color: AppColors.inkMuted),
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => CommandeDetailsPage(commande: c),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // ── Barre colorée gauche (indicateur statut) ─
+              Container(
+                width: 4,
+                decoration: BoxDecoration(
+                  color: statusColor,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(AppRadius.xl),
+                    bottomLeft: Radius.circular(AppRadius.xl),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 4),
-            Icon(Icons.expand_more_rounded, color: AppColors.inkSubtle),
-          ],
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-                '${c.dateCommande.toLocal().toString().split(" ")[0]} · ${c.heure}',
-                style: AppTypography.bodyMedium().copyWith(fontSize: 12)),
-            const SizedBox(height: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-              decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(99)),
-              child: Text(status,
-                  style: TextStyle(
-                      color: statusColor,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700)),
-            ),
-            if (!widget.showRestaurantOrders &&
-                c.deliveryStatus != null &&
-                c.deliveryStatus!.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: _DeliveryTracker(
-                    status: c.deliveryStatus!,
-                    lat: c.livreurLat,
-                    lng: c.livreurLng),
-              ),
-            if (!isRestaurantView &&
-                c.deliveryStatus != null &&
-                c.deliveryStatus!.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: _DeliveryTracker(
-                  status: c.deliveryStatus!,
-                  lat: c.livreurLat,
-                  lng: c.livreurLng,
-                ),
-              ),
-          ],
-        ),
-        children: [
-          FutureBuilder<List<LigneCommande>>(
-            future: getLignes(c.commandeID),
-            builder: (_, snap) {
-              if (!snap.hasData)
-                return const SizedBox(
-                    height: 60,
-                    child: Center(child: CircularProgressIndicator()));
-              final lignes = snap.data!;
-              return Column(
+              // ── Contenu principal ────────────────────────
+              Expanded(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    ...lignes.map((l) => Padding(
-                          padding: const EdgeInsets.only(bottom: 6),
-                          child: Row(children: [
-                            Expanded(
-                                child: Text(
-                                    dishNames[l.platID] ?? 'Plat #${l.platID}',
-                                    style: AppTypography.bodyMedium())),
-                            Text('x${l.quantite}',
-                                style: AppTypography.labelMedium()),
-                            const SizedBox(width: 12),
-                            Text('${l.prixUnitaire.toStringAsFixed(2)} €',
-                                style: AppTypography.bodyMedium(
-                                    color: AppColors.brand)),
-                          ]),
-                        )),
-                    const Divider(),
-                    Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    // ── En-tête : ID + date + badge statut ─
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(AppSpacing.md,
+                          AppSpacing.md, AppSpacing.md, AppSpacing.xs),
+                      child: Row(
                         children: [
-                          Text(
-                              'Livraison: ${c.fraisLivraison.toStringAsFixed(2)} €',
-                              style: AppTypography.bodyMedium()
-                                  .copyWith(fontSize: 12)),
-                          Text('Réduction: ${c.reduction.toStringAsFixed(2)} €',
-                              style: AppTypography.bodyMedium()
-                                  .copyWith(fontSize: 12)),
-                        ]),
-                    const SizedBox(height: 12),
-                    if (!widget.showRestaurantOrders)
-                      Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          // Icône commande
+                          Container(
+                            width: 38,
+                            height: 38,
+                            decoration: BoxDecoration(
+                              color: statusColor.withValues(alpha: 0.10),
+                              borderRadius: BorderRadius.circular(AppRadius.sm),
+                            ),
+                            child: Icon(Icons.receipt_rounded,
+                                color: statusColor, size: 18),
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          // ID + nom/date
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  isRestaurantView
+                                      ? 'Commande #${c.commandeID}'
+                                      : restoNames[c.restauID] ??
+                                          'Commande #${c.commandeID}',
+                                  style: AppTypography.labelLarge(
+                                      color: AppColors.resolve(AppColors.ink, AppDarkColors.ink)),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '$dateStr · ${c.heure}',
+                                  style: AppTypography.labelMedium(
+                                          color: AppColors.resolve(
+                                              AppColors.inkSubtle, AppDarkColors.inkSubtle))
+                                      .copyWith(fontSize: 11),
+                                ),
+                              ],
+                            ),
+                          ),
+                          // Badge statut
+                          _StatusBadge(status: status, color: statusColor),
+                        ],
+                      ),
+                    ),
+                    // ── Actions PRIMAIRES restaurateur ───────
+                    if (isRestaurantView && !isCancelled) ...[
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                            AppSpacing.md, 0, AppSpacing.md, AppSpacing.sm),
+                        child: Row(
                           children: [
-                            OutlinedButton.icon(
-                              onPressed: () => Navigator.push(
+                            if (!isConfirmed)
+                              Expanded(
+                                child: _PrimaryActionButton(
+                                  label: 'Confirmer',
+                                  icon: Icons.check_rounded,
+                                  color: AppColors.success,
+                                  onTap: () => updateStatus(
+                                      c.commandeID, CommandeStatus.confirmed),
+                                ),
+                              ),
+                            if (!isConfirmed)
+                              const SizedBox(width: AppSpacing.xs),
+                            Expanded(
+                              child: _PrimaryActionButton(
+                                label: 'Livreur',
+                                icon: Icons.delivery_dining_rounded,
+                                color: AppColors.brand,
+                                onTap: () => _showAssignLivreur(c.commandeID),
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.xs),
+                            _IconActionButton(
+                              icon: Icons.close_rounded,
+                              color: AppColors.error,
+                              onTap: () => updateStatus(
+                                  c.commandeID, CommandeStatus.cancelled),
+                            ),
+                            const SizedBox(width: AppSpacing.xs),
+                            _IconActionButton(
+                              icon: Icons.chat_rounded,
+                              color: AppColors.inkMuted,
+                              onTap: () => Navigator.push(
                                   context,
                                   MaterialPageRoute(
                                       builder: (_) => ChatScreen(
-                                          withUserID: c.restaurateurID,
-                                          withUsername: 'Restaurateur'))),
-                              icon: const Icon(Icons.chat_rounded, size: 16),
-                              label: const Text('Message'),
-                              style: OutlinedButton.styleFrom(
-                                  minimumSize: Size.zero,
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 8)),
+                                          withUserID: c.userID,
+                                          withUsername:
+                                              'Client #${c.commandeID}'))),
                             ),
-                            if (status == CommandeStatus.confirmed)
+                          ],
+                        ),
+                      ),
+                    ],
+                    // ── Voir le détail + actions ──────────
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                          AppSpacing.md, 0, AppSpacing.md, AppSpacing.sm),
+                      child: Wrap(
+                        spacing: AppSpacing.sm,
+                        runSpacing: AppSpacing.sm,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          GestureDetector(
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => CommandeDetailsPage(
+                                    commande: c),
+                              ),
+                            ),
+                            child: Text('Voir le détail',
+                                style: AppTypography.labelMedium(
+                                        color: AppColors.brand)
+                                    .copyWith(fontSize: 12)),
+                          ),
+                          if (!isRestaurantView && isConfirmed) ...[
+                            ElevatedButton.icon(
+                              onPressed: () => _showRate(
+                                  c.commandeID, c.restauID),
+                              icon: const Icon(Icons.star_rounded,
+                                  size: 15, color: AppColors.accent),
+                              label: const Text('Noter'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.accentLight,
+                                foregroundColor: AppColors.accent,
+                                minimumSize: Size.zero,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 8),
+                                ),
+                              ),
+                            if (c.livreurID != null)
                               ElevatedButton.icon(
-                                onPressed: () =>
-                                    _showRate(c.commandeID, c.restauID),
+                                onPressed: () => _showRateLivreur(c.livreurID!),
                                 icon: const Icon(Icons.star_rounded,
-                                    size: 16, color: AppColors.accent),
-                                label: const Text('Noter'),
+                                    size: 15, color: AppColors.success),
+                                label: const Text('Noter livreur'),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.accentLight,
-                                  foregroundColor: AppColors.accent,
+                                  backgroundColor: AppColors.success.withValues(alpha: 0.12),
+                                  foregroundColor: AppColors.success,
                                   minimumSize: Size.zero,
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 12, vertical: 8),
                                 ),
                               ),
-                          ]),
-                    if (widget.showRestaurantOrders)
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                        OutlinedButton.icon(
-                          onPressed: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => ChatScreen(
-                                      withUserID: c.userID,
-                                      withUsername:
-                                          'Client #${c.commandeID}'))),
-                          icon: const Icon(Icons.chat_rounded, size: 16),
-                          label: const Text('Message'),
-                          style: OutlinedButton.styleFrom(
-                              minimumSize: Size.zero,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 8)),
-                        ),
-                        const SizedBox(width: 6),
-                        ElevatedButton(
-                          onPressed: status == CommandeStatus.cancelled
-                              ? null
-                              : () => updateStatus(
-                                  c.commandeID, CommandeStatus.cancelled),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.error,
-                            foregroundColor: Colors.white,
-                            minimumSize: Size.zero,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 8),
-                          ),
-                          child: const Text('Annuler',
-                              style: TextStyle(fontSize: 12)),
-                        ),
-                        const SizedBox(width: 6),
-                        ElevatedButton(
-                          onPressed: status == CommandeStatus.confirmed
-                              ? null
-                              : () => updateStatus(
-                                  c.commandeID, CommandeStatus.confirmed),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.success,
-                            foregroundColor: Colors.white,
-                            minimumSize: Size.zero,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 8),
-                          ),
-                          child: const Text('Confirmer',
-                              style: TextStyle(fontSize: 12)),
-                        ),
-                        if (_canAssignLivreur) ...[
-                          const SizedBox(width: 6),
-                          OutlinedButton.icon(
-                            onPressed: () => _showAssignLivreur(c.commandeID),
-                            icon: const Icon(Icons.person_add_rounded, size: 16),
-                            label: const Text('Livreur'),
-                            style: OutlinedButton.styleFrom(
-                                minimumSize: Size.zero,
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 8)),
-                          ),
+                          ],
                         ],
-                      ]),
+                      ),
                     ),
-                  ]);
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildClientButtons(Commande c, String status) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        OutlinedButton.icon(
-          onPressed: () async {
-            try {
-              await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ChatScreen(
-                    withUserID: c.restaurateurID,
-                    withUsername: 'Restaurateur',
-                  ),
+                    // ── Liste des plats ─────────────────────
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                          AppSpacing.md, 0, AppSpacing.md, AppSpacing.sm),
+                      child: FutureBuilder<List<LigneCommande>>(
+                        future: getLignes(c.commandeID),
+                        builder: (_, snap) {
+                          if (!snap.hasData) return const SizedBox.shrink();
+                          final lignes = snap.data!;
+                          final subtotal = lignes.fold<double>(
+                              0, (s, l) => s + l.prixUnitaire * l.quantite);
+                          return Container(
+                            padding: const EdgeInsets.all(AppSpacing.md),
+                            decoration: BoxDecoration(
+                              color: AppColors.surfaceWarm,
+                              borderRadius: BorderRadius.circular(AppRadius.md),
+                            ),
+                            child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              ...lignes.map((l) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 4),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          width: 24,
+                                          height: 24,
+                                          decoration: BoxDecoration(
+                                            color: AppColors.brandSurface,
+                                            borderRadius:
+                                                BorderRadius.circular(6),
+                                          ),
+                                          child: Center(
+                                            child: Text('${l.quantite}',
+                                                style: AppTypography
+                                                        .labelMedium(
+                                                            color:
+                                                                AppColors.brand)
+                                                    .copyWith(fontSize: 11)),
+                                          ),
+                                        ),
+                                        const SizedBox(width: AppSpacing.sm),
+                                        Expanded(
+                                          child: Text(
+                                            dishNames[l.platID] ??
+                                                'Plat #${l.platID}',
+                                            style: AppTypography.bodyMedium(),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        Text(
+                                          '${l.prixUnitaire.toStringAsFixed(2)} €',
+                                          style: AppTypography.labelMedium(
+                                              color: AppColors.brand),
+                                        ),
+                                      ],
+                                    ),
+                                  )),
+                              const Divider(height: 8),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text('Sous-total',
+                                      style: AppTypography.bodyMedium(
+                                              color: AppColors.inkMuted)
+                                          .copyWith(fontSize: 12)),
+                                  Text(
+                                      '${subtotal.toStringAsFixed(2)} €',
+                                      style: AppTypography.labelMedium(
+                                              color: AppColors.ink)
+                                          .copyWith(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700)),
+                                ],
+                              ),
+                            ],
+                          ),
+                        );
+                        },
+                      ),
+                    ),
+                    // ── Suivi livraison client ───────────────
+                    if (!isRestaurantView &&
+                        c.deliveryStatus != null &&
+                        c.deliveryStatus!.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                            AppSpacing.md, 0, AppSpacing.md, AppSpacing.md),
+                        child: _DeliveryTracker(
+                          status: c.deliveryStatus!,
+                          lat: c.livreurLat,
+                          lng: c.livreurLng,
+                        ),
+                      ),
+                  ],
                 ),
-              );
-            } catch (e) {
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Erreur lors de l\'ouverture du chat'),
-                    backgroundColor: AppColors.error,
-                  ),
-                );
-              }
-            }
-          },
-          icon: const Icon(Icons.chat_rounded, size: 16),
-          label: const Text('Message'),
-          style: OutlinedButton.styleFrom(
-            minimumSize: Size.zero,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          ),
-        ),
-        if (status == CommandeStatus.confirmed)
-          ElevatedButton.icon(
-            onPressed: () => _showRate(c.commandeID, c.restauID),
-            icon: const Icon(Icons.star_rounded,
-                size: 16, color: AppColors.accent),
-            label: const Text('Noter'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.accentLight,
-              foregroundColor: AppColors.accent,
-              minimumSize: Size.zero,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildRestaurantButtons(
-      Commande c, String status, bool canCancel, bool canConfirm) {
-    return Wrap(
-      spacing: 6,
-      runSpacing: 6,
-      alignment: WrapAlignment.end,
-      children: [
-        OutlinedButton.icon(
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => ChatScreen(
-                withUserID: c.userID,
-                withUsername: 'Client #${c.commandeID}',
-              ),
-            ),
-          ),
-          icon: const Icon(Icons.chat_rounded, size: 16),
-          label: const Text('Message'),
-          style: OutlinedButton.styleFrom(
-            minimumSize: Size.zero,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          ),
-        ),
-        if (canCancel)
-          ElevatedButton(
-            onPressed: () =>
-                updateStatus(c.commandeID, CommandeStatus.cancelled),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: Colors.white,
-              minimumSize: Size.zero,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            ),
-            child: const Text('Annuler', style: TextStyle(fontSize: 12)),
-          ),
-        if (canConfirm)
-          ElevatedButton(
-            onPressed: () =>
-                updateStatus(c.commandeID, CommandeStatus.confirmed),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.success,
-              foregroundColor: Colors.white,
-              minimumSize: Size.zero,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            ),
-            child: const Text('Confirmer', style: TextStyle(fontSize: 12)),
-          ),
-        OutlinedButton.icon(
-          onPressed: () => _showAssignLivreur(c.commandeID),
-          icon: const Icon(Icons.person_add_rounded, size: 16),
-          label: const Text('Livreur'),
-          style: OutlinedButton.styleFrom(
-            minimumSize: Size.zero,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildLigneItem(LigneCommande l) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isNarrow = constraints.maxWidth < 420;
-        if (isNarrow) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                dishNames[l.platID] ?? 'Plat #${l.platID}',
-                style: AppTypography.bodyMedium(),
-              ),
-              const SizedBox(height: 2),
-              Wrap(
-                spacing: 10,
-                runSpacing: 4,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  Text('x${l.quantite}', style: AppTypography.labelMedium()),
-                  Text(
-                    '${l.prixUnitaire.toStringAsFixed(2)} €',
-                    style: AppTypography.bodyMedium(color: AppColors.brand),
-                  ),
-                ],
               ),
             ],
-          );
-        }
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Expanded(
-              child: Text(
-                dishNames[l.platID] ?? 'Plat #${l.platID}',
-                style: AppTypography.bodyMedium(),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Flexible(
-              flex: 0,
-              child: Text('x${l.quantite}', style: AppTypography.labelMedium()),
-            ),
-            const SizedBox(width: 12),
-            Flexible(
-              flex: 0,
-              child: Text(
-                '${l.prixUnitaire.toStringAsFixed(2)} €',
-                style: AppTypography.bodyMedium(color: AppColors.brand),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        );
-      },
+          ),
+        ),
+      ),
     );
   }
 
@@ -773,206 +657,385 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
       return;
     }
     showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-              title: const Text('Assigner un livreur'),
-              content: SizedBox(
-                width: double.maxFinite,
-                child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: livreurs.length,
-                    itemBuilder: (_, i) => ListTile(
-                          leading:
-                              const CircleAvatar(child: Icon(Icons.person)),
-                          title: Text(
-                              '${livreurs[i].firstname} ${livreurs[i].lastname}'),
-                          onTap: () async {
-                            Navigator.pop(ctx);
-                            try {
-                              final cloudFunction =
-                                  ParseCloudFunction('assignLivreur');
-                              final response =
-                                  await cloudFunction.execute(parameters: {
-                                'commandeID': id,
-                                'livreurID': livreurs[i].userID,
-                              });
-
-                              if (response.success) {
-                                await Commande.refreshLocalCommandes();
-                                await loadOrders();
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                        content: Text(
-                                            'Livreur assigné avec succès!')),
-                                  );
-                                }
-                              } else {
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                        content: Text(
-                                            'Erreur: ${response.error?.message}')),
-                                  );
-                                }
-                              }
-                            } catch (e) {
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Erreur: $e')),
-                                );
-                              }
-                            }
-                          },
-                        )),
-              ),
-              actions: [
-                TextButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    child: const Text('Annuler'))
-              ],
-            ));
+      context: context,
+      builder: (ctx) => _AssignLivreurDialog(
+        livreurs: livreurs,
+        commandeId: id,
+        onAssigned: () async {
+          await Commande.refreshLocalCommandes();
+          await loadOrders();
+        },
+      ),
+    );
   }
 
   Future<void> _showRate(int cmdId, int restauId) async {
-    final ctrl = TextEditingController();
-    int note = 5;
-
     final lignes = await LigneCommande.fetchLignesCommandeByCommandeID(cmdId);
-
     if (!mounted) return;
-
-    // Récupérer le username depuis SharedPreferences
-    final prefs = await SharedPreferences.getInstance();
-    final username = prefs.getString('currentUser_name') ?? '';
-    final userImage = prefs.getString('currentUser_image') ?? '';
-
-    await showDialog(
+    final result = await showDialog<String>(
       context: context,
-      barrierDismissible: false,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setD) => AlertDialog(
-          title: const Text('Noter le restaurant'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (lignes.isNotEmpty)
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Plats commandés :',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 4),
-                      ...lignes.map((l) => Text(
-                            '• ${dishNames[l.platID] ?? 'Plat #${l.platID}'} x${l.quantite}',
-                            style: const TextStyle(fontSize: 12),
-                          )),
-                    ],
-                  ),
-                ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(5, (i) {
-                  return IconButton(
-                    icon: Icon(
-                      i < note
-                          ? Icons.star_rounded
-                          : Icons.star_outline_rounded,
-                      color: AppColors.accent,
-                      size: 40,
-                    ),
-                    onPressed: () => setD(() => note = i + 1),
-                  );
-                }),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: ctrl,
-                decoration: const InputDecoration(
-                  labelText: 'Votre commentaire (optionnel)',
-                  border: OutlineInputBorder(),
-                  hintText: 'Partagez votre expérience...',
-                ),
-                maxLines: 3,
-                maxLength: 500,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                ctrl.dispose();
-                Navigator.pop(ctx);
-              },
-              child: const Text('Plus tard'),
+      builder: (_) => RatingDialog(
+        targetType: 1,
+        targetID: restauId,
+        title: 'Noter le restaurant',
+        lignes: lignes,
+        dishNames: dishNames,
+      ),
+    );
+    if (mounted && result == "success") {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Merci pour votre avis !'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    }
+  }
+
+  Future<void> _showRateLivreur(int livreurID) async {
+    final result = await showDialog<String>(
+      context: context,
+      builder: (_) => RatingDialog(
+        targetType: 3,
+        targetID: livreurID,
+        title: 'Noter le livreur',
+      ),
+    );
+    if (mounted && result == "success") {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Merci pour votre avis sur le livreur !'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    }
+  }
+
+
+}
+
+// ── Bouton action primaire (pleine largeur) ───────────────
+class _PrimaryActionButton extends StatelessWidget {
+  const _PrimaryActionButton({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 9),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          border: Border.all(color: color.withValues(alpha: 0.25), width: 0.8),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: color, size: 15),
+            const SizedBox(width: 5),
+            Text(label,
+                style: AppTypography.labelMedium(color: color)
+                    .copyWith(fontWeight: FontWeight.w700)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Bouton action icône seule ─────────────────────────────
+class _IconActionButton extends StatelessWidget {
+  const _IconActionButton({
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          border: Border.all(color: color.withValues(alpha: 0.20), width: 0.8),
+        ),
+        child: Icon(icon, color: color, size: 16),
+      ),
+    );
+  }
+}
+
+// ── Badge statut ──────────────────────────────────────────
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({required this.status, required this.color});
+  final String status;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        status,
+        style:
+            TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700),
+      ),
+    );
+  }
+}
+
+// ── Badge commandes en attente dans l'AppBar ──────────────
+class _PendingBadge extends StatelessWidget {
+  const _PendingBadge({required this.count});
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    if (count == 0) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(right: AppSpacing.md),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: AppColors.accent,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(
+          '$count en attente',
+          style: AppTypography.labelMedium(color: AppColors.ink)
+              .copyWith(fontSize: 11, fontWeight: FontWeight.w800),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Empty state ───────────────────────────────────────────
+class _EmptyOrders extends StatelessWidget {
+  const _EmptyOrders({required this.isRestaurant});
+  final bool isRestaurant;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                  color: AppColors.resolve(AppColors.brandSurface, AppDarkColors.brandSurface),
+                  shape: BoxShape.circle),
+              child: Icon(Icons.receipt_long_outlined,
+                  color: AppColors.resolve(
+                      AppColors.brand, AppDarkColors.brand),
+                  size: 34),
             ),
-            ElevatedButton(
-              onPressed: () async {
-                final session = await SessionService.readSession();
-
-                if (session.userId == null) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Utilisateur non connecté')),
-                    );
-                  }
-                  Navigator.pop(ctx);
-                  ctrl.dispose();
-                  return;
-                }
-
-                Navigator.pop(ctx);
-
-                final f = ParseCloudFunction('addComment');
-                final response = await f.execute(parameters: {
-                  'userID': session.userId,
-                  'targetType': 1,
-                  'targetID': restauId,
-                  'note': note,
-                  'commentaire': ctrl.text.trim().isEmpty ? '' : ctrl.text,
-                  'username': username, // Utiliser la variable récupérée
-                  'userImage': userImage, // Utiliser la variable récupérée
-                });
-
-                ctrl.dispose();
-
-                if (mounted) {
-                  if (response.success) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Merci pour votre avis !'),
-                        backgroundColor: AppColors.success,
-                      ),
-                    );
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                            'Erreur: ${response.error?.message ?? "Inconnue"}'),
-                        backgroundColor: AppColors.error,
-                      ),
-                    );
-                  }
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.accent,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Envoyer'),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              isRestaurant
+                  ? 'Aucune commande reçue'
+                  : 'Aucune commande trouvée',
+              style: AppTypography.titleMedium(
+                  color: AppColors.resolve(
+                      AppColors.surface, AppDarkColors.surface)),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              isRestaurant
+                  ? 'Les nouvelles commandes apparaîtront ici en temps réel.'
+                  : 'Vos commandes passées apparaîtront ici.',
+              style: AppTypography.bodyMedium(
+                  color: AppColors.resolve(
+                      AppColors.inkMuted, AppDarkColors.inkMuted)),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// Dialogs
+// ═══════════════════════════════════════════════════════════
+
+class _ConfirmDialog extends StatelessWidget {
+  const _ConfirmDialog({required this.isConfirm, required this.commandeId});
+  final bool isConfirm;
+  final int commandeId;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isConfirm
+        ? AppColors.resolve(AppColors.success, AppDarkColors.success)
+        : AppColors.resolve(AppColors.error, AppDarkColors.error);
+    return AlertDialog(
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.xl)),
+      title: Row(children: [
+        Icon(
+            isConfirm
+                ? Icons.check_circle_outline_rounded
+                : Icons.cancel_outlined,
+            color: color,
+            size: 22),
+        const SizedBox(width: AppSpacing.sm),
+        Text(isConfirm ? 'Confirmer' : 'Annuler',
+            style: AppTypography.titleMedium(color: color)),
+      ]),
+      content: Text(
+        isConfirm
+            ? 'Confirmer la commande #$commandeId ?'
+            : 'Annuler la commande #$commandeId ?',
+        style: AppTypography.bodyLarge(color: color),
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Non')),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context, true),
+          style: ElevatedButton.styleFrom(backgroundColor: color),
+          child: Text(isConfirm ? 'Oui, confirmer' : 'Oui, annuler'),
+        ),
+      ],
+    );
+  }
+}
+
+class _AssignLivreurDialog extends StatelessWidget {
+  const _AssignLivreurDialog({
+    required this.livreurs,
+    required this.commandeId,
+    required this.onAssigned,
+  });
+
+  final List<Users> livreurs;
+  final int commandeId;
+  final Future<void> Function() onAssigned;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.xl)),
+      title: Row(children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+              color: AppColors.resolve(
+                  AppColors.brandSurface, AppDarkColors.brandSurface),
+              borderRadius: BorderRadius.circular(AppRadius.sm)),
+          child: Icon(Icons.delivery_dining_rounded,
+              color: AppColors.resolve(
+                  AppColors.brand, AppDarkColors.brand),
+              size: 16),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Text('Assigner un livreur',
+            style: AppTypography.titleMedium(
+                color: AppColors.resolve(
+                    AppColors.ink, AppDarkColors.ink))),
+      ]),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: ListView.builder(
+          shrinkWrap: true,
+          itemCount: livreurs.length,
+          itemBuilder: (_, i) {
+            final l = livreurs[i];
+            return Container(
+              margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+              decoration: BoxDecoration(
+                color: AppColors.resolve(
+                    AppColors.surfaceWarm, AppDarkColors.surfaceWarm),
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
+              child: Material(
+                color: AppColors.resolve(
+                    AppColors.surfaceWarm, AppDarkColors.surfaceWarm),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: AppColors.resolve(AppColors.brandSurface, AppDarkColors.brandSurface),
+                    child: Text(
+                      l.firstname.isNotEmpty
+                          ? l.firstname[0].toUpperCase()
+                          : '?',
+                      style: AppTypography.labelLarge(
+                          color: AppColors.resolve(
+                              AppColors.brand, AppDarkColors.brand)),
+                    ),
+                  ),
+                  title: Text(
+                    '${l.firstname} ${l.lastname}',
+                    style: AppTypography.labelMedium(
+                        color: AppColors.resolve(
+                            AppColors.ink, AppDarkColors.ink)),
+                  ),
+                  subtitle: Text(
+                    l.telephone.toString(),
+                    style: AppTypography.bodyMedium(
+                            color: AppColors.resolve(AppColors.inkSubtle, AppDarkColors.inkSubtle))
+                        .copyWith(fontSize: 11),
+                  ),
+                  trailing: Icon(Icons.arrow_forward_ios_rounded,
+                      size: 14,
+                      color: AppColors.resolve(AppColors.inkSubtle, AppDarkColors.inkSubtle)),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    try {
+                      final fn = ParseCloudFunction('assignLivreur');
+                      final resp = await fn.execute(parameters: {
+                        'commandeID': commandeId,
+                        'livreurID': l.userID,
+                      });
+                      if (resp.success) {
+                        await onAssigned();
+                      }
+                    } catch (_) {}
+                  },
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Annuler'),
+        ),
+      ],
     );
   }
 }
@@ -982,95 +1045,142 @@ class _DeliveryTracker extends StatelessWidget {
   final double? lat, lng;
   const _DeliveryTracker({required this.status, this.lat, this.lng});
 
+  static const _steps = ['assigned', 'picked_up', 'in_transit', 'delivered'];
+  static const _labels = ['Préparation', 'Récupéré', 'En route', 'Livré'];
+  static const _icons = [
+    Icons.restaurant_rounded,
+    Icons.shopping_bag_rounded,
+    Icons.directions_bike_rounded,
+    Icons.check_circle_rounded,
+  ];
+
   @override
   Widget build(BuildContext context) {
-    final steps = ['assigned', 'picked_up', 'in_transit', 'delivered'];
-    final labels = ['Prépa.', 'Récupéré', 'En route', 'Livré'];
-    final icons = [
-      Icons.restaurant_rounded,
-      Icons.shopping_bag_rounded,
-      Icons.directions_bike_rounded,
-      Icons.check_rounded
-    ];
-    final idx = steps.indexOf(status);
+    final idx = _steps.indexOf(status);
     final hasMap = status == 'in_transit' && lat != null && lng != null;
 
-    return Column(children: [
-      Row(
-        children: List.generate(4, (i) {
-          final done = i <= idx;
-          return Expanded(
-              child: Column(children: [
-            Container(
-                width: 24,
-                height: 24,
-                decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: done ? AppColors.brand : AppColors.border),
-                child: Icon(icons[i],
-                    size: 13,
-                    color: done ? Colors.white : AppColors.inkSubtle)),
-            Text(labels[i],
-                style: TextStyle(
-                    fontSize: 9,
-                    color: done ? AppColors.brand : AppColors.inkSubtle,
-                    fontWeight: FontWeight.w600)),
-          ]));
-        }),
-      ),
-      if (hasMap)
-        GestureDetector(
-          onTap: () => Navigator.push(
+    return Column(
+      children: [
+        Row(
+          children: List.generate(4, (i) {
+            final done = i <= idx;
+            return Expanded(
+              child: Column(
+                children: [
+                  if (i > 0)
+                    Row(children: [
+                      Expanded(
+                        child: Container(
+                          height: 2,
+                          color: i <= idx
+                              ? AppColors.resolve(
+                                  AppColors.brand, AppDarkColors.brand)
+                              : AppColors.resolve(AppColors.border, AppDarkColors.border),
+                        ),
+                      ),
+                    ]),
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: done
+                          ? AppColors.resolve(
+                              AppColors.brand, AppDarkColors.brand)
+                          : AppColors.resolve(
+                              AppColors.border, AppDarkColors.border),
+                    ),
+                    child: Icon(_icons[i],
+                        size: 14,
+                        color: done
+                            ? AppColors.resolve(AppColors.surface, AppDarkColors.surface)
+                            : AppColors.resolve(AppColors.border, AppDarkColors.inkSubtle)),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(_labels[i],
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w600,
+                          color: done
+                              ? AppColors.resolve(
+                                  AppColors.brand, AppDarkColors.brand)
+                              : AppColors.resolve(AppColors.border, AppDarkColors.inkSubtle))),
+                ],
+              ),
+            );
+          }),
+        ),
+        if (hasMap)
+          GestureDetector(
+            onTap: () => Navigator.push(
               context,
               MaterialPageRoute(
-                  builder: (_) =>
-                      DeliveryMapPage(livreurLat: lat!, livreurLng: lng!))),
-          child: Container(
-            margin: const EdgeInsets.only(top: 8),
-            height: 160,
-            decoration: BoxDecoration(
+                builder: (_) =>
+                    DeliveryMapPage(livreurLat: lat!, livreurLng: lng!),
+              ),
+            ),
+            child: Container(
+              margin: const EdgeInsets.only(top: AppSpacing.sm),
+              height: 160,
+              decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(AppRadius.md),
-                border:
-                    Border.all(color: AppColors.brand.withValues(alpha: 0.3))),
-            clipBehavior: Clip.antiAlias,
-            child: Stack(children: [
-              FlutterMap(
-                options: MapOptions(
+                border: Border.all(
+                    color: AppColors.resolve(
+                            AppColors.brand, AppDarkColors.brand)
+                        .withValues(alpha: 0.3)),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Stack(children: [
+                FlutterMap(
+                  options: MapOptions(
                     initialCenter: LatLng(lat!, lng!),
                     initialZoom: 14,
                     interactionOptions:
-                        const InteractionOptions(flags: InteractiveFlag.none)),
-                children: [
-                  TileLayer(
+                        const InteractionOptions(flags: InteractiveFlag.none),
+                  ),
+                  children: [
+                    TileLayer(
                       urlTemplate:
                           'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      userAgentPackageName: 'com.diosdelices.app'),
-                  MarkerLayer(markers: [
-                    Marker(
+                      userAgentPackageName: 'com.diosdelices.app',
+                    ),
+                    MarkerLayer(markers: [
+                      Marker(
                         point: LatLng(lat!, lng!),
                         width: 40,
                         height: 40,
-                        child: const Icon(Icons.delivery_dining,
-                            color: AppColors.brand, size: 28))
-                  ]),
-                ],
-              ),
-              Positioned(
+                        child: Icon(Icons.delivery_dining,
+                            color: AppColors.resolve(
+                                AppColors.brand, AppDarkColors.brand),
+                            size: 28),
+                      ),
+                    ]),
+                  ],
+                ),
+                Positioned(
                   bottom: 4,
                   right: 8,
                   child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                          color: AppColors.ink.withValues(alpha: 0.7),
-                          borderRadius: BorderRadius.circular(4)),
-                      child: const Text('Toucher pour agrandir',
-                          style:
-                              TextStyle(color: Colors.white, fontSize: 10)))),
-            ]),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.resolve(
+                              AppColors.ink, AppDarkColors.ink)
+                          .withValues(alpha: 0.7),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text('Toucher pour agrandir',
+                        style: TextStyle(
+                            color: AppColors.resolve(AppColors.surface, AppDarkColors.surface),
+                            fontSize: 10)),
+                  ),
+                ),
+              ]),
+            ),
           ),
-        ),
-    ]);
+      ],
+    );
   }
 }
 
@@ -1126,7 +1236,8 @@ class _DeliveryMapPageState extends State<DeliveryMapPage> {
     final center =
         bounds?.center ?? LatLng(widget.livreurLat, widget.livreurLng);
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor:
+          AppColors.resolve(AppColors.surface, AppDarkColors.surface),
       appBar: AppBar(title: const Text('Suivi livraison')),
       body: Stack(children: [
         FlutterMap(
@@ -1143,32 +1254,45 @@ class _DeliveryMapPageState extends State<DeliveryMapPage> {
                 userAgentPackageName: 'com.diosdelices.app'),
             if (_route.isNotEmpty)
               PolylineLayer(polylines: [
-                Polyline(points: _route, color: AppColors.brand, strokeWidth: 4)
+                Polyline(
+                    points: _route,
+                    color: AppColors.resolve(
+                        AppColors.brand, AppDarkColors.brand),
+                    strokeWidth: 4),
               ]),
             MarkerLayer(markers: [
               Marker(
-                  point: LatLng(widget.livreurLat, widget.livreurLng),
-                  width: 50,
-                  height: 50,
-                  child: Column(children: const [
-                    Icon(Icons.delivery_dining,
-                        color: AppColors.brand, size: 32),
-                    Text('Livreur',
-                        style:
-                            TextStyle(fontSize: 9, fontWeight: FontWeight.bold))
-                  ])),
+                point: LatLng(widget.livreurLat, widget.livreurLng),
+                width: 50,
+                height: 50,
+                child: Column(children: [
+                  Icon(Icons.delivery_dining,
+                      color: AppColors.resolve(
+                          AppColors.brand, AppDarkColors.brand),
+                      size: 32),
+                  Text('Livreur',
+                      style: TextStyle(
+                          fontSize: 9, fontWeight: FontWeight.bold)),
+                ]),
+              ),
               if (widget.clientLat != null)
                 Marker(
-                    point: LatLng(widget.clientLat!, widget.clientLng!),
-                    width: 50,
-                    height: 50,
-                    child: Column(children: const [
-                      Icon(Icons.home_rounded,
-                          color: AppColors.accent, size: 32),
-                      Text('Client',
-                          style: TextStyle(
-                              fontSize: 9, fontWeight: FontWeight.bold))
-                    ])),
+                  point: LatLng(widget.clientLat!, widget.clientLng!),
+                  width: 50,
+                  height: 50,
+                  child: Column(children: [
+                    Icon(Icons.home_rounded,
+                        color: AppColors.resolve(
+                            AppColors.accent, AppDarkColors.accent),
+                        size: 32),
+                    Text('Client',
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.resolve(AppColors.surface, AppDarkColors.surface),
+                        )),
+                  ]),
+                ),
             ]),
           ],
         ),

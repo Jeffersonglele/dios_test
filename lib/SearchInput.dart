@@ -49,7 +49,7 @@ class _SearchInputState extends State<SearchInput> {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'Search dishes, stores...',
+                  'Rechercher des plats, des restaurateurs,...',
                   style: AppTypography.bodyLarge(color: AppColors.inkSubtle),
                 ),
               ),

@@ -9,6 +9,7 @@ import '../Controller/UiController.dart';
 import '../SearchInput.dart';
 import '../core/app_role.dart';
 import '../modeles/address.dart';
+import '../modeles/category.dart';
 import '../modeles/restaurant.dart';
 import '../modeles/users.dart';
 import '../services/session_service.dart';
@@ -41,20 +42,58 @@ class _HomeUserState extends State<HomeUser> {
   int _currentUserRole = 0;
   int _currentUserRestau = 0;
   int _selectedCategoryIndex = 0;
-  int _excludedCount = 0;
-  int _totalCount = 0;
   bool _isLoading = true;
-
-  static const List<_Category> _categories = [
+  List<_Category> _categories = [
     _Category(icon: Icons.restaurant_rounded, label: 'Tout'),
-    _Category(icon: Icons.language_rounded, label: 'Africain'),
-    _Category(icon: Icons.public_rounded, label: 'Européen'),
-    _Category(icon: Icons.ramen_dining_rounded, label: 'Asiatique'),
-    _Category(icon: Icons.eco_rounded, label: 'Végétarien'),
-    _Category(icon: Icons.directions_walk_rounded, label: 'Street Food'),
-    _Category(icon: Icons.fastfood_rounded, label: 'Fast Food'),
-    _Category(icon: Icons.cake_rounded, label: 'Dessert'),
   ];
+
+  static IconData _iconForCategory(String name) {
+    switch (name.toLowerCase()) {
+      case 'africain':
+        return Icons.language_rounded;
+      case 'européen':
+      case 'europeen':
+        return Icons.public_rounded;
+      case 'asiatique':
+        return Icons.ramen_dining_rounded;
+      case 'végétarien':
+      case 'vegetarien':
+        return Icons.eco_rounded;
+      case 'street food':
+        return Icons.directions_walk_rounded;
+      case 'fast food':
+        return Icons.fastfood_rounded;
+      case 'dessert':
+        return Icons.cake_rounded;
+      case 'pizza':
+        return Icons.local_pizza_rounded;
+      case 'burger':
+        return Icons.lunch_dining_rounded;
+      case 'soup':
+      case 'soupe':
+        return Icons.soup_kitchen_rounded;
+      case 'salade':
+        return Icons.eco_rounded;
+      case 'crepes':
+      case 'crêpes':
+        return Icons.dinner_dining_rounded;
+      case 'japonais':
+        return Icons.ramen_dining_rounded;
+      case 'beignets':
+        return Icons.bakery_dining_rounded;
+      case 'jus':
+      case 'bubble tea':
+        return Icons.local_drink_rounded;
+      case 'vegan':
+        return Icons.spa_rounded;
+      case 'healthy':
+        return Icons.favorite_rounded;
+      case 'boisson':
+        return Icons.local_drink_rounded;
+      default:
+        return Icons.label_outline_rounded;
+    }
+  }
 
   @override
   void initState() {
@@ -65,11 +104,16 @@ class _HomeUserState extends State<HomeUser> {
   Future<void> _loadData() async {
     if (mounted) setState(() => _isLoading = true);
     final session = await SessionService.readSession();
-    final usersList = await Users.fetchUsersFromDB();
-    final restausList = await Restaurant.fetchRestaurantsFromDB();
-    final addressList = await Address.fetchAddressesFromDB();
-    for (final r in restausList) {
-    }
+    final results = await Future.wait([
+      Users.fetchUsersFromDB(),
+      Restaurant.fetchRestaurantsFromDB(),
+      Address.fetchAddressesFromDB(),
+      CategoryService.getAllCategories(),
+    ]);
+    final usersList = results[0] as List<Users>;
+    final restausList = results[1] as List<Restaurant>;
+    final addressList = results[2] as List<Address>;
+    final dbCats = results[3] as List<Category>;
     if (!mounted) return;
     setState(() {
       _currentUserID = session.userId;
@@ -78,6 +122,11 @@ class _HomeUserState extends State<HomeUser> {
       _users = usersList;
       _allRestaus = restausList;
       _addresses = addressList;
+      _categories = [
+        _Category(icon: Icons.restaurant_rounded, label: 'Tout'),
+        ...dbCats.map((c) => _Category(
+            icon: _iconForCategory(c.name), label: c.name)),
+      ];
     });
     await _filterByProximity();
     if (mounted) setState(() => _isLoading = false);
@@ -86,7 +135,6 @@ class _HomeUserState extends State<HomeUser> {
   Future<void> _filterByProximity() async {
     const double maxKm = 10.0;
     List<Restaurant> nearby = [];
-    int excluded = 0;
     bool foundUserAddress = false;
 
 
@@ -97,12 +145,10 @@ class _HomeUserState extends State<HomeUser> {
       for (final r in _allRestaus) {
         final owner = Users.getUsersByUserId(_users, r.userID);
         if (owner == null) {
-          excluded++;
           continue;
         }
         final rAddr = Address.getAddressByObject(_addresses, 'User', r.userID);
         if (rAddr == null) {
-          excluded++;
           continue;
         }
         try {
@@ -112,11 +158,8 @@ class _HomeUserState extends State<HomeUser> {
           final rLon = double.parse(rAddr.long ?? '');
           if (_haversine(uLat, uLon, rLat, rLon) <= maxKm) {
             nearby.add(r);
-          } else {
-            excluded++;
           }
         } catch (e) {
-          excluded++;
         }
       }
     }
@@ -124,14 +167,11 @@ class _HomeUserState extends State<HomeUser> {
     // If no user address found, just show all restaurants
     if (!foundUserAddress) {
       nearby = List.from(_allRestaus);
-      excluded = 0;
     }
 
     if (mounted) {
       setState(() {
         _allRestaus = nearby;
-        _excludedCount = excluded;
-        _totalCount = nearby.length + excluded;
       });
     }
     _filterByCategory();
@@ -227,14 +267,6 @@ class _HomeUserState extends State<HomeUser> {
                             builder: (_) => const NearMeRestaurants())),
                   ),
                 ),
-
-                if (_excludedCount > 0)
-                  SliverToBoxAdapter(
-                    child: _ExcludedBanner(
-                      excluded: _excludedCount,
-                      total: _totalCount,
-                    ),
-                  ),
 
                 SliverToBoxAdapter(
                   child: _isLoading
@@ -697,45 +729,6 @@ class _SectionHeader extends StatelessWidget {
                 ),
               ),
             ),
-        ],
-      ),
-    );
-  }
-}
-
-// ═══════════════════════════════════════════════════════════
-// _ExcludedBanner
-// ═══════════════════════════════════════════════════════════
-class _ExcludedBanner extends StatelessWidget {
-  const _ExcludedBanner({required this.excluded, required this.total});
-  final int excluded;
-  final int total;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final resolvedAccent =
-        AppColors.resolve(AppColors.accent, AppDarkColors.accent);
-    return Container(
-      margin: const EdgeInsets.fromLTRB(
-          AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.sm),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.resolve(AppColors.accentLight, AppDarkColors.accentLight),
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: resolvedAccent.withValues(alpha: 0.25)),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.info_outline_rounded, color: resolvedAccent, size: 18),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(
-              '$excluded restaurant(s) hors zone sur $total.',
-              style: AppTypography.labelMedium(
-                  color: colorScheme.onSurface.withOpacity(0.6)),
-            ),
-          ),
         ],
       ),
     );

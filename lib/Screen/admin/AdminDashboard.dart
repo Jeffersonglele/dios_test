@@ -16,6 +16,7 @@ import '../../core/app_role.dart';
 import '../../services/session_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/toast.dart';
+import 'CategoryManagementPage.dart';
 import '../CountryPage.dart';
 
 // ═══════════════════════════════════════════════════════════
@@ -1806,6 +1807,21 @@ class _ManagementNav extends StatelessWidget {
                         builder: (_) => const LivreurListPage()));
               }
             },
+          ),
+
+          const SizedBox(height: AppSpacing.sm),
+
+          // Catégories
+          _NavCard(
+            icon: Icons.label_outline_rounded,
+            label: 'Catégories',
+            count: '—',
+            color: AppColors.resolve(
+                AppColors.brand, AppDarkColors.brand),
+            onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const CategoryManagementPage())),
           ),
 
           if (userRole == AppRole.superAdmin) ...[

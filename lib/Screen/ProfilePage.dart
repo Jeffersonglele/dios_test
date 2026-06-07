@@ -263,11 +263,46 @@ class _ProfilePageState extends State<ProfilePage> {
                       const Divider(height: 1, indent: 56),
                       _infoTile(
                           Icons.phone_outlined, l10n.phone, user.telephone),
-                      if (_address.isNotEmpty) ...[
-                        const Divider(height: 1, indent: 56),
-                        _infoTile(Icons.location_on_outlined,
-                            'Adresse', _address),
-                      ],
+                      const Divider(height: 1, indent: 56),
+                      Material(
+                        color: Colors.transparent,
+                        child: ListTile(
+                          leading: Icon(Icons.location_on_rounded,
+                              color: AppColors.resolve(
+                                  AppColors.brand, AppDarkColors.brand)),
+                          title: Text('Adresse',
+                              style: AppTypography.bodyMedium().copyWith(
+                                  color: AppColors.resolve(AppColors.inkSubtle,
+                                      AppDarkColors.inkSubtle),
+                                  fontSize: 12)),
+                          subtitle: Text(
+                              _address.isEmpty
+                                  ? 'Ajoutez votre adresse'
+                                  : _address,
+                              style: AppTypography.labelMedium().copyWith(
+                                  color: AppColors.resolve(AppColors.inkMuted,
+                                      AppDarkColors.inkMuted),
+                                  fontSize: 12)),
+                          trailing: Icon(Icons.chevron_right_rounded,
+                              color: AppColors.resolve(AppColors.inkSubtle,
+                                  AppDarkColors.inkSubtle),
+                              size: 20),
+                          onTap: () async {
+                            final session = await SessionService.readSession();
+                            if (!mounted) return;
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (ctx) => LocationPage(
+                                  objectID: session.userId,
+                                  user_roleID: session.role.id,
+                                ),
+                              ),
+                            );
+                            _load();
+                          },
+                        ),
+                      )
                     ]),
                   ),
                   const SizedBox(height: 24),
@@ -294,28 +329,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     const SizedBox(height: 12),
                   ],
                   // ── Adresse ────────────────────────────────
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
-                        final session = await SessionService.readSession();
-                        if (!mounted) return;
-                        await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (ctx) => LocationPage(
-                              objectID: session.userId,
-                              user_roleID: session.role.id,
-                            ),
-                          ),
-                        );
-                        _load();
-                      },
-                      icon: const Icon(Icons.location_on_rounded, size: 20),
-                      label: Text(_address.isEmpty ? 'Ajouter une adresse' : "Modifier l'adresse"),
-                    ),
-                  ),
+
                   const SizedBox(height: 12),
                   // ── Modifier ──────────────────────────────
                   SizedBox(

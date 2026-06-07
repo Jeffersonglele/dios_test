@@ -4,28 +4,25 @@ import '../../theme/app_theme.dart';
 import '../HomeUser.dart';
 import '../Cart.dart';
 import '../Favorites.dart';
-import '../Menu.dart';
 import '../MyStore.dart';
 
-class CurvedNavigationUserFrance extends StatefulWidget {
+class CurvedNavigationUser extends StatefulWidget {
   final int specified_index;
-  const CurvedNavigationUserFrance({super.key, required this.specified_index});
+  final String country;
+  const CurvedNavigationUser({super.key, required this.specified_index, this.country = 'France'});
 
   @override
-  State<CurvedNavigationUserFrance> createState() =>
-      _CurvedNavigationUserFranceState();
+  State<CurvedNavigationUser> createState() => _CurvedNavigationUserState();
 }
 
-class _CurvedNavigationUserFranceState
-    extends State<CurvedNavigationUserFrance> {
+class _CurvedNavigationUserState extends State<CurvedNavigationUser> {
   late PageController _pageController;
   int _activePage = 0;
 
-  final _pages = <Widget>[
+  final _pages = const [
     HomeUser(),
     Cart(),
     Favorites(),
-    Menu(),
     MyStore(),
   ];
 
@@ -46,14 +43,9 @@ class _CurvedNavigationUserFranceState
       label: 'Favoris',
     ),
     DiosNavItem(
-      icon: Icon(Icons.menu_book_outlined),
-      activeIcon: Icon(Icons.menu_book),
-      label: 'Menu',
-    ),
-    DiosNavItem(
       icon: Icon(Icons.store_outlined),
       activeIcon: Icon(Icons.store),
-      label: 'More',
+      label: 'Profil',
     ),
   ];
 

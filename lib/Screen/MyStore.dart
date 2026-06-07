@@ -7,10 +7,12 @@ import 'package:dios_delices/modeles/restaurant.dart';
 import 'package:dios_delices/modeles/users.dart';
 import 'package:dios_delices/theme/app_theme.dart';
 import 'package:flutter/material.dart';
+import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 
 import '../components/Logout.dart';
 import 'UserOrdersPage.dart';
 import '../services/session_service.dart';
+import '../../utils/toast.dart';
 
 class MyStore extends StatefulWidget {
   const MyStore({super.key});
@@ -49,6 +51,12 @@ class _MyStoreState extends State<MyStore> {
     // Only show restaurateur sections if user is microRestaurant
     if (userRole.isProfessional) {
       _buildVendreSection(newSections, session);
+    } else {
+      newSections.add(_StoreSection(
+          Icons.storefront_rounded, 'Devenir vendeur', null, isSellerRequest: true));
+      newSections.add(_StoreSection(Icons.receipt_long_rounded,
+          'Mes commandes',
+          const UserOrdersPage(showRestaurantOrders: false)));
     }
 
     // Common sections for all users
@@ -67,11 +75,19 @@ class _MyStoreState extends State<MyStore> {
     switch (_restoState) {
       case 0: // pending validation
         newSections.add(_StoreSection(
-            Icons.hourglass_bottom_rounded, 'Mon restaurant', null));
+            Icons.hourglass_bottom_rounded, 'Mon restaurant', null,
+            action: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => RestaurantFormPage(restaurant: _restaurant)))));
         newSections.add(_StoreSection(
-            Icons.arrow_forward_rounded, 'Continuer ma demande', null));
+            Icons.arrow_forward_rounded, 'Continuer ma demande', null,
+            action: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => RestaurantFormPage(restaurant: _restaurant)))));
         newSections.add(_StoreSection(
-            Icons.cancel_rounded, 'Annuler la demande', null));
+            Icons.cancel_rounded, 'Annuler la demande', null,
+            action: _cancelDemande));
+        newSections.add(_StoreSection(Icons.receipt_long_rounded,
+            'Mes commandes',
+            const UserOrdersPage(showRestaurantOrders: false)));
         break;
       case 1: // validated
         newSections.add(_StoreSection(
@@ -175,6 +191,14 @@ class _MyStoreState extends State<MyStore> {
           builder: (_) => const LogoutFormDialog());
       return;
     }
+    if (s.isSellerRequest) {
+      _showBecomeRestaurateurDialog();
+      return;
+    }
+    if (s.action != null) {
+      s.action!();
+      return;
+    }
     if (s.page == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Aucune donnée de restaurant.')),
@@ -183,6 +207,179 @@ class _MyStoreState extends State<MyStore> {
     }
     Navigator.push(context, MaterialPageRoute(builder: (_) => s.page!));
   }
+  Future<void> _showBecomeRestaurateurDialog() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+        ),
+        title: Row(children: [
+          Container(
+            width: 32, height: 32,
+            decoration: BoxDecoration(
+              color: AppColors.brandSurface,
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+            ),
+            child: const Icon(Icons.restaurant_menu_outlined,
+                color: AppColors.brand, size: 18),
+          ),
+          const SizedBox(width: 10),
+          Text('Devenir micro-restaurateur',
+              style: AppTypography.titleMedium().copyWith(fontSize: 16)),
+        ]),
+        content: Text(
+          'En devenant micro-restaurateur, vous pourrez publier vos plats et les vendre directement aux clients. '
+          'Souhaitez-vous continuer ?',
+          style: AppTypography.bodyLarge(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Annuler',
+                style: AppTypography.labelMedium(color: AppColors.inkMuted)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.brand,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Oui, je veux vendre mes plats'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      final session = await SessionService.readSession();
+      final cloudFunction = ParseCloudFunction('update1User');
+      final response = await cloudFunction.execute(parameters: {
+        'userID': session.userId,
+        'roleID': 3,
+        'identity': 'Verified',
+      });
+
+      if (mounted && response.success) {
+        final result = response.result as Map<String, dynamic>?;
+        if (result?['success'] == true) {
+          final updatedSession = session.copyWith(role: AppRole.microRestaurant);
+          await SessionService.saveUserSession(
+            userId: updatedSession.userId,
+            role: updatedSession.role,
+            country: updatedSession.country,
+          );
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => RestaurantFormPage(),
+              ),
+            );
+          }
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text('Erreur : ${result?['error'] ?? 'inconnue'}'),
+              backgroundColor: AppColors.error,
+            ));
+          }
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Erreur : ${response.error?.message}'),
+            backgroundColor: AppColors.error,
+          ));
+        }
+      }
+    }
+  }
+
+  Future<void> _cancelDemande() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+        ),
+        title: Row(children: [
+          Container(
+            width: 32, height: 32,
+            decoration: BoxDecoration(
+              color: AppColors.errorLight,
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+            ),
+            child: const Icon(Icons.warning_amber_rounded,
+                color: AppColors.error, size: 18),
+          ),
+          const SizedBox(width: 10),
+          Text('Annuler la demande',
+              style: AppTypography.titleMedium().copyWith(fontSize: 16)),
+        ]),
+        content: Text(
+          'Êtes-vous sûr de vouloir annuler votre demande de création de restaurant ? '
+          'Toutes les informations saisies seront perdues.',
+          style: AppTypography.bodyLarge(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Non',
+                style: AppTypography.labelMedium(color: AppColors.inkMuted)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Oui, annuler'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      final session = await SessionService.readSession();
+      final cloudFunction = ParseCloudFunction('update1User');
+      final response = await cloudFunction.execute(parameters: {
+        'userID': session.userId,
+        'roleID': 1,
+        'identity': 'Verified',
+      });
+
+      if (mounted && response.success) {
+        final result = response.result as Map<String, dynamic>?;
+        if (result?['success'] == true) {
+          final updatedSession = session.copyWith(role: AppRole.individual);
+          await SessionService.saveUserSession(
+            userId: updatedSession.userId,
+            role: updatedSession.role,
+            country: updatedSession.country,
+          );
+          if (mounted) {
+            Toast(context, 'Demande annulée.', true);
+            _load();
+          }
+        } else {
+          if (mounted) {
+            Toast(context, 'Erreur : ${result?['error'] ?? 'inconnue'}', false);
+          }
+        }
+      } else {
+        if (mounted) {
+          Toast(context, 'Erreur : ${response.error?.message}', false);
+        }
+      }
+    }
+  }
 }
 
 class _StoreSection {
@@ -190,6 +387,8 @@ class _StoreSection {
   final String label;
   final Widget? page;
   final bool isLogout;
+  final bool isSellerRequest;
+  final VoidCallback? action;
   const _StoreSection(this.icon, this.label, this.page,
-      {this.isLogout = false});
+      {this.isLogout = false, this.isSellerRequest = false, this.action});
 }

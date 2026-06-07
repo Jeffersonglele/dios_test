@@ -9,9 +9,9 @@ import '../services/session_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/stars.dart';
 import '../utils/toast.dart';
-import '../widgets/comment_section.dart';
 import '../widgets/dios_image.dart';
 import '../widgets/micro_interactions.dart';
+import '../widgets/rating_tags_display.dart';
 import 'dish/DishFormPage.dart';
 
 class DishDetails extends ConsumerStatefulWidget {
@@ -227,6 +227,7 @@ class _DishDetailsState extends ConsumerState<DishDetails> {
                       Text(dish.note.toStringAsFixed(1), style: AppTypography.bodyMedium(color: AppColors.inkSubtle)),
                       const SizedBox(width: 16),
                     ]),
+                  CharacteristicsDisplay(targetType: 2, targetID: widget.dish_id),
                   const SizedBox(height: 6),
 
                   if ((dish.nb_orders ?? 0) > 20)
@@ -334,10 +335,17 @@ class _DishDetailsState extends ConsumerState<DishDetails> {
                     const SizedBox(height: 24),
                   ],
 
-                  if (currentUser_role == 2) ...[
-                    CommentSection(targetType: 2, targetID: widget.dish_id),
-                    const SizedBox(height: 16),
-                  ],
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Avis', style: AppTypography.titleMedium()),
+                        const SizedBox(height: 8),
+                        PaginatedComments(targetType: 2, targetID: widget.dish_id),
+                      ],
+                    ),
+                  ),
 
                   const SizedBox(height: 100),
                 ]),
