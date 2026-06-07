@@ -64,6 +64,7 @@ class Restaurant extends HiveObject {
   String closedDates;
 
   String openingHoursByDay;
+  String recoveryMode;
 
   Restaurant(
       {required this.restaurantID,
@@ -88,7 +89,8 @@ class Restaurant extends HiveObject {
       this.minOrderAmount = 0,
       this.deliveryRadius = 10,
       this.closedDates = '',
-      this.openingHoursByDay = ''});
+      this.openingHoursByDay = '',
+      this.recoveryMode = 'delivery'});
 
   Map<String, dynamic> toMap() {
     return {
@@ -115,6 +117,7 @@ class Restaurant extends HiveObject {
       'deliveryRadius': deliveryRadius,
       'closedDates': closedDates,
       'openingHoursByDay': openingHoursByDay,
+      'recoveryMode': recoveryMode,
     };
   }
 
@@ -150,7 +153,8 @@ class Restaurant extends HiveObject {
         minOrderAmount: double.tryParse(map['minOrderAmount']?.toString() ?? '0') ?? 0,
         deliveryRadius: double.tryParse(map['deliveryRadius']?.toString() ?? '10') ?? 10,
         closedDates: map['closedDates']?.toString() ?? '',
-        openingHoursByDay: map['openingHoursByDay']?.toString() ?? '');
+        openingHoursByDay: map['openingHoursByDay']?.toString() ?? '',
+        recoveryMode: map['recoveryMode']?.toString() ?? 'delivery');
   }
 
   Restaurant copy({
@@ -177,6 +181,7 @@ class Restaurant extends HiveObject {
     double? deliveryRadius,
     String? closedDates,
     String? openingHoursByDay,
+    String? recoveryMode,
   }) {
     return Restaurant(
         restaurantID: restaurantID ?? this.restaurantID,
@@ -201,7 +206,8 @@ class Restaurant extends HiveObject {
         minOrderAmount: minOrderAmount ?? this.minOrderAmount,
         deliveryRadius: deliveryRadius ?? this.deliveryRadius,
         closedDates: closedDates ?? this.closedDates,
-        openingHoursByDay: openingHoursByDay ?? this.openingHoursByDay);
+        openingHoursByDay: openingHoursByDay ?? this.openingHoursByDay,
+        recoveryMode: recoveryMode ?? this.recoveryMode);
   }
 
   static Future<String> manageRestaurant({
@@ -248,19 +254,6 @@ class Restaurant extends HiveObject {
       if (response.success && response.result != null) {
         // Get the URL of the uploaded file
         imageUrl = (response.result as ParseFile).url ?? "";
-
-        // Now save the file reference in the Gallery object in Parse
-        final gallery = ParseObject('Gallery')
-          ..set('file', image); // Ensure the field name is 'file'
-
-        // Save the Gallery object to Parse
-        final galleryResponse = await gallery.save();
-
-        if (galleryResponse.success) {
-        } else {
-
-          return "Error while saving the Gallery object: ${galleryResponse.error?.message}";
-        }
       } else {
         return "Erreur lors de l'upload de l'image: ${response.error?.message}";
       }
@@ -277,7 +270,8 @@ class Restaurant extends HiveObject {
       'note': note,
       'nb_orders': nb_orders,
       'valid': valid,
-      'image': imageUrl, // Use the URL of the uploaded image
+      if (imageUrl.isNotEmpty) 'image': imageUrl,
+      if (img_url != null && imageUrl.isEmpty) 'image': img_url,
       'openingHours': openingHours,
       'deliveryFee': deliveryFee,
       'isOpen': isOpen,
@@ -291,10 +285,11 @@ class Restaurant extends HiveObject {
       'deliveryRadius': deliveryRadius,
       'closedDates': closedDates,
       'openingHoursByDay': openingHoursByDay,
-      'date_creation': {
-        "__type": "Date",
-        "iso": date_creation?.toIso8601String()
-      },
+      if (date_creation != null)
+        'date_creation': {
+          "__type": "Date",
+          "iso": date_creation!.toIso8601String()
+        },
     };
 
 

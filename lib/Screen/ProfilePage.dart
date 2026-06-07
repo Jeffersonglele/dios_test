@@ -8,8 +8,8 @@ import 'package:dios_delices/services/session_service.dart';
 import 'package:dios_delices/theme/app_theme.dart';
 import 'package:dios_delices/Screen/LocationPage.dart';
 import 'package:dios_delices/Screen/UserOrdersPage.dart';
+import 'package:dios_delices/utils/image_picker_helper.dart';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -91,9 +91,8 @@ class _ProfilePageState extends State<ProfilePage> {
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             GestureDetector(
               onTap: () async {
-                final picker = ImagePicker();
-                final img = await picker.pickImage(source: ImageSource.gallery, maxWidth: 512, maxHeight: 512);
-                if (img != null) setState(() => _newPhoto = File(img.path));
+                final file = await pickAndConfirmImage(context);
+                if (file != null) setState(() => _newPhoto = file);
               },
               child: Stack(children: [
                 CircleAvatar(

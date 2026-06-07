@@ -80,7 +80,7 @@ class _MyStoreState extends State<MyStore> {
             RestaurantDetails(restaurant_id: session.restaurantId!)));
         newSections.add(_StoreSection(
             Icons.edit_rounded, 'Modifier mon restaurant',
-            RestaurantFormPage()));
+            RestaurantFormPage(restaurant: _restaurant)));
         newSections.add(_StoreSection(Icons.receipt_long_rounded,
             'Mes commandes',
             const UserOrdersPage(showRestaurantOrders: true)));

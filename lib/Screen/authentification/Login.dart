@@ -534,7 +534,7 @@ class _LoginState extends ConsumerState<Login> {
                 validator: (v) {
                   if (v == null || v.isEmpty)
                     return AppLocalizations.of(context)!.enter_password;
-                  if (v.length < 7) return AppLocalizations.of(context)!.min_6_chars;
+                  if (v.length < 6) return AppLocalizations.of(context)!.min_6_chars;
                   return null;
                 },
               );

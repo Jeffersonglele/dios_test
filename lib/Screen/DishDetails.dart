@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../Constant/Constant.dart';
@@ -8,9 +7,12 @@ import '../providers/cart_provider.dart';
 import '../services/favorites_service.dart';
 import '../services/session_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/stars.dart';
 import '../utils/toast.dart';
+import '../widgets/comment_section.dart';
 import '../widgets/dios_image.dart';
 import '../widgets/micro_interactions.dart';
+import 'dish/DishFormPage.dart';
 
 class DishDetails extends ConsumerStatefulWidget {
   final int dish_id;
@@ -28,10 +30,11 @@ class _DishDetailsState extends ConsumerState<DishDetails> {
   int currentUser_role = 0;
   bool isLoading = true;
   bool isFavorite = false;
+  bool isOwner = false;
 
   List<Dish> dishes = [];
   Dish? current_dish;
-  var number_of_parts = 1;
+  int number_of_parts = 1;
 
   @override
   void initState() {
@@ -53,6 +56,7 @@ class _DishDetailsState extends ConsumerState<DishDetails> {
       dishes = dishesList;
       current_dish = dish;
       isLoading = false;
+      isOwner = currentUser_restau > 0 && dish.restauID == currentUser_restau;
     });
 
     isFavorite = await FavoritesService.isDishFavorite(widget.dish_id);
@@ -93,7 +97,7 @@ class _DishDetailsState extends ConsumerState<DishDetails> {
         Toast(context, 'Vous ne pouvez pas commander de deux restaurants différents.', false);
         break;
       default:
-        Toast(context, 'Erreur lors de l\'ajout au panier.', false);
+        Toast(context, "Erreur lors de l'ajout au panier.", false);
     }
   }
 
@@ -107,6 +111,16 @@ class _DishDetailsState extends ConsumerState<DishDetails> {
 
     final currency = country == 'France' ? '€' : 'FCFA';
     final dish = current_dish!;
+    final extraImages = dish.images
+        .split(',')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+    final options = [
+      if (dish.option1 != null && dish.option1!.isNotEmpty) dish.option1!,
+      if (dish.option2 != null && dish.option2!.isNotEmpty) dish.option2!,
+      if (dish.option3 != null && dish.option3!.isNotEmpty) dish.option3!,
+    ];
 
     return GestureDetector(
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
@@ -114,7 +128,6 @@ class _DishDetailsState extends ConsumerState<DishDetails> {
         backgroundColor: AppColors.surface,
         body: CustomScrollView(
           slivers: [
-            // ── Photo immersive ─────────────────────────
             SliverAppBar(
               expandedHeight: 340,
               pinned: true,
@@ -132,6 +145,26 @@ class _DishDetailsState extends ConsumerState<DishDetails> {
                 onPressed: () => Navigator.pop(context),
               ),
               actions: [
+                if (isOwner)
+                  IconButton(
+                    icon: Container(
+                      width: 36, height: 36,
+                      decoration: BoxDecoration(
+                        color: AppColors.card.withValues(alpha: 0.9),
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                      ),
+                      child: const Icon(Icons.edit_rounded, size: 20, color: AppColors.brand),
+                    ),
+                    onPressed: () async {
+                      final result = await Navigator.push<bool>(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => DishFormPage(dish: current_dish),
+                        ),
+                      );
+                      if (result == true) loadData();
+                    },
+                  ),
                 Padding(
                   padding: const EdgeInsets.only(right: 12),
                   child: AnimatedLikeButton(
@@ -145,10 +178,7 @@ class _DishDetailsState extends ConsumerState<DishDetails> {
                 background: Stack(
                   fit: StackFit.expand,
                   children: [
-                    DiosImage(
-                      url: dish.image,
-                      fit: BoxFit.cover,
-                    ),
+                    DiosImage(url: dish.image, fit: BoxFit.cover),
                     Positioned(
                       bottom: 0, left: 0, right: 0,
                       child: Container(
@@ -177,12 +207,10 @@ class _DishDetailsState extends ConsumerState<DishDetails> {
               ),
             ),
 
-            // ── Contenu ────────────────────────────────
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  // Nom + prix
                   Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Expanded(
                       child: Text(dish.name ?? '', style: AppTypography.headlineMedium()),
@@ -190,10 +218,20 @@ class _DishDetailsState extends ConsumerState<DishDetails> {
                     Text('${dish.price?.toStringAsFixed(2)} $currency',
                         style: AppTypography.headlineMedium(color: AppColors.brand)),
                   ]),
-                  const SizedBox(height: 8),
-                  // Badges
+                  const SizedBox(height: 6),
+
+                  if (dish.note > 0)
+                    Row(children: [
+                      StarRating(rating: dish.note),
+                      const SizedBox(width: 6),
+                      Text(dish.note.toStringAsFixed(1), style: AppTypography.bodyMedium(color: AppColors.inkSubtle)),
+                      const SizedBox(width: 16),
+                    ]),
+                  const SizedBox(height: 6),
+
                   if ((dish.nb_orders ?? 0) > 20)
                     Container(
+                      margin: const EdgeInsets.only(bottom: 12),
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
                         color: AppColors.accentLight,
@@ -205,11 +243,30 @@ class _DishDetailsState extends ConsumerState<DishDetails> {
                         Text('Populaire', style: AppTypography.labelMedium(color: AppColors.accent).copyWith(fontSize: 11)),
                       ]),
                     ),
-                  const SizedBox(height: 16),
-                  // Description
+
+                  if (dish.categories != null && dish.categories!.isNotEmpty) ...[
+                    Wrap(
+                      spacing: 6, runSpacing: 6,
+                      children: dish.categories!.split(',').map((c) {
+                        final tag = c.trim();
+                        return tag.isNotEmpty
+                            ? Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: AppColors.brandSurface,
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: Text(tag, style: AppTypography.labelMedium(color: AppColors.brand).copyWith(fontSize: 11)),
+                              )
+                            : const SizedBox.shrink();
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
                   Text(dish.description ?? '', style: AppTypography.bodyLarge()),
-                  const SizedBox(height: 8),
-                  // Portions dispo
+                  const SizedBox(height: 12),
+
                   Row(children: [
                     const Icon(Icons.inventory_2_outlined, color: AppColors.inkSubtle, size: 16),
                     const SizedBox(width: 6),
@@ -218,82 +275,105 @@ class _DishDetailsState extends ConsumerState<DishDetails> {
                   ]),
                   const SizedBox(height: 24),
 
-                  // ── Quantité ──────────────────────────
-                  Text('Quantité', style: AppTypography.titleMedium()),
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceWarm,
-                      borderRadius: BorderRadius.circular(AppRadius.lg),
-                    ),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      _QtyBtn(Icons.remove_rounded, () {
-                        if (number_of_parts > 1) setState(() => number_of_parts--);
-                      }),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: Text('$number_of_parts', style: AppTypography.headlineMedium()),
+                  if (extraImages.isNotEmpty) ...[
+                    Text('Photos', style: AppTypography.titleMedium()),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 80,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: extraImages.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 8),
+                        itemBuilder: (_, i) => ClipRRect(
+                          borderRadius: BorderRadius.circular(AppRadius.sm),
+                          child: DiosImage(url: extraImages[i], height: 80, width: 80, fit: BoxFit.cover),
+                        ),
                       ),
-                      _QtyBtn(Icons.add_rounded, () {
-                        if (number_of_parts < (dish.nb_servings ?? 99)) {
-                          setState(() => number_of_parts++);
-                        }
-                      }),
-                    ]),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // ── Options (simulé) ──────────────────
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.card,
-                      borderRadius: BorderRadius.circular(AppRadius.lg),
-                      border: Border.all(color: AppColors.border, width: 0.5),
                     ),
-                    child: Row(children: [
-                      const Icon(Icons.tune_rounded, color: AppColors.inkSubtle, size: 18),
-                      const SizedBox(width: 8),
-                      Text('Personnaliser', style: AppTypography.labelMedium()),
-                      const Spacer(),
-                      const Icon(Icons.chevron_right_rounded, color: AppColors.inkSubtle),
-                    ]),
-                  ),
+                    const SizedBox(height: 24),
+                  ],
+
+                  if (!isOwner) ...[
+                    Text('Quantité', style: AppTypography.titleMedium()),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceWarm,
+                        borderRadius: BorderRadius.circular(AppRadius.lg),
+                      ),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        _QtyBtn(Icons.remove_rounded, () {
+                          if (number_of_parts > 1) setState(() => number_of_parts--);
+                        }),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Text('$number_of_parts', style: AppTypography.headlineMedium()),
+                        ),
+                        _QtyBtn(Icons.add_rounded, () {
+                          if (number_of_parts < (dish.nb_servings ?? 99)) {
+                            setState(() => number_of_parts++);
+                          }
+                        }),
+                      ]),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+
+                  if (options.isNotEmpty) ...[
+                    Text('Options', style: AppTypography.titleMedium()),
+                    const SizedBox(height: 8),
+                    ...options.map((opt) => Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Row(children: [
+                        const Icon(Icons.check_circle_outline, size: 16, color: AppColors.brand),
+                        const SizedBox(width: 8),
+                        Text(opt, style: AppTypography.bodyMedium()),
+                      ]),
+                    )),
+                    const SizedBox(height: 24),
+                  ],
+
+                  if (currentUser_role == 2) ...[
+                    CommentSection(targetType: 2, targetID: widget.dish_id),
+                    const SizedBox(height: 16),
+                  ],
+
                   const SizedBox(height: 100),
                 ]),
               ),
             ),
           ],
         ),
-        // ── Bouton Ajouter au panier sticky ──────────
-        bottomNavigationBar: Container(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.ink.withValues(alpha: 0.04),
-                blurRadius: 16,
-                offset: const Offset(0, -4),
-              ),
-            ],
-          ),
-          child: SafeArea(
-            child: SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: ElevatedButton.icon(
-                onPressed: _addToCart,
-                icon: const Icon(Icons.shopping_cart_rounded, size: 20),
-                label: Text('Ajouter au panier · ${(dish.price ?? 0) * number_of_parts} $currency'),
-                style: ElevatedButton.styleFrom(
-                  textStyle: AppTypography.labelLarge(color: Colors.white),
+        bottomNavigationBar: isOwner
+            ? null
+            : Container(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.ink.withValues(alpha: 0.04),
+                      blurRadius: 16,
+                      offset: const Offset(0, -4),
+                    ),
+                  ],
+                ),
+                child: SafeArea(
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton.icon(
+                      onPressed: _addToCart,
+                      icon: const Icon(Icons.shopping_cart_rounded, size: 20),
+                      label: Text('Ajouter au panier · ${(dish.price ?? 0) * number_of_parts} $currency'),
+                      style: ElevatedButton.styleFrom(
+                        textStyle: AppTypography.labelLarge(color: Colors.white),
+                      ),
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
-        ),
       ),
     );
   }

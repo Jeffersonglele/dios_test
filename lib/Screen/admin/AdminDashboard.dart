@@ -1073,33 +1073,6 @@ class _KpiSection extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
 
-          // ── En attente + annulées ─────────────────────
-          Row(children: [
-            Expanded(
-              child: _KpiTile(
-                value: '$pendingOrders',
-                label: 'Commandes en attente',
-                sublabel: 'À traiter',
-                icon: Icons.hourglass_top_rounded,
-                color: AppColors.resolve(
-                    AppColors.accent, AppDarkColors.accent),
-                urgent: pendingOrders > 0,
-              ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: _KpiTile(
-                value: '$cancelledOrders',
-                label: 'Commandes annulées',
-                sublabel: 'Total',
-                icon: Icons.cancel_outlined,
-                color: AppColors.resolve(
-                    AppColors.error, AppDarkColors.error),
-              ),
-            ),
-          ]),
-          const SizedBox(height: AppSpacing.sm),
-
           // ── Utilisateurs + livreurs + restaurants ──────
           Row(children: [
             Expanded(
@@ -1236,13 +1209,11 @@ class _KpiTile extends StatelessWidget {
     required this.sublabel,
     required this.icon,
     required this.color,
-    this.urgent = false,
   });
 
   final String value, label, sublabel;
   final IconData icon;
   final Color color;
-  final bool urgent;
 
   @override
   Widget build(BuildContext context) {
@@ -1252,21 +1223,11 @@ class _KpiTile extends StatelessWidget {
         color: AppColors.resolve(AppColors.card, AppDarkColors.card),
         borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(
-          color: urgent
-              ? color.withValues(alpha: 0.35)
-              : AppColors.resolve(
-                  AppColors.border, AppDarkColors.border),
-          width: urgent ? 1.2 : 0.5,
+          color: AppColors.resolve(
+              AppColors.border, AppDarkColors.border),
+          width: 0.5,
         ),
-        boxShadow: urgent
-            ? [
-                BoxShadow(
-                  color: color.withValues(alpha: 0.12),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ]
-            : [AppShadows.subtle],
+        boxShadow: [AppShadows.subtle],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

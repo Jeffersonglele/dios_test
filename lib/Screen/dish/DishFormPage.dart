@@ -3,19 +3,21 @@ import 'package:dios_delices/modeles/dish.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:path/path.dart' as p;
 import '../../Constant/Constant.dart';
 import '../../providers/users_provider.dart';
 import '../../services/session_service.dart';
 import '../../theme/app_theme.dart';
-import '../../utils/DeviseFormat.dart';
 import '../../utils/HashtagTextInputFormatter.dart';
+import '../../utils/image_picker_helper.dart';
 import '../../utils/toast.dart';
 
 class DishFormPage extends ConsumerStatefulWidget {
-  const DishFormPage({super.key});
+  final Dish? dish;
+  const DishFormPage({super.key, this.dish});
+
+  bool get isEditing => dish != null;
 
   @override
   _DishFormPageState createState() => _DishFormPageState();
@@ -33,17 +35,50 @@ class _DishFormPageState extends ConsumerState<DishFormPage> {
   List<String> _selectedHashtags = [];
   final TextEditingController _priceController = TextEditingController();
   final TextEditingController _nbServingsController = TextEditingController();
-
-  // Structure améliorée pour les options
   List<DishOption> _options = [];
-
-  File? _selectedImage;
+  List<File> _selectedImages = [];
+  int _dishRestauID = 0;
 
   @override
   void initState() {
     super.initState();
     _isMounted = true;
+    final d = widget.dish;
+    if (d != null) {
+      _nameController.text = d.name ?? '';
+      _descriptionController.text = d.description ?? '';
+      _priceController.text = d.price?.toStringAsFixed(2) ?? '';
+      _nbServingsController.text = d.nb_servings?.toString() ?? '';
+      _selectedHashtags = (d.categories ?? '')
+          .split(',')
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
+      _dishRestauID = d.restauID;
+      _options = _parseOptionsFromDish(d);
+    }
     _initializeData();
+  }
+
+  List<DishOption> _parseOptionsFromDish(Dish d) {
+    final result = <DishOption>[];
+    for (final raw in [d.option1, d.option2, d.option3]) {
+      if (raw == null || raw.isEmpty) continue;
+      final parts = raw.split(' / ');
+      if (parts.isEmpty) continue;
+      final namePart = parts[0];
+      final colonIdx = namePart.indexOf(':');
+      final optName = colonIdx >= 0 ? namePart.substring(0, colonIdx).trim() : namePart.trim();
+      final priceMatch = RegExp(r'^(\d+[.,]?\d*)\s*€').firstMatch(parts.last.trim());
+      final optPrice = priceMatch != null ? double.tryParse(priceMatch.group(1)!.replaceAll(',', '.')) ?? 0.0 : 0.0;
+      final choices = <String>[];
+      for (int i = 1; i < parts.length - (priceMatch != null ? 1 : 0); i++) {
+        final c = parts[i].trim();
+        if (c.isNotEmpty) choices.add(c);
+      }
+      result.add(DishOption(name: optName, choices: choices, price: optPrice));
+    }
+    return result;
   }
 
   @override
@@ -95,43 +130,14 @@ class _DishFormPageState extends ConsumerState<DishFormPage> {
   }
 
   Future<void> _pickImage() async {
-    final ImagePicker picker = ImagePicker();
+    final file = await pickAndConfirmImage(context);
+    if (file != null && mounted) {
+      _updateState(() => _selectedImages.add(file));
+    }
+  }
 
-    showModalBottomSheet(
-      context: context,
-      builder: (BuildContext bc) {
-        return SafeArea(
-          child: Wrap(
-            children: <Widget>[
-              ListTile(
-                leading: const Icon(Icons.photo_library),
-                title: const Text('Galerie'),
-                onTap: () async {
-                  final XFile? image =
-                      await picker.pickImage(source: ImageSource.gallery);
-                  if (image != null && mounted) {
-                    _updateState(() => _selectedImage = File(image.path));
-                  }
-                  if (mounted) Navigator.of(context).pop();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.photo_camera),
-                title: const Text('Caméra'),
-                onTap: () async {
-                  final XFile? image =
-                      await picker.pickImage(source: ImageSource.camera);
-                  if (image != null && mounted) {
-                    _updateState(() => _selectedImage = File(image.path));
-                  }
-                  if (mounted) Navigator.of(context).pop();
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
+  void _removeImage(int index) {
+    _updateState(() => _selectedImages.removeAt(index));
   }
 
   Future<void> _initializeData() async {
@@ -153,13 +159,14 @@ class _DishFormPageState extends ConsumerState<DishFormPage> {
       _nbServingsController.clear();
       _selectedHashtags = [];
       _options = [];
-      _selectedImage = null;
+      _selectedImages = [];
     });
   }
 
   Future<void> _submitForm() async {
     // Vérification restaurant
-    if (currentUser_restau <= 0) {
+    final restauID = widget.isEditing ? _dishRestauID : currentUser_restau;
+    if (restauID <= 0) {
       Toast(
           context,
           "Restaurant non configuré. Veuillez d'abord configurer votre restaurant.",
@@ -208,21 +215,30 @@ class _DishFormPageState extends ConsumerState<DishFormPage> {
         }
       }
 
-      // Préparation de l'image
+      // Préparation des images
       ParseFile? parseFile;
-      if (_selectedImage != null) {
-        String fileName = p.basename(_selectedImage!.path);
-        String extension = p.extension(fileName);
+      List<ParseFile> extraImages = [];
+      if (_selectedImages.isNotEmpty) {
+        String baseName = _nameController.text.replaceAll(RegExp(r'\s+'), '_');
+        String extension = p.extension(_selectedImages.first.path);
         String newFileName =
-            "${_nameController.text}_${DateTime.now().millisecondsSinceEpoch}$extension";
-        parseFile = ParseFile(File(_selectedImage!.path), name: newFileName);
+            "${baseName}_${DateTime.now().millisecondsSinceEpoch}$extension";
+        parseFile = ParseFile(_selectedImages.first, name: newFileName);
+
+        for (int i = 1; i < _selectedImages.length; i++) {
+          String ext = p.extension(_selectedImages[i].path);
+          String name =
+              "${baseName}_${DateTime.now().millisecondsSinceEpoch}_$i$ext";
+          extraImages.add(ParseFile(_selectedImages[i], name: name));
+        }
       }
 
       // Appel à la fonction de création
       String result = await Dish.manageDish(
+        dishID: widget.dish?.dishID,
         userID: userId,
-        nb_orders: 0,
-        note: 0.0,
+        nb_orders: widget.dish?.nb_orders ?? 0,
+        note: widget.dish?.note ?? 0.0,
         categories: _selectedHashtags.join(', '),
         description: _descriptionController.text,
         option1: option1,
@@ -231,15 +247,18 @@ class _DishFormPageState extends ConsumerState<DishFormPage> {
         name: _nameController.text,
         price: _parsePrice(_priceController.text),
         nb_servings: _parseServings(_nbServingsController.text),
-        restauID: currentUser_restau,
-        status: 1,
+        restauID: restauID,
+        status: widget.dish?.status ?? 1,
         image: parseFile,
+        extraImages: extraImages.isNotEmpty ? extraImages : null,
+        img_url: widget.isEditing ? widget.dish?.image : null,
+        images: widget.isEditing ? widget.dish?.images : null,
       );
 
       if (!mounted) return;
 
       if (result == "success") {
-        Toast(context, "Plat ajouté avec succès", true);
+        Toast(context, widget.isEditing ? "Plat modifié avec succès" : "Plat ajouté avec succès", true);
         _clearFields();
         Navigator.of(context).pop(true);
       } else {
@@ -258,15 +277,25 @@ class _DishFormPageState extends ConsumerState<DishFormPage> {
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final currency = country == "France" ? "€" : "FCFA";
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = AppColors.resolve(AppColors.surface, AppDarkColors.surface);
+    final card = AppColors.resolve(AppColors.card, AppDarkColors.card);
+    final ink = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
+    final inkMuted = AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
+    final border = AppColors.resolve(AppColors.border, AppDarkColors.border);
+    final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+    final brandSurface = AppColors.resolve(AppColors.brandSurface, AppDarkColors.brandSurface);
 
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
+        backgroundColor: surface,
         appBar: AppBar(
-          title: const Text('Ajouter un plat'),
-          backgroundColor: Colors.red,
+          title: Text(widget.isEditing ? 'Modifier le plat' : 'Ajouter un plat', style: AppTypography.titleSmall(color: Colors.white)),
+          backgroundColor: brand,
           foregroundColor: Colors.white,
           elevation: 0,
+          surfaceTintColor: Colors.transparent,
         ),
         body: Stack(
           children: [
@@ -277,11 +306,13 @@ class _DishFormPageState extends ConsumerState<DishFormPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Nom du plat
+                    _buildSectionHeader('Informations', Icons.info_rounded, brand, ink),
+                    const SizedBox(height: 12),
                     _buildTextField(
                       controller: _nameController,
                       hintText: "Nom du plat",
                       icon: Icons.restaurant,
+                      brand: brand, inkMuted: inkMuted, card: card, border: border,
                       validator: (v) => v == null || v.isEmpty
                           ? "Nom requis"
                           : v.length < 4
@@ -289,94 +320,93 @@ class _DishFormPageState extends ConsumerState<DishFormPage> {
                               : null,
                     ),
                     const SizedBox(height: 16),
-
-                    // Hashtags
                     HashtagTextInputFormatter(
                       onHashtagsChanged: (tags) =>
                           _updateState(() => _selectedHashtags = tags),
                     ),
                     const SizedBox(height: 16),
-
-                    // Portions
-                    _buildTextField(
-                      controller: _nbServingsController,
-                      hintText: "Nombre de portions",
-                      icon: Icons.fastfood,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                        LengthLimitingTextInputFormatter(3)
-                      ],
-                      validator: (v) {
-                        if (v == null || v.isEmpty) {
-                          return "Nombre de portions requis";
-                        }
-                        if (int.tryParse(v.replaceAll(' ', '')) == null) {
-                          return "Nombre invalide";
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Prix
-                    _buildTextField(
-                      controller: _priceController,
-                      hintText: "Prix du plat ($currency)",
-                      icon: Icons.money,
-                      keyboardType:
-                          TextInputType.numberWithOptions(decimal: true),
-                      inputFormatters: country == "France"
-                          ? [
-                              FilteringTextInputFormatter.allow(
-                                  RegExp(r'^\d{0,2}(,\d{0,2})?')),
-                              LengthLimitingTextInputFormatter(5)
-                            ]
-                          : [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildTextField(
+                            controller: _nbServingsController,
+                            hintText: "Portions",
+                            icon: Icons.fastfood,
+                            brand: brand, inkMuted: inkMuted, card: card, border: border,
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
                               FilteringTextInputFormatter.digitsOnly,
-                              LengthLimitingTextInputFormatter(5)
+                              LengthLimitingTextInputFormatter(3)
                             ],
-                      validator: (v) {
-                        if (v == null || v.isEmpty) return "Prix requis";
-                        if (_parsePrice(v) <= 0 && v.trim() != "0") {
-                          return "Prix invalide";
-                        }
-                        return null;
-                      },
+                            validator: (v) {
+                              if (v == null || v.isEmpty) return "Requis";
+                              if (int.tryParse(v.replaceAll(' ', '')) == null) return "Invalide";
+                              return null;
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildTextField(
+                            controller: _priceController,
+                            hintText: "Prix ($currency)",
+                            icon: Icons.money,
+                            brand: brand, inkMuted: inkMuted, card: card, border: border,
+                            keyboardType: TextInputType.numberWithOptions(decimal: true),
+                            inputFormatters: country == "France"
+                                ? [
+                                    FilteringTextInputFormatter.allow(RegExp(r'^\d{0,2}(,\d{0,2})?')),
+                                    LengthLimitingTextInputFormatter(5)
+                                  ]
+                                : [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                    LengthLimitingTextInputFormatter(5)
+                                  ],
+                            validator: (v) {
+                              if (v == null || v.isEmpty) return "Prix requis";
+                              if (_parsePrice(v) <= 0 && v.trim() != "0") return "Prix invalide";
+                              return null;
+                            },
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 16),
-
-                    // Description
                     _buildTextField(
                       controller: _descriptionController,
                       hintText: "Description du plat",
                       icon: Icons.description,
+                      brand: brand, inkMuted: inkMuted, card: card, border: border,
                       maxLines: 3,
-                      validator: (v) =>
-                          v == null || v.isEmpty ? "Description requise" : null,
+                      validator: (v) => v == null || v.isEmpty ? "Description requise" : null,
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 24),
 
-                    // Bouton ajouter option
+                    // Options
+                    _buildSectionHeader('Options', Icons.tune_rounded, brand, ink),
+                    const SizedBox(height: 12),
                     if (_options.isEmpty)
                       Container(
                         padding: const EdgeInsets.all(24),
-                        margin: const EdgeInsets.only(top: 12),
                         decoration: BoxDecoration(
-                          color: AppColors.card,
+                          color: card,
                           borderRadius: BorderRadius.circular(AppRadius.lg),
-                          border: Border.all(color: AppColors.border, width: 0.5),
+                          border: Border.all(color: border, width: 0.5),
                         ),
                         child: Column(children: [
-                          Icon(Icons.tune_rounded, size: 36, color: AppColors.inkSubtle),
+                          Icon(Icons.tune_rounded, size: 36, color: inkMuted),
                           const SizedBox(height: 10),
-                          Text('Aucune option', style: AppTypography.bodyMedium(color: AppColors.inkMuted)),
+                          Text('Aucune option', style: AppTypography.bodyMedium(color: inkMuted)),
                           const SizedBox(height: 14),
                           SizedBox(width: double.infinity, child: OutlinedButton.icon(
                             onPressed: () { if (_options.length < 3) _showOptionDialog(optionIndex: _options.length); },
-                            icon: Icon(Icons.add_rounded, color: AppColors.brand),
-                            label: const Text('Ajouter une option'),
-                            style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)), side: BorderSide(color: AppColors.brand.withValues(alpha: 0.3))),
+                            icon: Icon(Icons.add_rounded, color: brand),
+                            label: Text('Ajouter une option', style: TextStyle(color: brand)),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
+                              side: BorderSide(color: brand.withValues(alpha: 0.3)),
+                            ),
                           )),
                         ]),
                       )
@@ -387,14 +417,22 @@ class _DishFormPageState extends ConsumerState<DishFormPage> {
                         String display = '${opt.name}: ${opt.choices.join(" / ")}';
                         if (opt.price > 0) display += ' / +${opt.price.toStringAsFixed(2)} ${country == "France" ? "€" : "FCFA"}';
                         return Container(
-                          margin: const EdgeInsets.only(bottom: 10, top: 12),
+                          margin: const EdgeInsets.only(bottom: 10),
                           padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
-                          decoration: BoxDecoration(color: AppColors.card, borderRadius: BorderRadius.circular(AppRadius.lg), border: Border.all(color: AppColors.brand.withValues(alpha: 0.15))),
+                          decoration: BoxDecoration(
+                            color: card,
+                            borderRadius: BorderRadius.circular(AppRadius.lg),
+                            border: Border.all(color: brand.withValues(alpha: 0.15)),
+                          ),
                           child: Row(children: [
-                            Container(width: 28, height: 28, decoration: BoxDecoration(color: AppColors.brandSurface, borderRadius: BorderRadius.circular(6)), child: Center(child: Text('$i', style: TextStyle(color: AppColors.brand, fontWeight: FontWeight.w600, fontSize: 12)))),
+                            Container(
+                              width: 28, height: 28,
+                              decoration: BoxDecoration(color: brandSurface, borderRadius: BorderRadius.circular(6)),
+                              child: Center(child: Text('$i', style: TextStyle(color: brand, fontWeight: FontWeight.w600, fontSize: 12))),
+                            ),
                             const SizedBox(width: 12),
-                            Expanded(child: Text(display, style: AppTypography.bodyMedium().copyWith(fontSize: 13))),
-                            IconButton(icon: Icon(Icons.edit_rounded, size: 18, color: AppColors.inkMuted), onPressed: () => _editOption(e.key)),
+                            Expanded(child: Text(display, style: AppTypography.bodyMedium().copyWith(fontSize: 13, color: ink))),
+                            IconButton(icon: Icon(Icons.edit_rounded, size: 18, color: inkMuted), onPressed: () => _editOption(e.key)),
                             IconButton(icon: Icon(Icons.delete_rounded, size: 18, color: AppColors.error), onPressed: () => _removeOption(e.key)),
                           ]),
                         );
@@ -402,38 +440,41 @@ class _DishFormPageState extends ConsumerState<DishFormPage> {
                       if (_options.length < 3)
                         SizedBox(width: double.infinity, child: OutlinedButton.icon(
                           onPressed: () => _showOptionDialog(optionIndex: _options.length),
-                          icon: Icon(Icons.add_rounded, color: AppColors.brand),
-                          label: Text('Ajouter une option (${_options.length}/3)'),
-                          style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)), side: BorderSide(color: AppColors.brand.withValues(alpha: 0.25))),
+                          icon: Icon(Icons.add_rounded, color: brand),
+                          label: Text('Ajouter une option (${_options.length}/3)', style: TextStyle(color: brand)),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
+                            side: BorderSide(color: brand.withValues(alpha: 0.25)),
+                          ),
                         )),
                     ],
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 24),
 
                     // Image
-                    _buildImageSection(),
+                    _buildSectionHeader('Photo', Icons.image_rounded, brand, ink),
+                    const SizedBox(height: 12),
+                    _buildImageSection(brand: brand, card: card, inkMuted: inkMuted, border: border),
                     const SizedBox(height: 30),
 
-                    // Bouton valider
+                    // Submit
                     SizedBox(
                       width: double.infinity,
                       height: 50,
                       child: ElevatedButton(
                         onPressed: isLoading ? null : _submitForm,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
+                          backgroundColor: brand,
                           foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 0,
                         ),
                         child: isLoading
                             ? const SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                    color: Colors.white, strokeWidth: 2))
-                            : const Text("VALIDER",
-                                style: TextStyle(
-                                    fontSize: 16, fontWeight: FontWeight.bold)),
+                                width: 24, height: 24,
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                            : Text(widget.isEditing ? "ENREGISTRER" : "VALIDER",
+                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                       ),
                     ),
                     const SizedBox(height: 40),
@@ -443,7 +484,7 @@ class _DishFormPageState extends ConsumerState<DishFormPage> {
             ),
             if (isLoading)
               Container(
-                color: Colors.black.withValues(alpha: 0.5),
+                color: Colors.black38,
                 child: const Center(child: CircularProgressIndicator()),
               ),
           ],
@@ -452,86 +493,111 @@ class _DishFormPageState extends ConsumerState<DishFormPage> {
     );
   }
 
-  Widget _buildImageSection() {
-    return Center(
-      child: Column(
-        children: [
-          if (_selectedImage != null)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.file(
-                _selectedImage!,
-                height: 120,
-                width: 120,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    height: 120,
-                    width: 120,
-                    color: Colors.grey.shade200,
-                    child: const Icon(Icons.broken_image, size: 40),
-                  );
-                },
-              ),
-            )
-          else
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                children: [
-                  Icon(Icons.image_outlined,
-                      size: 40, color: Colors.grey.shade600),
-                  const SizedBox(height: 8),
-                  Text("Aucune image",
-                      style: TextStyle(color: Colors.grey.shade600)),
-                ],
-              ),
-            ),
-          const SizedBox(height: 10),
-          TextButton.icon(
-            onPressed: _pickImage,
-            icon: const Icon(Icons.photo_library),
-            label: const Text("Choisir une image"),
-          ),
-        ],
-      ),
+  Widget _buildSectionHeader(String title, IconData icon, Color brand, Color ink) {
+    return Row(
+      children: [
+        Container(
+          width: 28, height: 28,
+          decoration: BoxDecoration(color: brand.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(6)),
+          child: Icon(icon, size: 16, color: brand),
+        ),
+        const SizedBox(width: 10),
+        Text(title, style: AppTypography.titleMedium(color: ink)),
+      ],
     );
   }
 
-  List<Widget> _buildOptionsList() {
-    List<Widget> widgets = [];
-    for (int i = 0; i < _options.length; i++) {
-      final option = _options[i];
-      String display = "${option.name}: ${option.choices.join(' / ')}";
-      if (option.price > 0) {
-        display +=
-            " / ${option.price.toStringAsFixed(2)} ${country == "France" ? "€" : "FCFA"}";
-      }
-
-      widgets.add(Card(
-        margin: const EdgeInsets.only(bottom: 8),
-        child: ListTile(
-          leading: Icon(Icons.tune, color: Colors.red, size: 20),
-          title: Text(display, style: const TextStyle(fontSize: 13)),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                  icon: const Icon(Icons.edit, size: 20),
-                  onPressed: () => _editOption(i)),
-              IconButton(
-                  icon: const Icon(Icons.delete, size: 20, color: Colors.red),
-                  onPressed: () => _removeOption(i)),
-            ],
+  Widget _buildImageSection({required Color brand, required Color card, required Color inkMuted, required Color border}) {
+    return Column(
+      children: [
+        if (_selectedImages.isNotEmpty)
+          SizedBox(
+            height: 100,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: _selectedImages.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.file(
+                        _selectedImages[index],
+                        height: 100, width: 100,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            height: 100, width: 100,
+                            color: card,
+                            child: Icon(Icons.broken_image, size: 40, color: inkMuted),
+                          );
+                        },
+                      ),
+                    ),
+                    Positioned(
+                      top: -6, right: -6,
+                      child: GestureDetector(
+                        onTap: () => _removeImage(index),
+                        child: Container(
+                          decoration: const BoxDecoration(color: AppColors.error, shape: BoxShape.circle),
+                          padding: const EdgeInsets.all(2),
+                          child: const Icon(Icons.close, size: 16, color: Colors.white),
+                        ),
+                      ),
+                    ),
+                    if (index == 0)
+                      Positioned(
+                        bottom: 4, left: 4,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                          decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(4)),
+                          child: const Text('Principale', style: TextStyle(color: Colors.white, fontSize: 9)),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
+          )
+        else
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: card,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: border),
+            ),
+            child: Column(
+              children: [
+                Icon(Icons.image_outlined, size: 40, color: inkMuted),
+                const SizedBox(height: 8),
+                Text("Aucune image", style: TextStyle(color: inkMuted)),
+              ],
+            ),
           ),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            TextButton.icon(
+              onPressed: _pickImage,
+              icon: Icon(Icons.photo_library, color: brand),
+              label: Text("Ajouter une image", style: TextStyle(color: brand)),
+            ),
+            if (_selectedImages.length > 1)
+              Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: Text(
+                  '${_selectedImages.length} image(s)',
+                  style: TextStyle(color: inkMuted, fontSize: 12, fontStyle: FontStyle.italic),
+                ),
+              ),
+          ],
         ),
-      ));
-    }
-    return widgets;
+      ],
+    );
   }
 
   void _showOptionDialog({DishOption? optionToEdit, int? optionIndex}) {
@@ -664,6 +730,10 @@ class _DishFormPageState extends ConsumerState<DishFormPage> {
     required TextEditingController controller,
     required String hintText,
     required IconData icon,
+    required Color brand,
+    required Color inkMuted,
+    required Color card,
+    required Color border,
     String? Function(String?)? validator,
     TextInputType? keyboardType,
     List<TextInputFormatter>? inputFormatters,
@@ -672,13 +742,29 @@ class _DishFormPageState extends ConsumerState<DishFormPage> {
     return TextFormField(
       controller: controller,
       decoration: InputDecoration(
-        prefixIcon: Icon(icon, color: Colors.red),
+        prefixIcon: Icon(icon, color: brand),
         hintText: hintText,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        hintStyle: TextStyle(color: inkMuted),
+        filled: true,
+        fillColor: card,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: border),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: border),
+        ),
         focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Colors.red)),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: brand, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: AppColors.error),
+        ),
       ),
+      style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? AppDarkColors.ink : AppColors.ink),
       validator: validator,
       keyboardType: keyboardType,
       inputFormatters: inputFormatters,

@@ -6,7 +6,7 @@ import 'package:dios_delices/l10n/app_localizations.dart';
 import '../widgets/dios_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'micro_restau/DishDetailsMicroRestau.dart';
+import 'DishDetails.dart';
 
 class Menu extends StatefulWidget {
   const Menu({super.key});
@@ -137,7 +137,7 @@ class _MenuState extends State<Menu> {
                         return GestureDetector(
                           onTap: () => Navigator.push(context,
                               CupertinoPageRoute(builder: (_) =>
-                                  DishDetailsMicroRestau(from_page: 2, dish_id: dish.dishID, dish_restau: currentUserRestau)))
+                                  DishDetails(from_page: 2, dish_id: dish.dishID)))
                               .then((_) => loadData()),
                           child: Container(
                             decoration: BoxDecoration(

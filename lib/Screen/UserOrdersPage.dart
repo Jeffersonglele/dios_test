@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:dios_delices/core/app_role.dart';
 import 'package:dios_delices/core/commande_status.dart';
 
 import 'package:dios_delices/modeles/commande.dart';
@@ -17,6 +18,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'ChatScreen.dart';
+import 'CommandeDetailsPage.dart';
 
 class UserOrdersPage extends StatefulWidget {
   final bool showRestaurantOrders;
@@ -44,6 +46,7 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
   List<Commande> commandes = [];
   bool isLoading = true;
   bool _restoValid = true;
+  bool _canAssignLivreur = false;
   Map<int, String> dishNames = {};
   Map<int, String> restoNames = {};
   String? statusFilter;
@@ -93,6 +96,9 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
           restaurants, session.restaurantId!);
       _restoValid = resto?.valid == 1;
     }
+
+    _canAssignLivreur =
+        session.role.isAdmin || session.role == AppRole.livreur;
 
     await Commande.refreshLocalCommandes(); // Refresh orders from Parse first!
     await LigneCommande
@@ -327,6 +333,23 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
                 ? 'Commande #${c.commandeID}'
                 : restoNames[c.restauID] ?? 'Commande #${c.commandeID}',
             style: AppTypography.labelMedium()),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: Icon(Icons.open_in_new_rounded,
+                  size: 18, color: AppColors.inkMuted),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => CommandeDetailsPage(commande: c),
+                ),
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(Icons.expand_more_rounded, color: AppColors.inkSubtle),
+          ],
+        ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -355,22 +378,6 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
                     lat: c.livreurLat,
                     lng: c.livreurLng),
               ),
-            const SizedBox(height: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-              decoration: BoxDecoration(
-                color: statusColor.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(99),
-              ),
-              child: Text(
-                status,
-                style: TextStyle(
-                  color: statusColor,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
             if (!isRestaurantView &&
                 c.deliveryStatus != null &&
                 c.deliveryStatus!.isNotEmpty)
@@ -459,7 +466,9 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
                               ),
                           ]),
                     if (widget.showRestaurantOrders)
-                      Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
                         OutlinedButton.icon(
                           onPressed: () => Navigator.push(
                               context,
@@ -507,17 +516,20 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
                           child: const Text('Confirmer',
                               style: TextStyle(fontSize: 12)),
                         ),
-                        const SizedBox(width: 6),
-                        OutlinedButton.icon(
-                          onPressed: () => _showAssignLivreur(c.commandeID),
-                          icon: const Icon(Icons.person_add_rounded, size: 16),
-                          label: const Text('Livreur'),
-                          style: OutlinedButton.styleFrom(
-                              minimumSize: Size.zero,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 8)),
-                        ),
+                        if (_canAssignLivreur) ...[
+                          const SizedBox(width: 6),
+                          OutlinedButton.icon(
+                            onPressed: () => _showAssignLivreur(c.commandeID),
+                            icon: const Icon(Icons.person_add_rounded, size: 16),
+                            label: const Text('Livreur'),
+                            style: OutlinedButton.styleFrom(
+                                minimumSize: Size.zero,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 8)),
+                          ),
+                        ],
                       ]),
+                    ),
                   ]);
             },
           ),

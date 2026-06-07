@@ -1,3 +1,4 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:dios_delices/Screen/DishDetails.dart';
 import 'package:dios_delices/Screen/MealsOfACategory.dart';
@@ -38,6 +39,12 @@ void main() async {
     SystemUiMode.edgeToEdge,
     overlays: [SystemUiOverlay.top],
   );
+
+  // Initialisation Firebase (nécessaire pour les notifications push)
+  try {
+    await Firebase.initializeApp();
+  } catch (e) {
+  }
 
   // Initialisation Parse
   try {

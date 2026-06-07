@@ -11,6 +11,7 @@ import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import '../../Constant/Constant.dart';
+import '../../utils/image_picker_helper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 import '../../theme/app_theme.dart';
@@ -79,56 +80,47 @@ class _IdentityVerificationState extends ConsumerState<IdentityVerification> {
 
   Future<void> _takePhoto() async {
     try {
-      final ImagePicker picker = ImagePicker();
+      final picker = ImagePicker();
       final cameraSupported =
           await picker.supportsImageSource(ImageSource.camera);
 
       if (!cameraSupported) {
         if (!mounted) return;
-
-        Toast(
-          context,
-          "La caméra n'est pas disponible sur ce simulateur. Utilisez un vrai iPhone pour prendre une photo.",
-          false,
-        );
+        Toast(context,
+            "La caméra n'est pas disponible sur ce simulateur. Utilisez un vrai iPhone pour prendre une photo.",
+            false);
         return;
       }
 
       final XFile? image = await picker.pickImage(source: ImageSource.camera);
-      if (image != null) {
-        setState(() {
-          _userPhoto = File(image.path);
-        });
+      if (image != null && mounted) {
+        final confirmed = await showImageConfirmDialog(context, File(image.path));
+        if (confirmed != null && mounted) {
+          setState(() => _userPhoto = confirmed);
+        }
       }
     } catch (e) {
       if (!mounted) return;
-
-      Toast(
-        context,
-        "Impossible d'ouvrir l'appareil photo. Vérifiez l'autorisation caméra.",
-        false,
-      );
+      Toast(context,
+          "Impossible d'ouvrir l'appareil photo. Vérifiez l'autorisation caméra.",
+          false);
     }
   }
 
   Future<void> _pickPhotoFromGallery() async {
     try {
-      final ImagePicker picker = ImagePicker();
+      final picker = ImagePicker();
       final XFile? image = await picker.pickImage(source: ImageSource.gallery);
 
-      if (image != null) {
-        setState(() {
-          _userPhoto = File(image.path);
-        });
+      if (image != null && mounted) {
+        final confirmed = await showImageConfirmDialog(context, File(image.path));
+        if (confirmed != null && mounted) {
+          setState(() => _userPhoto = confirmed);
+        }
       }
     } catch (e) {
       if (!mounted) return;
-
-      Toast(
-        context,
-        "Impossible d'ouvrir la galerie.",
-        false,
-      );
+      Toast(context, "Impossible d'ouvrir la galerie.", false);
     }
   }
 
@@ -178,22 +170,18 @@ class _IdentityVerificationState extends ConsumerState<IdentityVerification> {
 
   Future<void> _pickIdentityFromGallery() async {
     try {
-      final ImagePicker picker = ImagePicker();
+      final picker = ImagePicker();
       final XFile? image = await picker.pickImage(source: ImageSource.gallery);
 
-      if (image != null) {
-        setState(() {
-          _identityFile = File(image.path);
-        });
+      if (image != null && mounted) {
+        final confirmed = await showImageConfirmDialog(context, File(image.path));
+        if (confirmed != null && mounted) {
+          setState(() => _identityFile = confirmed);
+        }
       }
     } catch (e) {
       if (!mounted) return;
-
-      Toast(
-        context,
-        "Impossible d'ouvrir la galerie.",
-        false,
-      );
+      Toast(context, "Impossible d'ouvrir la galerie.", false);
     }
   }
 

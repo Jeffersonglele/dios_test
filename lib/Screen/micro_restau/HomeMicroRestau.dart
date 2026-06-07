@@ -1,6 +1,6 @@
 import 'package:dios_delices/Screen/UserOrdersPage.dart';
+import 'package:dios_delices/Screen/DishDetails.dart';
 import 'package:dios_delices/Screen/dish/DishFormPage.dart';
-import 'package:dios_delices/Screen/micro_restau/DishDetailsMicroRestau.dart';
 import 'package:dios_delices/Screen/restaurants/RestaurantDetails.dart';
 import 'package:dios_delices/core/commande_status.dart';
 import 'package:dios_delices/modeles/commande.dart';
@@ -34,6 +34,7 @@ class _HomeMicroRestauState extends State<HomeMicroRestau> {
 
   int _pendingOrders = 0;
   int _confirmedOrders = 0;
+  int _cancelledOrders = 0;
   int _availableDishes = 0;
   int _unavailableDishes = 0;
   int _totalAvailableServings = 0;
@@ -101,6 +102,10 @@ class _HomeMicroRestauState extends State<HomeMicroRestau> {
         _confirmedOrders = restCmds
             .where((c) =>
                 CommandeStatus.normalize(c.status) == CommandeStatus.confirmed)
+            .length;
+        _cancelledOrders = restCmds
+            .where((c) =>
+                CommandeStatus.normalize(c.status) == CommandeStatus.cancelled)
             .length;
         _availableDishes = restDishes.where((d) => (d.status ?? 0) == 1).length;
         _unavailableDishes =
@@ -183,6 +188,7 @@ class _HomeMicroRestauState extends State<HomeMicroRestau> {
                         child: _KpiGrid(
                           pending: _pendingOrders,
                           confirmed: _confirmedOrders,
+                          cancelled: _cancelledOrders,
                           available: _availableDishes,
                           unavailable: _unavailableDishes,
                           sold: _soldServings,
@@ -512,13 +518,14 @@ class _KpiGrid extends StatelessWidget {
   const _KpiGrid({
     required this.pending,
     required this.confirmed,
+    required this.cancelled,
     required this.available,
     required this.unavailable,
     required this.sold,
     required this.totalServings,
   });
 
-  final int pending, confirmed, available, unavailable, sold, totalServings;
+  final int pending, confirmed, cancelled, available, unavailable, sold, totalServings;
 
   @override
   Widget build(BuildContext context) {
@@ -534,38 +541,31 @@ class _KpiGrid extends StatelessWidget {
                       AppColors.ink, AppDarkColors.ink))),
           const SizedBox(height: AppSpacing.md),
 
-          // Ligne 1 : commandes
-          Row(
-            children: [
-              Expanded(
-                child: _KpiCard(
-                  value: '$pending',
-                  label: 'En attente',
-                  sublabel: 'À confirmer',
-                  color: AppColors.accent,
-                  icon: Icons.hourglass_top_rounded,
-                  // Pas de barre de progression pour les commandes
-                  progress: null,
-                  valueColor: AppColors.resolve(
-                      AppColors.inkSubtle, AppDarkColors.inkSubtle),
-                ),
+          // ── En attente + annulées ─────────────────────
+          Row(children: [
+            Expanded(
+              child: _KpiTile(
+                value: '$pending',
+                label: 'Commandes en attente',
+                sublabel: 'À traiter',
+                icon: Icons.hourglass_top_rounded,
+                color: AppColors.resolve(
+                    AppColors.accent, AppDarkColors.accent),
+                urgent: pending > 0,
               ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: _KpiCard(
-                  value: '$confirmed',
-                  label: 'Confirmées',
-                  sublabel: 'En cours',
-                  color: AppColors.success,
-                  icon: Icons.check_circle_outline_rounded,
-                  progress: null,
-                  valueColor: AppColors.resolve(
-                      AppColors.inkSubtle, AppDarkColors.inkSubtle),
-                ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: _KpiTile(
+                value: '$cancelled',
+                label: 'Commandes annulées',
+                sublabel: 'Total',
+                icon: Icons.cancel_outlined,
+                color: AppColors.resolve(
+                    AppColors.error, AppDarkColors.error),
               ),
-            ],
-          ),
-
+            ),
+          ]),
           const SizedBox(height: AppSpacing.sm),
 
           // Ligne 2 : plats + portions (avec barre de progression)
@@ -610,6 +610,77 @@ class _KpiGrid extends StatelessWidget {
   }
 }
 
+// ═══════════════════════════════════════════════════════════
+// _KpiTile — tuile métrique compacte (commandes)
+// ═══════════════════════════════════════════════════════════
+class _KpiTile extends StatelessWidget {
+  const _KpiTile({
+    required this.value,
+    required this.label,
+    required this.sublabel,
+    required this.icon,
+    required this.color,
+    this.urgent = false,
+  });
+
+  final String value, label, sublabel;
+  final IconData icon;
+  final Color color;
+  final bool urgent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.resolve(AppColors.card, AppDarkColors.card),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(
+          color: urgent
+              ? color.withValues(alpha: 0.4)
+              : AppColors.resolve(AppColors.border, AppDarkColors.border),
+          width: urgent ? 1.5 : 0.5,
+        ),
+        boxShadow: urgent ? [AppShadows.card] : [AppShadows.subtle],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                ),
+                child: Icon(icon, color: color, size: 17),
+              ),
+              const Spacer(),
+              Text(value,
+                  style: AppTypography.titleLarge(color: color)),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(label,
+              style: AppTypography.bodyMedium(
+                  color: AppColors.resolve(
+                      AppColors.ink, AppDarkColors.ink))),
+          const SizedBox(height: 2),
+          Text(sublabel,
+              style: AppTypography.bodySmall(
+                  color: AppColors.resolve(
+                      AppColors.inkMuted, AppDarkColors.inkMuted))),
+        ],
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// _KpiCard — carte métrique avec barre de progression
+// ═══════════════════════════════════════════════════════════
 class _KpiCard extends StatelessWidget {
   const _KpiCard({
     required this.value,
@@ -1151,10 +1222,9 @@ class _DishRow extends StatelessWidget {
           await Navigator.push(
             context,
             CupertinoPageRoute(
-              builder: (_) => DishDetailsMicroRestau(
+              builder: (_) => DishDetails(
                 dish_id: dish.dishID,
                 from_page: 1,
-                dish_restau: dish.restauID,
               ),
             ),
           );

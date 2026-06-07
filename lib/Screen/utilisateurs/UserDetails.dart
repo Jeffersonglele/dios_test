@@ -7,7 +7,6 @@ import 'package:dios_delices/theme/app_theme.dart';
 import 'package:dios_delices/core/app_role.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import '../../modeles/identity.dart';

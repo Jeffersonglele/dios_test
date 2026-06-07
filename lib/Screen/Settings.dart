@@ -364,53 +364,114 @@ class _SettingsState extends ConsumerState<Settings> {
   }
 
   Future<void> _showDeleteAccountDialog() async {
+    final session = await SessionService.readSession();
+    final userEmail = session.email ?? '';
+
+    String enteredEmail = '';
+    bool understood = false;
+
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-        ),
-        title: Row(children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: AppColors.errorLight,
-              borderRadius: BorderRadius.circular(AppRadius.sm),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+          ),
+          title: Row(children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: AppColors.errorLight,
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+              ),
+              child: const Icon(Icons.warning_rounded,
+                  color: AppColors.error, size: 18),
             ),
-            child: const Icon(Icons.warning_rounded,
-                color: AppColors.error, size: 18),
-          ),
-          const SizedBox(width: 10),
-          Text('Supprimer mon compte',
-              style: AppTypography.titleMedium().copyWith(fontSize: 16)),
-        ]),
-        content: Text(
-          'Cette action est irréversible. Toutes vos données personnelles et '
-          'vos commandes seront définitivement supprimées.\n\n'
-          'Voulez-vous vraiment continuer ?',
-          style: AppTypography.bodyLarge(),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Annuler',
-                style: AppTypography.labelMedium(color: AppColors.inkMuted)),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
+            const SizedBox(width: 10),
+            Text('Supprimer mon compte',
+                style: AppTypography.titleMedium().copyWith(fontSize: 16)),
+          ]),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                Text(
+                  'Cette action est irréversible. Vos données personnelles '
+                  'seront supprimées après 30 jours.',
+                  style: AppTypography.bodyLarge(),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Si vous souhaitez récupérer votre compte avant ce délai, '
+                  'contactez les administrateurs.',
+                  style: AppTypography.bodyMedium(color: AppColors.inkMuted),
+                ),
+                const SizedBox(height: 20),
+                TextField(
+                  decoration: InputDecoration(
+                    labelText: 'Confirmez votre email',
+                    hintText: userEmail,
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.email_outlined),
+                  ),
+                  onChanged: (v) => setDialogState(() => enteredEmail = v),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: Checkbox(
+                        value: understood,
+                        onChanged: (v) => setDialogState(() => understood = v ?? false),
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Je comprends que mes données seront supprimées '
+                        'après 30 jours. Si je souhaite récupérer mon compte '
+                        'avant ce délai, je dois contacter les administrateurs.',
+                        style: AppTypography.bodySmall(color: AppColors.inkMuted),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            child: const Text('Supprimer'),
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text('Annuler',
+                  style: AppTypography.labelMedium(color: AppColors.inkMuted)),
+            ),
+            ElevatedButton(
+              onPressed: enteredEmail == userEmail && understood
+                  ? () => Navigator.pop(ctx, true)
+                  : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.error,
+                disabledBackgroundColor: AppColors.error.withValues(alpha: 0.4),
+              ),
+              child: Text('Supprimer', style: TextStyle(
+                color: enteredEmail == userEmail && understood
+                    ? Colors.white
+                    : Colors.white.withValues(alpha: 0.6),
+              )),
+            ),
+          ],
+        ),
       ),
     );
 
     if (confirmed != true || !mounted) return;
 
-    final session = await SessionService.readSession();
     final result = await Users.suppr1User(session.userId);
     if (!mounted) return;
 

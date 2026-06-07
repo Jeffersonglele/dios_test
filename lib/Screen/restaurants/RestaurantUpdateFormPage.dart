@@ -4,10 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geocoding/geocoding.dart' as geo;
-import 'package:image_picker/image_picker.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:path/path.dart' as p;
 import '../../Constant/Constant.dart';
+import '../../utils/image_picker_helper.dart';
 import '../../modeles/users.dart';
 import '../../providers/users_provider.dart';
 import '../../utils/HashtagTextInputFormatter.dart';
@@ -45,45 +45,8 @@ class _RestaurantUpdateFormPageState
 
   // Méthode pour ouvrir l'image picker
   Future<void> _pickImage() async {
-    final ImagePicker _picker = ImagePicker();
-
-    showModalBottomSheet(
-        context: context,
-        builder: (BuildContext bc) {
-          return SafeArea(
-            child: Wrap(
-              children: <Widget>[
-                ListTile(
-                    leading: Icon(Icons.photo_library),
-                    title: Text('Galerie'),
-                    onTap: () async {
-                      final XFile? image =
-                          await _picker.pickImage(source: ImageSource.gallery);
-                      if (image != null) {
-                        setState(() {
-                          _image = File(image.path);
-                        });
-                      }
-                      Navigator.of(context).pop();
-                    }),
-                ListTile(
-                  leading: Icon(Icons.photo_camera),
-                  title: Text('Caméra'),
-                  onTap: () async {
-                    final XFile? image =
-                        await _picker.pickImage(source: ImageSource.camera);
-                    if (image != null) {
-                      setState(() {
-                        _image = File(image.path);
-                      });
-                    }
-                    Navigator.of(context).pop();
-                  },
-                ),
-              ],
-            ),
-          );
-        });
+    final file = await pickAndConfirmImage(context);
+    if (file != null) setState(() => _image = file);
   }
 
   // Fonction pour envoyer un email à l'admin avec les infos du restaurant

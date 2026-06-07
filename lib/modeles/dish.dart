@@ -406,3 +406,16 @@ class Dish extends HiveObject {
     }
   }
 }
+
+class DishOption {
+  final String name;
+  final List<String> choices;
+  final double price;
+
+  DishOption({
+    required this.name,
+    required this.choices,
+    this.price = 0.0,
+  });
+}
+

@@ -4,6 +4,7 @@ import 'package:dios_delices/Screen/verif_confirm/IdentityCreated.dart';
 import 'package:dios_delices/modeles/users.dart';
 import 'package:dios_delices/utils/toast.dart';
 import 'package:dios_delices/widgets/dios_image.dart';
+import 'package:dios_delices/utils/image_picker_helper.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -88,29 +89,24 @@ class _UserIdentityRejectedState extends ConsumerState<UserIdentityRejected> {
 
       if (!cameraSupported) {
         if (!mounted) return;
-
-        Toast(
-          context,
-          "La caméra n'est pas disponible sur ce simulateur. Utilisez un vrai iPhone pour prendre une photo.",
-          false,
-        );
+        Toast(context,
+            "La caméra n'est pas disponible sur ce simulateur. Utilisez un vrai iPhone pour prendre une photo.",
+            false);
         return;
       }
 
       final XFile? image = await picker.pickImage(source: ImageSource.camera);
-      if (image != null) {
-        setState(() {
-          _userPhoto = File(image.path);
-        });
+      if (image != null && mounted) {
+        final confirmed = await showImageConfirmDialog(context, File(image.path));
+        if (confirmed != null && mounted) {
+          setState(() => _userPhoto = confirmed);
+        }
       }
     } catch (e) {
       if (!mounted) return;
-
-      Toast(
-        context,
-        "Impossible d'ouvrir l'appareil photo. Vérifiez l'autorisation caméra.",
-        false,
-      );
+      Toast(context,
+          "Impossible d'ouvrir l'appareil photo. Vérifiez l'autorisation caméra.",
+          false);
     }
   }
 
@@ -119,19 +115,15 @@ class _UserIdentityRejectedState extends ConsumerState<UserIdentityRejected> {
       final ImagePicker picker = ImagePicker();
       final XFile? image = await picker.pickImage(source: ImageSource.gallery);
 
-      if (image != null) {
-        setState(() {
-          _userPhoto = File(image.path);
-        });
+      if (image != null && mounted) {
+        final confirmed = await showImageConfirmDialog(context, File(image.path));
+        if (confirmed != null && mounted) {
+          setState(() => _userPhoto = confirmed);
+        }
       }
     } catch (e) {
       if (!mounted) return;
-
-      Toast(
-        context,
-        "Impossible d'ouvrir la galerie.",
-        false,
-      );
+      Toast(context, "Impossible d'ouvrir la galerie.", false);
     }
   }
 
@@ -184,19 +176,15 @@ class _UserIdentityRejectedState extends ConsumerState<UserIdentityRejected> {
       final ImagePicker picker = ImagePicker();
       final XFile? image = await picker.pickImage(source: ImageSource.gallery);
 
-      if (image != null) {
-        setState(() {
-          _identityFile = File(image.path);
-        });
+      if (image != null && mounted) {
+        final confirmed = await showImageConfirmDialog(context, File(image.path));
+        if (confirmed != null && mounted) {
+          setState(() => _identityFile = confirmed);
+        }
       }
     } catch (e) {
       if (!mounted) return;
-
-      Toast(
-        context,
-        "Impossible d'ouvrir la galerie.",
-        false,
-      );
+      Toast(context, "Impossible d'ouvrir la galerie.", false);
     }
   }
 
