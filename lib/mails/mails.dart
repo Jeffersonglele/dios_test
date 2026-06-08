@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 
-Future<bool> sendVerificationEmail(
-    BuildContext context, String email) async {
-  return _sendCodeViaCloud(context: context, email: email, functionName: 'sendVerificationCode');
+export 'password_reset_code.dart';
+
+Future<bool> sendVerificationEmail(BuildContext context, String email) async {
+  return _sendCodeViaCloud(
+      context: context, email: email, functionName: 'sendVerificationCode');
 }
 
-Future<bool> sendPasswordResetEmail(
-    BuildContext context, String email) async {
-  return _sendCodeViaCloud(context: context, email: email, functionName: 'sendPasswordResetCode');
+Future<bool> sendPasswordResetEmail(BuildContext context, String email) async {
+  return _sendCodeViaCloud(
+      context: context, email: email, functionName: 'sendPasswordResetCode');
 }
 
 Future<bool> _sendCodeViaCloud({
