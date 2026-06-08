@@ -1,10 +1,10 @@
 import 'dart:math';
 
 import '../core/app_role.dart';
-import '../modeles/address.dart';
-import '../modeles/dish.dart';
-import '../modeles/restaurant.dart';
-import '../modeles/users.dart';
+import '../models/address.dart';
+import '../models/dish.dart';
+import '../models/restaurant.dart';
+import '../models/users.dart';
 import 'session_service.dart';
 
 class NearbyRestaurantResult {

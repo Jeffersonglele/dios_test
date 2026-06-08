@@ -1,7 +1,8 @@
-import 'package:dios_delices/modeles/ligne_commande.dart';
+import 'package:dios_delices/models/ligne_commande.dart';
 import 'package:dios_delices/services/comment_service.dart';
 import 'package:dios_delices/services/session_service.dart';
 import 'package:dios_delices/theme/app_theme.dart';
+import 'package:dios_delices/utils/currency_util.dart';
 import 'package:dios_delices/utils/rating_tags.dart';
 import 'package:dios_delices/utils/toast.dart';
 import 'package:flutter/material.dart';
@@ -32,8 +33,20 @@ class _RatingDialogState extends State<RatingDialog> {
   int _note = 5;
   final _commentCtrl = TextEditingController();
   Set<String> _selectedTags = {};
+  String _country = 'France';
 
   List<RatingTag> get _tags => tagsForTargetType(widget.targetType);
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCountry();
+  }
+
+  Future<void> _loadCountry() async {
+    final session = await SessionService.readSession();
+    if (mounted) setState(() => _country = session.country);
+  }
 
   @override
   void dispose() {
@@ -154,7 +167,7 @@ class _RatingDialogState extends State<RatingDialog> {
                                   ),
                                 ),
                                 Text(
-                                  '${l.prixUnitaire.toStringAsFixed(2)} €',
+                                  CurrencyUtil.formatPrice(l.prixUnitaire, _country),
                                   style: AppTypography.labelMedium(
                                           color: AppColors.brand)
                                       .copyWith(fontSize: 11),

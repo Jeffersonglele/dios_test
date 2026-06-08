@@ -1,11 +1,11 @@
-import '../modeles/address.dart';
-import '../modeles/commande.dart';
-import '../modeles/dish.dart';
-import '../modeles/identity.dart';
-import '../modeles/ligne_commande.dart';
-import '../modeles/moyen_paiement.dart';
-import '../modeles/restaurant.dart';
-import '../modeles/users.dart';
+import '../models/address.dart';
+import '../models/commande.dart';
+import '../models/dish.dart';
+import '../models/identity.dart';
+import '../models/ligne_commande.dart';
+import '../models/moyen_paiement.dart';
+import '../models/restaurant.dart';
+import '../models/users.dart';
 
 class AppBootstrapService {
   const AppBootstrapService._();

@@ -1,4 +1,5 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'session_service.dart';
@@ -20,6 +21,30 @@ class NotificationService {
       badge: true,
       sound: true,
     );
+
+    // Android 13+ : demande explicite du runtime POST_NOTIFICATIONS
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      try {
+        await _localNotifications
+            .resolvePlatformSpecificImplementation<
+                AndroidFlutterLocalNotificationsPlugin>()
+            ?.requestNotificationsPermission();
+      } catch (_) {}
+    }
+
+    // iOS : demande explicite via flutter_local_notifications
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      try {
+        final iOSPlugin = _localNotifications
+            .resolvePlatformSpecificImplementation<
+                IOSFlutterLocalNotificationsPlugin>();
+        await iOSPlugin?.requestPermissions(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+      } catch (_) {}
+    }
 
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -122,13 +147,14 @@ class NotificationService {
     required double totalAmount,
     String orderDetails = '',
     int? orderId,
+    String currencySymbol = '€',
   }) async {
     try {
       final cloudFunction = ParseCloudFunction('sendPushNotification');
       await cloudFunction.execute(parameters: {
         'userId': restaurateurId,
         'title': 'Nouvelle commande !',
-        'body': 'Commande de $totalAmount € chez $restaurantName',
+        'body': 'Commande de $totalAmount $currencySymbol chez $restaurantName',
         'data': {
           'type': 'new_order',
           'restaurant_name': restaurantName,
@@ -141,7 +167,7 @@ class NotificationService {
 
       await _showLocalNotification(
         title: 'Nouvelle commande !',
-        body: 'Commande de $totalAmount € chez $restaurantName',
+        body: 'Commande de $totalAmount $currencySymbol chez $restaurantName',
       );
     } catch (_) {}
   }

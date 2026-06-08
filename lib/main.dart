@@ -1,7 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:dios_delices/Screen/DishDetails.dart';
-import 'package:dios_delices/Screen/MealsOfACategory.dart';
+import 'package:dios_delices/screens/DishDetails.dart';
+import 'package:dios_delices/screens/MealsOfACategory.dart';
 import 'package:dios_delices/l10n/app_localizations.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -11,19 +11,20 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'Screen/authentification/Signup.dart';
-import 'Screen/authentification/Login.dart';
-import 'Constant/Constant.dart';
-import 'Screen/AnimatedSplashScreen.dart';
+import 'screens/auth/Signup.dart';
+import 'screens/auth/Login.dart';
+import 'constants/Constant.dart';
+import 'screens/AnimatedSplashScreen.dart';
 import 'package:path_provider/path_provider.dart' as path_provider;
-import 'modeles/identity.dart';
-import 'modeles/restaurant.dart';
-import 'modeles/dish.dart';
-import 'modeles/address.dart';
-import 'modeles/users.dart';
-import 'modeles/moyen_paiement.dart';
-import 'modeles/commande.dart';
-import 'modeles/ligne_commande.dart';
+import 'models/identity.dart';
+import 'models/restaurant.dart';
+import 'models/dish.dart';
+import 'models/address.dart';
+import 'models/users.dart';
+import 'models/moyen_paiement.dart';
+import 'models/commande.dart';
+import 'models/ligne_commande.dart';
+import 'models/pro_document.dart';
 import 'package:flutter/services.dart';
 import 'config/app_config.dart';
 import 'services/notification_service.dart';
@@ -78,6 +79,7 @@ void main() async {
     Hive.registerAdapter(CommandeAdapter());
     Hive.registerAdapter(MoyenPaiementAdapter());
     Hive.registerAdapter(LigneCommandeAdapter());
+    Hive.registerAdapter(ProDocumentAdapter());
 
   } catch (e) {
   }

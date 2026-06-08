@@ -1,13 +1,14 @@
 import 'package:hive/hive.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
-import '../modeles/address.dart';
-import '../modeles/commande.dart';
-import '../modeles/dish.dart';
-import '../modeles/identity.dart';
-import '../modeles/ligne_commande.dart';
-import '../modeles/moyen_paiement.dart';
-import '../modeles/restaurant.dart';
-import '../modeles/users.dart';
+import '../models/address.dart';
+import '../models/commande.dart';
+import '../models/dish.dart';
+import '../models/identity.dart';
+import '../models/ligne_commande.dart';
+import '../models/moyen_paiement.dart';
+import '../models/pro_document.dart';
+import '../models/restaurant.dart';
+import '../models/users.dart';
 
 class DatabaseHelper {
   static Future<Users> createUser(Users users) async {
@@ -396,6 +397,17 @@ class DatabaseHelper {
   Future closeHiveBox() async {
     await Hive
         .close(); // Ferme toutes les boxes ouvertes et libère les ressources Hive
+  }
+
+  static Future<ProDocument> createProDocument(ProDocument doc) async {
+    final box = await Hive.openBox<ProDocument>('pro_document');
+    await box.put(doc.documentID, doc);
+    return doc;
+  }
+
+  static Future<List<ProDocument>> readAllProDocuments() async {
+    final box = await Hive.openBox<ProDocument>('pro_document');
+    return box.values.toList();
   }
 
   static Future<bool> cleanUpDatabase(bool deleteAll) async {

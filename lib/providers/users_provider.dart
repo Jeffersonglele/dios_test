@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../modeles/users.dart';
+import '../models/users.dart';
 import '../services/session_service.dart';
 
 // StateProvider pour l'utilisateur

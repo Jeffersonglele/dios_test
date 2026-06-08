@@ -63,6 +63,51 @@ class LivreurApi {
       'commandeID': commandeID,
       'livreurID': livreurID,
     });
-    return response.success;
+    if (response.success && response.result != null) {
+      final result = response.result as Map<String, dynamic>;
+      return result['success'] == true;
+    }
+    return false;
+  }
+
+  // Abandonner une livraison
+  static Future<bool> dropDelivery(int commandeID, int livreurID) async {
+    final cloud = ParseCloudFunction('dropDelivery');
+    final response = await cloud.execute(parameters: {
+      'commandeID': commandeID,
+      'livreurID': livreurID,
+    });
+    if (response.success && response.result != null) {
+      final result = response.result as Map<String, dynamic>;
+      return result['success'] == true;
+    }
+    return false;
+  }
+
+  // Récupérer la distance max de livraison
+  static Future<double> getMaxDeliveryDistance(int livreurID) async {
+    try {
+      final query = QueryBuilder<ParseObject>(ParseObject('Users'))
+        ..whereEqualTo('userID', livreurID);
+      final response = await query.query();
+      if (response.success && response.results != null && response.results!.isNotEmpty) {
+        return (response.results!.first.get<num>('maxDeliveryDistance') ?? 10).toDouble();
+      }
+    } catch (_) {}
+    return 10;
+  }
+
+  // Mettre à jour la distance max de livraison
+  static Future<bool> updateMaxDeliveryDistance(int livreurID, double distance) async {
+    final cloud = ParseCloudFunction('update1User');
+    final response = await cloud.execute(parameters: {
+      'userID': livreurID,
+      'maxDeliveryDistance': distance,
+    });
+    if (response.success && response.result != null) {
+      final result = response.result as Map<String, dynamic>;
+      return result['success'] == true;
+    }
+    return false;
   }
 }
