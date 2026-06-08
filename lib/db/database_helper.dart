@@ -1,13 +1,14 @@
 import 'package:hive/hive.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
-import '../modeles/address.dart';
-import '../modeles/commande.dart';
-import '../modeles/dish.dart';
-import '../modeles/identity.dart';
-import '../modeles/ligne_commande.dart';
-import '../modeles/moyen_paiement.dart';
-import '../modeles/restaurant.dart';
-import '../modeles/users.dart';
+import '../models/address.dart';
+import '../models/commande.dart';
+import '../models/dish.dart';
+import '../models/identity.dart';
+import '../models/ligne_commande.dart';
+import '../models/moyen_paiement.dart';
+import '../models/pro_document.dart';
+import '../models/restaurant.dart';
+import '../models/users.dart';
 
 class DatabaseHelper {
   static Future<Users> createUser(Users users) async {
@@ -61,12 +62,35 @@ class DatabaseHelper {
     final Users? user = usersBox.get(userID);
 
     if (user != null) {
-      user.password = password; // Mettre à jour le mot de passe
-      await usersBox.put(userID, user); // Sauvegarder l'utilisateur mis à jour
-      return user; // Retourner l'utilisateur mis à jour
+      user.password = password;
+      await usersBox.put(userID, user);
+      return user;
     }
 
-    return null; // Retourner null si l'utilisateur n'est pas trouvé
+    return null;
+  }
+
+  static Future<Users?> updateUserProfile(
+      int userID,
+      String firstname,
+      String lastname,
+      String email,
+      String telephone) async {
+    final Box<Users> usersBox = await Hive.openBox<Users>('users');
+    final Users? user = usersBox.get(userID);
+
+    if (user != null) {
+      final updated = user.copy(
+        firstname: firstname,
+        lastname: lastname,
+        email: email,
+        telephone: telephone,
+      );
+      await usersBox.put(userID, updated);
+      return updated;
+    }
+
+    return null;
   }
 
   static Future<Users?> updateCountryAndRole(
@@ -84,11 +108,24 @@ class DatabaseHelper {
     return null; // Retourner null si l'utilisateur n'est pas trouvé
   }
 
+  static Future<Users?> getUser(int userID) async {
+    final Box<Users> usersBox = await Hive.openBox<Users>('users');
+    return usersBox.get(userID);
+  }
+
   static Future<List<Users>> readAllUserss() async {
     final Box<Users> usersBox = await Hive.openBox<Users>('users');
     List<Users> usersList = usersBox.values.toList();
     usersList.sort((a, b) => a.username.compareTo(b.username));
     return usersList;
+  }
+
+  static Future<void> saveAllUsers(List<Users> users) async {
+    final Box<Users> usersBox = await Hive.openBox<Users>('users');
+    await usersBox.clear();
+    for (var user in users) {
+      await usersBox.put(user.userID, user);
+    }
   }
 
   static Future<int> deleteUser(int userID) async {
@@ -168,8 +205,6 @@ class DatabaseHelper {
       dish_db.nb_servings = dish.nb_servings;
       dish_db.status = dish.status;
       await dishBox.put(dish.dishID, dish_db);
-      print("dish image  " + dish.image.toString());
-      print("dishID image  " + dish_db.image.toString());
       return dish_db;
     }
 
@@ -217,7 +252,6 @@ class DatabaseHelper {
   }
 
   static Future<void> addAddress(Address address) async {
-    print("function addAddress");
     var addressBox = await Hive.openBox<Address>('address');
 
     if (address.objectID != null) {
@@ -277,14 +311,11 @@ class DatabaseHelper {
 
   // ajouter une identité
   static Future<void> addIdentity(Identity identity) async {
-    print("function addIdentity");
     var identityBox = await Hive.openBox<Identity>('identity');
 
     if (identity.identityID != null) {
-      print("identity.identityID != null");
       await identityBox.put(identity.identityID, identity);
     } else {
-      print("else identity.identityID != null");
     // Enregistre sans clé spécifique (Hive assigne un ID auto)
       await identityBox.add(identity);
     }
@@ -366,6 +397,17 @@ class DatabaseHelper {
   Future closeHiveBox() async {
     await Hive
         .close(); // Ferme toutes les boxes ouvertes et libère les ressources Hive
+  }
+
+  static Future<ProDocument> createProDocument(ProDocument doc) async {
+    final box = await Hive.openBox<ProDocument>('pro_document');
+    await box.put(doc.documentID, doc);
+    return doc;
+  }
+
+  static Future<List<ProDocument>> readAllProDocuments() async {
+    final box = await Hive.openBox<ProDocument>('pro_document');
+    return box.values.toList();
   }
 
   static Future<bool> cleanUpDatabase(bool deleteAll) async {

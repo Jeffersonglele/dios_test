@@ -7,6 +7,7 @@ class UserSession {
     required this.userId,
     required this.role,
     required this.country,
+    this.email,
     this.restaurantId,
     this.isLoggedIn = false,
   });
@@ -14,6 +15,7 @@ class UserSession {
   final int userId;
   final AppRole role;
   final String country;
+  final String? email;
   final int? restaurantId;
   final bool isLoggedIn;
 
@@ -23,6 +25,7 @@ class UserSession {
     int? userId,
     AppRole? role,
     String? country,
+    String? email,
     int? restaurantId,
     bool? isLoggedIn,
   }) {
@@ -30,6 +33,7 @@ class UserSession {
       userId: userId ?? this.userId,
       role: role ?? this.role,
       country: country ?? this.country,
+      email: email ?? this.email,
       restaurantId: restaurantId ?? this.restaurantId,
       isLoggedIn: isLoggedIn ?? this.isLoggedIn,
     );
@@ -43,6 +47,7 @@ class SessionService {
   static const _loggedUserIdKey = 'loggedUserID';
   static const _currentUserRoleKey = 'currentUser_role';
   static const _currentUserCountryKey = 'currentUser_country';
+  static const _currentUserEmailKey = 'currentUser_email';
   static const _currentUserRestaurantKey = 'currentUser_restau';
 
   static Future<UserSession> readSession() async {
@@ -51,6 +56,7 @@ class SessionService {
       userId: prefs.getInt(_loggedUserIdKey) ?? 0,
       role: AppRole.fromId(prefs.getInt(_currentUserRoleKey)),
       country: prefs.getString(_currentUserCountryKey) ?? "France",
+      email: prefs.getString(_currentUserEmailKey),
       restaurantId: prefs.getInt(_currentUserRestaurantKey),
       isLoggedIn: prefs.getBool(_isLoggedInKey) ?? false,
     );
@@ -60,6 +66,7 @@ class SessionService {
     required int userId,
     required AppRole role,
     required String country,
+    String? email,
     int? restaurantId,
   }) async {
     final prefs = await SharedPreferences.getInstance();
@@ -67,6 +74,9 @@ class SessionService {
     await prefs.setInt(_loggedUserIdKey, userId);
     await prefs.setInt(_currentUserRoleKey, role.id);
     await prefs.setString(_currentUserCountryKey, country);
+    if (email != null) {
+      await prefs.setString(_currentUserEmailKey, email);
+    }
 
     if (restaurantId != null) {
       await prefs.setInt(_currentUserRestaurantKey, restaurantId);
@@ -91,6 +101,14 @@ class SessionService {
 
   static Future<void> clearAll() async {
     final prefs = await SharedPreferences.getInstance();
+    final welcomeKeys = prefs.getKeys().where((k) => k.startsWith('has_seen_welcome_'));
+    final welcomeValues = <String, bool>{};
+    for (final k in welcomeKeys) {
+      welcomeValues[k] = prefs.getBool(k) ?? false;
+    }
     await prefs.clear();
+    for (final e in welcomeValues.entries) {
+      await prefs.setBool(e.key, e.value);
+    }
   }
 }

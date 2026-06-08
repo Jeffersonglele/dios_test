@@ -17,6 +17,8 @@ class CommandeStatus {
   }
 
   static bool isPending(String? status) => normalize(status) == pending;
+  static bool isConfirmed(String? status) => normalize(status) == confirmed;
+  static bool isCancelled(String? status) => normalize(status) == cancelled;
 
   static Color color(String? status) {
     switch (normalize(status)) {

@@ -10,6 +10,7 @@ class CommentData {
   final String username;
   final String userImage;
   final DateTime createdAt;
+  final List<String> tags;
 
   CommentData({
     required this.id,
@@ -21,9 +22,15 @@ class CommentData {
     required this.username,
     required this.userImage,
     required this.createdAt,
+    this.tags = const [],
   });
 
   factory CommentData.fromMap(Map<String, dynamic> map) {
+    final rawTags = map['tags'];
+    List<String> tags = [];
+    if (rawTags is List) {
+      tags = rawTags.map((e) => e.toString()).toList();
+    }
     return CommentData(
       id: map['objectId']?.toString() ?? '',
       userID: int.tryParse(map['userID']?.toString() ?? '0') ?? 0,
@@ -36,6 +43,7 @@ class CommentData {
       createdAt: map['createdAt'] != null
           ? DateTime.tryParse(map['createdAt']) ?? DateTime.now()
           : DateTime.now(),
+      tags: tags,
     );
   }
 }
@@ -51,6 +59,7 @@ class CommentService {
     required String commentaire,
     required String username,
     String userImage = '',
+    List<String> tags = const [],
   }) async {
     final cloudFunction = ParseCloudFunction('addComment');
     final params = {
@@ -59,8 +68,11 @@ class CommentService {
       'targetID': targetID,
       'note': note,
       'commentaire': commentaire,
+      'rating': note,
+      'content': commentaire,
       'username': username,
       'userImage': userImage,
+      if (tags.isNotEmpty) 'tags': tags,
     };
 
     try {
@@ -81,11 +93,15 @@ class CommentService {
   static Future<List<CommentData>> getCommentsByTarget({
     required int targetType,
     required int targetID,
+    int limit = 5,
+    int skip = 0,
   }) async {
     final cloudFunction = ParseCloudFunction('getCommentsByTarget');
     final params = {
       'targetType': targetType,
       'targetID': targetID,
+      'limit': limit,
+      'skip': skip,
     };
 
     try {
@@ -97,8 +113,44 @@ class CommentService {
             .toList();
       }
     } catch (e) {
-      print('Error fetching comments: $e');
     }
     return [];
+  }
+
+  static Future<int> getCommentCount({
+    required int targetType,
+    required int targetID,
+  }) async {
+    final cloudFunction = ParseCloudFunction('getCommentCount');
+    try {
+      final response = await cloudFunction.execute(parameters: {
+        'targetType': targetType,
+        'targetID': targetID,
+      });
+      if (response.success && response.result != null) {
+        final result = response.result as Map<String, dynamic>;
+        return result['count'] ?? 0;
+      }
+    } catch (e) {
+    }
+    return 0;
+  }
+
+  static Future<Map<String, dynamic>> getTargetCharacteristics({
+    required int targetType,
+    required int targetID,
+  }) async {
+    final cloudFunction = ParseCloudFunction('getTargetCharacteristics');
+    try {
+      final response = await cloudFunction.execute(parameters: {
+        'targetType': targetType,
+        'targetID': targetID,
+      });
+      if (response.success && response.result != null) {
+        return response.result as Map<String, dynamic>;
+      }
+    } catch (e) {
+    }
+    return {'success': true, 'note': 0, 'characteristics': []};
   }
 }

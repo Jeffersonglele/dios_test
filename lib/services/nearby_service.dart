@@ -1,10 +1,10 @@
 import 'dart:math';
 
 import '../core/app_role.dart';
-import '../modeles/address.dart';
-import '../modeles/dish.dart';
-import '../modeles/restaurant.dart';
-import '../modeles/users.dart';
+import '../models/address.dart';
+import '../models/dish.dart';
+import '../models/restaurant.dart';
+import '../models/users.dart';
 import 'session_service.dart';
 
 class NearbyRestaurantResult {
@@ -33,6 +33,7 @@ class NearbyService {
   static Future<List<NearbyRestaurantResult>> getNearbyRestaurants({
     double maxDistanceKm = 10,
     bool openOnly = false,
+    bool ignoreDistance = false,
   }) async {
     final session = await SessionService.readSession();
     final users = await Users.fetchUsersFromDB();
@@ -43,10 +44,6 @@ class NearbyService {
         Address.getAddressByObject(addresses, "User", session.userId);
     final userLat = double.tryParse(userAddress?.lat ?? '');
     final userLon = double.tryParse(userAddress?.long ?? '');
-
-    if (userAddress == null || userLat == null || userLon == null) {
-      return <NearbyRestaurantResult>[];
-    }
 
     final results = <NearbyRestaurantResult>[];
 
@@ -59,37 +56,44 @@ class NearbyService {
       if (restaurant.valid != 1 ||
           associatedUser == null ||
           associatedRole.isIndividual ||
-          restaurant.userID == session.userId ||
-          restaurantAddress == null) {
+          restaurant.userID == session.userId) {
         continue;
       }
 
-      if (openOnly && restaurant.isOpen != 1) {
+      if (openOnly && !restaurant.isCurrentlyOpen) {
         continue;
       }
 
-      final restaurantLat = double.tryParse(restaurantAddress.lat ?? '');
-      final restaurantLon = double.tryParse(restaurantAddress.long ?? '');
+      double distanceKm = 0;
 
-      if (restaurantLat == null || restaurantLon == null) {
-        continue;
+      if (!ignoreDistance &&
+          userAddress != null &&
+          userLat != null &&
+          userLon != null &&
+          restaurantAddress != null) {
+        final restaurantLat = double.tryParse(restaurantAddress.lat ?? '');
+        final restaurantLon = double.tryParse(restaurantAddress.long ?? '');
+
+        if (restaurantLat != null && restaurantLon != null) {
+          distanceKm = _calculateDistanceKm(
+            userLat,
+            userLon,
+            restaurantLat,
+            restaurantLon,
+          );
+        }
+
+        if (distanceKm > maxDistanceKm) {
+          continue;
+        }
       }
 
-      final distanceKm = _calculateDistanceKm(
-        userLat,
-        userLon,
-        restaurantLat,
-        restaurantLon,
+      results.add(
+        NearbyRestaurantResult(
+          restaurant: restaurant,
+          distanceKm: distanceKm,
+        ),
       );
-
-      if (distanceKm <= maxDistanceKm) {
-        results.add(
-          NearbyRestaurantResult(
-            restaurant: restaurant,
-            distanceKm: distanceKm,
-          ),
-        );
-      }
     }
 
     results.sort((a, b) => a.distanceKm.compareTo(b.distanceKm));

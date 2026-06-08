@@ -1,28 +1,62 @@
-import 'dart:convert';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
-import '../core/app_role.dart';
 import 'session_service.dart';
+
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // handled by FCM system tray for background/terminated
+}
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _localNotifications =
-  FlutterLocalNotificationsPlugin();
+      FlutterLocalNotificationsPlugin();
 
   static Future<void> initialize() async {
-    // Configurer les notifications locales
+    final messaging = FirebaseMessaging.instance;
+
+    await messaging.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    // Android 13+ : demande explicite du runtime POST_NOTIFICATIONS
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      try {
+        await _localNotifications
+            .resolvePlatformSpecificImplementation<
+                AndroidFlutterLocalNotificationsPlugin>()
+            ?.requestNotificationsPermission();
+      } catch (_) {}
+    }
+
+    // iOS : demande explicite via flutter_local_notifications
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      try {
+        final iOSPlugin = _localNotifications
+            .resolvePlatformSpecificImplementation<
+                IOSFlutterLocalNotificationsPlugin>();
+        await iOSPlugin?.requestPermissions(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+      } catch (_) {}
+    }
+
     const AndroidInitializationSettings initializationSettingsAndroid =
-    AndroidInitializationSettings('@mipmap/ic_launcher');
+        AndroidInitializationSettings('@mipmap/ic_launcher');
 
     const DarwinInitializationSettings initializationSettingsIOS =
-    DarwinInitializationSettings(
+        DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
       requestSoundPermission: true,
     );
 
-    const InitializationSettings initializationSettings =
-    InitializationSettings(
+    const InitializationSettings initializationSettings = InitializationSettings(
       android: initializationSettingsAndroid,
       iOS: initializationSettingsIOS,
     );
@@ -32,17 +66,36 @@ class NotificationService {
       onDidReceiveNotificationResponse: _onNotificationTapped,
     );
 
-    if (kDebugMode) {
-      debugPrint('Service de notifications initialisé');
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+    FirebaseMessaging.onMessage.listen(_onForegroundMessage);
+
+    FirebaseMessaging.onMessageOpenedApp.listen(_onMessageOpenedApp);
+
+    final initialMessage = await messaging.getInitialMessage();
+    if (initialMessage != null) {
+      _handleNotificationData(initialMessage.data);
     }
   }
 
+  static void _onForegroundMessage(RemoteMessage message) {
+    _showLocalNotification(
+      title: message.notification?.title ?? 'Dios Délices',
+      body: message.notification?.body ?? '',
+      payload: message.data['type']?.toString(),
+    );
+  }
+
+  static void _onMessageOpenedApp(RemoteMessage message) {
+    _handleNotificationData(message.data);
+  }
+
+  static void _handleNotificationData(Map<String, dynamic> data) {
+    // Future: navigate based on type
+  }
+
   static void _onNotificationTapped(NotificationResponse response) {
-    if (kDebugMode) {
-      debugPrint('Notification tapée: ${response.payload}');
-    }
-    // Ici vous pouvez naviguer vers une page spécifique
-    // Par exemple, vers la page des commandes du restaurateur
+    // Future: navigate based on payload
   }
 
   static Future<void> _showLocalNotification({
@@ -51,7 +104,7 @@ class NotificationService {
     String? payload,
   }) async {
     const AndroidNotificationDetails androidPlatformChannelSpecifics =
-    AndroidNotificationDetails(
+        AndroidNotificationDetails(
       'dios_delices_channel',
       'Dios Délices Notifications',
       channelDescription: 'Notifications pour les commandes et mises à jour',
@@ -61,7 +114,7 @@ class NotificationService {
     );
 
     const DarwinNotificationDetails iOSPlatformChannelSpecifics =
-    DarwinNotificationDetails(
+        DarwinNotificationDetails(
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
@@ -81,7 +134,6 @@ class NotificationService {
     );
   }
 
-  // Méthode pour envoyer une notification de test
   static Future<void> sendTestNotification() async {
     await _showLocalNotification(
       title: 'Test Notification',
@@ -89,20 +141,20 @@ class NotificationService {
     );
   }
 
-  // Méthode pour envoyer une notification de commande au restaurateur
   static Future<void> sendOrderNotificationToRestaurateur({
     required int restaurateurId,
     required String restaurantName,
-    required String orderDetails,
     required double totalAmount,
+    String orderDetails = '',
     int? orderId,
+    String currencySymbol = '€',
   }) async {
     try {
       final cloudFunction = ParseCloudFunction('sendPushNotification');
       await cloudFunction.execute(parameters: {
-        'channels': ['restaurateurs', 'user_$restaurateurId'],
+        'userId': restaurateurId,
         'title': 'Nouvelle commande !',
-        'body': 'Commande de $totalAmount € chez $restaurantName',
+        'body': 'Commande de $totalAmount $currencySymbol chez $restaurantName',
         'data': {
           'type': 'new_order',
           'restaurant_name': restaurantName,
@@ -113,42 +165,39 @@ class NotificationService {
         },
       });
 
-      if (kDebugMode) {
-        debugPrint('Notification de commande envoyée au restaurateur $restaurateurId');
-      }
-
       await _showLocalNotification(
         title: 'Nouvelle commande !',
-        body: 'Commande de $totalAmount € chez $restaurantName',
+        body: 'Commande de $totalAmount $currencySymbol chez $restaurantName',
       );
-    } catch (e) {
-      debugPrint('Erreur notification: $e');
-    }
+    } catch (_) {}
   }
 
-  // Méthode pour s'abonner aux notifications (pour les restaurateurs)
   static Future<void> subscribeToRestaurantNotifications() async {
     try {
       final session = await SessionService.readSession();
       final userId = session.userId;
       final userRole = session.role;
 
-      if (userId > 0 &&
-          (userRole == AppRole.microRestaurant ||
-              userRole == AppRole.individual)) {
-        final installation = ParseObject('_Installation')
-          ..set('channels', ['restaurateurs', 'user_$userId'])
-          ..set('deviceType', 'android')
-          ..set('appName', 'Dios Délices')
-          ..set('appVersion', '1.0.0');
-        await installation.save();
+      if (userId <= 0) return;
 
-        if (kDebugMode) {
-          debugPrint('Installation créée pour le restaurateur $userId');
-        }
+      final messaging = FirebaseMessaging.instance;
+      final fcmToken = await messaging.getToken();
+
+      final installation = await ParseInstallation.currentInstallation();
+      installation.set('userID', userId);
+      installation.set('channels', ['restaurateurs', 'user_$userId']);
+      if (fcmToken != null) {
+        installation.deviceToken = fcmToken;
       }
-    } catch (e) {
-      debugPrint('Erreur abonnement notifications: $e');
-    }
+      await installation.save();
+
+      messaging.onTokenRefresh.listen((newToken) async {
+        final inst = await ParseInstallation.currentInstallation();
+        inst.deviceToken = newToken;
+        inst.set('userID', userId);
+        inst.set('channels', ['restaurateurs', 'user_$userId']);
+        await inst.save();
+      });
+    } catch (_) {}
   }
 }
