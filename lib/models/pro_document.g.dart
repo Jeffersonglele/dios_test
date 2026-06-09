@@ -25,13 +25,14 @@ class ProDocumentAdapter extends TypeAdapter<ProDocument> {
       pieceIdentiteUrl: fields[5] as String,
       status: fields[6] as String,
       remark: fields[7] as String,
+      description: fields[8] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, ProDocument obj) {
     writer
-      ..writeByte(8)
+      ..writeByte(9)
       ..writeByte(0)
       ..write(obj.documentID)
       ..writeByte(1)
@@ -47,7 +48,9 @@ class ProDocumentAdapter extends TypeAdapter<ProDocument> {
       ..writeByte(6)
       ..write(obj.status)
       ..writeByte(7)
-      ..write(obj.remark);
+      ..write(obj.remark)
+      ..writeByte(8)
+      ..write(obj.description);
   }
 
   @override

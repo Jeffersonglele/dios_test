@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:dios_delices/l10n/app_localizations.dart';
 import 'package:dios_delices/screens/delivery/LivreurListPage.dart';
+import 'package:dios_delices/screens/restaurants/RestaurantDetails.dart';
 import 'package:dios_delices/screens/restaurants/RestaurantListPage.dart';
 import 'package:dios_delices/screens/users/UsersListPage.dart';
 import 'package:dios_delices/models/users.dart';
@@ -23,7 +24,8 @@ import 'PromotionsPage.dart';
 import 'ParrainagePage.dart';
 import 'ScheduledDeletionsPage.dart';
 import 'AuditLogPage.dart';
-import '../CountryPage.dart';
+import 'ProManagementPage.dart';
+import '../users/UserDetails.dart';
 
 // ═══════════════════════════════════════════════════════════
 // AdminDashboard — Refonte complète
@@ -52,6 +54,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
   int _newUsersMonth = 0;
   int _totalLivreurs = 0;
   bool _statsLoading = true;
+
+  int _categoryCount = 0;
+  int _promoCount = 0;
+  int _proPendingCount = 0;
+  int _adminCount = 0;
+  int _referralCount = 0;
+  int _auditLogCount = 0;
+  int _scheduledDeletionCount = 0;
 
   // ── Restaurants en attente ───────────────────────────────
   List<Map<String, dynamic>> _pendingRestaurants = [];
@@ -97,6 +107,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           if (!mounted) return;
           setState(
               () => _applyData(users, restaurants, commandes, target, stats));
+          _loadAuxiliaryCounts(target);
           return;
         }
       }
@@ -107,6 +118,51 @@ class _AdminDashboardState extends State<AdminDashboard> {
     final commandes = await Commande.fetchCommandesFromDB();
     if (!mounted) return;
     setState(() => _applyData(users, restaurants, commandes, target, null));
+    _loadAuxiliaryCounts(target);
+  }
+
+  Future<void> _loadAuxiliaryCounts(String target) async {
+    try {
+      final resCat = await ParseCloudFunction('getAllCategories').execute();
+      if (resCat.success && resCat.result is List) {
+        final cats = resCat.result as List;
+        _categoryCount = cats.length;
+      }
+    } catch (e) { print('[Dashboard] getAllCategories error: $e'); }
+    try {
+      final resPromo = await ParseCloudFunction('getAllPromoCodes').execute();
+      if (resPromo.success && resPromo.result is List) {
+        _promoCount = (resPromo.result as List).length;
+      }
+    } catch (e) { print('[Dashboard] getAllPromoCodes error: $e'); }
+    try {
+      final resPro = await ParseCloudFunction('getAllProDocuments').execute(parameters: {'country': target});
+      print('[Dashboard] getAllProDocuments: success=${resPro.success}, total=${resPro.result is List ? (resPro.result as List).length : 'n/a'}');
+      if (resPro.success && resPro.result is List) {
+        _proPendingCount = (resPro.result as List)
+            .where((d) => d['status'] == 'pending')
+            .length;
+      }
+    } catch (e) { print('[Dashboard] getAllProDocuments error: $e'); }
+    try {
+      final resRef = await ParseCloudFunction('getReferralCount').execute(parameters: {'country': target});
+      if (resRef.success && resRef.result is Map) {
+        _referralCount = (resRef.result as Map)['count'] ?? 0;
+      }
+    } catch (_) {}
+    try {
+      final resAudit = await ParseCloudFunction('getAuditLogCount').execute(parameters: {'country': target});
+      if (resAudit.success && resAudit.result is Map) {
+        _auditLogCount = (resAudit.result as Map)['count'] ?? 0;
+      }
+    } catch (_) {}
+    try {
+      final resDel = await ParseCloudFunction('getScheduledDeletionsCount').execute(parameters: {'country': target});
+      if (resDel.success && resDel.result is Map) {
+        _scheduledDeletionCount = (resDel.result as Map)['count'] ?? 0;
+      }
+    } catch (_) {}
+    if (mounted) setState(() {});
   }
 
   void _applyData(
@@ -160,6 +216,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
       };
     }).toList();
     _pendingRestaurantCount = _pendingRestaurants.length;
+    _adminCount = cu.where((u) => u.roleID == 1 || u.roleID == 4).length;
+    _referralCount = 0;
     _statsLoading = false;
   }
 
@@ -245,6 +303,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   // ── Recherche ─────────────────────────────────────────────
   void _showSearch() {
+    final l10n = AppLocalizations.of(context)!;
     final ctrl = TextEditingController();
     showDialog(
       context: context,
@@ -264,6 +323,28 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 .where((r) => r.name.toLowerCase().contains(q))
                 .toList();
           }
+
+          String _roleLabel(Users u) {
+            final role = AppRole.fromId(u.roleID);
+            if (role.isAdmin) return l10n.role_admin;
+            if (role.isDelivery) return l10n.role_livreur;
+            if (role.isProfessional) return l10n.role_restaurateur;
+            return l10n.role_client;
+          }
+
+          void _openUser(Users u) {
+            Navigator.pop(ctx);
+            Navigator.push(context,
+                MaterialPageRoute(builder: (_) => UserDetails(user_id: u.userID)));
+          }
+
+          void _openRestaurant(Restaurant r) {
+            Navigator.pop(ctx);
+            Navigator.push(context,
+                MaterialPageRoute(
+                    builder: (_) => RestaurantDetails(restaurant_id: r.restaurantID)));
+          }
+
           return AlertDialog(
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(AppRadius.xl)),
@@ -273,7 +354,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               controller: ctrl,
               autofocus: true,
               decoration: InputDecoration(
-                hintText: AppLocalizations.of(context)!.admin_search_hint,
+                hintText: l10n.admin_search_hint,
                 prefixIcon: const Icon(Icons.search_rounded, size: 20),
               ),
               onChanged: (_) => set(() {}),
@@ -288,12 +369,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         if (ur.isNotEmpty) ...[
                           Padding(
                             padding: const EdgeInsets.only(top: 12, bottom: 6),
-                            child: Text(AppLocalizations.of(context)!.users,
+                            child: Text(l10n.users,
                                 style: AppTypography.labelMedium(
                                     color: AppColors.inkMuted)),
                           ),
-                          ...ur.take(4).map((u) => ListTile(
+                          ...ur.take(6).map((u) => ListTile(
                                 dense: true,
+                                onTap: () => _openUser(u),
                                 leading: CircleAvatar(
                                   backgroundColor: AppColors.resolve(
                                       AppColors.brandSurface,
@@ -312,18 +394,29 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                 subtitle: Text(u.email,
                                     style: AppTypography.bodyMedium()
                                         .copyWith(fontSize: 11)),
+                                trailing: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.accentLight,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(_roleLabel(u),
+                                      style: AppTypography.labelMedium(
+                                          color: AppColors.accent).copyWith(fontSize: 10)),
+                                ),
                               )),
                         ],
                         if (rr.isNotEmpty) ...[
                           Padding(
                             padding: const EdgeInsets.only(top: 12, bottom: 6),
-                            child: Text(
-                                AppLocalizations.of(context)!.restaurants,
+                            child: Text(l10n.restaurants,
                                 style: AppTypography.labelMedium(
                                     color: AppColors.inkMuted)),
                           ),
                           ...rr.take(4).map((r) => ListTile(
                                 dense: true,
+                                onTap: () => _openRestaurant(r),
                                 leading: Container(
                                   width: 36,
                                   height: 36,
@@ -346,7 +439,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         if (ur.isEmpty && rr.isEmpty)
                           Padding(
                             padding: const EdgeInsets.all(16),
-                            child: Text(AppLocalizations.of(context)!.noResults,
+                            child: Text(l10n.noResults,
                                 style: AppTypography.bodyMedium(
                                     color: AppColors.inkMuted)),
                           ),
@@ -357,7 +450,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             actions: [
               TextButton(
                   onPressed: () => Navigator.pop(ctx),
-                  child: Text(AppLocalizations.of(context)!.close)),
+                  child: Text(l10n.close)),
             ],
           );
         },
@@ -691,17 +784,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
             sublabel: _newUsersMonth > 0 ? '+$_newUsersMonth ce mois' : null,
             color: Colors.blue,
             onTap: () {
-              if (_userRole == AppRole.superAdmin) {
-                Navigator.push(context,
-                    CupertinoPageRoute(
-                        builder: (_) =>
-                            const CountryPage(sectionType: 'utilisateurs')));
-              } else {
-                Navigator.push(context,
-                    MaterialPageRoute(
-                        builder: (_) => UsersListPage(
-                            country: _userCountry, roleFilter: const [2, 3])));
-              }
+              Navigator.push(context,
+                  MaterialPageRoute(
+                      builder: (_) => UsersListPage(
+                          country: _userCountry, roleFilter: _userRole == AppRole.superAdmin ? null : const [2, 3])));
             },
           ),
         ),
@@ -717,17 +803,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
             badge: _pendingRestaurantCount > 0 ? '$_pendingRestaurantCount' : null,
             color: AppColors.resolve(AppColors.accent, AppDarkColors.accent),
             onTap: () {
-              if (_userRole == AppRole.superAdmin) {
-                Navigator.push(context,
-                    CupertinoPageRoute(
-                        builder: (_) =>
-                            CountryPage(sectionType: 'restaurants')));
-              } else {
-                Navigator.push(context,
-                    MaterialPageRoute(
-                        builder: (_) =>
-                            RestaurantListPage(country: _userCountry)));
-              }
+              Navigator.push(context,
+                  MaterialPageRoute(
+                      builder: (_) =>
+                          RestaurantListPage(country: _userCountry)));
             },
           ),
         ),
@@ -742,16 +821,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
             count: '$_totalLivreurs',
             color: AppColors.resolve(AppColors.success, AppDarkColors.success),
             onTap: () {
-              if (_userRole == AppRole.superAdmin) {
-                Navigator.push(context,
-                    CupertinoPageRoute(
-                        builder: (_) =>
-                            const CountryPage(sectionType: 'livreurs')));
-              } else {
-                Navigator.push(context,
-                    CupertinoPageRoute(
-                        builder: (_) => const LivreurListPage()));
-              }
+              Navigator.push(context,
+                  CupertinoPageRoute(
+                      builder: (_) => LivreurListPage(country: _userCountry)));
             },
           ),
         ),
@@ -763,7 +835,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           child: _NavCardResponsive(
             icon: Icons.label_outline_rounded,
             label: l10n.admin_categories,
-            count: '—',
+            count: '$_categoryCount',
             color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
             onTap: () => Navigator.push(context,
                 MaterialPageRoute(
@@ -778,7 +850,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           child: _NavCardResponsive(
             icon: Icons.discount_rounded,
             label: l10n.admin_promotions,
-            count: '—',
+            count: '$_promoCount',
             color: AppColors.resolve(AppColors.accent, AppDarkColors.accent),
             onTap: () => Navigator.push(context,
                 MaterialPageRoute(
@@ -791,9 +863,24 @@ class _AdminDashboardState extends State<AdminDashboard> {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
           child: _NavCardResponsive(
+            icon: Icons.verified_user_rounded,
+            label: l10n.admin_pro_requests,
+            count: '$_proPendingCount',
+            color: AppColors.resolve(AppColors.accent, AppDarkColors.accent),
+            onTap: () => Navigator.push(context,
+                CupertinoPageRoute(
+                    builder: (_) => ProManagementPage(country: _userCountry))),
+          ),
+        ),
+      ),
+      const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.sm)),
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
+          child: _NavCardResponsive(
             icon: Icons.people_alt_rounded,
             label: l10n.admin_referral,
-            count: '—',
+            count: '$_referralCount',
             color: Colors.teal,
             onTap: () => Navigator.push(context,
                 MaterialPageRoute(
@@ -808,7 +895,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           child: _NavCardResponsive(
             icon: Icons.history_rounded,
             label: l10n.auditLog,
-            count: '—',
+            count: '$_auditLogCount',
             color: AppColors.resolve(
                 AppColors.inkMuted, AppDarkColors.inkMuted),
             onTap: () => Navigator.push(context,
@@ -825,7 +912,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           child: _NavCardResponsive(
             icon: Icons.delete_sweep_rounded,
             label: l10n.admin_scheduled_deletions,
-            count: '—',
+            count: '$_scheduledDeletionCount',
             color: AppColors.resolve(AppColors.error, AppDarkColors.error),
             onTap: () => Navigator.push(context,
                 MaterialPageRoute(
@@ -842,12 +929,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
             child: _NavCardResponsive(
               icon: Icons.admin_panel_settings_rounded,
               label: l10n.administrators,
-              count: '—',
+              count: '$_adminCount',
               color: AppColors.resolve(AppColors.error, AppDarkColors.error),
               onTap: () => Navigator.push(context,
                   CupertinoPageRoute(
                       builder: (_) =>
-                          CountryPage(sectionType: 'administrateurs'))),
+                          UsersListPage(country: _userCountry, roleFilter: const [1, 4]))),
               onAdd: () => _showAddUser(roleID: 1),
             ),
           ),

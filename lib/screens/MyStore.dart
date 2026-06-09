@@ -18,6 +18,7 @@ import 'delivery/DeliveryDashboard.dart';
 import 'delivery/LivreurEarningsPage.dart';
 import '../services/session_service.dart';
 import '../utils/toast.dart';
+import 'restaurants/ProRequestPage.dart';
 
 class MyStore extends StatefulWidget {
   const MyStore({super.key});
@@ -154,7 +155,9 @@ class _MyStoreState extends State<MyStore> {
             'Mes commandes',
             const UserOrdersPage(showRestaurantOrders: true)));
         newSections.add(_StoreSection(Icons.workspace_premium_rounded,
-            'Devenir Pro', null));
+            'Devenir Pro', null,
+            action: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const ProRequestPage()))));
         break;
       default:
         newSections.add(

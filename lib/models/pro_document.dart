@@ -31,6 +31,9 @@ class ProDocument extends HiveObject {
   @HiveField(7)
   String remark;
 
+  @HiveField(8)
+  String description;
+
   ProDocument({
     required this.documentID,
     required this.userID,
@@ -40,6 +43,7 @@ class ProDocument extends HiveObject {
     this.pieceIdentiteUrl = '',
     this.status = 'pending',
     this.remark = '',
+    this.description = '',
   });
 
   Map<String, dynamic> toJson() {
@@ -52,6 +56,7 @@ class ProDocument extends HiveObject {
       'pieceIdentiteUrl': pieceIdentiteUrl,
       'status': status,
       'remark': remark,
+      'description': description,
     };
   }
 
@@ -65,6 +70,7 @@ class ProDocument extends HiveObject {
       pieceIdentiteUrl: map['pieceIdentiteUrl']?.toString() ?? '',
       status: map['status']?.toString() ?? 'pending',
       remark: map['remark']?.toString() ?? '',
+      description: map['description']?.toString() ?? '',
     );
   }
 
@@ -75,6 +81,7 @@ class ProDocument extends HiveObject {
     ParseFile? siret,
     ParseFile? kbis,
     ParseFile? pieceIdentite,
+    String? description,
   }) async {
     String functionName = documentID == null
         ? 'submitRestaurantProDocuments'
@@ -120,6 +127,7 @@ class ProDocument extends HiveObject {
       if (siretUrl != null) 'siretUrl': siretUrl,
       if (kbisUrl != null) 'kbisUrl': kbisUrl,
       if (pieceIdentiteUrl != null) 'pieceIdentiteUrl': pieceIdentiteUrl,
+      if (description != null && description.isNotEmpty) 'description': description,
     };
 
     try {

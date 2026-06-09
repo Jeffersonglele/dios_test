@@ -54,6 +54,7 @@ class Dish extends HiveObject {
 
   String currency;
   String images;
+  String country;
 
   int stock;
   bool isDailySpecial;
@@ -76,6 +77,7 @@ class Dish extends HiveObject {
     required this.status,
     this.currency = 'EUR',
     this.images = '',
+    this.country = '',
     this.stock = 99,
     this.isDailySpecial = false,
   });
@@ -99,6 +101,7 @@ class Dish extends HiveObject {
       'restauID': restauID,
       'status': status,
       'currency': currency,
+      'country': country,
     };
   }
 
@@ -121,6 +124,7 @@ class Dish extends HiveObject {
       restauID: int.tryParse(map['restauID']?.toString() ?? '0') ?? 0,
       status: int.tryParse(map['status']?.toString() ?? '0') ?? 0,
       currency: map['currency']?.toString() ?? 'EUR',
+      country: map['country']?.toString() ?? '',
     );
   }
 

@@ -112,6 +112,85 @@ class PromoService {
     }
   }
 
+  static Future<bool> togglePromoActive(String code) async {
+    try {
+      final cloudFunction = ParseCloudFunction('togglePromoCode');
+      final response = await cloudFunction.execute(parameters: {'code': code});
+      if (response.success && response.result != null) {
+        notifyDataChanged();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  static Future<bool> deletePromoCode(String code) async {
+    try {
+      final cloudFunction = ParseCloudFunction('deletePromoCode');
+      final response = await cloudFunction.execute(parameters: {'code': code});
+      if (response.success && response.result != null) {
+        notifyDataChanged();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  static Future<String> updatePromoCode({
+    required String code,
+    required double discountPercent,
+    required double discountFixed,
+    required String description,
+    required int minOrder,
+    required int maxUses,
+    DateTime? validFrom,
+    DateTime? validUntil,
+  }) async {
+    try {
+      final cloudFunction = ParseCloudFunction('updatePromoCode');
+      final params = <String, dynamic>{
+        'code': code.toUpperCase(),
+        'discountPercent': discountPercent,
+        'discountFixed': discountFixed,
+        'description': description,
+        'minOrder': minOrder,
+        'maxUses': maxUses,
+      };
+
+      if (validFrom != null) {
+        params['validFrom'] = {
+          '__type': 'Date',
+          'iso': validFrom.toIso8601String(),
+        };
+      }
+
+      if (validUntil != null) {
+        params['validUntil'] = {
+          '__type': 'Date',
+          'iso': validUntil.toIso8601String(),
+        };
+      }
+
+      final response = await cloudFunction.execute(parameters: params);
+
+      if (response.success && response.result != null) {
+        final result = response.result as Map<String, dynamic>;
+        if (result['success'] == false) {
+          return "Erreur : ${result['error']}";
+        }
+        notifyDataChanged();
+        return "success";
+      }
+      return "Erreur lors de l'appel de la fonction cloud";
+    } catch (e) {
+      return "Exception : $e";
+    }
+  }
+
   static Future<dynamic> createReferralCode(int userID) async {
     try {
       final cloudFunction = ParseCloudFunction('createReferralCode');

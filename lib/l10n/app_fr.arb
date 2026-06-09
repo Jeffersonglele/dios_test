@@ -369,6 +369,24 @@
   "admin_restaurant_rejected": "{name} rejeté",
   "admin_rejection_reason_hint": "Raison du rejet…",
 
+  "admin_pro_requests": "Demandes Pro",
+  "admin_pro_requests_pending": "En attente",
+  "admin_pro_requests_validated": "Validées",
+  "admin_pro_requests_rejected": "Refusées",
+  "admin_pro_validate": "Valider",
+  "admin_pro_reject": "Refuser",
+  "admin_pro_validated": "{name} validé ✓",
+  "admin_pro_rejected": "{name} refusé",
+  "admin_pro_no_requests": "Aucune demande Pro.",
+  "admin_pro_status_pending": "En attente de validation",
+  "admin_pro_status_validated": "Validé",
+  "admin_pro_status_rejected": "Refusé",
+  "admin_pro_remark_hint": "Motif du refus…",
+  "admin_pro_documents": "Documents",
+  "admin_pro_view_document": "Voir",
+  "admin_pro_description": "Description de la demande",
+  "admin_pro_no_description": "Aucune description fournie.",
+
   "delivery_status_assigned": "Assignée",
   "delivery_status_picked_up": "Récupérée",
   "delivery_status_in_transit": "En route",
@@ -769,5 +787,31 @@
   "order_tracking_cancelled": "Annulée",
 
   "users": "Utilisateurs",
-  "administrators": "Administrateurs"
+  "administrators": "Administrateurs",
+
+  "pro_request_title": "Devenir Pro",
+  "pro_request_subtitle": "Soumettez vos documents pour passer en compte professionnel.",
+  "pro_request_description_label": "Votre demande",
+  "pro_request_description_hint": "Dites-nous qui vous êtes, ce que vous faites, et pourquoi vous voulez devenir Pro...",
+  "pro_request_identity_doc": "Pièce d'identité",
+  "pro_request_pro_doc": "Document professionnel",
+  "pro_request_pick_file": "Sélectionner un fichier",
+  "pro_request_file_selected": "Fichier sélectionné",
+  "pro_request_no_file": "Aucun fichier sélectionné",
+  "pro_request_submit": "Envoyer ma demande",
+  "pro_request_success": "Votre demande a été envoyée. Nous l'examinerons prochainement.",
+  "pro_request_error_description": "Veuillez rédiger une description de votre demande.",
+  "pro_request_error_identity": "Veuillez joindre votre pièce d'identité.",
+  "pro_request_error_pro_doc": "Veuillez joindre un document professionnel.",
+
+  "optional": "optionnel",
+  "promo_activate": "Activer",
+  "promo_deactivate": "Désactiver",
+  "promo_delete_confirm": "Supprimer le code promo ?",
+  "promo_edit_title": "Modifier la promo",
+
+  "role_admin": "Admin",
+  "role_client": "Client",
+  "role_restaurateur": "Restaurateur",
+  "role_livreur": "Livreur"
 }

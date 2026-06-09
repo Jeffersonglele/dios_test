@@ -5,6 +5,7 @@ import 'package:dios_delices/theme/app_theme.dart';
 import 'package:dios_delices/utils/currency_util.dart';
 import 'package:dios_delices/utils/toast.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class PromotionsPage extends StatefulWidget {
   const PromotionsPage({super.key});
@@ -198,6 +199,7 @@ class _PromotionsPageState extends State<PromotionsPage> {
                           const Icon(Icons.monetization_on_outlined, size: 20),
                     ),
                     keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d.]'))],
                     validator: (v) {
                       if (v == null || v.trim().isEmpty) {
                         return AppLocalizations.of(context)!.promo_required;
@@ -226,6 +228,14 @@ class _PromotionsPageState extends State<PromotionsPage> {
                       helperText: '0 = pas de minimum',
                     ),
                     keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    validator: (v) {
+                      if (v != null && v.trim().isNotEmpty) {
+                        final n = int.tryParse(v.trim());
+                        if (n == null || n < 0) return 'Entrez un nombre ≥ 0';
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: AppSpacing.md),
                   TextFormField(
@@ -236,6 +246,14 @@ class _PromotionsPageState extends State<PromotionsPage> {
                       helperText: '0 = illimité',
                     ),
                     keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    validator: (v) {
+                      if (v != null && v.trim().isNotEmpty) {
+                        final n = int.tryParse(v.trim());
+                        if (n == null || n < 0) return 'Entrez un nombre ≥ 0';
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: AppSpacing.md),
                   Row(
@@ -388,6 +406,118 @@ class _PromotionsPageState extends State<PromotionsPage> {
     );
   }
 
+  void _confirmDelete(String code) async {
+    final l10n = AppLocalizations.of(context)!;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.promo_delete_confirm),
+        content: Text('$code ?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.cancel)),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white),
+            child: Text(l10n.delete),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await PromoService.deletePromoCode(code);
+      _load();
+    }
+  }
+
+  void _showEditForm(Map<String, dynamic> current) {
+    final discountValueCtrl = TextEditingController(
+      text: ((current['discountPercent'] ?? 0) > 0
+          ? current['discountPercent'].toString()
+          : current['discountFixed']?.toString() ?? '0'),
+    );
+    final minOrderCtrl = TextEditingController(text: (current['minOrder'] ?? 0).toString());
+    final maxUsesCtrl = TextEditingController(text: (current['maxUses'] ?? 0).toString());
+    final descCtrl = TextEditingController(text: current['description'] ?? '');
+    String discountType = (current['discountPercent'] ?? 0) > 0 ? 'percentage' : 'fixed';
+    final formKey = GlobalKey<FormState>();
+    final l10n = AppLocalizations.of(context)!;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Padding(
+          padding: EdgeInsets.only(left: AppSpacing.lg, right: AppSpacing.lg, top: AppSpacing.lg, bottom: MediaQuery.of(ctx).viewInsets.bottom + AppSpacing.lg),
+          child: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.resolve(AppColors.border, AppDarkColors.border), borderRadius: BorderRadius.circular(2)))),
+                const SizedBox(height: AppSpacing.lg),
+                Text('Modifier ${current['code']}', style: AppTypography.titleMedium()),
+                const SizedBox(height: AppSpacing.lg),
+                DropdownButtonFormField<String>(
+                  value: discountType,
+                  decoration: InputDecoration(labelText: l10n.promo_discount_type, prefixIcon: const Icon(Icons.percent_rounded, size: 20)),
+                  items: [
+                    DropdownMenuItem(value: 'percentage', child: Text(l10n.promo_percentage)),
+                    DropdownMenuItem(value: 'fixed', child: Text(l10n.promo_fixed_amount)),
+                  ],
+                  onChanged: (v) { if (v != null) setSheetState(() => discountType = v); },
+                ),
+                const SizedBox(height: AppSpacing.md),
+                TextFormField(
+                  controller: discountValueCtrl,
+                  decoration: InputDecoration(labelText: discountType == 'percentage' ? l10n.promo_value_percent : l10n.promo_value_fixed, prefixIcon: const Icon(Icons.monetization_on_outlined, size: 20)),
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d.]'))],
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return l10n.promo_required;
+                    final val = double.tryParse(v); if (val == null) return 'Valeur invalide';
+                    if (discountType == 'percentage' && (val <= 0 || val > 100)) return 'Entre 1 et 100';
+                    if (discountType == 'fixed' && val <= 0) return 'Supérieur à 0';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: AppSpacing.md),
+                TextFormField(controller: minOrderCtrl, decoration: InputDecoration(labelText: l10n.promo_min_order, prefixIcon: const Icon(Icons.shopping_cart_outlined, size: 20)), keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly], validator: (v) {
+                  if (v != null && v.trim().isNotEmpty) { final n = int.tryParse(v.trim()); if (n == null || n < 0) return 'Nombre (≥ 0)'; } return null;
+                }),
+                const SizedBox(height: AppSpacing.md),
+                TextFormField(controller: maxUsesCtrl, decoration: InputDecoration(labelText: l10n.promo_max_uses, prefixIcon: const Icon(Icons.repeat_rounded, size: 20)), keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly], validator: (v) {
+                  if (v != null && v.trim().isNotEmpty) { final n = int.tryParse(v.trim()); if (n == null || n < 0) return 'Nombre (≥ 0)'; } return null;
+                }),
+                const SizedBox(height: AppSpacing.md),
+                TextFormField(controller: descCtrl, decoration: InputDecoration(labelText: l10n.promo_description, prefixIcon: const Icon(Icons.description_outlined, size: 20)), maxLines: 2),
+                const SizedBox(height: AppSpacing.lg),
+                SizedBox(width: double.infinity, child: ElevatedButton(
+                  onPressed: () async {
+                    if (!formKey.currentState!.validate()) return;
+                    final discountVal = double.tryParse(discountValueCtrl.text) ?? 0;
+                    final result = await PromoService.updatePromoCode(
+                      code: current['code'],
+                      discountPercent: discountType == 'percentage' ? discountVal : 0,
+                      discountFixed: discountType == 'fixed' ? discountVal : 0,
+                      description: descCtrl.text.trim().isEmpty ? 'Promo ${current['code']}' : descCtrl.text.trim(),
+                      minOrder: int.tryParse(minOrderCtrl.text) ?? 0,
+                      maxUses: int.tryParse(maxUsesCtrl.text) ?? 0,
+                    );
+                    if (!ctx.mounted) return;
+                    Navigator.pop(ctx);
+                    if (mounted) { Toast(context, result == 'success' ? 'Modifié' : result, result == 'success'); if (result == 'success') _load(); }
+                  },
+                  child: const Text('Enregistrer'),
+                )),
+              ]),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -499,6 +629,45 @@ class _PromotionsPageState extends State<PromotionsPage> {
                                                   : AppColors.error)
                                           .copyWith(fontSize: 11),
                                     ),
+                                  ),
+                                  Switch(
+                                    value: active,
+                                    activeColor: AppColors.success,
+                                    onChanged: (_) async {
+                                      final codeStr = code['code'] as String;
+                                      // Optimistic update
+                                      setState(() {
+                                        final idx = _promoCodes.indexOf(code);
+                                        if (idx != -1) {
+                                          _promoCodes[idx]['active'] = !active;
+                                        }
+                                      });
+                                      if (!await PromoService.togglePromoActive(codeStr)) {
+                                        // Revert on failure
+                                        if (mounted) _load();
+                                      }
+                                    },
+                                  ),
+                                  PopupMenuButton<String>(
+                                    icon: const Icon(Icons.more_vert_rounded, size: 20),
+                                    onSelected: (action) async {
+                                      if (action == 'edit') {
+                                        _showEditForm(code);
+                                      } else if (action == 'delete') {
+                                        _confirmDelete(code['code']);
+                                      }
+                                    },
+                                    itemBuilder: (_) => [
+                                      PopupMenuItem(
+                                        value: 'edit',
+                                        child: Text(AppLocalizations.of(context)!.modify),
+                                      ),
+                                      PopupMenuItem(
+                                        value: 'delete',
+                                        child: Text(AppLocalizations.of(context)!.delete,
+                                            style: const TextStyle(color: AppColors.error)),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),

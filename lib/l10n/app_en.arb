@@ -367,6 +367,26 @@
   "admin_restaurant_rejected": "{name} rejected",
   "admin_rejection_reason_hint": "Rejection reason…",
 
+  "admin_pro_requests": "Pro Requests",
+  "admin_pro_requests_pending": "Pending",
+  "admin_pro_requests_validated": "Validated",
+  "admin_pro_requests_rejected": "Rejected",
+  "admin_pro_validate": "Approve",
+  "admin_pro_reject": "Reject",
+  "admin_pro_validated": "{name} approved ✓",
+  "admin_pro_rejected": "{name} rejected",
+  "admin_pro_no_requests": "No Pro requests.",
+  "admin_pro_status_pending": "Pending review",
+  "admin_pro_status_validated": "Approved",
+  "admin_pro_status_rejected": "Rejected",
+  "admin_pro_remark_hint": "Reason for rejection…",
+  "admin_pro_documents": "Documents",
+  "admin_pro_view_document": "View",
+  "admin_pro_description": "Request description",
+  "admin_pro_no_description": "No description provided.",
+
+  "optional": "optional",
+
   "delivery_status_assigned": "Assigned",
   "delivery_status_picked_up": "Picked up",
   "delivery_status_in_transit": "In transit",
@@ -767,5 +787,31 @@
   "order_tracking_cancelled": "Cancelled",
 
   "users": "Users",
-  "administrators": "Administrators"
+  "administrators": "Administrators",
+
+  "pro_request_title": "Become Pro",
+  "pro_request_subtitle": "Submit your documents to upgrade to a professional account.",
+  "pro_request_description_label": "Your request",
+  "pro_request_description_hint": "Tell us who you are, what you do, and why you want to become a Pro...",
+  "pro_request_identity_doc": "Identity document",
+  "pro_request_pro_doc": "Professional document",
+  "pro_request_pick_file": "Select a file",
+  "pro_request_file_selected": "File selected",
+  "pro_request_no_file": "No file selected",
+  "pro_request_submit": "Send my request",
+  "pro_request_success": "Your request has been sent. We will review it shortly.",
+  "pro_request_error_description": "Please write a description of your request.",
+  "pro_request_error_identity": "Please attach your identity document.",
+  "pro_request_error_pro_doc": "Please attach a professional document.",
+
+  "optional": "optional",
+  "promo_activate": "Activate",
+  "promo_deactivate": "Deactivate",
+  "promo_delete_confirm": "Delete promo code?",
+  "promo_edit_title": "Edit promo",
+
+  "role_admin": "Admin",
+  "role_client": "Client",
+  "role_restaurateur": "Chef",
+  "role_livreur": "Driver"
 }

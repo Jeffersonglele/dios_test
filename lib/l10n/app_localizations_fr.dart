@@ -1083,6 +1083,64 @@ class AppLocalizationsFr extends AppLocalizations {
   String get admin_rejection_reason_hint => 'Raison du rejet…';
 
   @override
+  String get admin_pro_requests => 'Demandes Pro';
+
+  @override
+  String get admin_pro_requests_pending => 'En attente';
+
+  @override
+  String get admin_pro_requests_validated => 'Validées';
+
+  @override
+  String get admin_pro_requests_rejected => 'Refusées';
+
+  @override
+  String get admin_pro_validate => 'Valider';
+
+  @override
+  String get admin_pro_reject => 'Refuser';
+
+  @override
+  String admin_pro_validated(Object name) {
+    return '$name validé ✓';
+  }
+
+  @override
+  String admin_pro_rejected(Object name) {
+    return '$name refusé';
+  }
+
+  @override
+  String get admin_pro_no_requests => 'Aucune demande Pro.';
+
+  @override
+  String get admin_pro_status_pending => 'En attente de validation';
+
+  @override
+  String get admin_pro_status_validated => 'Validé';
+
+  @override
+  String get admin_pro_status_rejected => 'Refusé';
+
+  @override
+  String get admin_pro_remark_hint => 'Motif du refus…';
+
+  @override
+  String get admin_pro_documents => 'Documents';
+
+  @override
+  String get admin_pro_view_document => 'Voir';
+
+  @override
+  String get admin_pro_description => 'Description de la demande';
+
+  @override
+  String get admin_pro_no_description => 'Aucune description fournie.';
+
+  @override
+  String get optional => 'optionnel';
+
+  @override
   String get delivery_status_assigned => 'Assigné';
 
   @override
@@ -2230,4 +2288,76 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get order_tracking_cancelled => 'Annulée';
+
+  @override
+  String get pro_request_title => 'Devenir Pro';
+
+  @override
+  String get pro_request_subtitle =>
+      'Soumettez vos documents pour passer en compte professionnel.';
+
+  @override
+  String get pro_request_description_label => 'Votre demande';
+
+  @override
+  String get pro_request_description_hint =>
+      'Dites-nous qui vous êtes, ce que vous faites, et pourquoi vous voulez devenir Pro...';
+
+  @override
+  String get pro_request_identity_doc => 'Pièce d\'identité';
+
+  @override
+  String get pro_request_pro_doc => 'Document professionnel';
+
+  @override
+  String get pro_request_pick_file => 'Sélectionner un fichier';
+
+  @override
+  String get pro_request_file_selected => 'Fichier sélectionné';
+
+  @override
+  String get pro_request_no_file => 'Aucun fichier sélectionné';
+
+  @override
+  String get pro_request_submit => 'Envoyer ma demande';
+
+  @override
+  String get pro_request_success =>
+      'Votre demande a été envoyée. Nous l\'examinerons prochainement.';
+
+  @override
+  String get pro_request_error_description =>
+      'Veuillez rédiger une description de votre demande.';
+
+  @override
+  String get pro_request_error_identity =>
+      'Veuillez joindre votre pièce d\'identité.';
+
+  @override
+  String get pro_request_error_pro_doc =>
+      'Veuillez joindre un document professionnel.';
+
+  @override
+  String get promo_activate => 'Activer';
+
+  @override
+  String get promo_deactivate => 'Désactiver';
+
+  @override
+  String get promo_delete_confirm => 'Supprimer le code promo ?';
+
+  @override
+  String get promo_edit_title => 'Modifier la promo';
+
+  @override
+  String get role_admin => 'Admin';
+
+  @override
+  String get role_client => 'Client';
+
+  @override
+  String get role_restaurateur => 'Restaurateur';
+
+  @override
+  String get role_livreur => 'Livreur';
 }

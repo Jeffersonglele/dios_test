@@ -34,9 +34,6 @@ class _AuditLogPageState extends State<AuditLogPage> {
       final resp = await q.query();
       if (resp.success && resp.results != null) {
         if (mounted) setState(() => _logs = resp.results!.cast<ParseObject>());
-      } else {
-        debugPrint(
-            '[AuditLogPage] Query failed: success=${resp.success} message=${resp.error?.message}');
       }
     } catch (e, st) {
       debugPrint('[AuditLogPage] Exception while loading: $e');

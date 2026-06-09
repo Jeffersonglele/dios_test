@@ -69,6 +69,8 @@ class Users extends HiveObject {
   @HiveField(13)
   int addressID;
 
+  String? parrain;
+
   Users({
     required this.userID,
     required this.roleID,
@@ -93,6 +95,7 @@ class Users extends HiveObject {
     this.permisVerified = false,
     this.isOnline = false,
     this.maxDeliveryDistance,
+    this.parrain,
   });
 
   Map<String, dynamic> toMap() {
@@ -120,6 +123,7 @@ class Users extends HiveObject {
       'permisVerified': permisVerified,
       'isOnline': isOnline,
       'maxDeliveryDistance': maxDeliveryDistance ?? 10,
+      'parrain': parrain,
     };
   }
 
@@ -160,6 +164,7 @@ class Users extends HiveObject {
       maxDeliveryDistance: map['maxDeliveryDistance'] != null
           ? (map['maxDeliveryDistance'] as num).toDouble()
           : null,
+      parrain: map['parrain']?.toString(),
     );
   }
 

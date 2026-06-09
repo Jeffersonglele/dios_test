@@ -2144,6 +2144,114 @@ abstract class AppLocalizations {
   /// **'Rejection reason…'**
   String get admin_rejection_reason_hint;
 
+  /// No description provided for @admin_pro_requests.
+  ///
+  /// In en, this message translates to:
+  /// **'Pro Requests'**
+  String get admin_pro_requests;
+
+  /// No description provided for @admin_pro_requests_pending.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending'**
+  String get admin_pro_requests_pending;
+
+  /// No description provided for @admin_pro_requests_validated.
+  ///
+  /// In en, this message translates to:
+  /// **'Validated'**
+  String get admin_pro_requests_validated;
+
+  /// No description provided for @admin_pro_requests_rejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected'**
+  String get admin_pro_requests_rejected;
+
+  /// No description provided for @admin_pro_validate.
+  ///
+  /// In en, this message translates to:
+  /// **'Approve'**
+  String get admin_pro_validate;
+
+  /// No description provided for @admin_pro_reject.
+  ///
+  /// In en, this message translates to:
+  /// **'Reject'**
+  String get admin_pro_reject;
+
+  /// No description provided for @admin_pro_validated.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} approved ✓'**
+  String admin_pro_validated(Object name);
+
+  /// No description provided for @admin_pro_rejected.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} rejected'**
+  String admin_pro_rejected(Object name);
+
+  /// No description provided for @admin_pro_no_requests.
+  ///
+  /// In en, this message translates to:
+  /// **'No Pro requests.'**
+  String get admin_pro_no_requests;
+
+  /// No description provided for @admin_pro_status_pending.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending review'**
+  String get admin_pro_status_pending;
+
+  /// No description provided for @admin_pro_status_validated.
+  ///
+  /// In en, this message translates to:
+  /// **'Approved'**
+  String get admin_pro_status_validated;
+
+  /// No description provided for @admin_pro_status_rejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected'**
+  String get admin_pro_status_rejected;
+
+  /// No description provided for @admin_pro_remark_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason for rejection…'**
+  String get admin_pro_remark_hint;
+
+  /// No description provided for @admin_pro_documents.
+  ///
+  /// In en, this message translates to:
+  /// **'Documents'**
+  String get admin_pro_documents;
+
+  /// No description provided for @admin_pro_view_document.
+  ///
+  /// In en, this message translates to:
+  /// **'View'**
+  String get admin_pro_view_document;
+
+  /// No description provided for @admin_pro_description.
+  ///
+  /// In en, this message translates to:
+  /// **'Request description'**
+  String get admin_pro_description;
+
+  /// No description provided for @admin_pro_no_description.
+  ///
+  /// In en, this message translates to:
+  /// **'No description provided.'**
+  String get admin_pro_no_description;
+
+  /// No description provided for @optional.
+  ///
+  /// In en, this message translates to:
+  /// **'optional'**
+  String get optional;
+
   /// No description provided for @delivery_status_assigned.
   ///
   /// In en, this message translates to:
@@ -4220,6 +4328,138 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Cancelled'**
   String get order_tracking_cancelled;
+
+  /// No description provided for @pro_request_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Become Pro'**
+  String get pro_request_title;
+
+  /// No description provided for @pro_request_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit your documents to upgrade to a professional account.'**
+  String get pro_request_subtitle;
+
+  /// No description provided for @pro_request_description_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Your request'**
+  String get pro_request_description_label;
+
+  /// No description provided for @pro_request_description_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tell us who you are, what you do, and why you want to become a Pro...'**
+  String get pro_request_description_hint;
+
+  /// No description provided for @pro_request_identity_doc.
+  ///
+  /// In en, this message translates to:
+  /// **'Identity document'**
+  String get pro_request_identity_doc;
+
+  /// No description provided for @pro_request_pro_doc.
+  ///
+  /// In en, this message translates to:
+  /// **'Professional document'**
+  String get pro_request_pro_doc;
+
+  /// No description provided for @pro_request_pick_file.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a file'**
+  String get pro_request_pick_file;
+
+  /// No description provided for @pro_request_file_selected.
+  ///
+  /// In en, this message translates to:
+  /// **'File selected'**
+  String get pro_request_file_selected;
+
+  /// No description provided for @pro_request_no_file.
+  ///
+  /// In en, this message translates to:
+  /// **'No file selected'**
+  String get pro_request_no_file;
+
+  /// No description provided for @pro_request_submit.
+  ///
+  /// In en, this message translates to:
+  /// **'Send my request'**
+  String get pro_request_submit;
+
+  /// No description provided for @pro_request_success.
+  ///
+  /// In en, this message translates to:
+  /// **'Your request has been sent. We will review it shortly.'**
+  String get pro_request_success;
+
+  /// No description provided for @pro_request_error_description.
+  ///
+  /// In en, this message translates to:
+  /// **'Please write a description of your request.'**
+  String get pro_request_error_description;
+
+  /// No description provided for @pro_request_error_identity.
+  ///
+  /// In en, this message translates to:
+  /// **'Please attach your identity document.'**
+  String get pro_request_error_identity;
+
+  /// No description provided for @pro_request_error_pro_doc.
+  ///
+  /// In en, this message translates to:
+  /// **'Please attach a professional document.'**
+  String get pro_request_error_pro_doc;
+
+  /// No description provided for @promo_activate.
+  ///
+  /// In en, this message translates to:
+  /// **'Activate'**
+  String get promo_activate;
+
+  /// No description provided for @promo_deactivate.
+  ///
+  /// In en, this message translates to:
+  /// **'Deactivate'**
+  String get promo_deactivate;
+
+  /// No description provided for @promo_delete_confirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete promo code?'**
+  String get promo_delete_confirm;
+
+  /// No description provided for @promo_edit_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit promo'**
+  String get promo_edit_title;
+
+  /// No description provided for @role_admin.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin'**
+  String get role_admin;
+
+  /// No description provided for @role_client.
+  ///
+  /// In en, this message translates to:
+  /// **'Client'**
+  String get role_client;
+
+  /// No description provided for @role_restaurateur.
+  ///
+  /// In en, this message translates to:
+  /// **'Chef'**
+  String get role_restaurateur;
+
+  /// No description provided for @role_livreur.
+  ///
+  /// In en, this message translates to:
+  /// **'Driver'**
+  String get role_livreur;
 }
 
 class _AppLocalizationsDelegate

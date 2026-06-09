@@ -58,6 +58,8 @@ class Restaurant extends HiveObject {
 
   String currency;
 
+  String country;
+
   String openingDays;
   bool get isCurrentlyOpen => isOpen == 1;
   double minOrderAmount;
@@ -87,6 +89,7 @@ class Restaurant extends HiveObject {
       this.isPro = false,
       this.reviewRemark = '',
       this.currency = 'EUR',
+      this.country = '',
       this.openingDays = 'Lun,Mar,Mer,Jeu,Ven,Sam',
       this.minOrderAmount = 0,
       this.deliveryRadius = 10,
@@ -115,6 +118,7 @@ class Restaurant extends HiveObject {
       'isPro': isPro,
       'reviewRemark': reviewRemark,
       'currency': currency,
+      'country': country,
       'openingDays': openingDays,
       'minOrderAmount': minOrderAmount,
       'deliveryRadius': deliveryRadius,
@@ -153,6 +157,7 @@ class Restaurant extends HiveObject {
         isPro: map['isPro'] == true || map['isPro']?.toString() == 'true',
         reviewRemark: map['reviewRemark']?.toString() ?? '',
         currency: map['currency']?.toString() ?? 'EUR',
+        country: map['country']?.toString() ?? '',
         openingDays: map['openingDays']?.toString() ?? 'Lun,Mar,Mer,Jeu,Ven,Sam',
         minOrderAmount: double.tryParse(map['minOrderAmount']?.toString() ?? '0') ?? 0,
         deliveryRadius: double.tryParse(map['deliveryRadius']?.toString() ?? '10') ?? 10,
