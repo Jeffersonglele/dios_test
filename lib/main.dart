@@ -32,7 +32,7 @@ import 'services/session_service.dart';
 import 'theme/app_theme.dart';
 import 'theme/theme_provider.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Configuration de la barre système
@@ -44,8 +44,7 @@ void main() async {
   // Initialisation Firebase (nécessaire pour les notifications push)
   try {
     await Firebase.initializeApp();
-  } catch (e) {
-  }
+  } catch (e) {}
 
   // Initialisation Parse
   try {
@@ -57,8 +56,7 @@ void main() async {
       liveQueryUrl: AppConfig.parseLiveQueryUrl,
       debug: kDebugMode && AppConfig.enableParseDebugLogs,
     );
-  } catch (e) {
-  }
+  } catch (e) {}
 
   // Flutter Web doesn't support `path_provider.getApplicationDocumentsDirectory()`.
   // Guard it to prevent MissingPluginException and still initialize Hive.
@@ -80,9 +78,6 @@ void main() async {
   Hive.registerAdapter(MoyenPaiementAdapter());
   Hive.registerAdapter(LigneCommandeAdapter());
 
-  } catch (e) {
-  }
-
   // Initialisation des notifications
   try {
     await NotificationService.initialize();
@@ -92,16 +87,14 @@ void main() async {
     if (session.isLoggedIn) {
       await NotificationService.subscribeToRestaurantNotifications();
     }
-  } catch (e) {
-  }
+  } catch (e) {}
 
   // Demande de géolocalisation (comme pour les notifs)
   try {
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       await Geolocator.requestPermission();
-    } else if (permission == LocationPermission.deniedForever) {
-    }
+    } else if (permission == LocationPermission.deniedForever) {}
   } catch (_) {}
 
   // Lecture du dark mode depuis SharedPreferences
@@ -123,7 +116,6 @@ class MyApp extends ConsumerStatefulWidget {
   final bool initialDarkMode;
   const MyApp({super.key, required this.initialDarkMode});
 
-
   @override
   ConsumerState<MyApp> createState() => _MyAppState();
 }
@@ -134,7 +126,8 @@ class _MyAppState extends ConsumerState<MyApp> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final themeNotifier = ref.read(themeModeProvider.notifier);
-      if (widget.initialDarkMode && ref.read(themeModeProvider) != ThemeMode.dark) {
+      if (widget.initialDarkMode &&
+          ref.read(themeModeProvider) != ThemeMode.dark) {
         themeNotifier.toggleTheme();
       }
     });

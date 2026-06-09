@@ -64,15 +64,24 @@ Future<bool> verifyEmailCode({
       'email': email,
       'code': code,
     });
+
+    // Logging pour diagnostiquer le rôle livreur
+    // (dans le console/devtools Flutter)
+    debugPrint('verifyCode response.success=${response.success}');
+    debugPrint('verifyCode response.result=${response.result}');
+    debugPrint('verifyCode response.error=${response.error?.message}');
+
     if (response.success && response.result != null) {
       final result = response.result;
       if (result is Map<String, dynamic>) {
+        // ex: { success: true } ou { success: false, error: '...' }
         return result['success'] == true;
       }
       if (result is bool) return result;
     }
     return false;
   } catch (e) {
+    debugPrint('verifyCode exception=$e');
     return false;
   }
 }

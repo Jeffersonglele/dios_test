@@ -43,14 +43,12 @@ dependencies:
   geolocator: ^9.0.2
   geocoding: ^2.2.2
   twilio_flutter: ^0.9.0
-<<<<<<< HEAD
   file_picker: ^8.0.6  # Version réactivée et mise à jour
-=======
-  file_picker: ^9.0.0
->>>>>>> ff24ecf81b6b4436d2a7b995dbbb2e83a741d17e
   cached_network_image: ^3.3.1
   syncfusion_flutter_pdfviewer: ^33.2.4
   fl_chart: ^0.69.2
+  crypto: ^3.0.3
+
 
   flutter_localizations: 
     sdk: flutter   

@@ -22,26 +22,38 @@ class _AuditLogPageState extends State<AuditLogPage> {
   }
 
   Future<void> _load() async {
+    if (!mounted) return;
+    setState(() => _loading = true);
+
     try {
+      // Requête sans filtre country car la colonne n'existe pas dans AuditLog
       final q = QueryBuilder<ParseObject>(ParseObject('AuditLog'))
-        ..whereEqualTo('country', widget.country)
         ..orderByDescending('createdAt')
         ..setLimit(200);
 
       final resp = await q.query();
-      if (resp.success && resp.results != null && mounted) {
-        setState(() => _logs = resp.results!.cast<ParseObject>());
+      if (resp.success && resp.results != null) {
+        if (mounted) setState(() => _logs = resp.results!.cast<ParseObject>());
+      } else {
+        debugPrint(
+            '[AuditLogPage] Query failed: success=${resp.success} message=${resp.error?.message}');
       }
-    } catch (_) {}
-    if (mounted) setState(() => _loading = false);
+    } catch (e, st) {
+      debugPrint('[AuditLogPage] Exception while loading: $e');
+      debugPrintStack(stackTrace: st);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.resolve(AppColors.surface, AppDarkColors.surface),
+      backgroundColor:
+          AppColors.resolve(AppColors.surface, AppDarkColors.surface),
       appBar: AppBar(
-        title: Text(AppLocalizations.of(context)!.audit_log_title(widget.country),
+        title: Text(
+            AppLocalizations.of(context)!.audit_log_title(widget.country),
             style: AppTypography.titleMedium()),
       ),
       body: RefreshIndicator(
@@ -63,8 +75,9 @@ class _AuditLogPageState extends State<AuditLogPage> {
                                   color: AppColors.resolve(
                                       AppColors.border, AppDarkColors.border)),
                               const SizedBox(height: 16),
-                              Text(AppLocalizations.of(context)!.audit_log_empty,
-                                   style: AppTypography.bodyMedium()),
+                              Text(
+                                  AppLocalizations.of(context)!.audit_log_empty,
+                                  style: AppTypography.bodyMedium()),
                             ],
                           ),
                         ),
@@ -86,41 +99,54 @@ class _AuditLogPageState extends State<AuditLogPage> {
 
                       IconData icon;
                       Color iconColor;
-                      if (action.toLowerCase().contains('suppr') || action.toLowerCase().contains('delete')) {
+                      if (action.toLowerCase().contains('suppr') ||
+                          action.toLowerCase().contains('delete')) {
                         icon = Icons.delete_rounded;
-                        iconColor = AppColors.resolve(AppColors.error, AppDarkColors.error);
-                      } else if (action.toLowerCase().contains('create') || action.toLowerCase().contains('ajout')) {
+                        iconColor = AppColors.resolve(
+                            AppColors.error, AppDarkColors.error);
+                      } else if (action.toLowerCase().contains('create') ||
+                          action.toLowerCase().contains('ajout')) {
                         icon = Icons.add_circle_rounded;
-                        iconColor = AppColors.resolve(AppColors.success, AppDarkColors.success);
-                      } else if (action.toLowerCase().contains('update') || action.toLowerCase().contains('modif')) {
+                        iconColor = AppColors.resolve(
+                            AppColors.success, AppDarkColors.success);
+                      } else if (action.toLowerCase().contains('update') ||
+                          action.toLowerCase().contains('modif')) {
                         icon = Icons.edit_rounded;
-                        iconColor = AppColors.resolve(AppColors.accent, AppDarkColors.accent);
-                      } else if (action.toLowerCase().contains('login') || action.toLowerCase().contains('connexion')) {
+                        iconColor = AppColors.resolve(
+                            AppColors.accent, AppDarkColors.accent);
+                      } else if (action.toLowerCase().contains('login') ||
+                          action.toLowerCase().contains('connexion')) {
                         icon = Icons.login_rounded;
-                        iconColor = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+                        iconColor = AppColors.resolve(
+                            AppColors.brand, AppDarkColors.brand);
                       } else {
                         icon = Icons.info_rounded;
-                        iconColor = AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
+                        iconColor = AppColors.resolve(
+                            AppColors.inkMuted, AppDarkColors.inkMuted);
                       }
 
                       return Container(
                         margin: const EdgeInsets.only(bottom: 8),
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: AppColors.resolve(AppColors.card, AppDarkColors.card),
+                          color: AppColors.resolve(
+                              AppColors.card, AppDarkColors.card),
                           borderRadius: BorderRadius.circular(AppRadius.lg),
                           border: Border.all(
-                              color: AppColors.resolve(AppColors.border, AppDarkColors.border),
+                              color: AppColors.resolve(
+                                  AppColors.border, AppDarkColors.border),
                               width: 0.5),
                         ),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Container(
-                              width: 36, height: 36,
+                              width: 36,
+                              height: 36,
                               decoration: BoxDecoration(
-                                color: iconColor.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(AppRadius.sm),
+                                color: iconColor.withOpacity(0.12),
+                                borderRadius:
+                                    BorderRadius.circular(AppRadius.sm),
                               ),
                               child: Icon(icon, color: iconColor, size: 18),
                             ),
@@ -130,23 +156,28 @@ class _AuditLogPageState extends State<AuditLogPage> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(action,
-                                      style: AppTypography.bodyLarge().copyWith(fontSize: 14)),
+                                      style: AppTypography.bodyLarge()
+                                          .copyWith(fontSize: 14)),
                                   if (details.isNotEmpty)
                                     Padding(
                                       padding: const EdgeInsets.only(top: 2),
                                       child: Text(details,
-                                          style: AppTypography.bodyMedium().copyWith(fontSize: 12)),
+                                          style: AppTypography.bodyMedium()
+                                              .copyWith(fontSize: 12)),
                                     ),
                                   if (userName.isNotEmpty)
                                     Padding(
                                       padding: const EdgeInsets.only(top: 2),
                                       child: Row(children: [
-                                        Icon(Icons.person_rounded, size: 12,
+                                        Icon(Icons.person_rounded,
+                                            size: 12,
                                             color: AppColors.resolve(
-                                                AppColors.inkSubtle, AppDarkColors.inkSubtle)),
+                                                AppColors.inkSubtle,
+                                                AppDarkColors.inkSubtle)),
                                         const SizedBox(width: 4),
                                         Text(userName,
-                                            style: AppTypography.bodyMedium().copyWith(fontSize: 11)),
+                                            style: AppTypography.bodyMedium()
+                                                .copyWith(fontSize: 11)),
                                       ]),
                                     ),
                                 ],
@@ -157,7 +188,8 @@ class _AuditLogPageState extends State<AuditLogPage> {
                                   style: AppTypography.bodyMedium().copyWith(
                                       fontSize: 10,
                                       color: AppColors.resolve(
-                                          AppColors.inkSubtle, AppDarkColors.inkSubtle))),
+                                          AppColors.inkSubtle,
+                                          AppDarkColors.inkSubtle))),
                           ],
                         ),
                       );

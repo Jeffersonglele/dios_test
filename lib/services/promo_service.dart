@@ -63,24 +63,39 @@ class PromoService {
 
   static Future<String> createPromoCode({
     required String code,
-    required double discountAmount,
+    required double discountPercent,
+    required double discountFixed,
     required String description,
-    int? usageLimit,
-    DateTime? expiresAt,
+    required int minOrder,
+    required int maxUses,
+    DateTime? validFrom,
+    DateTime? validUntil,
   }) async {
     try {
       final cloudFunction = ParseCloudFunction('createPromoCode');
       final params = <String, dynamic>{
-        'code': code,
-        'discountAmount': discountAmount,
+        'code': code.toUpperCase(),
+        'discountPercent': discountPercent,
+        'discountFixed': discountFixed,
         'description': description,
-        if (usageLimit != null) 'usageLimit': usageLimit,
-        if (expiresAt != null)
-          'expiresAt': {
-            '__type': 'Date',
-            'iso': expiresAt.toIso8601String(),
-          },
+        'minOrder': minOrder,
+        'maxUses': maxUses,
       };
+
+      if (validFrom != null) {
+        params['validFrom'] = {
+          '__type': 'Date',
+          'iso': validFrom.toIso8601String(),
+        };
+      }
+
+      if (validUntil != null) {
+        params['validUntil'] = {
+          '__type': 'Date',
+          'iso': validUntil.toIso8601String(),
+        };
+      }
+
       final response = await cloudFunction.execute(parameters: params);
 
       if (response.success && response.result != null) {

@@ -181,7 +181,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
     final result = await Restaurant.updateRestaurantStatus(r.restaurantID, 1);
     if (!mounted) return;
     if (result == 'success') {
-      Toast(context, AppLocalizations.of(context)!.admin_restaurant_validated(r.name), true);
+      Toast(
+          context,
+          AppLocalizations.of(context)!.admin_restaurant_validated(r.name),
+          true);
       _loadStats();
     } else {
       Toast(context, 'Erreur : $result', false);
@@ -195,11 +198,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.xl)),
-        title: Text(AppLocalizations.of(context)!.rejectReason, style: AppTypography.titleMedium()),
+        title: Text(AppLocalizations.of(context)!.rejectReason,
+            style: AppTypography.titleMedium()),
         content: TextField(
           controller: ctrl,
           maxLines: 3,
-          decoration: InputDecoration(hintText: AppLocalizations.of(context)!.admin_rejection_reason_hint),
+          decoration: InputDecoration(
+              hintText:
+                  AppLocalizations.of(context)!.admin_rejection_reason_hint),
         ),
         actions: [
           TextButton(
@@ -217,7 +223,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
     final result = await Restaurant.updateRestaurantStatus(r.restaurantID, 2);
     if (!mounted) return;
     if (result == 'success') {
-      Toast(context, AppLocalizations.of(context)!.admin_restaurant_rejected(r.name), false);
+      Toast(
+          context,
+          AppLocalizations.of(context)!.admin_restaurant_rejected(r.name),
+          false);
       _loadStats();
     } else {
       Toast(context, 'Erreur : $result', false);
@@ -277,7 +286,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                 dense: true,
                                 leading: CircleAvatar(
                                   backgroundColor: AppColors.resolve(
-                                      AppColors.brandSurface, AppDarkColors.brandSurface),
+                                      AppColors.brandSurface,
+                                      AppDarkColors.brandSurface),
                                   child: Text(
                                     u.firstname.isNotEmpty
                                         ? u.firstname[0].toUpperCase()
@@ -297,7 +307,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         if (rr.isNotEmpty) ...[
                           Padding(
                             padding: const EdgeInsets.only(top: 12, bottom: 6),
-                            child: Text(AppLocalizations.of(context)!.restaurants,
+                            child: Text(
+                                AppLocalizations.of(context)!.restaurants,
                                 style: AppTypography.labelMedium(
                                     color: AppColors.inkMuted)),
                           ),
@@ -366,30 +377,31 @@ class _AdminDashboardState extends State<AdminDashboard> {
           const SizedBox(width: AppSpacing.sm),
           Text(AppLocalizations.of(context)!.admin_export_title,
               style: AppTypography.titleMedium(
-                  color: AppColors.resolve(
-                      AppColors.ink, AppDarkColors.ink))),
+                  color: AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
         ]),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
-          _ExportTile(Icons.people_rounded, AppLocalizations.of(context)!.users, Colors.blue, () {
+          _ExportTile(Icons.people_rounded, AppLocalizations.of(context)!.users,
+              Colors.blue, () {
             Navigator.pop(ctx);
             _doExport('users');
           }),
           const SizedBox(height: AppSpacing.sm),
-          _ExportTile(Icons.storefront_rounded, AppLocalizations.of(context)!.restaurants, AppColors.accent,
-              () {
+          _ExportTile(Icons.storefront_rounded,
+              AppLocalizations.of(context)!.restaurants, AppColors.accent, () {
             Navigator.pop(ctx);
             _doExport('restaurants');
           }),
           const SizedBox(height: AppSpacing.sm),
-          _ExportTile(
-              Icons.receipt_long_rounded, AppLocalizations.of(context)!.orders, AppColors.success, () {
+          _ExportTile(Icons.receipt_long_rounded,
+              AppLocalizations.of(context)!.orders, AppColors.success, () {
             Navigator.pop(ctx);
             _doExport('orders');
           }),
           const SizedBox(height: AppSpacing.sm),
           _ExportTile(
-              Icons.description_rounded, AppLocalizations.of(context)!.admin_export_full_report, AppColors.brand,
-              () {
+              Icons.description_rounded,
+              AppLocalizations.of(context)!.admin_export_full_report,
+              AppColors.brand, () {
             Navigator.pop(ctx);
             _doExport('report');
           }),
@@ -509,7 +521,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
               width: 34,
               height: 34,
               decoration: BoxDecoration(
-                color: AppColors.resolve(AppColors.brandSurface, AppDarkColors.brandSurface),
+                color: AppColors.resolve(
+                    AppColors.brandSurface, AppDarkColors.brandSurface),
                 borderRadius: BorderRadius.circular(AppRadius.sm),
               ),
               child: const Icon(Icons.person_add_rounded,
@@ -518,8 +531,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
             const SizedBox(width: AppSpacing.sm),
             Text(AppLocalizations.of(context)!.admin_add_admin_title,
                 style: AppTypography.titleMedium(
-                    color: AppColors.resolve(
-                        AppColors.ink, AppDarkColors.ink))),
+                    color:
+                        AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
           ]),
           content: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -530,7 +543,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   icon: Icons.person_outline_rounded),
               const SizedBox(height: AppSpacing.sm),
               _DlgField(
-                  ctrl: ln, label: AppLocalizations.of(context)!.lastName, icon: Icons.person_outline_rounded),
+                  ctrl: ln,
+                  label: AppLocalizations.of(context)!.lastName,
+                  icon: Icons.person_outline_rounded),
               const SizedBox(height: AppSpacing.sm),
               _DlgField(
                   ctrl: un,
@@ -550,25 +565,33 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   prefixIcon: const Icon(Icons.shield_outlined, size: 20),
                 ),
                 items: [
-                  DropdownMenuItem(value: 1, child: Text(AppLocalizations.of(context)!.administrators)),
+                  DropdownMenuItem(
+                      value: 1,
+                      child:
+                          Text(AppLocalizations.of(context)!.administrators)),
                   DropdownMenuItem(value: 4, child: Text('Super Admin')),
                 ],
-                onChanged: (v) { if (v != null) set(() => selectedRole = v); },
+                onChanged: (v) {
+                  if (v != null) set(() => selectedRole = v);
+                },
               ),
               const SizedBox(height: AppSpacing.sm),
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppColors.resolve(AppColors.brandSurface, AppDarkColors.brandSurface),
+                  color: AppColors.resolve(
+                      AppColors.brandSurface, AppDarkColors.brandSurface),
                   borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
                 child: Row(children: [
-                  const Icon(Icons.info_outline, color: AppColors.brand, size: 18),
+                  const Icon(Icons.info_outline,
+                      color: AppColors.brand, size: 18),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       AppLocalizations.of(context)!.admin_add_admin_info,
-                      style: AppTypography.bodySmall(color: AppColors.brandDark),
+                      style:
+                          AppTypography.bodySmall(color: AppColors.brandDark),
                     ),
                   ),
                 ]),
@@ -625,105 +648,113 @@ class _AdminDashboardState extends State<AdminDashboard> {
   // ═══════════════════════════════════════════════════════════
   @override
   Widget build(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    final isSmallScreen = width < 400;
+    final isMediumScreen = width >= 400 && width < 800;
+    final isLargeScreen = width >= 800;
+
     return WillPopScope(
       onWillPop: () async => false,
       child: Scaffold(
-        backgroundColor: AppColors.resolve(
-            AppColors.surface, AppDarkColors.surface),
+        backgroundColor:
+            AppColors.resolve(AppColors.surface, AppDarkColors.surface),
         body: SafeArea(
           child: RefreshIndicator(
-          color: AppColors.brand,
-          backgroundColor:
-              AppColors.resolve(AppColors.card, AppDarkColors.card),
-          onRefresh: _loadStats,
-          child: CustomScrollView(
-            physics: const BouncingScrollPhysics(),
-            slivers: [
-              // ── Hero SliverAppBar ──────────────────────
-              _HeroAppBar(
-                userName: _userName,
-                userRole: _userRole,
-                userCountry: _userCountry,
-                onSearch: _showSearch,
-                onCountryChanged: (c) {
-                  setState(() => _userCountry = c);
-                  _loadStats(country: c);
-                },
-              ),
-
-              if (_statsLoading)
-                const SliverFillRemaining(
-                  child: Center(
-                    child: CircularProgressIndicator(color: AppColors.brand),
-                  ),
-                )
-              else ...[
-                // ── KPI ─────────────────────────────────
-                SliverToBoxAdapter(
-                  child: _KpiSection(
-                    totalRevenue: _totalRevenue,
-                    totalOrders: _totalOrders,
-                    confirmedOrders: _confirmedOrders,
-                    pendingOrders: _pendingOrders,
-                    cancelledOrders: _cancelledOrders,
-                    totalUsers: _totalUsers,
-                    newUsersMonth: _newUsersMonth,
-                    totalLivreurs: _totalLivreurs,
-                    totalRestaurants: _totalRestaurants,
-                    country: _userCountry,
-                  ),
+            color: AppColors.brand,
+            backgroundColor:
+                AppColors.resolve(AppColors.card, AppDarkColors.card),
+            onRefresh: _loadStats,
+            child: CustomScrollView(
+              physics: const BouncingScrollPhysics(),
+              slivers: [
+                // ── Hero SliverAppBar ──────────────────────
+                _HeroAppBar(
+                  userName: _userName,
+                  userRole: _userRole,
+                  userCountry: _userCountry,
+                  onSearch: _showSearch,
+                  onCountryChanged: (c) {
+                    setState(() => _userCountry = c);
+                    _loadStats(country: c);
+                  },
                 ),
 
-                // ── Alerte restaurants en attente ────────
-                if (_pendingRestaurantCount > 0)
+                if (_statsLoading)
+                  const SliverFillRemaining(
+                    child: Center(
+                      child: CircularProgressIndicator(color: AppColors.brand),
+                    ),
+                  )
+                else ...[
+                  // ── KPI ─────────────────────────────────
                   SliverToBoxAdapter(
-                    child: _ValidationAlert(
-                      count: _pendingRestaurantCount,
+                    child: _KpiSection(
+                      totalRevenue: _totalRevenue,
+                      totalOrders: _totalOrders,
+                      confirmedOrders: _confirmedOrders,
+                      pendingOrders: _pendingOrders,
+                      cancelledOrders: _cancelledOrders,
+                      totalUsers: _totalUsers,
+                      newUsersMonth: _newUsersMonth,
+                      totalLivreurs: _totalLivreurs,
+                      totalRestaurants: _totalRestaurants,
+                      country: _userCountry,
                     ),
                   ),
 
-                // ── Section validation ───────────────────
-                if (_pendingRestaurants.isNotEmpty)
+                  // ── Alerte restaurants en attente ────────
+                  if (_pendingRestaurantCount > 0)
+                    SliverToBoxAdapter(
+                      child: _ValidationAlert(
+                        count: _pendingRestaurantCount,
+                      ),
+                    ),
+
+                  // ── Section validation ───────────────────
+                  if (_pendingRestaurants.isNotEmpty)
+                    SliverToBoxAdapter(
+                      child: _ValidationSection(
+                        pendingRestaurants: _pendingRestaurants,
+                        userCountry: _userCountry,
+                        onValidate: _validateRestaurant,
+                        onReject: _rejectRestaurant,
+                      ),
+                    ),
+
+                  // ── Actions rapides ──────────────────────
                   SliverToBoxAdapter(
-                    child: _ValidationSection(
-                      pendingRestaurants: _pendingRestaurants,
+                    child: _QuickActionsSection(
+                      userRole: _userRole,
+                      onExport: _showExport,
+                      onRefresh: _loadStats,
+                      onAddAdmin: () => _showAddUser(roleID: 1),
+                    ),
+                  ),
+
+                  // ── Navigation gestion ───────────────────
+                  SliverToBoxAdapter(
+                    child: _ManagementNav(
+                      userRole: _userRole,
                       userCountry: _userCountry,
-                      onValidate: _validateRestaurant,
-                      onReject: _rejectRestaurant,
+                      totalUsers: _totalUsers,
+                      totalRestaurants: _totalRestaurants,
+                      totalLivreurs: _totalLivreurs,
+                      newUsersMonth: _newUsersMonth,
+                      pendingCount: _pendingRestaurantCount,
+                      onAddUser: () => _showAddUser(roleID: 2),
+                      onAddAdmin: () => _showAddUser(roleID: 1),
+                      isSmallScreen: isSmallScreen,
+                      isMediumScreen: isMediumScreen,
+                      isLargeScreen: isLargeScreen,
                     ),
                   ),
+                ],
 
-                // ── Actions rapides ──────────────────────
-                SliverToBoxAdapter(
-                  child: _QuickActionsSection(
-                    userRole: _userRole,
-                    onExport: _showExport,
-                    onRefresh: _loadStats,
-                    onAddAdmin: () => _showAddUser(roleID: 1),
-                  ),
-                ),
-
-                // ── Navigation gestion ───────────────────
-                SliverToBoxAdapter(
-                  child: _ManagementNav(
-                    userRole: _userRole,
-                    userCountry: _userCountry,
-                    totalUsers: _totalUsers,
-                    totalRestaurants: _totalRestaurants,
-                    totalLivreurs: _totalLivreurs,
-                    newUsersMonth: _newUsersMonth,
-                    pendingCount: _pendingRestaurantCount,
-                    onAddUser: () => _showAddUser(roleID: 2),
-                    onAddAdmin: () => _showAddUser(roleID: 1),
-                  ),
-                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 100)),
               ],
-
-              const SliverToBoxAdapter(child: SizedBox(height: 100)),
-            ],
+            ),
           ),
         ),
-      ),
       ),
     );
   }
@@ -774,13 +805,16 @@ class _HeroAppBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final width = MediaQuery.of(context).size.width;
+    final isSmallScreen = width < 400;
+
     final now = DateTime.now();
     final dateStr =
         '${_days[now.weekday - 1]} ${now.day} ${_months[now.month - 1]}';
 
     return SliverAppBar(
       pinned: true,
-      expandedHeight: 220,
+      expandedHeight: isSmallScreen ? 180 : 220,
       automaticallyImplyLeading: false,
       backgroundColor:
           AppColors.resolve(AppColors.surface, AppDarkColors.surface),
@@ -853,7 +887,8 @@ class _HeroAppBar extends StatelessWidget {
                 // ── Contenu ──────────────────────────────
                 Padding(
                   padding: EdgeInsets.only(
-                    top: MediaQuery.of(context).padding.top + 56,
+                    top: MediaQuery.of(context).padding.top +
+                        (isSmallScreen ? 40 : 56),
                     left: AppSpacing.lg,
                     right: AppSpacing.lg,
                     bottom: AppSpacing.lg,
@@ -872,7 +907,7 @@ class _HeroAppBar extends StatelessWidget {
                                 Text(
                                   '${l10n.admin_greeting(userName)} 👋',
                                   style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 22,
+                                    fontSize: isSmallScreen ? 18 : 22,
                                     fontWeight: FontWeight.w800,
                                     color: Colors.white,
                                     height: 1.2,
@@ -886,7 +921,7 @@ class _HeroAppBar extends StatelessWidget {
                                   Text(
                                     dateStr,
                                     style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 13,
+                                      fontSize: isSmallScreen ? 11 : 13,
                                       fontWeight: FontWeight.w500,
                                       color: Colors.white70,
                                     ),
@@ -899,8 +934,8 @@ class _HeroAppBar extends StatelessWidget {
                           GestureDetector(
                             onTap: onSearch,
                             child: Container(
-                              width: 40,
-                              height: 40,
+                              width: isSmallScreen ? 36 : 40,
+                              height: isSmallScreen ? 36 : 40,
                               decoration: BoxDecoration(
                                 color: Colors.white.withValues(alpha: 0.15),
                                 borderRadius:
@@ -909,8 +944,9 @@ class _HeroAppBar extends StatelessWidget {
                                     color:
                                         Colors.white.withValues(alpha: 0.20)),
                               ),
-                              child: const Icon(Icons.search_rounded,
-                                  color: Colors.white, size: 20),
+                              child: Icon(Icons.search_rounded,
+                                  color: Colors.white,
+                                  size: isSmallScreen ? 18 : 20),
                             ),
                           ),
                         ],
@@ -922,6 +958,7 @@ class _HeroAppBar extends StatelessWidget {
                       if (userRole == AppRole.superAdmin)
                         Wrap(
                           spacing: AppSpacing.sm,
+                          runSpacing: AppSpacing.sm,
                           children:
                               ['France', 'Bénin', "Côte d'Ivoire"].map((c) {
                             final active = userCountry == c;
@@ -956,7 +993,7 @@ class _HeroAppBar extends StatelessWidget {
                                       Text(
                                         c,
                                         style: GoogleFonts.plusJakartaSans(
-                                          fontSize: 12,
+                                          fontSize: isSmallScreen ? 11 : 12,
                                           fontWeight: FontWeight.w600,
                                           color: active
                                               ? AppColors.ink
@@ -974,7 +1011,8 @@ class _HeroAppBar extends StatelessWidget {
                               horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
                             color: AppColors.resolve(
-                                AppColors.brandSurface.withValues(alpha: 0.14), AppDarkColors.brandSurface),
+                                AppColors.brandSurface.withValues(alpha: 0.14),
+                                AppDarkColors.brandSurface),
                             borderRadius: BorderRadius.circular(999),
                             border: Border.all(
                                 color: Colors.white.withValues(alpha: 0.22)),
@@ -985,7 +1023,7 @@ class _HeroAppBar extends StatelessWidget {
                             const SizedBox(width: 5),
                             Text(userCountry,
                                 style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 13,
+                                    fontSize: isSmallScreen ? 11 : 13,
                                     fontWeight: FontWeight.w600,
                                     color: Colors.white)),
                           ]),
@@ -1004,8 +1042,7 @@ class _HeroAppBar extends StatelessWidget {
         child: Container(
           height: 20,
           decoration: BoxDecoration(
-            color: AppColors.resolve(
-                AppColors.surface, AppDarkColors.surface),
+            color: AppColors.resolve(AppColors.surface, AppDarkColors.surface),
             borderRadius:
                 BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
           ),
@@ -1046,6 +1083,9 @@ class _KpiSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final width = MediaQuery.of(context).size.width;
+    final isSmallScreen = width < 400;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.lg, AppSpacing.xs, AppSpacing.lg, 0),
@@ -1056,14 +1096,15 @@ class _KpiSection extends StatelessWidget {
           Row(children: [
             Text(l10n.overview,
                 style: AppTypography.titleMedium(
-                    color: AppColors.resolve(
-                        AppColors.ink, AppDarkColors.ink))),
+                    color:
+                        AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
             const Spacer(),
             // Badge total commandes
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: AppColors.resolve(AppColors.brandSurface, AppDarkColors.brandSurface),
+                color: AppColors.resolve(
+                    AppColors.brandSurface, AppDarkColors.brandSurface),
                 borderRadius: BorderRadius.circular(999),
               ),
               child: Text(
@@ -1071,7 +1112,7 @@ class _KpiSection extends StatelessWidget {
                 style: AppTypography.labelMedium(
                         color: AppColors.resolve(
                             AppColors.brand, AppDarkColors.brand))
-                    .copyWith(fontSize: 11),
+                    .copyWith(fontSize: isSmallScreen ? 9 : 11),
               ),
             ),
           ]),
@@ -1095,8 +1136,8 @@ class _KpiSection extends StatelessWidget {
                 sublabel:
                     newUsersMonth > 0 ? '+$newUsersMonth ce mois' : l10n.total,
                 icon: Icons.people_rounded,
-                color: AppColors.resolve(
-                    AppColors.brand, AppDarkColors.brand),
+                color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+                isSmallScreen: isSmallScreen,
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
@@ -1106,8 +1147,9 @@ class _KpiSection extends StatelessWidget {
                 label: l10n.livreurs,
                 sublabel: 'Actifs',
                 icon: Icons.delivery_dining_rounded,
-                color: AppColors.resolve(
-                    AppColors.success, AppDarkColors.success),
+                color:
+                    AppColors.resolve(AppColors.success, AppDarkColors.success),
+                isSmallScreen: isSmallScreen,
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
@@ -1118,6 +1160,7 @@ class _KpiSection extends StatelessWidget {
                 sublabel: l10n.validated,
                 icon: Icons.storefront_rounded,
                 color: const Color(0xFF9B59B6),
+                isSmallScreen: isSmallScreen,
               ),
             ),
           ]),
@@ -1143,6 +1186,9 @@ class _RevenueCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final width = MediaQuery.of(context).size.width;
+    final isSmallScreen = width < 400;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -1170,13 +1216,13 @@ class _RevenueCard extends StatelessWidget {
                 Text(
                   l10n.revenue,
                   style: AppTypography.labelMedium(color: Colors.white70)
-                      .copyWith(fontSize: 12),
+                      .copyWith(fontSize: isSmallScreen ? 10 : 12),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   '${revenue.toStringAsFixed(0)} ${CurrencyUtil.symbol(country)}',
                   style: GoogleFonts.playfairDisplay(
-                    fontSize: 34,
+                    fontSize: isSmallScreen ? 24 : 34,
                     fontWeight: FontWeight.w700,
                     color: Colors.white,
                     height: 1.1,
@@ -1194,7 +1240,7 @@ class _RevenueCard extends StatelessWidget {
                     child: Text(
                       '$confirmed ${l10n.orders}',
                       style: AppTypography.labelMedium(color: Colors.white)
-                          .copyWith(fontSize: 11),
+                          .copyWith(fontSize: isSmallScreen ? 9 : 11),
                     ),
                   ),
                 ]),
@@ -1202,14 +1248,14 @@ class _RevenueCard extends StatelessWidget {
             ),
           ),
           Container(
-            width: 56,
-            height: 56,
+            width: isSmallScreen ? 44 : 56,
+            height: isSmallScreen ? 44 : 56,
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.trending_up_rounded,
-                color: Colors.white, size: 28),
+            child: Icon(Icons.trending_up_rounded,
+                color: Colors.white, size: isSmallScreen ? 22 : 28),
           ),
         ],
       ),
@@ -1225,11 +1271,13 @@ class _KpiTile extends StatelessWidget {
     required this.sublabel,
     required this.icon,
     required this.color,
+    this.isSmallScreen = false,
   });
 
   final String value, label, sublabel;
   final IconData icon;
   final Color color;
+  final bool isSmallScreen;
 
   @override
   Widget build(BuildContext context) {
@@ -1239,8 +1287,7 @@ class _KpiTile extends StatelessWidget {
         color: AppColors.resolve(AppColors.card, AppDarkColors.card),
         borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(
-          color: AppColors.resolve(
-              AppColors.border, AppDarkColors.border),
+          color: AppColors.resolve(AppColors.border, AppDarkColors.border),
           width: 0.5,
         ),
         boxShadow: [AppShadows.subtle],
@@ -1250,13 +1297,13 @@ class _KpiTile extends StatelessWidget {
         children: [
           // Icône
           Container(
-            width: 32,
-            height: 32,
+            width: isSmallScreen ? 28 : 32,
+            height: isSmallScreen ? 28 : 32,
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
-            child: Icon(icon, color: color, size: 16),
+            child: Icon(icon, color: color, size: isSmallScreen ? 14 : 16),
           ),
           const SizedBox(height: AppSpacing.sm),
           // Valeur
@@ -1266,9 +1313,10 @@ class _KpiTile extends StatelessWidget {
             child: Text(
               value,
               style: AppTypography.headlineLarge(
-                      color: AppColors.resolve(AppColors.inkSubtle, AppDarkColors.inkSubtle))
+                      color: AppColors.resolve(
+                          AppColors.inkSubtle, AppDarkColors.inkSubtle))
                   .copyWith(
-                fontSize: 26,
+                fontSize: isSmallScreen ? 20 : 26,
                 color: AppColors.resolve(
                     AppColors.inkSubtle, AppDarkColors.inkSubtle),
                 fontWeight: FontWeight.w900,
@@ -1279,14 +1327,682 @@ class _KpiTile extends StatelessWidget {
           const SizedBox(height: 2),
           Text(label,
               style: AppTypography.labelMedium(
-                      color: AppColors.resolve(
-                          AppColors.ink, AppDarkColors.ink))
-                  .copyWith(fontSize: 11, fontWeight: FontWeight.w700)),
+                      color:
+                          AppColors.resolve(AppColors.ink, AppDarkColors.ink))
+                  .copyWith(
+                      fontSize: isSmallScreen ? 10 : 11,
+                      fontWeight: FontWeight.w700)),
           Text(sublabel,
               style: AppTypography.labelMedium(
-                      color: AppColors.resolve(AppColors.inkSubtle, AppDarkColors.inkSubtle))
-                  .copyWith(fontSize: 10)),
+                      color: AppColors.resolve(
+                          AppColors.inkSubtle, AppDarkColors.inkSubtle))
+                  .copyWith(fontSize: isSmallScreen ? 9 : 10)),
         ],
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// _ManagementNav — Sections de navigation gestion (responsif)
+// ═══════════════════════════════════════════════════════════
+class _ManagementNav extends StatelessWidget {
+  const _ManagementNav({
+    required this.userRole,
+    required this.userCountry,
+    required this.totalUsers,
+    required this.totalRestaurants,
+    required this.totalLivreurs,
+    required this.newUsersMonth,
+    required this.pendingCount,
+    required this.onAddUser,
+    required this.onAddAdmin,
+    this.isSmallScreen = false,
+    this.isMediumScreen = false,
+    this.isLargeScreen = false,
+  });
+
+  final AppRole userRole;
+  final String userCountry;
+  final int totalUsers,
+      totalRestaurants,
+      totalLivreurs,
+      newUsersMonth,
+      pendingCount;
+  final VoidCallback onAddUser, onAddAdmin;
+  final bool isSmallScreen, isMediumScreen, isLargeScreen;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
+    // Pour les petits écrans, on utilise une liste verticale
+    if (isSmallScreen) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg, AppSpacing.xl, AppSpacing.lg, 0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: AppColors.resolve(
+                      AppColors.brandSurface, AppDarkColors.brandSurface),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Icon(Icons.grid_view_rounded,
+                    color: AppColors.brand, size: 14),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Text(l10n.admin_management,
+                  style: AppTypography.titleMedium(
+                      color:
+                          AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
+            ]),
+            const SizedBox(height: AppSpacing.md),
+
+            // Utilisateurs
+            _NavCardResponsive(
+              icon: Icons.people_rounded,
+              label: l10n.users,
+              count: '$totalUsers',
+              sublabel: newUsersMonth > 0 ? '+$newUsersMonth ce mois' : null,
+              color: Colors.blue,
+              onTap: () {
+                if (userRole == AppRole.superAdmin) {
+                  Navigator.push(
+                      context,
+                      CupertinoPageRoute(
+                          builder: (_) =>
+                              const CountryPage(sectionType: 'utilisateurs')));
+                } else {
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => UsersListPage(
+                              country: userCountry, roleFilter: const [2, 3])));
+                }
+              },
+            ),
+
+            const SizedBox(height: AppSpacing.sm),
+
+            // Restaurants
+            _NavCardResponsive(
+              icon: Icons.storefront_rounded,
+              label: l10n.restaurants,
+              count: '$totalRestaurants',
+              badge: pendingCount > 0 ? '$pendingCount' : null,
+              color: AppColors.resolve(AppColors.accent, AppDarkColors.accent),
+              onTap: () {
+                if (userRole == AppRole.superAdmin) {
+                  Navigator.push(
+                      context,
+                      CupertinoPageRoute(
+                          builder: (_) =>
+                              CountryPage(sectionType: 'restaurants')));
+                } else {
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              RestaurantListPage(country: userCountry)));
+                }
+              },
+            ),
+
+            const SizedBox(height: AppSpacing.sm),
+
+            // Livreurs
+            _NavCardResponsive(
+              icon: Icons.delivery_dining_rounded,
+              label: l10n.livreurs,
+              count: '$totalLivreurs',
+              color:
+                  AppColors.resolve(AppColors.success, AppDarkColors.success),
+              onTap: () {
+                if (userRole == AppRole.superAdmin) {
+                  Navigator.push(
+                      context,
+                      CupertinoPageRoute(
+                          builder: (_) =>
+                              const CountryPage(sectionType: 'livreurs')));
+                } else {
+                  Navigator.push(
+                      context,
+                      CupertinoPageRoute(
+                          builder: (_) => const LivreurListPage()));
+                }
+              },
+            ),
+
+            const SizedBox(height: AppSpacing.sm),
+
+            // Catégories
+            _NavCardResponsive(
+              icon: Icons.label_outline_rounded,
+              label: l10n.admin_categories,
+              count: '—',
+              color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+              onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const CategoryManagementPage())),
+            ),
+
+            const SizedBox(height: AppSpacing.sm),
+
+            // Promotions
+            _NavCardResponsive(
+              icon: Icons.discount_rounded,
+              label: l10n.admin_promotions,
+              count: '—',
+              color: AppColors.resolve(AppColors.accent, AppDarkColors.accent),
+              onTap: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const PromotionsPage())),
+            ),
+
+            const SizedBox(height: AppSpacing.sm),
+
+            // Parrainage
+            _NavCardResponsive(
+              icon: Icons.people_alt_rounded,
+              label: l10n.admin_referral,
+              count: '—',
+              color: Colors.teal,
+              onTap: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const ParrainagePage())),
+            ),
+
+            const SizedBox(height: AppSpacing.sm),
+
+            // Audit Log
+            _NavCardResponsive(
+              icon: Icons.history_rounded,
+              label: l10n.auditLog,
+              count: '—',
+              color:
+                  AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted),
+              onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => AuditLogPage(country: userCountry))),
+            ),
+
+            const SizedBox(height: AppSpacing.sm),
+
+            // Suppressions programmées
+            _NavCardResponsive(
+              icon: Icons.delete_sweep_rounded,
+              label: l10n.admin_scheduled_deletions,
+              count: '—',
+              color: AppColors.resolve(AppColors.error, AppDarkColors.error),
+              onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) =>
+                          ScheduledDeletionsPage(country: userCountry))),
+            ),
+
+            if (userRole == AppRole.superAdmin) ...[
+              const SizedBox(height: AppSpacing.sm),
+              _NavCardResponsive(
+                icon: Icons.admin_panel_settings_rounded,
+                label: l10n.administrators,
+                count: '—',
+                color: AppColors.resolve(AppColors.error, AppDarkColors.error),
+                onTap: () => Navigator.push(
+                    context,
+                    CupertinoPageRoute(
+                        builder: (_) =>
+                            CountryPage(sectionType: 'administrateurs'))),
+                onAdd: onAddAdmin,
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+
+    // Pour les écrans moyens et grands, on utilise une grille
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg, AppSpacing.xl, AppSpacing.lg, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Container(
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                color: AppColors.resolve(
+                    AppColors.brandSurface, AppDarkColors.brandSurface),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Icon(Icons.grid_view_rounded,
+                  color: AppColors.brand, size: 14),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Text(l10n.admin_management,
+                style: AppTypography.titleMedium(
+                    color:
+                        AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
+          ]),
+          const SizedBox(height: AppSpacing.md),
+
+          // Grille 2 colonnes
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: isMediumScreen ? 2 : 3,
+            mainAxisSpacing: AppSpacing.sm,
+            crossAxisSpacing: AppSpacing.sm,
+            childAspectRatio: 4,
+            children: [
+              // Utilisateurs
+              _NavCardGrid(
+                icon: Icons.people_rounded,
+                label: l10n.users,
+                count: '$totalUsers',
+                sublabel: newUsersMonth > 0 ? '+$newUsersMonth ce mois' : null,
+                color: Colors.blue,
+                onTap: () {
+                  if (userRole == AppRole.superAdmin) {
+                    Navigator.push(
+                        context,
+                        CupertinoPageRoute(
+                            builder: (_) => const CountryPage(
+                                sectionType: 'utilisateurs')));
+                  } else {
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => UsersListPage(
+                                country: userCountry,
+                                roleFilter: const [2, 3])));
+                  }
+                },
+              ),
+
+              // Restaurants
+              _NavCardGrid(
+                icon: Icons.storefront_rounded,
+                label: l10n.restaurants,
+                count: '$totalRestaurants',
+                badge: pendingCount > 0 ? '$pendingCount' : null,
+                color:
+                    AppColors.resolve(AppColors.accent, AppDarkColors.accent),
+                onTap: () {
+                  if (userRole == AppRole.superAdmin) {
+                    Navigator.push(
+                        context,
+                        CupertinoPageRoute(
+                            builder: (_) =>
+                                CountryPage(sectionType: 'restaurants')));
+                  } else {
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) =>
+                                RestaurantListPage(country: userCountry)));
+                  }
+                },
+              ),
+
+              // Livreurs
+              _NavCardGrid(
+                icon: Icons.delivery_dining_rounded,
+                label: l10n.livreurs,
+                count: '$totalLivreurs',
+                color:
+                    AppColors.resolve(AppColors.success, AppDarkColors.success),
+                onTap: () {
+                  if (userRole == AppRole.superAdmin) {
+                    Navigator.push(
+                        context,
+                        CupertinoPageRoute(
+                            builder: (_) =>
+                                const CountryPage(sectionType: 'livreurs')));
+                  } else {
+                    Navigator.push(
+                        context,
+                        CupertinoPageRoute(
+                            builder: (_) => const LivreurListPage()));
+                  }
+                },
+              ),
+
+              // Catégories
+              _NavCardGrid(
+                icon: Icons.label_outline_rounded,
+                label: l10n.admin_categories,
+                count: '—',
+                color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+                onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const CategoryManagementPage())),
+              ),
+
+              // Promotions
+              _NavCardGrid(
+                icon: Icons.discount_rounded,
+                label: l10n.admin_promotions,
+                count: '—',
+                color:
+                    AppColors.resolve(AppColors.accent, AppDarkColors.accent),
+                onTap: () => Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const PromotionsPage())),
+              ),
+
+              // Parrainage
+              _NavCardGrid(
+                icon: Icons.people_alt_rounded,
+                label: l10n.admin_referral,
+                count: '—',
+                color: Colors.teal,
+                onTap: () => Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const ParrainagePage())),
+              ),
+
+              // Audit Log
+              _NavCardGrid(
+                icon: Icons.history_rounded,
+                label: l10n.auditLog,
+                count: '—',
+                color: AppColors.resolve(
+                    AppColors.inkMuted, AppDarkColors.inkMuted),
+                onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => AuditLogPage(country: userCountry))),
+              ),
+
+              // Suppressions programmées
+              _NavCardGrid(
+                icon: Icons.delete_sweep_rounded,
+                label: l10n.admin_scheduled_deletions,
+                count: '—',
+                color: AppColors.resolve(AppColors.error, AppDarkColors.error),
+                onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) =>
+                            ScheduledDeletionsPage(country: userCountry))),
+              ),
+
+              if (userRole == AppRole.superAdmin)
+                _NavCardGrid(
+                  icon: Icons.admin_panel_settings_rounded,
+                  label: l10n.administrators,
+                  count: '—',
+                  color:
+                      AppColors.resolve(AppColors.error, AppDarkColors.error),
+                  onTap: () => Navigator.push(
+                      context,
+                      CupertinoPageRoute(
+                          builder: (_) =>
+                              CountryPage(sectionType: 'administrateurs'))),
+                  onAdd: onAddAdmin,
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Version responsive du NavCard pour petits écrans
+class _NavCardResponsive extends StatelessWidget {
+  const _NavCardResponsive({
+    required this.icon,
+    required this.label,
+    required this.count,
+    required this.color,
+    required this.onTap,
+    this.sublabel,
+    this.badge,
+    this.onAdd,
+  });
+
+  final IconData icon;
+  final String label, count;
+  final Color color;
+  final VoidCallback onTap;
+  final String? sublabel, badge;
+  final VoidCallback? onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    final isSmallScreen = width < 400;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: AppColors.resolve(AppColors.card, AppDarkColors.card),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: Border.all(
+              color: AppColors.resolve(AppColors.border, AppDarkColors.border),
+              width: 0.5),
+          boxShadow: [AppShadows.subtle],
+        ),
+        child: Row(children: [
+          // Icône
+          Container(
+            width: isSmallScreen ? 40 : 46,
+            height: isSmallScreen ? 40 : 46,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+            child: Icon(icon, color: color, size: isSmallScreen ? 18 : 22),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          // Label + sous-label
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label,
+                    style: AppTypography.labelLarge(
+                        color: AppColors.resolve(
+                            AppColors.ink, AppDarkColors.ink))),
+                if (sublabel != null)
+                  Text(sublabel!,
+                      style: AppTypography.bodyMedium(
+                              color: AppColors.resolve(
+                                  AppColors.inkMuted, AppDarkColors.inkMuted))
+                          .copyWith(fontSize: isSmallScreen ? 9 : 11)),
+              ],
+            ),
+          ),
+          // Badge en attente
+          if (badge != null) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: AppColors.resolve(
+                    AppColors.errorLight, AppDarkColors.errorLight),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(badge!,
+                  style: AppTypography.labelMedium(
+                          color: AppColors.resolve(
+                              AppColors.error, AppDarkColors.error))
+                      .copyWith(
+                          fontSize: isSmallScreen ? 9 : 11,
+                          fontWeight: FontWeight.w800)),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+          ],
+          // Compteur
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(count,
+                style: AppTypography.labelMedium(color: color).copyWith(
+                    fontSize: isSmallScreen ? 11 : 13,
+                    fontWeight: FontWeight.w800)),
+          ),
+          // Bouton ajouter
+          if (onAdd != null) ...[
+            const SizedBox(width: AppSpacing.sm),
+            GestureDetector(
+              onTap: onAdd,
+              child: Container(
+                width: isSmallScreen ? 30 : 34,
+                height: isSmallScreen ? 30 : 34,
+                decoration: BoxDecoration(
+                  color: AppColors.resolve(
+                      AppColors.successLight, AppDarkColors.successLight),
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                ),
+                child: Icon(Icons.add_rounded,
+                    color: AppColors.resolve(
+                        AppColors.success, AppDarkColors.success),
+                    size: isSmallScreen ? 16 : 18),
+              ),
+            ),
+          ],
+          const SizedBox(width: AppSpacing.sm),
+          Icon(Icons.chevron_right_rounded,
+              color: AppColors.resolve(
+                  AppColors.inkSubtle, AppDarkColors.inkSubtle),
+              size: isSmallScreen ? 16 : 18),
+        ]),
+      ),
+    );
+  }
+}
+
+// Version grille pour écrans moyens et grands
+class _NavCardGrid extends StatelessWidget {
+  const _NavCardGrid({
+    required this.icon,
+    required this.label,
+    required this.count,
+    required this.color,
+    required this.onTap,
+    this.sublabel,
+    this.badge,
+    this.onAdd,
+  });
+
+  final IconData icon;
+  final String label, count;
+  final Color color;
+  final VoidCallback onTap;
+  final String? sublabel, badge;
+  final VoidCallback? onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: AppColors.resolve(AppColors.card, AppDarkColors.card),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: Border.all(
+              color: AppColors.resolve(AppColors.border, AppDarkColors.border),
+              width: 0.5),
+          boxShadow: [AppShadows.subtle],
+        ),
+        child: Row(children: [
+          // Icône
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          // Label + sous-label
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label,
+                    style: AppTypography.labelLarge(
+                        color: AppColors.resolve(
+                            AppColors.ink, AppDarkColors.ink))),
+                if (sublabel != null)
+                  Text(sublabel!,
+                      style: AppTypography.bodyMedium(
+                              color: AppColors.resolve(
+                                  AppColors.inkMuted, AppDarkColors.inkMuted))
+                          .copyWith(fontSize: 10)),
+              ],
+            ),
+          ),
+          // Badge en attente
+          if (badge != null) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: AppColors.resolve(
+                    AppColors.errorLight, AppDarkColors.errorLight),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(badge!,
+                  style: AppTypography.labelMedium(
+                          color: AppColors.resolve(
+                              AppColors.error, AppDarkColors.error))
+                      .copyWith(fontSize: 11, fontWeight: FontWeight.w800)),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+          ],
+          // Compteur
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(count,
+                style: AppTypography.labelMedium(color: color)
+                    .copyWith(fontSize: 12, fontWeight: FontWeight.w800)),
+          ),
+          if (onAdd != null) ...[
+            const SizedBox(width: AppSpacing.sm),
+            GestureDetector(
+              onTap: onAdd,
+              child: Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: AppColors.resolve(
+                      AppColors.successLight, AppDarkColors.successLight),
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                ),
+                child: Icon(Icons.add_rounded,
+                    color: AppColors.resolve(
+                        AppColors.success, AppDarkColors.success),
+                    size: 16),
+              ),
+            ),
+          ],
+          const SizedBox(width: AppSpacing.sm),
+          Icon(Icons.chevron_right_rounded,
+              color: AppColors.resolve(
+                  AppColors.inkSubtle, AppDarkColors.inkSubtle),
+              size: 16),
+        ]),
       ),
     );
   }
@@ -1307,13 +2023,12 @@ class _ValidationAlert extends StatelessWidget {
           AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, 0),
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: AppColors.resolve(
-            AppColors.errorLight, AppDarkColors.errorLight),
+        color:
+            AppColors.resolve(AppColors.errorLight, AppDarkColors.errorLight),
         borderRadius: BorderRadius.circular(AppRadius.md),
         border: Border.all(
-            color:
-                AppColors.resolve(AppColors.error, AppDarkColors.error)
-                    .withValues(alpha: 0.25),
+            color: AppColors.resolve(AppColors.error, AppDarkColors.error)
+                .withValues(alpha: 0.25),
             width: 1),
       ),
       child: Row(children: [
@@ -1321,14 +2036,12 @@ class _ValidationAlert extends StatelessWidget {
           width: 36,
           height: 36,
           decoration: BoxDecoration(
-            color:
-                AppColors.resolve(AppColors.error, AppDarkColors.error)
-                    .withValues(alpha: 0.12),
+            color: AppColors.resolve(AppColors.error, AppDarkColors.error)
+                .withValues(alpha: 0.12),
             shape: BoxShape.circle,
           ),
           child: Icon(Icons.assignment_late_rounded,
-              color: AppColors.resolve(
-                  AppColors.error, AppDarkColors.error),
+              color: AppColors.resolve(AppColors.error, AppDarkColors.error),
               size: 18),
         ),
         const SizedBox(width: AppSpacing.sm),
@@ -1380,8 +2093,7 @@ class _ValidationSection extends StatelessWidget {
         color: AppColors.resolve(AppColors.card, AppDarkColors.card),
         borderRadius: BorderRadius.circular(AppRadius.xl),
         border: Border.all(
-            color: AppColors.resolve(
-                AppColors.border, AppDarkColors.border),
+            color: AppColors.resolve(AppColors.border, AppDarkColors.border),
             width: 0.5),
         boxShadow: [AppShadows.subtle],
       ),
@@ -1401,8 +2113,8 @@ class _ValidationSection extends StatelessWidget {
                   borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),
                 child: Icon(Icons.assignment_turned_in_rounded,
-                    color: AppColors.resolve(
-                        AppColors.error, AppDarkColors.error),
+                    color:
+                        AppColors.resolve(AppColors.error, AppDarkColors.error),
                     size: 16),
               ),
               const SizedBox(width: AppSpacing.sm),
@@ -1488,8 +2200,8 @@ class _ValidationRow extends StatelessWidget {
           AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.sm),
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: AppColors.resolve(
-            AppColors.surfaceWarm, AppDarkColors.surfaceWarm),
+        color:
+            AppColors.resolve(AppColors.surfaceWarm, AppDarkColors.surfaceWarm),
         borderRadius: BorderRadius.circular(AppRadius.lg),
       ),
       child: Row(children: [
@@ -1503,8 +2215,7 @@ class _ValidationRow extends StatelessWidget {
           ),
           child: Icon(Icons.storefront_rounded,
               size: 22,
-              color: AppColors.resolve(
-                  AppColors.accent, AppDarkColors.accent)),
+              color: AppColors.resolve(AppColors.accent, AppDarkColors.accent)),
         ),
         const SizedBox(width: AppSpacing.md),
         Expanded(
@@ -1513,13 +2224,14 @@ class _ValidationRow extends StatelessWidget {
             children: [
               Text(restaurant.name,
                   style: AppTypography.labelLarge(
-                      color: AppColors.resolve(
-                          AppColors.ink, AppDarkColors.ink)),
+                      color:
+                          AppColors.resolve(AppColors.ink, AppDarkColors.ink)),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis),
               Text(ownerName,
                   style: AppTypography.bodyMedium(
-                          color: AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted))
+                          color: AppColors.resolve(
+                              AppColors.inkMuted, AppDarkColors.inkMuted))
                       .copyWith(fontSize: 11),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis),
@@ -1537,8 +2249,7 @@ class _ValidationRow extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
             child: Icon(Icons.close_rounded,
-                color: AppColors.resolve(
-                    AppColors.error, AppDarkColors.error),
+                color: AppColors.resolve(AppColors.error, AppDarkColors.error),
                 size: 18),
           ),
         ),
@@ -1555,8 +2266,8 @@ class _ValidationRow extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
             child: Icon(Icons.check_rounded,
-                color: AppColors.resolve(
-                    AppColors.success, AppDarkColors.success),
+                color:
+                    AppColors.resolve(AppColors.success, AppDarkColors.success),
                 size: 18),
           ),
         ),
@@ -1598,15 +2309,15 @@ class _QuickActionsSection extends StatelessWidget {
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Icon(Icons.flash_on_rounded,
-                  color: AppColors.resolve(
-                      AppColors.accent, AppDarkColors.accent),
+                  color:
+                      AppColors.resolve(AppColors.accent, AppDarkColors.accent),
                   size: 14),
             ),
             const SizedBox(width: AppSpacing.sm),
             Text(l10n.admin_quick_actions,
                 style: AppTypography.titleMedium(
-                    color: AppColors.resolve(
-                        AppColors.ink, AppDarkColors.ink))),
+                    color:
+                        AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
           ]),
           const SizedBox(height: AppSpacing.md),
           Row(children: [
@@ -1625,8 +2336,7 @@ class _QuickActionsSection extends StatelessWidget {
               child: _ActionCard(
                 icon: Icons.file_download_rounded,
                 label: l10n.export,
-                color: AppColors.resolve(
-                    AppColors.brand, AppDarkColors.brand),
+                color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
                 onTap: onExport,
               ),
             ),
@@ -1635,8 +2345,8 @@ class _QuickActionsSection extends StatelessWidget {
               child: _ActionCard(
                 icon: Icons.refresh_rounded,
                 label: 'Actualiser',
-                color: AppColors.resolve(
-                    AppColors.success, AppDarkColors.success),
+                color:
+                    AppColors.resolve(AppColors.success, AppDarkColors.success),
                 onTap: onRefresh,
               ),
             ),
@@ -1670,8 +2380,7 @@ class _ActionCard extends StatelessWidget {
           color: AppColors.resolve(AppColors.card, AppDarkColors.card),
           borderRadius: BorderRadius.circular(AppRadius.lg),
           border: Border.all(
-              color: AppColors.resolve(
-                  AppColors.border, AppDarkColors.border),
+              color: AppColors.resolve(AppColors.border, AppDarkColors.border),
               width: 0.5),
           boxShadow: [AppShadows.subtle],
         ),
@@ -1684,241 +2393,17 @@ class _ActionCard extends StatelessWidget {
               shape: BoxShape.circle,
             ),
             child: Icon(icon,
-                color: AppColors.resolve(AppColors.ink.withValues(alpha: 0.8), AppDarkColors.ink),
+                color: AppColors.resolve(
+                    AppColors.ink.withValues(alpha: 0.8), AppDarkColors.ink),
                 size: 22),
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(label,
               style: AppTypography.labelMedium(
-                      color: AppColors.resolve(AppColors.inkSubtle, AppDarkColors.inkSubtle))
+                      color: AppColors.resolve(
+                          AppColors.inkSubtle, AppDarkColors.inkSubtle))
                   .copyWith(fontSize: 12)),
         ]),
-      ),
-    );
-  }
-}
-
-// ═══════════════════════════════════════════════════════════
-// _ManagementNav — Sections de navigation gestion
-// ═══════════════════════════════════════════════════════════
-class _ManagementNav extends StatelessWidget {
-  const _ManagementNav({
-    required this.userRole,
-    required this.userCountry,
-    required this.totalUsers,
-    required this.totalRestaurants,
-    required this.totalLivreurs,
-    required this.newUsersMonth,
-    required this.pendingCount,
-    required this.onAddUser,
-    required this.onAddAdmin,
-  });
-
-  final AppRole userRole;
-  final String userCountry;
-  final int totalUsers,
-      totalRestaurants,
-      totalLivreurs,
-      newUsersMonth,
-      pendingCount;
-  final VoidCallback onAddUser, onAddAdmin;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-          AppSpacing.lg, AppSpacing.xl, AppSpacing.lg, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: [
-            Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                color: AppColors.resolve(AppColors.brandSurface, AppDarkColors.brandSurface),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: const Icon(Icons.grid_view_rounded,
-                  color: AppColors.brand, size: 14),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Text(l10n.admin_management,
-                style: AppTypography.titleMedium(
-                    color: AppColors.resolve(
-                        AppColors.ink, AppDarkColors.ink))),
-          ]),
-          const SizedBox(height: AppSpacing.md),
-
-          // Utilisateurs
-          _NavCard(
-            icon: Icons.people_rounded,
-            label: l10n.users,
-            count: '$totalUsers',
-            sublabel: newUsersMonth > 0 ? '+$newUsersMonth ce mois' : null,
-            color: Colors.blue,
-            onTap: () {
-              if (userRole == AppRole.superAdmin) {
-                Navigator.push(
-                    context,
-                    CupertinoPageRoute(
-                        builder: (_) =>
-                            const CountryPage(sectionType: 'utilisateurs')));
-              } else {
-                Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => UsersListPage(
-                            country: userCountry,
-                            roleFilter: const [2, 3])));
-              }
-            },
-          ),
-
-          const SizedBox(height: AppSpacing.sm),
-
-          // Restaurants
-          _NavCard(
-            icon: Icons.storefront_rounded,
-            label: l10n.restaurants,
-            count: '$totalRestaurants',
-            badge: pendingCount > 0 ? '$pendingCount' : null,
-            color: AppColors.resolve(
-                AppColors.accent, AppDarkColors.accent),
-            onTap: () {
-              if (userRole == AppRole.superAdmin) {
-                Navigator.push(
-                    context,
-                    CupertinoPageRoute(
-                        builder: (_) =>
-                            CountryPage(sectionType: 'restaurants')));
-              } else {
-                Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) =>
-                            RestaurantListPage(country: userCountry)));
-              }
-            },
-          ),
-
-          const SizedBox(height: AppSpacing.sm),
-
-          // Livreurs
-          _NavCard(
-            icon: Icons.delivery_dining_rounded,
-            label: l10n.livreurs,
-            count: '$totalLivreurs',
-            color: AppColors.resolve(
-                AppColors.success, AppDarkColors.success),
-            onTap: () {
-              if (userRole == AppRole.superAdmin) {
-                Navigator.push(
-                    context,
-                    CupertinoPageRoute(
-                        builder: (_) =>
-                            const CountryPage(sectionType: 'livreurs')));
-              } else {
-                Navigator.push(
-                    context,
-                    CupertinoPageRoute(
-                        builder: (_) => const LivreurListPage()));
-              }
-            },
-          ),
-
-          const SizedBox(height: AppSpacing.sm),
-
-          // Catégories
-          _NavCard(
-            icon: Icons.label_outline_rounded,
-            label: l10n.admin_categories,
-            count: '—',
-            color: AppColors.resolve(
-                AppColors.brand, AppDarkColors.brand),
-            onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => const CategoryManagementPage())),
-          ),
-
-          const SizedBox(height: AppSpacing.sm),
-
-          // Promotions
-          _NavCard(
-            icon: Icons.discount_rounded,
-            label: l10n.admin_promotions,
-            count: '—',
-            color: AppColors.resolve(
-                AppColors.accent, AppDarkColors.accent),
-            onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => const PromotionsPage())),
-          ),
-
-          const SizedBox(height: AppSpacing.sm),
-
-          // Parrainage
-          _NavCard(
-            icon: Icons.people_alt_rounded,
-            label: l10n.admin_referral,
-            count: '—',
-            color: Colors.teal,
-            onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => const ParrainagePage())),
-          ),
-
-          const SizedBox(height: AppSpacing.sm),
-
-          // Audit Log
-          _NavCard(
-            icon: Icons.history_rounded,
-            label: l10n.auditLog,
-            count: '—',
-            color: AppColors.resolve(
-                AppColors.inkMuted, AppDarkColors.inkMuted),
-            onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => AuditLogPage(country: userCountry))),
-          ),
-
-          const SizedBox(height: AppSpacing.sm),
-
-          // Suppressions programmées
-          _NavCard(
-            icon: Icons.delete_sweep_rounded,
-            label: l10n.admin_scheduled_deletions,
-            count: '—',
-            color: AppColors.resolve(
-                AppColors.error, AppDarkColors.error),
-            onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => ScheduledDeletionsPage(country: userCountry))),
-          ),
-
-          if (userRole == AppRole.superAdmin) ...[
-            const SizedBox(height: AppSpacing.sm),
-            _NavCard(
-              icon: Icons.admin_panel_settings_rounded,
-              label: l10n.administrators,
-              count: '—',
-              color: AppColors.resolve(
-                  AppColors.error, AppDarkColors.error),
-              onTap: () => Navigator.push(
-                  context,
-                  CupertinoPageRoute(
-                      builder: (_) =>
-                          CountryPage(sectionType: 'administrateurs'))),
-              onAdd: onAddAdmin,
-            ),
-          ],
-        ],
       ),
     );
   }
@@ -1953,8 +2438,7 @@ class _NavCard extends StatelessWidget {
           color: AppColors.resolve(AppColors.card, AppDarkColors.card),
           borderRadius: BorderRadius.circular(AppRadius.lg),
           border: Border.all(
-              color: AppColors.resolve(
-                  AppColors.border, AppDarkColors.border),
+              color: AppColors.resolve(AppColors.border, AppDarkColors.border),
               width: 0.5),
           boxShadow: [AppShadows.subtle],
         ),
@@ -1982,7 +2466,8 @@ class _NavCard extends StatelessWidget {
                 if (sublabel != null)
                   Text(sublabel!,
                       style: AppTypography.bodyMedium(
-                              color: AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted))
+                              color: AppColors.resolve(
+                                  AppColors.inkMuted, AppDarkColors.inkMuted))
                           .copyWith(fontSize: 11)),
               ],
             ),
@@ -2024,7 +2509,8 @@ class _NavCard extends StatelessWidget {
                 width: 34,
                 height: 34,
                 decoration: BoxDecoration(
-                  color: AppColors.resolve(AppColors.successLight, AppDarkColors.successLight),
+                  color: AppColors.resolve(
+                      AppColors.successLight, AppDarkColors.successLight),
                   borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),
                 child: Icon(Icons.add_rounded,
@@ -2067,8 +2553,7 @@ class _ExportTile extends StatelessWidget {
               AppColors.surfaceWarm, AppDarkColors.surfaceWarm),
           borderRadius: BorderRadius.circular(AppRadius.md),
           border: Border.all(
-              color: AppColors.resolve(
-                  AppColors.border, AppDarkColors.border),
+              color: AppColors.resolve(AppColors.border, AppDarkColors.border),
               width: 0.5),
         ),
         child: Row(children: [
@@ -2084,8 +2569,7 @@ class _ExportTile extends StatelessWidget {
           const SizedBox(width: AppSpacing.md),
           Text(label,
               style: AppTypography.labelMedium(
-                  color: AppColors.resolve(
-                      AppColors.ink, AppDarkColors.ink))),
+                  color: AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
           const Spacer(),
           Icon(Icons.chevron_right_rounded,
               color: AppColors.resolve(

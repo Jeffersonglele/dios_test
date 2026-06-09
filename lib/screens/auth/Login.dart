@@ -116,7 +116,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.resolve(AppColors.surfaceWarm, AppDarkColors.surfaceWarm),
+      backgroundColor:
+          AppColors.resolve(AppColors.surfaceWarm, AppDarkColors.surfaceWarm),
       body: OrderConfettiCelebration(
         child: SafeArea(
           child: Center(
@@ -134,7 +135,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     height: 88,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: AppColors.resolve(AppColors.brandSurface, AppDarkColors.brandSurface),
+                      color: AppColors.resolve(
+                          AppColors.brandSurface, AppDarkColors.brandSurface),
                       border: Border.all(
                         color: AppColors.brand.withValues(alpha: 0.2),
                         width: 2,
@@ -269,7 +271,15 @@ class _LoginState extends ConsumerState<Login> {
       );
 
       if (user.mustChangePassword) {
-        if (mounted) Navigator.push(context, CupertinoPageRoute(builder: (_) => FirstLoginPasswordChange(user: user)));
+        if (mounted) {
+          Navigator.push(
+            context,
+            CupertinoPageRoute(
+              builder: (_) => FirstLoginPasswordChange(user: user),
+            ),
+          );
+        }
+
         return;
       }
 
@@ -440,7 +450,6 @@ class _LoginState extends ConsumerState<Login> {
   // ── Build ─────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-
     return GestureDetector(
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
       child: AuthShell(
@@ -498,7 +507,8 @@ class _LoginState extends ConsumerState<Login> {
                 validator: (v) {
                   if (v == null || v.isEmpty)
                     return AppLocalizations.of(context)!.enter_username;
-                  if (v.length < 4) return AppLocalizations.of(context)!.min_4_chars;
+                  if (v.length < 4)
+                    return AppLocalizations.of(context)!.min_4_chars;
                   if (v.length > 80) return 'Trop long (max 80 caractères)';
                   return null;
                 },
@@ -534,7 +544,8 @@ class _LoginState extends ConsumerState<Login> {
                 validator: (v) {
                   if (v == null || v.isEmpty)
                     return AppLocalizations.of(context)!.enter_password;
-                  if (v.length < 6) return AppLocalizations.of(context)!.min_6_chars;
+                  if (v.length < 6)
+                    return AppLocalizations.of(context)!.min_6_chars;
                   return null;
                 },
               );
@@ -612,7 +623,6 @@ class _LoginErrorBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,

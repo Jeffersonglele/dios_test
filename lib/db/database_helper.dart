@@ -57,12 +57,19 @@ class DatabaseHelper {
     return null;
   }
 
-  static Future<Users?> updateUserPassword(int userID, String password) async {
+  static Future<Users?> updateUserPassword(
+    int userID,
+    String password, {
+    bool? mustChangePassword,
+  }) async {
     final Box<Users> usersBox = await Hive.openBox<Users>('users');
     final Users? user = usersBox.get(userID);
 
     if (user != null) {
       user.password = password;
+      if (mustChangePassword != null) {
+        user.mustChangePassword = mustChangePassword;
+      }
       await usersBox.put(userID, user);
       return user;
     }
@@ -70,12 +77,8 @@ class DatabaseHelper {
     return null;
   }
 
-  static Future<Users?> updateUserProfile(
-      int userID,
-      String firstname,
-      String lastname,
-      String email,
-      String telephone) async {
+  static Future<Users?> updateUserProfile(int userID, String firstname,
+      String lastname, String email, String telephone) async {
     final Box<Users> usersBox = await Hive.openBox<Users>('users');
     final Users? user = usersBox.get(userID);
 
@@ -148,7 +151,8 @@ class DatabaseHelper {
       await restaurantBox.put(restaurant.restaurantID, restaurant);
       return restaurant;
     } else {
-      throw Exception("Le restaurant avec l'ID ${restaurant.restaurantID} n'existe pas.");
+      throw Exception(
+          "Le restaurant avec l'ID ${restaurant.restaurantID} n'existe pas.");
     }
   }
 
@@ -284,7 +288,8 @@ class DatabaseHelper {
   }
 
   static Future<List<Identity>> readAllIdentities() async {
-    final Box<Identity> identitiesBox = await Hive.openBox<Identity>('identity');
+    final Box<Identity> identitiesBox =
+        await Hive.openBox<Identity>('identity');
     List<Identity> identitiesList = identitiesBox.values.toList();
     return identitiesList;
   }
@@ -293,7 +298,6 @@ class DatabaseHelper {
     final box = await Hive.openBox<Identity>('identity');
     await box.put(identity.identityID, identity);
   }
-
 
   static Future<Identity?> updateIdentity(Identity identity) async {
     final Box<Identity> identityBox = await Hive.openBox<Identity>('identity');
@@ -316,7 +320,7 @@ class DatabaseHelper {
     if (identity.identityID != null) {
       await identityBox.put(identity.identityID, identity);
     } else {
-    // Enregistre sans clé spécifique (Hive assigne un ID auto)
+      // Enregistre sans clé spécifique (Hive assigne un ID auto)
       await identityBox.add(identity);
     }
   }
@@ -380,7 +384,6 @@ class DatabaseHelper {
     return ligne;
   }
 
-
   static Future<List<LigneCommande>> readLignesCommande(int commandeID) async {
     final box = await Hive.openBox<LigneCommande>('ligne_commande');
     return box.values
@@ -392,7 +395,6 @@ class DatabaseHelper {
     final box = await Hive.openBox<LigneCommande>('ligne_commande');
     await box.delete(ligneID);
   }
-
 
   Future closeHiveBox() async {
     await Hive

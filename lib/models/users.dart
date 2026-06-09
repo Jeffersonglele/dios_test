@@ -394,7 +394,8 @@ class Users extends HiveObject {
     }
   }
 
-  static Future<String> updatePassword(int userID, String newPassword, {bool? mustChangePassword}) async {
+  static Future<String> updatePassword(int userID, String newPassword,
+      {bool? mustChangePassword}) async {
     String functionName = 'update1User';
     var cloudFunction = ParseCloudFunction(functionName);
 
@@ -413,7 +414,11 @@ class Users extends HiveObject {
         if (response['success'] == false) {
           return "Erreur : ${response['error']}";
         } else {
-          await DatabaseHelper.updateUserPassword(userID, newPassword);
+          await DatabaseHelper.updateUserPassword(
+            userID,
+            newPassword,
+            mustChangePassword: mustChangePassword,
+          );
 
           notifyDataChanged();
           return "success";
@@ -427,7 +432,7 @@ class Users extends HiveObject {
   }
 
   static Future<String> updateProfile(
-      int userID, {
+    int userID, {
     required String firstname,
     required String lastname,
     required String email,
@@ -512,7 +517,9 @@ class Users extends HiveObject {
       if (parseResponse.success && parseResponse.result != null) {
         var response = parseResponse.result as Map<String, dynamic>;
         if (response['success'] == true) {
-          try { await DatabaseHelper.updateUserStatus(userID, 'deleted_pending'); } catch (_) {}
+          try {
+            await DatabaseHelper.updateUserStatus(userID, 'deleted_pending');
+          } catch (_) {}
           notifyDataChanged();
           return "success";
         } else {

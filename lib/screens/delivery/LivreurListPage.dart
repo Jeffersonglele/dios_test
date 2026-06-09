@@ -67,30 +67,41 @@ class _LivreurListPageState extends State<LivreurListPage> {
       list = list.where((u) => u.permisVerified != true).toList();
     }
     if (_searchQuery.isNotEmpty) {
-      list = list.where((u) =>
-        '${u.firstname} ${u.lastname}'.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-        u.email.toLowerCase().contains(_searchQuery.toLowerCase())
-      ).toList();
+      list = list
+          .where((u) =>
+              '${u.firstname} ${u.lastname}'
+                  .toLowerCase()
+                  .contains(_searchQuery.toLowerCase()) ||
+              u.email.toLowerCase().contains(_searchQuery.toLowerCase()))
+          .toList();
     }
     return list;
   }
 
   IconData _vehicleIcon(String? type) {
     switch (type?.toLowerCase()) {
-      case 'moto': return Icons.motorcycle_rounded;
-      case 'velo': return Icons.pedal_bike_rounded;
-      case 'voiture': return Icons.directions_car_rounded;
-      default: return Icons.delivery_dining_rounded;
+      case 'moto':
+        return Icons.motorcycle_rounded;
+      case 'velo':
+        return Icons.pedal_bike_rounded;
+      case 'voiture':
+        return Icons.directions_car_rounded;
+      default:
+        return Icons.delivery_dining_rounded;
     }
   }
 
   String _vehicleLabel(String? type) {
     final l10n = AppLocalizations.of(context)!;
     switch (type?.toLowerCase()) {
-      case 'moto': return l10n.livreur_vehicle_moto;
-      case 'velo': return l10n.livreur_vehicle_bike;
-      case 'voiture': return l10n.livreur_vehicle_car;
-      default: return l10n.livreur_vehicle_unspecified;
+      case 'moto':
+        return l10n.livreur_vehicle_moto;
+      case 'velo':
+        return l10n.livreur_vehicle_bike;
+      case 'voiture':
+        return l10n.livreur_vehicle_car;
+      default:
+        return l10n.livreur_vehicle_unspecified;
     }
   }
 
@@ -98,6 +109,8 @@ class _LivreurListPageState extends State<LivreurListPage> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final filtered = _filtered;
+    final width = MediaQuery.of(context).size.width;
+    final isSmallScreen = width < 400;
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -133,11 +146,13 @@ class _LivreurListPageState extends State<LivreurListPage> {
                       style: AppTypography.bodyLarge().copyWith(fontSize: 14),
                       decoration: InputDecoration(
                         hintText: l10n.livreur_search_hint,
-                        hintStyle: AppTypography.bodyMedium().copyWith(fontSize: 14),
+                        hintStyle:
+                            AppTypography.bodyMedium().copyWith(fontSize: 14),
                         prefixIcon: Icon(Icons.search_rounded,
                             color: AppColors.inkSubtle, size: 20),
                         border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                        contentPadding:
+                            const EdgeInsets.symmetric(vertical: 12),
                       ),
                     ),
                   ),
@@ -162,19 +177,33 @@ class _LivreurListPageState extends State<LivreurListPage> {
                           color: AppColors.inkMuted, size: 20),
                       const SizedBox(width: 4),
                       Text(
-                        _filterStatus == 'tous' ? l10n.all :
-                        _filterStatus == 'en_ligne' ? l10n.livreur_filter_online :
-                        _filterStatus == 'hors_ligne' ? l10n.livreur_filter_offline :
-                        _filterStatus == 'permis_valide' ? l10n.livreur_filter_license_valid : l10n.livreur_filter_license_pending,
-                        style: AppTypography.labelMedium().copyWith(fontSize: 12),
+                        _filterStatus == 'tous'
+                            ? l10n.all
+                            : _filterStatus == 'en_ligne'
+                                ? l10n.livreur_filter_online
+                                : _filterStatus == 'hors_ligne'
+                                    ? l10n.livreur_filter_offline
+                                    : _filterStatus == 'permis_valide'
+                                        ? l10n.livreur_filter_license_valid
+                                        : l10n.livreur_filter_license_pending,
+                        style:
+                            AppTypography.labelMedium().copyWith(fontSize: 12),
                       ),
                     ]),
                     itemBuilder: (_) => [
                       PopupMenuItem(value: 'tous', child: Text(l10n.all)),
-                      PopupMenuItem(value: 'en_ligne', child: Text(l10n.livreur_filter_online)),
-                      PopupMenuItem(value: 'hors_ligne', child: Text(l10n.livreur_filter_offline)),
-                      PopupMenuItem(value: 'permis_valide', child: Text(l10n.livreur_filter_license_validated)),
-                      PopupMenuItem(value: 'permis_en_attente', child: Text(l10n.livreur_filter_license_waiting)),
+                      PopupMenuItem(
+                          value: 'en_ligne',
+                          child: Text(l10n.livreur_filter_online)),
+                      PopupMenuItem(
+                          value: 'hors_ligne',
+                          child: Text(l10n.livreur_filter_offline)),
+                      PopupMenuItem(
+                          value: 'permis_valide',
+                          child: Text(l10n.livreur_filter_license_validated)),
+                      PopupMenuItem(
+                          value: 'permis_en_attente',
+                          child: Text(l10n.livreur_filter_license_waiting)),
                     ],
                   ),
                 ),
@@ -183,18 +212,28 @@ class _LivreurListPageState extends State<LivreurListPage> {
             // Stats header
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Row(children: [
-                Text('${filtered.length} ${l10n.livreurs}',
-                    style: AppTypography.bodyMedium().copyWith(fontSize: 12)),
-                const Spacer(),
-                Text('${_livreurs.where((u) => u.isOnline == true).length} ${l10n.livreur_filter_online}',
-                    style: AppTypography.labelMedium(color: AppColors.success).copyWith(fontSize: 11)),
-                if (_livreurs.where((u) => u.permisVerified != true).isNotEmpty) ...[
-                  const SizedBox(width: 8),
-                  Text('${_livreurs.where((u) => u.permisVerified != true).length} ${l10n.livreur_filter_license_waiting}',
-                      style: AppTypography.labelMedium(color: AppColors.accent).copyWith(fontSize: 11)),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  Text('${filtered.length} ${l10n.livreurs}',
+                      style: AppTypography.bodyMedium().copyWith(fontSize: 12)),
+                  const Spacer(),
+                  Text(
+                      '${_livreurs.where((u) => u.isOnline == true).length} ${l10n.livreur_filter_online}',
+                      style: AppTypography.labelMedium(color: AppColors.success)
+                          .copyWith(fontSize: 11)),
+                  if (_livreurs
+                      .where((u) => u.permisVerified != true)
+                      .isNotEmpty) ...[
+                    Text(
+                        '${_livreurs.where((u) => u.permisVerified != true).length} ${l10n.livreur_filter_license_waiting}',
+                        style:
+                            AppTypography.labelMedium(color: AppColors.accent)
+                                .copyWith(fontSize: 11)),
+                  ],
                 ],
-              ]),
+              ),
             ),
             const SizedBox(height: 4),
             // List
@@ -210,14 +249,16 @@ class _LivreurListPageState extends State<LivreurListPage> {
                                   size: 64, color: AppColors.inkSubtle),
                               const SizedBox(height: 12),
                               Text(l10n.livreur_no_results,
-                                  style: AppTypography.bodyLarge(color: AppColors.inkMuted)),
+                                  style: AppTypography.bodyLarge(
+                                      color: AppColors.inkMuted)),
                             ],
                           ),
                         )
                       : ListView.builder(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           itemCount: filtered.length,
-                          itemBuilder: (_, i) => _buildLivreurCard(filtered[i]),
+                          itemBuilder: (_, i) =>
+                              _buildLivreurCard(filtered[i], isSmallScreen),
                         ),
             ),
           ],
@@ -226,7 +267,7 @@ class _LivreurListPageState extends State<LivreurListPage> {
     );
   }
 
-  Widget _buildLivreurCard(Users livreur) {
+  Widget _buildLivreurCard(Users livreur, bool isSmallScreen) {
     final l10n = AppLocalizations.of(context)!;
     final isOnline = livreur.isOnline == true;
     final permisOk = livreur.permisVerified == true;
@@ -238,139 +279,174 @@ class _LivreurListPageState extends State<LivreurListPage> {
             builder: (_) => LivreurFichePage(userID: livreur.userID)),
       ),
       child: Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.border, width: 0.5),
-        boxShadow: AppShadows.cardList,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Circular avatar with vehicle icon
-            Container(
-              width: 52, height: 52,
-              decoration: BoxDecoration(
-                color: AppColors.brandSurface,
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: Icon(_vehicleIcon(livreur.permisType),
-                    color: AppColors.brand, size: 24),
-              ),
-            ),
-            const SizedBox(width: 14),
-            // Middle info
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('${livreur.firstname} ${livreur.lastname}',
-                      style: AppTypography.titleMedium().copyWith(fontSize: 15),
-                      overflow: TextOverflow.ellipsis),
-                  const SizedBox(height: 2),
-                  Text(livreur.email,
-                      style: AppTypography.bodyMedium().copyWith(fontSize: 12)),
-                  const SizedBox(height: 6),
-                  Row(children: [
-                    // Status dot + text
-                    Container(
-                      width: 8, height: 8,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: isOnline ? AppColors.success : AppColors.inkSubtle,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(isOnline ? l10n.livreur_filter_online : l10n.livreur_filter_offline,
-                        style: TextStyle(
-                          fontSize: 11, fontWeight: FontWeight.w600,
-                          color: isOnline ? AppColors.success : AppColors.inkSubtle,
-                        )),
-                    const SizedBox(width: 10),
-                    // Vehicle badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceWarm,
-                        borderRadius: BorderRadius.circular(99),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(_vehicleIcon(livreur.permisType),
-                              size: 12, color: AppColors.inkMuted),
-                          const SizedBox(width: 3),
-                          Text(_vehicleLabel(livreur.permisType),
-                              style: TextStyle(
-                                fontSize: 10, fontWeight: FontWeight.w600,
-                                color: AppColors.inkMuted,
-                              )),
-                        ],
-                      ),
-                    ),
-                  ]),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            // Right: permis badge + optional validate
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: permisOk
-                        ? AppColors.successLight
-                        : AppColors.accentLight,
-                    borderRadius: BorderRadius.circular(99),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        permisOk ? Icons.check_circle_rounded : Icons.schedule_rounded,
-                        size: 12,
-                        color: permisOk ? AppColors.success : AppColors.accent,
-                      ),
-                      const SizedBox(width: 3),
-                      Text(
-                        permisOk ? l10n.livreur_filter_license_valid : l10n.livreur_filter_license_waiting,
-                        style: TextStyle(
-                          fontSize: 10, fontWeight: FontWeight.w700,
-                          color: permisOk ? AppColors.success : AppColors.accent,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (!permisOk) ...[
-                  const SizedBox(height: 6),
-                  GestureDetector(
-                    onTap: () => _showPermisConfirmDialog(livreur),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: AppColors.successLight,
-                        borderRadius: BorderRadius.circular(99),
-                      ),
-                      child: Text(l10n.validate,
-                          style: TextStyle(
-                            fontSize: 11, fontWeight: FontWeight.w700,
-                            color: AppColors.success,
-                          )),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ],
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: Border.all(color: AppColors.border, width: 0.5),
+          boxShadow: AppShadows.cardList,
         ),
-      ),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Circular avatar with vehicle icon
+              Container(
+                width: isSmallScreen ? 44 : 52,
+                height: isSmallScreen ? 44 : 52,
+                decoration: BoxDecoration(
+                  color: AppColors.brandSurface,
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Icon(_vehicleIcon(livreur.permisType),
+                      color: AppColors.brand, size: isSmallScreen ? 20 : 24),
+                ),
+              ),
+              const SizedBox(width: 14),
+              // Middle info - Expanded pour prendre l'espace restant
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('${livreur.firstname} ${livreur.lastname}',
+                        style: AppTypography.titleMedium()
+                            .copyWith(fontSize: isSmallScreen ? 13 : 15),
+                        overflow: TextOverflow.ellipsis),
+                    const SizedBox(height: 2),
+                    Text(livreur.email,
+                        style: AppTypography.bodyMedium()
+                            .copyWith(fontSize: isSmallScreen ? 10 : 12),
+                        overflow: TextOverflow.ellipsis),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: [
+                        // Status dot + text
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: isOnline
+                                    ? AppColors.success
+                                    : AppColors.inkSubtle,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                                isOnline
+                                    ? l10n.livreur_filter_online
+                                    : l10n.livreur_filter_offline,
+                                style: TextStyle(
+                                  fontSize: isSmallScreen ? 9 : 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: isOnline
+                                      ? AppColors.success
+                                      : AppColors.inkSubtle,
+                                )),
+                          ],
+                        ),
+                        // Vehicle badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceWarm,
+                            borderRadius: BorderRadius.circular(99),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(_vehicleIcon(livreur.permisType),
+                                  size: isSmallScreen ? 10 : 12,
+                                  color: AppColors.inkMuted),
+                              const SizedBox(width: 3),
+                              Text(_vehicleLabel(livreur.permisType),
+                                  style: TextStyle(
+                                    fontSize: isSmallScreen ? 8 : 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.inkMuted,
+                                  )),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Right: permis badge + optional validate
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: permisOk
+                          ? AppColors.successLight
+                          : AppColors.accentLight,
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          permisOk
+                              ? Icons.check_circle_rounded
+                              : Icons.schedule_rounded,
+                          size: isSmallScreen ? 10 : 12,
+                          color:
+                              permisOk ? AppColors.success : AppColors.accent,
+                        ),
+                        const SizedBox(width: 3),
+                        Text(
+                          permisOk
+                              ? l10n.livreur_filter_license_valid
+                              : l10n.livreur_filter_license_waiting,
+                          style: TextStyle(
+                            fontSize: isSmallScreen ? 9 : 10,
+                            fontWeight: FontWeight.w700,
+                            color:
+                                permisOk ? AppColors.success : AppColors.accent,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (!permisOk) ...[
+                    const SizedBox(height: 6),
+                    GestureDetector(
+                      onTap: () => _showPermisConfirmDialog(livreur),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: AppColors.successLight,
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                        child: Text(l10n.validate,
+                            style: TextStyle(
+                              fontSize: isSmallScreen ? 10 : 11,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.success,
+                            )),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -385,7 +461,8 @@ class _LivreurListPageState extends State<LivreurListPage> {
         ),
         title: Row(children: [
           Container(
-            width: 32, height: 32,
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
               color: AppColors.successLight,
               borderRadius: BorderRadius.circular(AppRadius.sm),
@@ -394,10 +471,12 @@ class _LivreurListPageState extends State<LivreurListPage> {
                 color: AppColors.success, size: 18),
           ),
           const SizedBox(width: 10),
-          Text(l10n.livreur_validate_license, style: AppTypography.titleMedium()),
+          Text(l10n.livreur_validate_license,
+              style: AppTypography.titleMedium()),
         ]),
         content: Text(
-          l10n.livreur_validate_license_confirm(livreur.firstname, livreur.lastname),
+          l10n.livreur_validate_license_confirm(
+              livreur.firstname, livreur.lastname),
           style: AppTypography.bodyLarge(),
         ),
         actions: [
@@ -429,7 +508,8 @@ class _LivreurListPageState extends State<LivreurListPage> {
         if (mounted) {
           setState(() => livreur.permisVerified = true);
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(AppLocalizations.of(context)!.livreur_license_validated(livreur.firstname)),
+            content: Text(AppLocalizations.of(context)!
+                .livreur_license_validated(livreur.firstname)),
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(AppRadius.md)),
