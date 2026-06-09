@@ -813,5 +813,14 @@
   "role_admin": "Admin",
   "role_client": "Client",
   "role_restaurateur": "Chef",
-  "role_livreur": "Driver"
+  "role_livreur": "Driver",
+
+  "later": "Later",
+
+  "verification_email_exists": "This email is already in use.",
+
+  "home_add_address_banner": "Add your address to see restaurants near you.",
+  "welcome_title": "Welcome to Dios Délices",
+  "welcome_subtitle": "Your account has been created.",
+  "welcome_discover": "Discover"
 }

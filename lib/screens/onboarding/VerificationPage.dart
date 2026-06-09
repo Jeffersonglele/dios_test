@@ -49,20 +49,23 @@ class VerificationPage extends StatefulWidget {
 
 class _VerificationPageState extends State<VerificationPage> {
   final TextEditingController _codeController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
 
   bool _isSendingCodes = true;
   String? _sendErrorMessage;
+  String? _emailError;
   int _resendCooldown = 0;
   Timer? _cooldownTimer;
 
   @override
   void initState() {
     super.initState();
+    _emailController.text = widget.email;
     _initializeVerification();
   }
 
   Future<void> _initializeVerification() async {
-    if (widget.email.trim().isEmpty) {
+    if (_emailController.text.trim().isEmpty) {
       if (!mounted) return;
       setState(() {
         _isSendingCodes = false;
@@ -88,9 +91,10 @@ class _VerificationPageState extends State<VerificationPage> {
   }
 
   Future<bool> _sendEmailCode() async {
-    if (widget.email.trim().isEmpty) return false;
+    final email = _emailController.text.trim();
+    if (email.isEmpty) return false;
     try {
-      return await sendVerificationEmail(context, widget.email);
+      return await sendVerificationEmail(context, email);
     } catch (e) {
       return false;
     }
@@ -108,6 +112,7 @@ class _VerificationPageState extends State<VerificationPage> {
   void _startResendCooldown() {
     _resendCooldown = 60;
     _cooldownTimer?.cancel();
+
     _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       setState(() {
@@ -122,6 +127,7 @@ class _VerificationPageState extends State<VerificationPage> {
   @override
   void dispose() {
     _codeController.dispose();
+    _emailController.dispose();
     _cooldownTimer?.cancel();
     super.dispose();
   }
@@ -133,7 +139,8 @@ class _VerificationPageState extends State<VerificationPage> {
 
     return Scaffold(
       backgroundColor: AppColors.surface,
-      body: SingleChildScrollView(
+      body: SafeArea(
+          child: SingleChildScrollView(
           child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: size.width > 600
@@ -144,15 +151,7 @@ class _VerificationPageState extends State<VerificationPage> {
             padding: const EdgeInsets.only(top: 12, left: 4),
             child: Row(
               children: [
-                TextButton.icon(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.arrow_back_ios, size: 18),
-                  label: Text(l10n.cancel),
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppColors.ink,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                  ),
-                ),
+                
                 const Spacer(),
                 TextButton(
                   onPressed: () async {
@@ -201,35 +200,42 @@ class _VerificationPageState extends State<VerificationPage> {
                 ] else if (_sendErrorMessage != null) ...[
                   Text(
                     _sendErrorMessage!,
-                    style: const TextStyle(
-                      color: Colors.red,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
+                    style: const TextStyle(color: Colors.red, fontSize: 16, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: InputDecoration(
+                      labelText: l10n.email,
+                      prefixIcon: const Icon(Icons.email_outlined, size: 20),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                      errorText: _emailError,
                     ),
+                    onChanged: (_) => setState(() => _emailError = null),
                   ),
                   const SizedBox(height: 20),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: widget.email.trim().isEmpty
+                      onPressed: _emailController.text.trim().isEmpty
                           ? () async {
                               await SessionService.clearAll();
                               if (!mounted) return;
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(builder: (_) => const AnimatedSplashScreen()),
-                              );
+                              Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AnimatedSplashScreen()));
                             }
-                          : () {
-                              setState(() {
-                                _isSendingCodes = true;
-                                _sendErrorMessage = null;
-                              });
+                          : () async {
+                              // Vérifier si l'email existe déjà
+                              final users = await Users.fetchUsersFromDB();
+                              final exists = users.any((u) => u.email.toLowerCase() == _emailController.text.trim().toLowerCase());
+                              if (exists) {
+                                setState(() => _emailError = l10n.verification_email_exists);
+                                return;
+                              }
+                              setState(() { _isSendingCodes = true; _sendErrorMessage = null; _emailError = null; });
                               _initializeVerification();
                             },
-                      child: Text(widget.email.trim().isEmpty
-                          ? l10n.verification_reconnect
-                          : l10n.verification_resend),
+                      child: Text(_emailController.text.trim().isEmpty ? l10n.verification_reconnect : l10n.verification_resend),
                     ),
                   ),
                 ] else ...[
@@ -364,7 +370,7 @@ class _VerificationPageState extends State<VerificationPage> {
             ),
           ),
         ],
-      )),
+      ))),
     );
   }
 }

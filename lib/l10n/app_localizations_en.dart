@@ -2339,4 +2339,23 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get role_livreur => 'Driver';
+
+  @override
+  String get later => 'Later';
+
+  @override
+  String get verification_email_exists => 'This email is already in use.';
+
+  @override
+  String get home_add_address_banner =>
+      'Add your address to see restaurants near you.';
+
+  @override
+  String get welcome_title => 'Welcome to Dios Délices';
+
+  @override
+  String get welcome_subtitle => 'Your account has been created.';
+
+  @override
+  String get welcome_discover => 'Discover';
 }

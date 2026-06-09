@@ -78,9 +78,9 @@ Future<void> main() async {
   Hive.registerAdapter(MoyenPaiementAdapter());
   Hive.registerAdapter(LigneCommandeAdapter());
 
-  // Initialisation des notifications
+  // Initialisation des notifications (messagerie seulement, permissions plus tard)
   try {
-    await NotificationService.initialize();
+    await NotificationService.initMessaging();
 
     // S'abonner aux notifications si l'utilisateur est déjà connecté
     final session = await SessionService.readSession();

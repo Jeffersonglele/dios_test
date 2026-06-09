@@ -195,14 +195,15 @@ class _HomeUserState extends State<HomeUser> {
     if (mounted) {
       setState(() {
         _restaus = _allRestaus.where((r) {
-          // Check if restaurant's categories contain the selected category (with # prefix or not)
           final restauCats = r.categories.toLowerCase();
-          final matches = restauCats.contains('#$selectedCat') ||
-              restauCats.contains(selectedCat);
-          return matches;
+          return restauCats.contains('#$selectedCat') || restauCats.contains(selectedCat);
         }).toList();
       });
     }
+  }
+
+  void _addAddress() {
+    Navigator.push(context, CupertinoPageRoute(builder: (_) => ProfilePage())).then((_) => _loadData());
   }
 
   double _haversine(double la1, double lo1, double la2, double lo2) {
@@ -234,6 +235,30 @@ class _HomeUserState extends State<HomeUser> {
             child: CustomScrollView(
               physics: const BouncingScrollPhysics(),
               slivers: [
+                // ── Bannière adresse manquante ───────────
+                if (_currentUserRole == 2 && !_addresses.any((a) => a.objectID == _currentUserID && a.object == 'User'))
+                  SliverToBoxAdapter(
+                    child: GestureDetector(
+                      onTap: () => _addAddress(),
+                      child: Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFBE3A34),
+                        ),
+                        child: Row(children: [
+                          const Icon(Icons.location_on_rounded, color: Colors.white, size: 22),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              l10n.home_add_address_banner,
+                              style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
+                            ),
+                          ),
+                          const Icon(Icons.chevron_right_rounded, color: Colors.white70),
+                        ]),
+                      ),
+                    ),
+                  ),
                 // ── Header ──────────────────────────────
                 SliverToBoxAdapter(
                   child: _HomeHeader(),

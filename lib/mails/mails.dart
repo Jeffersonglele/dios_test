@@ -9,9 +9,14 @@ String generateCode() {
 }
 
 Future<bool> sendVerificationEmail(BuildContext context, String email) async {
-  final result = await _sendCodeViaCloud(
-      context: context, email: email, functionName: 'sendVerificationCode');
-  return result != null;
+  try {
+    final params = <String, dynamic>{'email': email};
+    final cloudFunction = ParseCloudFunction('sendVerificationCode');
+    final response = await cloudFunction.execute(parameters: params);
+    return response.success;
+  } catch (e) {
+    return false;
+  }
 }
 
 /// Envoie un email de réinitialisation avec [code] (généré côté client).

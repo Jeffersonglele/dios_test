@@ -2360,4 +2360,23 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get role_livreur => 'Livreur';
+
+  @override
+  String get later => 'Plus tard';
+
+  @override
+  String get verification_email_exists => 'Cet email est déjà utilisé.';
+
+  @override
+  String get home_add_address_banner =>
+      'Ajoutez votre adresse pour voir les restaurants près de chez vous.';
+
+  @override
+  String get welcome_title => 'Bienvenue sur Dios Délices';
+
+  @override
+  String get welcome_subtitle => 'Votre compte a été créé avec succès.';
+
+  @override
+  String get welcome_discover => 'Découvrir';
 }

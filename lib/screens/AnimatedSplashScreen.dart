@@ -4,11 +4,13 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dios_delices/screens/auth/Signup.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/users.dart';
 import '../services/app_bootstrap_service.dart';
 import '../services/launch_flow_service.dart';
 import '../services/session_service.dart';
+import '../services/notification_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/toast.dart';
 import '../widgets/brand_avatar_logo.dart';
@@ -141,6 +143,24 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
       Toast(context, e.toString(), false);
       return;
     }
+
+    // Notification consent popup
+    try {
+      if (!await NotificationService.isPermissionGranted) {
+        final prefs = await SharedPreferences.getInstance();
+        final asked = prefs.getBool('notification_consent_asked') ?? false;
+        if (!asked) {
+          await prefs.setBool('notification_consent_asked', true);
+          if (mounted) {
+            final accept = await _showNotificationConsentDialog();
+            if (accept ?? false) {
+              await NotificationService.requestPermissions();
+            }
+          }
+        }
+      }
+    } catch (_) {}
+
     final destination = await LaunchFlowService.resolveDestination();
     if (!mounted) return;
     setState(() => _isLoading = false);
@@ -177,6 +197,48 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
   Future<bool> _checkConnectivity() async {
     final results = await Connectivity().checkConnectivity();
     return !results.contains(ConnectivityResult.none);
+  }
+
+  Future<bool?> _showNotificationConsentDialog() async {
+    final l10n = AppLocalizations.of(context)!;
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.xl)),
+        title: Row(children: [
+          Container(
+            width: 40, height: 40,
+            decoration: BoxDecoration(
+              color: AppColors.brand.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.notifications_active_rounded, color: AppColors.brand, size: 22),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(child: Text('Activer les notifications', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600))),
+        ]),
+        content: const Text(
+          'Recevez les mises à jour de vos commandes, les promotions et les messages de notre équipe.\n\nVous pourrez modifier ce choix dans les paramètres.',
+          style: TextStyle(fontSize: 14, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.later, style: const TextStyle(color: AppColors.inkMuted)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.brand,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+            ),
+            child: const Text('Activer'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _navigateToSignup() {

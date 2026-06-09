@@ -4460,6 +4460,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Driver'**
   String get role_livreur;
+
+  /// No description provided for @later.
+  ///
+  /// In en, this message translates to:
+  /// **'Later'**
+  String get later;
+
+  /// No description provided for @verification_email_exists.
+  ///
+  /// In en, this message translates to:
+  /// **'This email is already in use.'**
+  String get verification_email_exists;
+
+  /// No description provided for @home_add_address_banner.
+  ///
+  /// In en, this message translates to:
+  /// **'Add your address to see restaurants near you.'**
+  String get home_add_address_banner;
+
+  /// No description provided for @welcome_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome to Dios Délices'**
+  String get welcome_title;
+
+  /// No description provided for @welcome_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account has been created.'**
+  String get welcome_subtitle;
+
+  /// No description provided for @welcome_discover.
+  ///
+  /// In en, this message translates to:
+  /// **'Discover'**
+  String get welcome_discover;
 }
 
 class _AppLocalizationsDelegate

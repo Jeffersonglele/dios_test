@@ -813,5 +813,14 @@
   "role_admin": "Admin",
   "role_client": "Client",
   "role_restaurateur": "Restaurateur",
-  "role_livreur": "Livreur"
+  "role_livreur": "Livreur",
+
+  "later": "Plus tard",
+
+  "verification_email_exists": "Cet email est déjà utilisé.",
+
+  "home_add_address_banner": "Ajoutez votre adresse pour voir les restaurants près de chez vous.",
+  "welcome_title": "Bienvenue sur Dios Délices",
+  "welcome_subtitle": "Votre compte a été créé avec succès.",
+  "welcome_discover": "Découvrir"
 }

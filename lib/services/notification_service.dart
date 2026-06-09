@@ -14,8 +14,12 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
 
   static Future<void> initialize() async {
-    final messaging = FirebaseMessaging.instance;
+    await initMessaging();
+    await requestPermissions();
+  }
 
+  static Future<void> requestPermissions() async {
+    final messaging = FirebaseMessaging.instance;
     await messaging.requestPermission(
       alert: true,
       badge: true,
@@ -26,8 +30,7 @@ class NotificationService {
     if (defaultTargetPlatform == TargetPlatform.android) {
       try {
         await _localNotifications
-            .resolvePlatformSpecificImplementation<
-                AndroidFlutterLocalNotificationsPlugin>()
+            .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
             ?.requestNotificationsPermission();
       } catch (_) {}
     }
@@ -36,8 +39,7 @@ class NotificationService {
     if (defaultTargetPlatform == TargetPlatform.iOS) {
       try {
         final iOSPlugin = _localNotifications
-            .resolvePlatformSpecificImplementation<
-                IOSFlutterLocalNotificationsPlugin>();
+            .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
         await iOSPlugin?.requestPermissions(
           alert: true,
           badge: true,
@@ -45,6 +47,17 @@ class NotificationService {
         );
       } catch (_) {}
     }
+  }
+
+  static Future<bool> get isPermissionGranted async {
+    final messaging = FirebaseMessaging.instance;
+    final settings = await messaging.getNotificationSettings();
+    return settings.authorizationStatus == AuthorizationStatus.authorized ||
+        settings.authorizationStatus == AuthorizationStatus.provisional;
+  }
+
+  static Future<void> initMessaging() async {
+    final messaging = FirebaseMessaging.instance;
 
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
