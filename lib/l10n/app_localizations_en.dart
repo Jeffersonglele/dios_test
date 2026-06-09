@@ -2358,4 +2358,671 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get welcome_discover => 'Discover';
+
+  @override
+  String get store_unverified_title => 'Account not verified';
+
+  @override
+  String get store_unverified_body =>
+      'Your account has not been verified yet. Our team will review it shortly.\n\nYou can contact the administrators for more information.';
+
+  @override
+  String get test_notification_sent => 'Test notification sent!';
+
+  @override
+  String get notif_orders_title => 'Orders';
+
+  @override
+  String get notif_orders_desc => 'Order status notifications';
+
+  @override
+  String get notif_promos_title => 'Promotions';
+
+  @override
+  String get notif_promos_desc => 'Special offers and discounts';
+
+  @override
+  String get notif_chat_title => 'Messages';
+
+  @override
+  String get notif_chat_desc => 'New chat messages';
+
+  @override
+  String get delivery_preferences => 'Delivery preferences';
+
+  @override
+  String get max_delivery_distance => 'Max delivery distance';
+
+  @override
+  String max_delivery_distance_desc(Object distance) {
+    return 'Maximum distance for your deliveries: $distance km';
+  }
+
+  @override
+  String get sell_your_dishes => 'Sell your dishes';
+
+  @override
+  String get app_tagline => 'Neighborhood cuisine, warmer and simpler.';
+
+  @override
+  String get delete_account_understand_hint =>
+      'I understand my data will be deleted after 30 days. If I want to recover my account before then, I must contact the administrators.';
+
+  @override
+  String get delete_account_recovery_hint =>
+      'If you wish to recover your account before this deadline, contact the administrators.';
+
+  @override
+  String get confirm_your_email => 'Confirm your email';
+
+  @override
+  String get identity_validated_email_subject =>
+      '🎉 Welcome to Dios Délices - Your profile is validated!';
+
+  @override
+  String get identity_rejected_email_subject =>
+      '❌ Update: Your profile validation on Dios Délices';
+
+  @override
+  String identity_validated_email_body(Object firstname) {
+    return 'Hello $firstname,\n\nWe are delighted to inform you that your profile on Dios Délices has been validated. You can now fully enjoy all the features of the application.\n\nWelcome aboard!\n\nThe Dios Délices team';
+  }
+
+  @override
+  String identity_rejected_email_body(Object firstname, Object reason) {
+    return 'Hello $firstname,\n\nWe regret to inform you that your profile on Dios Délices could not be validated at this time.\n\nReason: $reason\n\nYou can modify your information and resubmit your request from the application.\n\nThe Dios Délices team';
+  }
+
+  @override
+  String get address_detected => 'Detected address';
+
+  @override
+  String get address_detected_label => 'Detected address:';
+
+  @override
+  String get address_manual_label => 'Manual address:';
+
+  @override
+  String get which_address_use => 'Which address to use?';
+
+  @override
+  String get manual => 'Manual';
+
+  @override
+  String get detected => 'Detected';
+
+  @override
+  String get save_address => 'Save address';
+
+  @override
+  String get address_already_saved => 'Address already saved.';
+
+  @override
+  String get address_saved_success => 'Address saved successfully!';
+
+  @override
+  String get address_fill_city_and_address =>
+      'Please fill in at least the city and full address.';
+
+  @override
+  String get address_not_found_check =>
+      'Address not found. Please verify accuracy.';
+
+  @override
+  String get address_not_found_verify =>
+      'Address not found, please verify the information.';
+
+  @override
+  String address_not_match_country(Object address) {
+    return 'Your address ($address) does not match your country. Please check.';
+  }
+
+  @override
+  String get enter_address_manually => 'Enter my address manually';
+
+  @override
+  String get hide_form => 'Hide form';
+
+  @override
+  String get full_address_hint =>
+      'Full address (street, building, directions...)';
+
+  @override
+  String get district => 'District / Borough';
+
+  @override
+  String get clear => 'Clear';
+
+  @override
+  String get enter_or_detect_address => 'Please enter or detect an address.';
+
+  @override
+  String get pending_orders => 'Pending orders';
+
+  @override
+  String get to_process => 'To process';
+
+  @override
+  String get cancelled_orders => 'Cancelled orders';
+
+  @override
+  String get available_dishes => 'Available dishes';
+
+  @override
+  String get servings_sold => 'Servings sold';
+
+  @override
+  String unavailable_dishes_num(Object count) {
+    return '$count unavailable';
+  }
+
+  @override
+  String available_servings_of(Object total) {
+    return '/ $total available';
+  }
+
+  @override
+  String get manage => 'Manage';
+
+  @override
+  String get last_orders => 'Last orders';
+
+  @override
+  String get see_all => 'See all';
+
+  @override
+  String get no_order_received_yet => 'No order received yet.';
+
+  @override
+  String get dishes_and_servings => 'Dishes & servings';
+
+  @override
+  String get activate_deactivate_dishes => 'Activate or deactivate your dishes';
+
+  @override
+  String get no_dish_registered => 'No dishes registered.';
+
+  @override
+  String get no_restaurant_available => 'No restaurant available';
+
+  @override
+  String get owner => 'Owner';
+
+  @override
+  String get pro_badge => 'PRO';
+
+  @override
+  String owner_info(Object firstname, Object email) {
+    return 'Owner: $firstname · $email';
+  }
+
+  @override
+  String get user_details_information => 'Information';
+
+  @override
+  String get user_details_firstname => 'First name';
+
+  @override
+  String get user_details_lastname => 'Last name';
+
+  @override
+  String get user_details_email => 'Email';
+
+  @override
+  String get user_details_phone => 'Phone';
+
+  @override
+  String get user_details_country => 'Country';
+
+  @override
+  String get user_details_profile_type => 'Profile type';
+
+  @override
+  String get user_details_identity => 'Identity';
+
+  @override
+  String get user_details_required => 'Required';
+
+  @override
+  String get force_delete => 'Delete permanently';
+
+  @override
+  String get force_delete_desc =>
+      'Restaurant, dishes, orders, addresses, documents…';
+
+  @override
+  String get identity_document_label => 'Identity document';
+
+  @override
+  String get pdf_document => 'PDF Document';
+
+  @override
+  String get tap_to_open => 'Tap to open';
+
+  @override
+  String get validation => 'Validation';
+
+  @override
+  String get reject_profile => 'Reject profile';
+
+  @override
+  String get reject_profile_remark_hint => 'Add a remark for the user:';
+
+  @override
+  String get type_your_remark_hint => 'Type your remark here...';
+
+  @override
+  String get delete_permanently => 'Delete permanently';
+
+  @override
+  String get delete_confirm_message =>
+      'This will delete ALL data:\n• Restaurant & dishes\n• Addresses\n• Payment methods\n• Orders & lines\n• Comments\n• Documents\n• Messages\n• Reports\n\nIRREVERSIBLE.';
+
+  @override
+  String get type_delete_to_confirm => 'Type \"DELETE\" to confirm';
+
+  @override
+  String get must_type_delete => 'Type DELETE to confirm';
+
+  @override
+  String user_deleted(Object firstname) {
+    return '$firstname deleted.';
+  }
+
+  @override
+  String get force_delete_button => 'DELETE ALL';
+
+  @override
+  String profile_validated_email_sent(Object firstname, Object lastname) {
+    return '$firstname $lastname\'s profile has been validated and an email has been sent.';
+  }
+
+  @override
+  String get profile_validated_email_error =>
+      'Profile validated but error sending email.';
+
+  @override
+  String profile_rejected_email_sent(Object firstname, Object lastname) {
+    return '$firstname $lastname\'s profile has been rejected and an email has been sent.';
+  }
+
+  @override
+  String get profile_rejected_email_error =>
+      'Profile rejected but error sending email.';
+
+  @override
+  String get view_existing_file => 'View existing file';
+
+  @override
+  String get no_photo_available => 'No photo available';
+
+  @override
+  String get add_a_photo => 'Add a photo';
+
+  @override
+  String get add_identity_document => 'Add an ID document';
+
+  @override
+  String get validate_caps => 'VALIDATE';
+
+  @override
+  String get restaurant_associated => 'Associated restaurant';
+
+  @override
+  String get no_file_selected => 'No file selected';
+
+  @override
+  String get choose_from_files => 'Choose from files';
+
+  @override
+  String get image_or_pdf => 'Image or PDF';
+
+  @override
+  String get pdf_preview => 'PDF Preview';
+
+  @override
+  String get image_preview => 'Image Preview';
+
+  @override
+  String get take_a_photo => 'Take a photo';
+
+  @override
+  String get choose_from_gallery => 'Choose from gallery';
+
+  @override
+  String get choose_image_file => 'Choose an image file';
+
+  @override
+  String get choose_image_from_gallery => 'Choose an image from gallery';
+
+  @override
+  String users_list_title(Object country) {
+    return 'Users · $country';
+  }
+
+  @override
+  String get search_name_email_phone => 'Search name, email, phone...';
+
+  @override
+  String get all_filter => 'All';
+
+  @override
+  String get pending_filter => 'Pending';
+
+  @override
+  String get validated_filter => 'Validated';
+
+  @override
+  String get rejected_filter => 'Rejected';
+
+  @override
+  String users_count(Object displayed, Object total) {
+    return '$displayed / $total user(s)';
+  }
+
+  @override
+  String pending_count(Object count) {
+    return '$count pending';
+  }
+
+  @override
+  String validated_count(Object count) {
+    return '$count validated';
+  }
+
+  @override
+  String get no_user_found => 'No user found';
+
+  @override
+  String get super_admin => 'Super Admin';
+
+  @override
+  String get profile_rejected => 'Profile rejected';
+
+  @override
+  String get profile_validated => 'Profile validated';
+
+  @override
+  String get profile_pending => 'Profile pending';
+
+  @override
+  String get favorites_my => 'My favorites';
+
+  @override
+  String get no_dishes => 'No dishes.';
+
+  @override
+  String get rate => 'Rate';
+
+  @override
+  String get user_not_connected => 'User not connected';
+
+  @override
+  String get ordered_dishes => 'Ordered dishes';
+
+  @override
+  String dish_num(Object id) {
+    return 'Dish #$id';
+  }
+
+  @override
+  String get features => 'Features';
+
+  @override
+  String get your_review => 'Your review';
+
+  @override
+  String get share_experience_hint => 'Share your experience in a few words…';
+
+  @override
+  String get no_reviews_yet => 'No reviews yet.';
+
+  @override
+  String reviews_count(Object count) {
+    return '$count reviews';
+  }
+
+  @override
+  String get previous => 'Previous';
+
+  @override
+  String get order_tracking_title => 'Order tracking';
+
+  @override
+  String order_num(Object id) {
+    return 'Order #$id';
+  }
+
+  @override
+  String delivery_cost(Object amount) {
+    return 'Delivery $amount';
+  }
+
+  @override
+  String discount_amount(Object amount) {
+    return 'Discount $amount';
+  }
+
+  @override
+  String get validate_this_image => 'Validate this image';
+
+  @override
+  String get test_notification_title => 'Test Notification';
+
+  @override
+  String get test_notification_body => 'This is a test notification';
+
+  @override
+  String get new_order_title => 'New order!';
+
+  @override
+  String new_order_body(Object amount, Object currency, Object restaurant) {
+    return 'Order of $amount $currency from $restaurant';
+  }
+
+  @override
+  String get modify_dish => 'Modify dish';
+
+  @override
+  String get add_dish_title => 'Add dish';
+
+  @override
+  String get no_options_available => 'No options';
+
+  @override
+  String get add_option_button => 'Add an option';
+
+  @override
+  String add_option_count(Object count) {
+    return 'Add an option ($count/3)';
+  }
+
+  @override
+  String get main_photo_badge => 'Main';
+
+  @override
+  String get option_name => 'Option name';
+
+  @override
+  String get option_price_hint => 'Option price (required, e.g. 2.50)';
+
+  @override
+  String get admin_role_label => 'Admin';
+
+  @override
+  String get super_admin_role_label => 'Super Admin';
+
+  @override
+  String get resto_role_label => 'Resto';
+
+  @override
+  String get livreur_role_label => 'Driver';
+
+  @override
+  String get individual_role_label => 'Individual';
+
+  @override
+  String get restaurateur_role_label => 'Restaurateur';
+
+  @override
+  String get change_password_title_dialog => 'Change password';
+
+  @override
+  String get current_password_label => 'Current password';
+
+  @override
+  String get new_password_label => 'New password';
+
+  @override
+  String get confirm_password_label => 'Confirm password';
+
+  @override
+  String get become_restaurateur_dialog_title => 'Become a home chef';
+
+  @override
+  String get become_restaurateur_dialog_body =>
+      'By becoming a home chef, you will be able to publish your dishes and sell them directly to customers. Would you like to continue?';
+
+  @override
+  String get yes_sell_my_dishes => 'Yes, I want to sell my dishes';
+
+  @override
+  String get delete_account_dialog_title => 'Delete my account';
+
+  @override
+  String get delete_account_dialog_warning =>
+      'This action is irreversible. Your personal data will be deleted after 30 days.';
+
+  @override
+  String get notifications_switch_orders => 'Orders';
+
+  @override
+  String get notifications_switch_promos => 'Promotions';
+
+  @override
+  String get notifications_switch_messages => 'Messages';
+
+  @override
+  String get add_your_address => 'Add your address';
+
+  @override
+  String get my_orders_button => 'My orders';
+
+  @override
+  String search_no_results_for(Object query) {
+    return 'No results for \"$query\"';
+  }
+
+  @override
+  String get restaurants_section => 'Restaurants';
+
+  @override
+  String get dishes_section => 'Dishes';
+
+  @override
+  String get search_hint_input => 'Search for dishes, restaurants...';
+
+  @override
+  String get password_reset_code_hint => 'Please enter a 6-digit code';
+
+  @override
+  String get verification_code_title => 'Verification code';
+
+  @override
+  String code_sent_to_email(Object email) {
+    return 'A code was sent to $email';
+  }
+
+  @override
+  String get verification_enter_new_password => 'Enter your new password';
+
+  @override
+  String get return_button => 'Back';
+
+  @override
+  String get first_login_title => 'Password change';
+
+  @override
+  String get first_login_subtitle =>
+      'For security reasons, please choose a new password.';
+
+  @override
+  String get change_password_button => 'Change password';
+
+  @override
+  String get password_reset_success_title => 'Password reset!';
+
+  @override
+  String get password_reset_success_body =>
+      'Your password has been changed successfully. You can now log in.';
+
+  @override
+  String get enable_notifications_title => 'Enable notifications';
+
+  @override
+  String get enable_notifications_body =>
+      'Receive updates on your orders, promotions, and messages from our team.\n\nYou can change this setting in the settings.';
+
+  @override
+  String get enable_button => 'Enable';
+
+  @override
+  String get onboarding_splash_subtitle => 'Neighbourhood\ncooking.';
+
+  @override
+  String get admin_welcome_title => 'Welcome Admin!';
+
+  @override
+  String get admin_welcome_body =>
+      'Your administrator account has been created successfully.\nYou can now manage the platform.';
+
+  @override
+  String get identity_section_label => 'Identity';
+
+  @override
+  String get contact_section_label => 'Contact';
+
+  @override
+  String get security_section_label => 'Security';
+
+  @override
+  String get accept_terms_warning => 'Please accept the terms.';
+
+  @override
+  String get too_long_max_80 => 'Too long (max 80 characters)';
+
+  @override
+  String get position_not_available => 'Position not available';
+
+  @override
+  String get save_profile => 'Save';
+
+  @override
+  String get cgv_title => 'Terms and Conditions of Sale';
+
+  @override
+  String get cgv_last_update => 'Last updated: June 2026';
+
+  @override
+  String get legal_notice_title => 'Legal Notice';
+
+  @override
+  String get privacy_policy_title => 'Privacy Policy';
+
+  @override
+  String promo_edit_title_key(Object code) {
+    return 'Edit $code';
+  }
+
+  @override
+  String get address => 'Address';
+
+  @override
+  String get version_admin => 'v1.0.0 · Administration';
+
+  @override
+  String get refresh => 'Refresh';
+
+  @override
+  String get please_modify_a_file => 'Please modify one of the files.';
 }

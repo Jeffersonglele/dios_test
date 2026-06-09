@@ -1,7 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:dios_delices/screens/DishDetails.dart';
-import 'package:dios_delices/screens/MealsOfACategory.dart';
+import 'package:dios_delices/screens/dish/dish_details.dart';
+import 'package:dios_delices/screens/explore/meals_of_a_category.dart';
 import 'package:dios_delices/l10n/app_localizations.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -11,10 +11,10 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'screens/auth/Signup.dart';
-import 'screens/auth/Login.dart';
-import 'constants/Constant.dart';
-import 'screens/AnimatedSplashScreen.dart';
+import 'screens/auth/signup.dart';
+import 'screens/auth/login.dart';
+import 'constants/constant.dart';
+import 'screens/splash/animated_splash_screen.dart';
 import 'package:path_provider/path_provider.dart' as path_provider;
 import 'models/identity.dart';
 import 'models/restaurant.dart';

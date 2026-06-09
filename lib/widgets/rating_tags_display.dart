@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:dios_delices/services/comment_service.dart';
 import 'package:dios_delices/theme/app_theme.dart';
 import 'package:dios_delices/utils/rating_tags.dart';
+import '../l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 
 class CharacteristicsDisplay extends StatelessWidget {
@@ -155,6 +156,7 @@ class _PaginatedCommentsState extends State<PaginatedComments> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -162,7 +164,7 @@ class _PaginatedCommentsState extends State<PaginatedComments> {
     if (_comments.isEmpty) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Text('Aucun avis pour le moment.',
+        child: Text(l10n.no_reviews_yet,
             style: AppTypography.bodyMedium()),
       );
     }
@@ -258,7 +260,7 @@ class _PaginatedCommentsState extends State<PaginatedComments> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('$_totalCount avis',
+            Text(l10n.reviews_count(_totalCount),
                 style: AppTypography.bodyMedium().copyWith(
                     fontSize: 12, color: AppColors.inkMuted)),
             Row(
@@ -268,15 +270,15 @@ class _PaginatedCommentsState extends State<PaginatedComments> {
                   TextButton.icon(
                     onPressed: _previous,
                     icon: const Icon(Icons.chevron_left_rounded, size: 16),
-                    label: const Text('Précédent',
-                        style: TextStyle(fontSize: 12)),
+                    label: Text(l10n.previous,
+                        style: const TextStyle(fontSize: 12)),
                   ),
                 if ((_page + 1) * _pageSize < _totalCount)
                   TextButton.icon(
                     onPressed: _next,
                     icon: const Icon(Icons.chevron_right_rounded, size: 16),
-                    label: const Text('Suivant',
-                        style: TextStyle(fontSize: 12)),
+                    label: Text(l10n.next,
+                        style: const TextStyle(fontSize: 12)),
                     iconAlignment: IconAlignment.end,
                   ),
               ],

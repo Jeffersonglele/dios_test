@@ -1,13 +1,16 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import '../l10n/app_localizations.dart';
 
 /// Shows a full-size preview of [file] with a close (X) button and a
 /// "Valider" button. Returns the [File] if confirmed, or null if cancelled.
 Future<File?> showImageConfirmDialog(BuildContext context, File file) {
   return showDialog<File>(
     context: context,
-    builder: (ctx) => Dialog(
+    builder: (ctx) {
+      final l10n = AppLocalizations.of(ctx)!;
+      return Dialog(
       insetPadding: const EdgeInsets.all(12),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
@@ -37,7 +40,7 @@ Future<File?> showImageConfirmDialog(BuildContext context, File file) {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   icon: const Icon(Icons.check_circle, size: 20),
-                  label: const Text('Valider cette image'),
+                  label: Text(l10n.validate_this_image),
                   onPressed: () => Navigator.pop(ctx, file),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
@@ -51,8 +54,8 @@ Future<File?> showImageConfirmDialog(BuildContext context, File file) {
           ],
         ),
       ),
-    ),
-  );
+    );
+  },);
 }
 
 /// Shows a bottom sheet to choose gallery/camera, picks an image, and
@@ -67,12 +70,12 @@ Future<File?> pickAndConfirmImage(BuildContext context) async {
       child: Wrap(children: [
         ListTile(
           leading: const Icon(Icons.photo_library),
-          title: const Text('Galerie'),
+          title: Text(AppLocalizations.of(context)!.gallery),
           onTap: () => Navigator.pop(context, ImageSource.gallery),
         ),
         ListTile(
           leading: const Icon(Icons.photo_camera),
-          title: const Text('Caméra'),
+          title: Text(AppLocalizations.of(context)!.camera),
           onTap: () => Navigator.pop(context, ImageSource.camera),
         ),
       ]),

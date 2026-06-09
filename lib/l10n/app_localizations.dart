@@ -4496,6 +4496,1206 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Discover'**
   String get welcome_discover;
+
+  /// No description provided for @store_unverified_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Account not verified'**
+  String get store_unverified_title;
+
+  /// No description provided for @store_unverified_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account has not been verified yet. Our team will review it shortly.\n\nYou can contact the administrators for more information.'**
+  String get store_unverified_body;
+
+  /// No description provided for @test_notification_sent.
+  ///
+  /// In en, this message translates to:
+  /// **'Test notification sent!'**
+  String get test_notification_sent;
+
+  /// No description provided for @notif_orders_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Orders'**
+  String get notif_orders_title;
+
+  /// No description provided for @notif_orders_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Order status notifications'**
+  String get notif_orders_desc;
+
+  /// No description provided for @notif_promos_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Promotions'**
+  String get notif_promos_title;
+
+  /// No description provided for @notif_promos_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Special offers and discounts'**
+  String get notif_promos_desc;
+
+  /// No description provided for @notif_chat_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Messages'**
+  String get notif_chat_title;
+
+  /// No description provided for @notif_chat_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'New chat messages'**
+  String get notif_chat_desc;
+
+  /// No description provided for @delivery_preferences.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery preferences'**
+  String get delivery_preferences;
+
+  /// No description provided for @max_delivery_distance.
+  ///
+  /// In en, this message translates to:
+  /// **'Max delivery distance'**
+  String get max_delivery_distance;
+
+  /// No description provided for @max_delivery_distance_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum distance for your deliveries: {distance} km'**
+  String max_delivery_distance_desc(Object distance);
+
+  /// No description provided for @sell_your_dishes.
+  ///
+  /// In en, this message translates to:
+  /// **'Sell your dishes'**
+  String get sell_your_dishes;
+
+  /// No description provided for @app_tagline.
+  ///
+  /// In en, this message translates to:
+  /// **'Neighborhood cuisine, warmer and simpler.'**
+  String get app_tagline;
+
+  /// No description provided for @delete_account_understand_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'I understand my data will be deleted after 30 days. If I want to recover my account before then, I must contact the administrators.'**
+  String get delete_account_understand_hint;
+
+  /// No description provided for @delete_account_recovery_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'If you wish to recover your account before this deadline, contact the administrators.'**
+  String get delete_account_recovery_hint;
+
+  /// No description provided for @confirm_your_email.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm your email'**
+  String get confirm_your_email;
+
+  /// No description provided for @identity_validated_email_subject.
+  ///
+  /// In en, this message translates to:
+  /// **'🎉 Welcome to Dios Délices - Your profile is validated!'**
+  String get identity_validated_email_subject;
+
+  /// No description provided for @identity_rejected_email_subject.
+  ///
+  /// In en, this message translates to:
+  /// **'❌ Update: Your profile validation on Dios Délices'**
+  String get identity_rejected_email_subject;
+
+  /// No description provided for @identity_validated_email_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Hello {firstname},\n\nWe are delighted to inform you that your profile on Dios Délices has been validated. You can now fully enjoy all the features of the application.\n\nWelcome aboard!\n\nThe Dios Délices team'**
+  String identity_validated_email_body(Object firstname);
+
+  /// No description provided for @identity_rejected_email_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Hello {firstname},\n\nWe regret to inform you that your profile on Dios Délices could not be validated at this time.\n\nReason: {reason}\n\nYou can modify your information and resubmit your request from the application.\n\nThe Dios Délices team'**
+  String identity_rejected_email_body(Object firstname, Object reason);
+
+  /// No description provided for @address_detected.
+  ///
+  /// In en, this message translates to:
+  /// **'Detected address'**
+  String get address_detected;
+
+  /// No description provided for @address_detected_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Detected address:'**
+  String get address_detected_label;
+
+  /// No description provided for @address_manual_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual address:'**
+  String get address_manual_label;
+
+  /// No description provided for @which_address_use.
+  ///
+  /// In en, this message translates to:
+  /// **'Which address to use?'**
+  String get which_address_use;
+
+  /// No description provided for @manual.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual'**
+  String get manual;
+
+  /// No description provided for @detected.
+  ///
+  /// In en, this message translates to:
+  /// **'Detected'**
+  String get detected;
+
+  /// No description provided for @save_address.
+  ///
+  /// In en, this message translates to:
+  /// **'Save address'**
+  String get save_address;
+
+  /// No description provided for @address_already_saved.
+  ///
+  /// In en, this message translates to:
+  /// **'Address already saved.'**
+  String get address_already_saved;
+
+  /// No description provided for @address_saved_success.
+  ///
+  /// In en, this message translates to:
+  /// **'Address saved successfully!'**
+  String get address_saved_success;
+
+  /// No description provided for @address_fill_city_and_address.
+  ///
+  /// In en, this message translates to:
+  /// **'Please fill in at least the city and full address.'**
+  String get address_fill_city_and_address;
+
+  /// No description provided for @address_not_found_check.
+  ///
+  /// In en, this message translates to:
+  /// **'Address not found. Please verify accuracy.'**
+  String get address_not_found_check;
+
+  /// No description provided for @address_not_found_verify.
+  ///
+  /// In en, this message translates to:
+  /// **'Address not found, please verify the information.'**
+  String get address_not_found_verify;
+
+  /// No description provided for @address_not_match_country.
+  ///
+  /// In en, this message translates to:
+  /// **'Your address ({address}) does not match your country. Please check.'**
+  String address_not_match_country(Object address);
+
+  /// No description provided for @enter_address_manually.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter my address manually'**
+  String get enter_address_manually;
+
+  /// No description provided for @hide_form.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide form'**
+  String get hide_form;
+
+  /// No description provided for @full_address_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Full address (street, building, directions...)'**
+  String get full_address_hint;
+
+  /// No description provided for @district.
+  ///
+  /// In en, this message translates to:
+  /// **'District / Borough'**
+  String get district;
+
+  /// No description provided for @clear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get clear;
+
+  /// No description provided for @enter_or_detect_address.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter or detect an address.'**
+  String get enter_or_detect_address;
+
+  /// No description provided for @pending_orders.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending orders'**
+  String get pending_orders;
+
+  /// No description provided for @to_process.
+  ///
+  /// In en, this message translates to:
+  /// **'To process'**
+  String get to_process;
+
+  /// No description provided for @cancelled_orders.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelled orders'**
+  String get cancelled_orders;
+
+  /// No description provided for @available_dishes.
+  ///
+  /// In en, this message translates to:
+  /// **'Available dishes'**
+  String get available_dishes;
+
+  /// No description provided for @servings_sold.
+  ///
+  /// In en, this message translates to:
+  /// **'Servings sold'**
+  String get servings_sold;
+
+  /// No description provided for @unavailable_dishes_num.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} unavailable'**
+  String unavailable_dishes_num(Object count);
+
+  /// No description provided for @available_servings_of.
+  ///
+  /// In en, this message translates to:
+  /// **'/ {total} available'**
+  String available_servings_of(Object total);
+
+  /// No description provided for @manage.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage'**
+  String get manage;
+
+  /// No description provided for @last_orders.
+  ///
+  /// In en, this message translates to:
+  /// **'Last orders'**
+  String get last_orders;
+
+  /// No description provided for @see_all.
+  ///
+  /// In en, this message translates to:
+  /// **'See all'**
+  String get see_all;
+
+  /// No description provided for @no_order_received_yet.
+  ///
+  /// In en, this message translates to:
+  /// **'No order received yet.'**
+  String get no_order_received_yet;
+
+  /// No description provided for @dishes_and_servings.
+  ///
+  /// In en, this message translates to:
+  /// **'Dishes & servings'**
+  String get dishes_and_servings;
+
+  /// No description provided for @activate_deactivate_dishes.
+  ///
+  /// In en, this message translates to:
+  /// **'Activate or deactivate your dishes'**
+  String get activate_deactivate_dishes;
+
+  /// No description provided for @no_dish_registered.
+  ///
+  /// In en, this message translates to:
+  /// **'No dishes registered.'**
+  String get no_dish_registered;
+
+  /// No description provided for @no_restaurant_available.
+  ///
+  /// In en, this message translates to:
+  /// **'No restaurant available'**
+  String get no_restaurant_available;
+
+  /// No description provided for @owner.
+  ///
+  /// In en, this message translates to:
+  /// **'Owner'**
+  String get owner;
+
+  /// No description provided for @pro_badge.
+  ///
+  /// In en, this message translates to:
+  /// **'PRO'**
+  String get pro_badge;
+
+  /// No description provided for @owner_info.
+  ///
+  /// In en, this message translates to:
+  /// **'Owner: {firstname} · {email}'**
+  String owner_info(Object firstname, Object email);
+
+  /// No description provided for @user_details_information.
+  ///
+  /// In en, this message translates to:
+  /// **'Information'**
+  String get user_details_information;
+
+  /// No description provided for @user_details_firstname.
+  ///
+  /// In en, this message translates to:
+  /// **'First name'**
+  String get user_details_firstname;
+
+  /// No description provided for @user_details_lastname.
+  ///
+  /// In en, this message translates to:
+  /// **'Last name'**
+  String get user_details_lastname;
+
+  /// No description provided for @user_details_email.
+  ///
+  /// In en, this message translates to:
+  /// **'Email'**
+  String get user_details_email;
+
+  /// No description provided for @user_details_phone.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone'**
+  String get user_details_phone;
+
+  /// No description provided for @user_details_country.
+  ///
+  /// In en, this message translates to:
+  /// **'Country'**
+  String get user_details_country;
+
+  /// No description provided for @user_details_profile_type.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile type'**
+  String get user_details_profile_type;
+
+  /// No description provided for @user_details_identity.
+  ///
+  /// In en, this message translates to:
+  /// **'Identity'**
+  String get user_details_identity;
+
+  /// No description provided for @user_details_required.
+  ///
+  /// In en, this message translates to:
+  /// **'Required'**
+  String get user_details_required;
+
+  /// No description provided for @force_delete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete permanently'**
+  String get force_delete;
+
+  /// No description provided for @force_delete_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Restaurant, dishes, orders, addresses, documents…'**
+  String get force_delete_desc;
+
+  /// No description provided for @identity_document_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Identity document'**
+  String get identity_document_label;
+
+  /// No description provided for @pdf_document.
+  ///
+  /// In en, this message translates to:
+  /// **'PDF Document'**
+  String get pdf_document;
+
+  /// No description provided for @tap_to_open.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to open'**
+  String get tap_to_open;
+
+  /// No description provided for @validation.
+  ///
+  /// In en, this message translates to:
+  /// **'Validation'**
+  String get validation;
+
+  /// No description provided for @reject_profile.
+  ///
+  /// In en, this message translates to:
+  /// **'Reject profile'**
+  String get reject_profile;
+
+  /// No description provided for @reject_profile_remark_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a remark for the user:'**
+  String get reject_profile_remark_hint;
+
+  /// No description provided for @type_your_remark_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Type your remark here...'**
+  String get type_your_remark_hint;
+
+  /// No description provided for @delete_permanently.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete permanently'**
+  String get delete_permanently;
+
+  /// No description provided for @delete_confirm_message.
+  ///
+  /// In en, this message translates to:
+  /// **'This will delete ALL data:\n• Restaurant & dishes\n• Addresses\n• Payment methods\n• Orders & lines\n• Comments\n• Documents\n• Messages\n• Reports\n\nIRREVERSIBLE.'**
+  String get delete_confirm_message;
+
+  /// No description provided for @type_delete_to_confirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Type \"DELETE\" to confirm'**
+  String get type_delete_to_confirm;
+
+  /// No description provided for @must_type_delete.
+  ///
+  /// In en, this message translates to:
+  /// **'Type DELETE to confirm'**
+  String get must_type_delete;
+
+  /// No description provided for @user_deleted.
+  ///
+  /// In en, this message translates to:
+  /// **'{firstname} deleted.'**
+  String user_deleted(Object firstname);
+
+  /// No description provided for @force_delete_button.
+  ///
+  /// In en, this message translates to:
+  /// **'DELETE ALL'**
+  String get force_delete_button;
+
+  /// No description provided for @profile_validated_email_sent.
+  ///
+  /// In en, this message translates to:
+  /// **'{firstname} {lastname}\'s profile has been validated and an email has been sent.'**
+  String profile_validated_email_sent(Object firstname, Object lastname);
+
+  /// No description provided for @profile_validated_email_error.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile validated but error sending email.'**
+  String get profile_validated_email_error;
+
+  /// No description provided for @profile_rejected_email_sent.
+  ///
+  /// In en, this message translates to:
+  /// **'{firstname} {lastname}\'s profile has been rejected and an email has been sent.'**
+  String profile_rejected_email_sent(Object firstname, Object lastname);
+
+  /// No description provided for @profile_rejected_email_error.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile rejected but error sending email.'**
+  String get profile_rejected_email_error;
+
+  /// No description provided for @view_existing_file.
+  ///
+  /// In en, this message translates to:
+  /// **'View existing file'**
+  String get view_existing_file;
+
+  /// No description provided for @no_photo_available.
+  ///
+  /// In en, this message translates to:
+  /// **'No photo available'**
+  String get no_photo_available;
+
+  /// No description provided for @add_a_photo.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a photo'**
+  String get add_a_photo;
+
+  /// No description provided for @add_identity_document.
+  ///
+  /// In en, this message translates to:
+  /// **'Add an ID document'**
+  String get add_identity_document;
+
+  /// No description provided for @validate_caps.
+  ///
+  /// In en, this message translates to:
+  /// **'VALIDATE'**
+  String get validate_caps;
+
+  /// No description provided for @restaurant_associated.
+  ///
+  /// In en, this message translates to:
+  /// **'Associated restaurant'**
+  String get restaurant_associated;
+
+  /// No description provided for @no_file_selected.
+  ///
+  /// In en, this message translates to:
+  /// **'No file selected'**
+  String get no_file_selected;
+
+  /// No description provided for @choose_from_files.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose from files'**
+  String get choose_from_files;
+
+  /// No description provided for @image_or_pdf.
+  ///
+  /// In en, this message translates to:
+  /// **'Image or PDF'**
+  String get image_or_pdf;
+
+  /// No description provided for @pdf_preview.
+  ///
+  /// In en, this message translates to:
+  /// **'PDF Preview'**
+  String get pdf_preview;
+
+  /// No description provided for @image_preview.
+  ///
+  /// In en, this message translates to:
+  /// **'Image Preview'**
+  String get image_preview;
+
+  /// No description provided for @take_a_photo.
+  ///
+  /// In en, this message translates to:
+  /// **'Take a photo'**
+  String get take_a_photo;
+
+  /// No description provided for @choose_from_gallery.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose from gallery'**
+  String get choose_from_gallery;
+
+  /// No description provided for @choose_image_file.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose an image file'**
+  String get choose_image_file;
+
+  /// No description provided for @choose_image_from_gallery.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose an image from gallery'**
+  String get choose_image_from_gallery;
+
+  /// No description provided for @users_list_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Users · {country}'**
+  String users_list_title(Object country);
+
+  /// No description provided for @search_name_email_phone.
+  ///
+  /// In en, this message translates to:
+  /// **'Search name, email, phone...'**
+  String get search_name_email_phone;
+
+  /// No description provided for @all_filter.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get all_filter;
+
+  /// No description provided for @pending_filter.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending'**
+  String get pending_filter;
+
+  /// No description provided for @validated_filter.
+  ///
+  /// In en, this message translates to:
+  /// **'Validated'**
+  String get validated_filter;
+
+  /// No description provided for @rejected_filter.
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected'**
+  String get rejected_filter;
+
+  /// No description provided for @users_count.
+  ///
+  /// In en, this message translates to:
+  /// **'{displayed} / {total} user(s)'**
+  String users_count(Object displayed, Object total);
+
+  /// No description provided for @pending_count.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} pending'**
+  String pending_count(Object count);
+
+  /// No description provided for @validated_count.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} validated'**
+  String validated_count(Object count);
+
+  /// No description provided for @no_user_found.
+  ///
+  /// In en, this message translates to:
+  /// **'No user found'**
+  String get no_user_found;
+
+  /// No description provided for @super_admin.
+  ///
+  /// In en, this message translates to:
+  /// **'Super Admin'**
+  String get super_admin;
+
+  /// No description provided for @profile_rejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile rejected'**
+  String get profile_rejected;
+
+  /// No description provided for @profile_validated.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile validated'**
+  String get profile_validated;
+
+  /// No description provided for @profile_pending.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile pending'**
+  String get profile_pending;
+
+  /// No description provided for @favorites_my.
+  ///
+  /// In en, this message translates to:
+  /// **'My favorites'**
+  String get favorites_my;
+
+  /// No description provided for @no_dishes.
+  ///
+  /// In en, this message translates to:
+  /// **'No dishes.'**
+  String get no_dishes;
+
+  /// No description provided for @rate.
+  ///
+  /// In en, this message translates to:
+  /// **'Rate'**
+  String get rate;
+
+  /// No description provided for @user_not_connected.
+  ///
+  /// In en, this message translates to:
+  /// **'User not connected'**
+  String get user_not_connected;
+
+  /// No description provided for @ordered_dishes.
+  ///
+  /// In en, this message translates to:
+  /// **'Ordered dishes'**
+  String get ordered_dishes;
+
+  /// No description provided for @dish_num.
+  ///
+  /// In en, this message translates to:
+  /// **'Dish #{id}'**
+  String dish_num(Object id);
+
+  /// No description provided for @features.
+  ///
+  /// In en, this message translates to:
+  /// **'Features'**
+  String get features;
+
+  /// No description provided for @your_review.
+  ///
+  /// In en, this message translates to:
+  /// **'Your review'**
+  String get your_review;
+
+  /// No description provided for @share_experience_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Share your experience in a few words…'**
+  String get share_experience_hint;
+
+  /// No description provided for @no_reviews_yet.
+  ///
+  /// In en, this message translates to:
+  /// **'No reviews yet.'**
+  String get no_reviews_yet;
+
+  /// No description provided for @reviews_count.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} reviews'**
+  String reviews_count(Object count);
+
+  /// No description provided for @previous.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous'**
+  String get previous;
+
+  /// No description provided for @order_tracking_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Order tracking'**
+  String get order_tracking_title;
+
+  /// No description provided for @order_num.
+  ///
+  /// In en, this message translates to:
+  /// **'Order #{id}'**
+  String order_num(Object id);
+
+  /// No description provided for @delivery_cost.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery {amount}'**
+  String delivery_cost(Object amount);
+
+  /// No description provided for @discount_amount.
+  ///
+  /// In en, this message translates to:
+  /// **'Discount {amount}'**
+  String discount_amount(Object amount);
+
+  /// No description provided for @validate_this_image.
+  ///
+  /// In en, this message translates to:
+  /// **'Validate this image'**
+  String get validate_this_image;
+
+  /// No description provided for @test_notification_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Test Notification'**
+  String get test_notification_title;
+
+  /// No description provided for @test_notification_body.
+  ///
+  /// In en, this message translates to:
+  /// **'This is a test notification'**
+  String get test_notification_body;
+
+  /// No description provided for @new_order_title.
+  ///
+  /// In en, this message translates to:
+  /// **'New order!'**
+  String get new_order_title;
+
+  /// No description provided for @new_order_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Order of {amount} {currency} from {restaurant}'**
+  String new_order_body(Object amount, Object currency, Object restaurant);
+
+  /// No description provided for @modify_dish.
+  ///
+  /// In en, this message translates to:
+  /// **'Modify dish'**
+  String get modify_dish;
+
+  /// No description provided for @add_dish_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Add dish'**
+  String get add_dish_title;
+
+  /// No description provided for @no_options_available.
+  ///
+  /// In en, this message translates to:
+  /// **'No options'**
+  String get no_options_available;
+
+  /// No description provided for @add_option_button.
+  ///
+  /// In en, this message translates to:
+  /// **'Add an option'**
+  String get add_option_button;
+
+  /// No description provided for @add_option_count.
+  ///
+  /// In en, this message translates to:
+  /// **'Add an option ({count}/3)'**
+  String add_option_count(Object count);
+
+  /// No description provided for @main_photo_badge.
+  ///
+  /// In en, this message translates to:
+  /// **'Main'**
+  String get main_photo_badge;
+
+  /// No description provided for @option_name.
+  ///
+  /// In en, this message translates to:
+  /// **'Option name'**
+  String get option_name;
+
+  /// No description provided for @option_price_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Option price (required, e.g. 2.50)'**
+  String get option_price_hint;
+
+  /// No description provided for @admin_role_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin'**
+  String get admin_role_label;
+
+  /// No description provided for @super_admin_role_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Super Admin'**
+  String get super_admin_role_label;
+
+  /// No description provided for @resto_role_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Resto'**
+  String get resto_role_label;
+
+  /// No description provided for @livreur_role_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Driver'**
+  String get livreur_role_label;
+
+  /// No description provided for @individual_role_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Individual'**
+  String get individual_role_label;
+
+  /// No description provided for @restaurateur_role_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Restaurateur'**
+  String get restaurateur_role_label;
+
+  /// No description provided for @change_password_title_dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Change password'**
+  String get change_password_title_dialog;
+
+  /// No description provided for @current_password_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Current password'**
+  String get current_password_label;
+
+  /// No description provided for @new_password_label.
+  ///
+  /// In en, this message translates to:
+  /// **'New password'**
+  String get new_password_label;
+
+  /// No description provided for @confirm_password_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm password'**
+  String get confirm_password_label;
+
+  /// No description provided for @become_restaurateur_dialog_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Become a home chef'**
+  String get become_restaurateur_dialog_title;
+
+  /// No description provided for @become_restaurateur_dialog_body.
+  ///
+  /// In en, this message translates to:
+  /// **'By becoming a home chef, you will be able to publish your dishes and sell them directly to customers. Would you like to continue?'**
+  String get become_restaurateur_dialog_body;
+
+  /// No description provided for @yes_sell_my_dishes.
+  ///
+  /// In en, this message translates to:
+  /// **'Yes, I want to sell my dishes'**
+  String get yes_sell_my_dishes;
+
+  /// No description provided for @delete_account_dialog_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete my account'**
+  String get delete_account_dialog_title;
+
+  /// No description provided for @delete_account_dialog_warning.
+  ///
+  /// In en, this message translates to:
+  /// **'This action is irreversible. Your personal data will be deleted after 30 days.'**
+  String get delete_account_dialog_warning;
+
+  /// No description provided for @notifications_switch_orders.
+  ///
+  /// In en, this message translates to:
+  /// **'Orders'**
+  String get notifications_switch_orders;
+
+  /// No description provided for @notifications_switch_promos.
+  ///
+  /// In en, this message translates to:
+  /// **'Promotions'**
+  String get notifications_switch_promos;
+
+  /// No description provided for @notifications_switch_messages.
+  ///
+  /// In en, this message translates to:
+  /// **'Messages'**
+  String get notifications_switch_messages;
+
+  /// No description provided for @add_your_address.
+  ///
+  /// In en, this message translates to:
+  /// **'Add your address'**
+  String get add_your_address;
+
+  /// No description provided for @my_orders_button.
+  ///
+  /// In en, this message translates to:
+  /// **'My orders'**
+  String get my_orders_button;
+
+  /// No description provided for @search_no_results_for.
+  ///
+  /// In en, this message translates to:
+  /// **'No results for \"{query}\"'**
+  String search_no_results_for(Object query);
+
+  /// No description provided for @restaurants_section.
+  ///
+  /// In en, this message translates to:
+  /// **'Restaurants'**
+  String get restaurants_section;
+
+  /// No description provided for @dishes_section.
+  ///
+  /// In en, this message translates to:
+  /// **'Dishes'**
+  String get dishes_section;
+
+  /// No description provided for @search_hint_input.
+  ///
+  /// In en, this message translates to:
+  /// **'Search for dishes, restaurants...'**
+  String get search_hint_input;
+
+  /// No description provided for @password_reset_code_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter a 6-digit code'**
+  String get password_reset_code_hint;
+
+  /// No description provided for @verification_code_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Verification code'**
+  String get verification_code_title;
+
+  /// No description provided for @code_sent_to_email.
+  ///
+  /// In en, this message translates to:
+  /// **'A code was sent to {email}'**
+  String code_sent_to_email(Object email);
+
+  /// No description provided for @verification_enter_new_password.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your new password'**
+  String get verification_enter_new_password;
+
+  /// No description provided for @return_button.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get return_button;
+
+  /// No description provided for @first_login_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Password change'**
+  String get first_login_title;
+
+  /// No description provided for @first_login_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'For security reasons, please choose a new password.'**
+  String get first_login_subtitle;
+
+  /// No description provided for @change_password_button.
+  ///
+  /// In en, this message translates to:
+  /// **'Change password'**
+  String get change_password_button;
+
+  /// No description provided for @password_reset_success_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Password reset!'**
+  String get password_reset_success_title;
+
+  /// No description provided for @password_reset_success_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Your password has been changed successfully. You can now log in.'**
+  String get password_reset_success_body;
+
+  /// No description provided for @enable_notifications_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable notifications'**
+  String get enable_notifications_title;
+
+  /// No description provided for @enable_notifications_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Receive updates on your orders, promotions, and messages from our team.\n\nYou can change this setting in the settings.'**
+  String get enable_notifications_body;
+
+  /// No description provided for @enable_button.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable'**
+  String get enable_button;
+
+  /// No description provided for @onboarding_splash_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Neighbourhood\ncooking.'**
+  String get onboarding_splash_subtitle;
+
+  /// No description provided for @admin_welcome_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome Admin!'**
+  String get admin_welcome_title;
+
+  /// No description provided for @admin_welcome_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Your administrator account has been created successfully.\nYou can now manage the platform.'**
+  String get admin_welcome_body;
+
+  /// No description provided for @identity_section_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Identity'**
+  String get identity_section_label;
+
+  /// No description provided for @contact_section_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Contact'**
+  String get contact_section_label;
+
+  /// No description provided for @security_section_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Security'**
+  String get security_section_label;
+
+  /// No description provided for @accept_terms_warning.
+  ///
+  /// In en, this message translates to:
+  /// **'Please accept the terms.'**
+  String get accept_terms_warning;
+
+  /// No description provided for @too_long_max_80.
+  ///
+  /// In en, this message translates to:
+  /// **'Too long (max 80 characters)'**
+  String get too_long_max_80;
+
+  /// No description provided for @position_not_available.
+  ///
+  /// In en, this message translates to:
+  /// **'Position not available'**
+  String get position_not_available;
+
+  /// No description provided for @save_profile.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get save_profile;
+
+  /// No description provided for @cgv_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Terms and Conditions of Sale'**
+  String get cgv_title;
+
+  /// No description provided for @cgv_last_update.
+  ///
+  /// In en, this message translates to:
+  /// **'Last updated: June 2026'**
+  String get cgv_last_update;
+
+  /// No description provided for @legal_notice_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Legal Notice'**
+  String get legal_notice_title;
+
+  /// No description provided for @privacy_policy_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy Policy'**
+  String get privacy_policy_title;
+
+  /// No description provided for @promo_edit_title_key.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit {code}'**
+  String promo_edit_title_key(Object code);
+
+  /// No description provided for @address.
+  ///
+  /// In en, this message translates to:
+  /// **'Address'**
+  String get address;
+
+  /// No description provided for @version_admin.
+  ///
+  /// In en, this message translates to:
+  /// **'v1.0.0 · Administration'**
+  String get version_admin;
+
+  /// No description provided for @refresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get refresh;
+
+  /// No description provided for @please_modify_a_file.
+  ///
+  /// In en, this message translates to:
+  /// **'Please modify one of the files.'**
+  String get please_modify_a_file;
 }
 
 class _AppLocalizationsDelegate

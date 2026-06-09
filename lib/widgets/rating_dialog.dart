@@ -5,6 +5,7 @@ import 'package:dios_delices/theme/app_theme.dart';
 import 'package:dios_delices/utils/currency_util.dart';
 import 'package:dios_delices/utils/rating_tags.dart';
 import 'package:dios_delices/utils/toast.dart';
+import '../l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -61,7 +62,7 @@ class _RatingDialogState extends State<RatingDialog> {
 
     if (session.userId == null) {
       if (mounted) {
-        Toast(context, 'Utilisateur non connecté', false);
+        Toast(context, AppLocalizations.of(context)!.user_not_connected, false);
       }
       return;
     }
@@ -83,6 +84,7 @@ class _RatingDialogState extends State<RatingDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final isRestaurant = widget.targetType == 1;
     return AlertDialog(
       shape: RoundedRectangleBorder(
@@ -125,7 +127,7 @@ class _RatingDialogState extends State<RatingDialog> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Plats commandés',
+                    Text(l10n.ordered_dishes,
                         style: AppTypography.labelMedium(
                             color: AppColors.resolve(
                                 AppColors.inkMuted, AppDarkColors.inkMuted))),
@@ -157,7 +159,7 @@ class _RatingDialogState extends State<RatingDialog> {
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
-                                    widget.dishNames?[l.platID] ?? 'Plat #${l.platID}',
+                                    widget.dishNames?[l.platID] ?? l10n.dish_num(l.platID),
                                     style: AppTypography.bodyMedium(
                                             color: AppColors.resolve(
                                                 AppColors.ink, AppDarkColors.ink))
@@ -212,7 +214,7 @@ class _RatingDialogState extends State<RatingDialog> {
                       color: AppColors.resolve(
                           AppColors.inkMuted, AppDarkColors.inkMuted)),
                   const SizedBox(width: 6),
-                  Text('Caractéristiques',
+                  Text(l10n.features,
                       style: AppTypography.labelMedium(
                           color: AppColors.resolve(
                               AppColors.inkMuted, AppDarkColors.inkMuted))),
@@ -279,8 +281,8 @@ class _RatingDialogState extends State<RatingDialog> {
             TextField(
               controller: _commentCtrl,
               decoration: InputDecoration(
-                labelText: 'Votre avis',
-                hintText: 'Partagez votre expérience en quelques mots…',
+                labelText: l10n.your_review,
+                hintText: l10n.share_experience_hint,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppRadius.md),
                   borderSide: BorderSide(
@@ -312,7 +314,7 @@ class _RatingDialogState extends State<RatingDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, null),
-          child: Text('Annuler',
+          child: Text(l10n.cancel,
               style: TextStyle(
                   color: AppColors.resolve(
                       AppColors.inkMuted, AppDarkColors.inkMuted))),
@@ -327,7 +329,7 @@ class _RatingDialogState extends State<RatingDialog> {
                 borderRadius: BorderRadius.circular(AppRadius.md)),
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           ),
-          child: const Text('Envoyer'),
+          child: Text(l10n.send),
         ),
       ],
     );

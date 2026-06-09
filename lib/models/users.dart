@@ -5,10 +5,10 @@ import 'package:gpassword/gpassword.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:hive/hive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../screens/navigation/CurvedNavigationAdmin.dart';
-import '../screens/navigation/CurvedNavigationRestau.dart';
-import '../screens/navigation/CurvedNavigationUser.dart';
-import '../screens/navigation/CurvedNavigationLivreur.dart';
+import '../screens/navigation/curved_navigation_admin.dart';
+import '../screens/navigation/curved_navigation_restau.dart';
+import '../screens/navigation/curved_navigation_user.dart';
+import '../screens/navigation/curved_navigation_livreur.dart';
 import '../db/database_helper.dart';
 
 part 'users.g.dart';
