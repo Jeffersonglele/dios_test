@@ -1,5 +1,6 @@
 import 'package:dios_delices/screens/Settings.dart';
 import 'package:dios_delices/screens/restaurants/RestaurantDetails.dart';
+import 'package:dios_delices/screens/restaurants/RestaurantEarningsPage.dart';
 import 'package:dios_delices/screens/restaurants/RestaurantFormPage.dart';
 import 'package:dios_delices/screens/ContactPage.dart';
 import 'package:dios_delices/core/app_role.dart';
@@ -146,6 +147,9 @@ class _MyStoreState extends State<MyStore> {
         newSections.add(_StoreSection(
             Icons.edit_rounded, 'Modifier mon restaurant',
             RestaurantFormPage(restaurant: _restaurant)));
+        newSections.add(_StoreSection(
+            Icons.monetization_on_rounded, 'Mes revenus',
+            const RestaurantEarningsPage()));
         newSections.add(_StoreSection(Icons.receipt_long_rounded,
             'Mes commandes',
             const UserOrdersPage(showRestaurantOrders: true)));

@@ -45,6 +45,7 @@ class _MenuState extends State<Menu> {
       country = session.country;
       currentUserRestau = session.restaurantId ?? 0;
       currentUserRole = session.role.id;
+      await Dish.getAllDishesDetails();
       final dishesList = await Dish.fetchDishesFromDB();
       if (mounted) {
         setState(() {
@@ -72,6 +73,7 @@ class _MenuState extends State<Menu> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final size = MediaQuery.of(context).size;
     final isWide = size.width > 600;
 
@@ -116,10 +118,9 @@ class _MenuState extends State<Menu> {
                       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                         Icon(Icons.restaurant_menu_rounded, size: 56, color: AppColors.border),
                         const SizedBox(height: 12),
-                        Text('No dishes in your menu.',
-                            style: AppTypography.bodyMedium()),
+                        Text(l10n.menu_no_dishes, style: AppTypography.bodyMedium()),
                         const SizedBox(height: 4),
-                        Text('Add your first dish!',
+                        Text(l10n.menu_add_first_dish,
                             style: AppTypography.bodyMedium(color: AppColors.inkSubtle)),
                       ]),
                     )

@@ -60,6 +60,7 @@ class Commande extends HiveObject {
   String? deliveryMode;
   String? promoCode;
   double? subtotalAmount;
+  String? country;
 
   Commande({
     required this.commandeID,
@@ -82,6 +83,7 @@ class Commande extends HiveObject {
     this.deliveryMode,
     this.promoCode,
     this.subtotalAmount,
+    this.country,
   });
 
   factory Commande.fromMap(Map<String, dynamic> map) {
@@ -106,6 +108,7 @@ class Commande extends HiveObject {
       deliveryMode: map['deliveryMode']?.toString(),
       promoCode: map['promoCode']?.toString(),
       subtotalAmount: (map['subtotalAmount'] ?? map['totalAmount'] ?? 0)?.toDouble(),
+      country: map['country']?.toString(),
     );
   }
 
@@ -130,6 +133,7 @@ class Commande extends HiveObject {
     'deliveryMode': deliveryMode,
     'promoCode': promoCode,
     'subtotalAmount': subtotalAmount,
+    'country': country,
   };
 
 

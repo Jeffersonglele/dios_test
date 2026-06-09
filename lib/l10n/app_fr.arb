@@ -590,6 +590,9 @@
   "my_products_no_products": "Aucun plat.",
   "my_products_add": "Ajouter un plat",
 
+  "menu_no_dishes": "Aucun plat dans votre menu.",
+  "menu_add_first_dish": "Ajoutez votre premier plat !",
+
   "contact_need_help": "Besoin d'aide ?",
   "contact_description": "Contactez-nous pour toute question ou modification de vos informations.",
   "contact_chat_hours": "Disponible de 9h à 18h",
@@ -754,6 +757,7 @@
   "@search_no_results": { "placeholders": { "query": {} } },
   "search_restaurants": "Restaurants",
   "search_dishes": "Plats",
+  "search_input_hint": "Rechercher des plats, des restaurateurs...",
 
   "country_title": "Gestion {title}",
   "@country_title": { "placeholders": { "title": {} } },

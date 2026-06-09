@@ -1758,6 +1758,12 @@ class AppLocalizationsFr extends AppLocalizations {
   String get my_products_add => 'Ajouter un plat';
 
   @override
+  String get menu_no_dishes => 'Aucun plat dans votre menu.';
+
+  @override
+  String get menu_add_first_dish => 'Ajoutez votre premier plat !';
+
+  @override
   String get contact_need_help => 'Besoin d\'aide ?';
 
   @override
@@ -2202,6 +2208,9 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get search_dishes => 'Plats';
+
+  @override
+  String get search_input_hint => 'Rechercher des plats, des restaurateurs...';
 
   @override
   String country_title(Object title) {

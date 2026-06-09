@@ -359,7 +359,16 @@ class _LoginState extends ConsumerState<Login> {
   }
 
   void _handleRestaurantValidation(Users user) async {
-    final restau = await Restaurant.getRestaurantByUser(_restaus, user.userID);
+    var restau = await Restaurant.getRestaurantByUser(_restaus, user.userID);
+
+    // Si pas trouvé en cache local, tenter une synchro Parse
+    if (restau == null) {
+      await Restaurant.getAllRestaurantsDetails();
+      final refreshed = await Restaurant.fetchRestaurantsFromDB();
+      _restaus = refreshed;
+      restau = await Restaurant.getRestaurantByUser(refreshed, user.userID);
+    }
+
     if (!mounted) return;
 
     if (restau == null) {
@@ -377,7 +386,7 @@ class _LoginState extends ConsumerState<Login> {
         context,
         MaterialPageRoute(
           builder: (_) =>
-              RestaurantUpdateFormPage(user: user, restaurant: restau),
+              RestaurantUpdateFormPage(user: user, restaurant: restau!),
         ),
       );
     }

@@ -307,7 +307,8 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
 
     final bool isCancelled = status == CommandeStatus.cancelled;
     final bool isConfirmed = status == CommandeStatus.confirmed;
-    final bool canCancel = !isCancelled && !isConfirmed;
+    final bool isDelivered = status == CommandeStatus.delivered;
+    final bool canCancel = !isCancelled && !isConfirmed && !isDelivered;
     final bool canConfirm = !isConfirmed && !isCancelled;
     final dateStr = c.dateCommande.toLocal().toString().split(' ')[0];
 

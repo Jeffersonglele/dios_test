@@ -588,6 +588,9 @@
   "my_products_no_products": "No dishes.",
   "my_products_add": "Add a dish",
 
+  "menu_no_dishes": "No dishes in your menu.",
+  "menu_add_first_dish": "Add your first dish!",
+
   "contact_need_help": "Need help?",
   "contact_description": "Contact us for any questions or changes to your information.",
   "contact_chat_hours": "Available from 9am to 6pm",
@@ -752,6 +755,7 @@
   "@search_no_results": { "placeholders": { "query": {} } },
   "search_restaurants": "Restaurants",
   "search_dishes": "Dishes",
+  "search_input_hint": "Search for dishes, restaurants...",
 
   "country_title": "Manage {title}",
   "@country_title": { "placeholders": { "title": {} } },

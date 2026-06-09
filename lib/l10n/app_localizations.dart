@@ -3386,6 +3386,18 @@ abstract class AppLocalizations {
   /// **'Add a dish'**
   String get my_products_add;
 
+  /// No description provided for @menu_no_dishes.
+  ///
+  /// In en, this message translates to:
+  /// **'No dishes in your menu.'**
+  String get menu_no_dishes;
+
+  /// No description provided for @menu_add_first_dish.
+  ///
+  /// In en, this message translates to:
+  /// **'Add your first dish!'**
+  String get menu_add_first_dish;
+
   /// No description provided for @contact_need_help.
   ///
   /// In en, this message translates to:
@@ -4172,6 +4184,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Dishes'**
   String get search_dishes;
+
+  /// No description provided for @search_input_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search for dishes, restaurants...'**
+  String get search_input_hint;
 
   /// No description provided for @country_title.
   ///

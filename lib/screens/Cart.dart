@@ -713,6 +713,7 @@ class _CartState extends ConsumerState<Cart> {
       "currency": currencyCode,
       "fraisLivraison": deliveryFee,
       "reduction": reduction,
+      "subtotalAmount": subtotal,
       "totalAmount": totalAmount,
       "items": items,
       if (idPaiement != null) "moyenPaiementID": idPaiement,

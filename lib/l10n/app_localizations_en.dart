@@ -1741,6 +1741,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get my_products_add => 'Add a dish';
 
   @override
+  String get menu_no_dishes => 'No dishes in your menu.';
+
+  @override
+  String get menu_add_first_dish => 'Add your first dish!';
+
+  @override
   String get contact_need_help => 'Need help?';
 
   @override
@@ -2181,6 +2187,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get search_dishes => 'Dishes';
+
+  @override
+  String get search_input_hint => 'Search for dishes, restaurants...';
 
   @override
   String country_title(Object title) {

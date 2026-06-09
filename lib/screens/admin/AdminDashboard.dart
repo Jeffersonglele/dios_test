@@ -124,23 +124,24 @@ class _AdminDashboardState extends State<AdminDashboard> {
       final owner = Users.getUsersByUserId(users, r.userID);
       return owner?.country == targetCountry;
     }).toList();
+    final targetRestauIds = cr.map((r) => r.restaurantID).toSet();
+    final targetCommandes =
+        commandes.where((c) => targetRestauIds.contains(c.restauID)).toList();
+    final confirmedCount = targetCommandes.where((c) => CommandeStatus.isConfirmed(c.status)).length;
 
     int _s(String key, int fallback) =>
         stats != null ? (stats[key] as num?)?.toInt() ?? fallback : fallback;
-    double _sd(String key, double fallback) =>
-        stats != null ? (stats[key] as num?)?.toDouble() ?? fallback : fallback;
 
     _totalUsers = _s('totalUsers', cu.length);
     _totalLivreurs = cu.where((u) => u.roleID == 5).length;
     _totalRestaurants = _s('totalRestaurants', cr.length);
-    _totalOrders = _s('totalOrders', commandes.length);
-    _totalRevenue = _sd('totalRevenue', 0);
-    _pendingOrders = _s('pendingCount',
-        commandes.where((c) => CommandeStatus.isPending(c.status)).length);
-    _confirmedOrders = _s('confirmedCount',
-        commandes.where((c) => CommandeStatus.isConfirmed(c.status)).length);
-    _cancelledOrders = _s('cancelledCount',
-        commandes.where((c) => CommandeStatus.isCancelled(c.status)).length);
+    _totalOrders = _s('totalOrders', confirmedCount);
+    _totalRevenue = stats != null
+        ? (stats['totalRevenue'] as num?)?.toDouble() ?? _computeRevenueLocal(targetCommandes)
+        : _computeRevenueLocal(targetCommandes);
+    _pendingOrders = targetCommandes.where((c) => CommandeStatus.isPending(c.status)).length;
+    _confirmedOrders = confirmedCount;
+    _cancelledOrders = targetCommandes.where((c) => CommandeStatus.isCancelled(c.status)).length;
     _newUsersMonth = (stats != null
             ? (stats['newUsersThisMonth'] as num?)?.toInt()
             : null) ??
@@ -160,6 +161,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
     }).toList();
     _pendingRestaurantCount = _pendingRestaurants.length;
     _statsLoading = false;
+  }
+
+  double _computeRevenueLocal(List<Commande> commandes) {
+    final confirmed = commandes.where((c) => CommandeStatus.isConfirmed(c.status));
+    double total = 0;
+    for (final c in confirmed) {
+      total += c.totalAmount > 0 ? c.totalAmount : c.fraisLivraison;
+    }
+    return total;
   }
 
   Future<void> _loadUserRole() async {
@@ -643,15 +653,215 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
+  List<Widget> _buildManagementNavSlivers() {
+    final l10n = AppLocalizations.of(context)!;
+    return [
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg, AppSpacing.xl, AppSpacing.lg, 0),
+          child: Row(children: [
+            Container(
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                color: AppColors.resolve(
+                    AppColors.brandSurface, AppDarkColors.brandSurface),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Icon(Icons.grid_view_rounded,
+                  color: AppColors.brand, size: 14),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Text(l10n.admin_management,
+                style: AppTypography.titleMedium(
+                    color: AppColors.resolve(
+                        AppColors.ink, AppDarkColors.ink))),
+          ]),
+        ),
+      ),
+      const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
+          child: _NavCardResponsive(
+            icon: Icons.people_rounded,
+            label: l10n.users,
+            count: '$_totalUsers',
+            sublabel: _newUsersMonth > 0 ? '+$_newUsersMonth ce mois' : null,
+            color: Colors.blue,
+            onTap: () {
+              if (_userRole == AppRole.superAdmin) {
+                Navigator.push(context,
+                    CupertinoPageRoute(
+                        builder: (_) =>
+                            const CountryPage(sectionType: 'utilisateurs')));
+              } else {
+                Navigator.push(context,
+                    MaterialPageRoute(
+                        builder: (_) => UsersListPage(
+                            country: _userCountry, roleFilter: const [2, 3])));
+              }
+            },
+          ),
+        ),
+      ),
+      const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.sm)),
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
+          child: _NavCardResponsive(
+            icon: Icons.storefront_rounded,
+            label: l10n.restaurants,
+            count: '$_totalRestaurants',
+            badge: _pendingRestaurantCount > 0 ? '$_pendingRestaurantCount' : null,
+            color: AppColors.resolve(AppColors.accent, AppDarkColors.accent),
+            onTap: () {
+              if (_userRole == AppRole.superAdmin) {
+                Navigator.push(context,
+                    CupertinoPageRoute(
+                        builder: (_) =>
+                            CountryPage(sectionType: 'restaurants')));
+              } else {
+                Navigator.push(context,
+                    MaterialPageRoute(
+                        builder: (_) =>
+                            RestaurantListPage(country: _userCountry)));
+              }
+            },
+          ),
+        ),
+      ),
+      const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.sm)),
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
+          child: _NavCardResponsive(
+            icon: Icons.delivery_dining_rounded,
+            label: l10n.livreurs,
+            count: '$_totalLivreurs',
+            color: AppColors.resolve(AppColors.success, AppDarkColors.success),
+            onTap: () {
+              if (_userRole == AppRole.superAdmin) {
+                Navigator.push(context,
+                    CupertinoPageRoute(
+                        builder: (_) =>
+                            const CountryPage(sectionType: 'livreurs')));
+              } else {
+                Navigator.push(context,
+                    CupertinoPageRoute(
+                        builder: (_) => const LivreurListPage()));
+              }
+            },
+          ),
+        ),
+      ),
+      const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.sm)),
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
+          child: _NavCardResponsive(
+            icon: Icons.label_outline_rounded,
+            label: l10n.admin_categories,
+            count: '—',
+            color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(
+                    builder: (_) => const CategoryManagementPage())),
+          ),
+        ),
+      ),
+      const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.sm)),
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
+          child: _NavCardResponsive(
+            icon: Icons.discount_rounded,
+            label: l10n.admin_promotions,
+            count: '—',
+            color: AppColors.resolve(AppColors.accent, AppDarkColors.accent),
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(
+                    builder: (_) => const PromotionsPage())),
+          ),
+        ),
+      ),
+      const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.sm)),
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
+          child: _NavCardResponsive(
+            icon: Icons.people_alt_rounded,
+            label: l10n.admin_referral,
+            count: '—',
+            color: Colors.teal,
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(
+                    builder: (_) => const ParrainagePage())),
+          ),
+        ),
+      ),
+      const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.sm)),
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
+          child: _NavCardResponsive(
+            icon: Icons.history_rounded,
+            label: l10n.auditLog,
+            count: '—',
+            color: AppColors.resolve(
+                AppColors.inkMuted, AppDarkColors.inkMuted),
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(
+                    builder: (_) =>
+                        AuditLogPage(country: _userCountry))),
+          ),
+        ),
+      ),
+      const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.sm)),
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
+          child: _NavCardResponsive(
+            icon: Icons.delete_sweep_rounded,
+            label: l10n.admin_scheduled_deletions,
+            count: '—',
+            color: AppColors.resolve(AppColors.error, AppDarkColors.error),
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(
+                    builder: (_) =>
+                        ScheduledDeletionsPage(country: _userCountry))),
+          ),
+        ),
+      ),
+      if (_userRole == AppRole.superAdmin) ...[
+        const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.sm)),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
+            child: _NavCardResponsive(
+              icon: Icons.admin_panel_settings_rounded,
+              label: l10n.administrators,
+              count: '—',
+              color: AppColors.resolve(AppColors.error, AppDarkColors.error),
+              onTap: () => Navigator.push(context,
+                  CupertinoPageRoute(
+                      builder: (_) =>
+                          CountryPage(sectionType: 'administrateurs'))),
+              onAdd: () => _showAddUser(roleID: 1),
+            ),
+          ),
+        ),
+      ],
+    ];
+  }
+
   // ═══════════════════════════════════════════════════════════
   // BUILD
   // ═══════════════════════════════════════════════════════════
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-    final isSmallScreen = width < 400;
-    final isMediumScreen = width >= 400 && width < 800;
-    final isLargeScreen = width >= 800;
+    final l10n = AppLocalizations.of(context)!;
 
     return WillPopScope(
       onWillPop: () async => false,
@@ -732,22 +942,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   ),
 
                   // ── Navigation gestion ───────────────────
-                  SliverToBoxAdapter(
-                    child: _ManagementNav(
-                      userRole: _userRole,
-                      userCountry: _userCountry,
-                      totalUsers: _totalUsers,
-                      totalRestaurants: _totalRestaurants,
-                      totalLivreurs: _totalLivreurs,
-                      newUsersMonth: _newUsersMonth,
-                      pendingCount: _pendingRestaurantCount,
-                      onAddUser: () => _showAddUser(roleID: 2),
-                      onAddAdmin: () => _showAddUser(roleID: 1),
-                      isSmallScreen: isSmallScreen,
-                      isMediumScreen: isMediumScreen,
-                      isLargeScreen: isLargeScreen,
-                    ),
-                  ),
+                  ..._buildManagementNavSlivers(),
                 ],
 
                 const SliverToBoxAdapter(child: SizedBox(height: 100)),
@@ -956,54 +1151,57 @@ class _HeroAppBar extends StatelessWidget {
 
                       // Sélecteur de pays (super admin) ou badge pays
                       if (userRole == AppRole.superAdmin)
-                        Wrap(
-                          spacing: AppSpacing.sm,
-                          runSpacing: AppSpacing.sm,
-                          children:
-                              ['France', 'Bénin', "Côte d'Ivoire"].map((c) {
-                            final active = userCountry == c;
-                            final flag = c == 'France'
-                                ? '🇫🇷'
-                                : c == 'Bénin'
-                                    ? '🇧🇯'
-                                    : '🇨🇮';
-                            return GestureDetector(
-                              onTap: () => onCountryChanged(c),
-                              child: AnimatedContainer(
-                                duration: AppMotion.fast,
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: active
-                                      ? Colors.white
-                                      : Colors.white.withValues(alpha: 0.16),
-                                  borderRadius: BorderRadius.circular(999),
-                                  border: Border.all(
-                                    color: active
-                                        ? Colors.white
-                                        : Colors.white.withValues(alpha: 0.25),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: ['France', 'Bénin', "Côte d'Ivoire"].map((c) {
+                              final active = userCountry == c;
+                              final flag = c == 'France'
+                                  ? '🇫🇷'
+                                  : c == 'Bénin'
+                                      ? '🇧🇯'
+                                      : '🇨🇮';
+                              return Padding(
+                                padding: EdgeInsets.only(right: AppSpacing.sm),
+                                child: GestureDetector(
+                                  onTap: () => onCountryChanged(c),
+                                  child: AnimatedContainer(
+                                    duration: AppMotion.fast,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: active
+                                          ? Colors.white
+                                          : Colors.white.withValues(alpha: 0.16),
+                                      borderRadius: BorderRadius.circular(999),
+                                      border: Border.all(
+                                        color: active
+                                            ? Colors.white
+                                            : Colors.white.withValues(alpha: 0.25),
+                                      ),
+                                    ),
+                                    child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(flag,
+                                              style: const TextStyle(fontSize: 14)),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            c,
+                                            style: GoogleFonts.plusJakartaSans(
+                                              fontSize: isSmallScreen ? 11 : 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: active
+                                                  ? AppColors.ink
+                                                  : Colors.white,
+                                            ),
+                                          ),
+                                        ]),
                                   ),
                                 ),
-                                child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(flag,
-                                          style: const TextStyle(fontSize: 14)),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        c,
-                                        style: GoogleFonts.plusJakartaSans(
-                                          fontSize: isSmallScreen ? 11 : 12,
-                                          fontWeight: FontWeight.w600,
-                                          color: active
-                                              ? AppColors.ink
-                                              : Colors.white,
-                                        ),
-                                      ),
-                                    ]),
-                              ),
-                            );
-                          }).toList(),
+                              );
+                            }).toList(),
+                          ),
                         )
                       else
                         Container(
@@ -1343,419 +1541,7 @@ class _KpiTile extends StatelessWidget {
   }
 }
 
-// ═══════════════════════════════════════════════════════════
-// _ManagementNav — Sections de navigation gestion (responsif)
-// ═══════════════════════════════════════════════════════════
-class _ManagementNav extends StatelessWidget {
-  const _ManagementNav({
-    required this.userRole,
-    required this.userCountry,
-    required this.totalUsers,
-    required this.totalRestaurants,
-    required this.totalLivreurs,
-    required this.newUsersMonth,
-    required this.pendingCount,
-    required this.onAddUser,
-    required this.onAddAdmin,
-    this.isSmallScreen = false,
-    this.isMediumScreen = false,
-    this.isLargeScreen = false,
-  });
 
-  final AppRole userRole;
-  final String userCountry;
-  final int totalUsers,
-      totalRestaurants,
-      totalLivreurs,
-      newUsersMonth,
-      pendingCount;
-  final VoidCallback onAddUser, onAddAdmin;
-  final bool isSmallScreen, isMediumScreen, isLargeScreen;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-
-    // Pour les petits écrans, on utilise une liste verticale
-    if (isSmallScreen) {
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg, AppSpacing.xl, AppSpacing.lg, 0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(children: [
-              Container(
-                width: 24,
-                height: 24,
-                decoration: BoxDecoration(
-                  color: AppColors.resolve(
-                      AppColors.brandSurface, AppDarkColors.brandSurface),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Icon(Icons.grid_view_rounded,
-                    color: AppColors.brand, size: 14),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Text(l10n.admin_management,
-                  style: AppTypography.titleMedium(
-                      color:
-                          AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
-            ]),
-            const SizedBox(height: AppSpacing.md),
-
-            // Utilisateurs
-            _NavCardResponsive(
-              icon: Icons.people_rounded,
-              label: l10n.users,
-              count: '$totalUsers',
-              sublabel: newUsersMonth > 0 ? '+$newUsersMonth ce mois' : null,
-              color: Colors.blue,
-              onTap: () {
-                if (userRole == AppRole.superAdmin) {
-                  Navigator.push(
-                      context,
-                      CupertinoPageRoute(
-                          builder: (_) =>
-                              const CountryPage(sectionType: 'utilisateurs')));
-                } else {
-                  Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => UsersListPage(
-                              country: userCountry, roleFilter: const [2, 3])));
-                }
-              },
-            ),
-
-            const SizedBox(height: AppSpacing.sm),
-
-            // Restaurants
-            _NavCardResponsive(
-              icon: Icons.storefront_rounded,
-              label: l10n.restaurants,
-              count: '$totalRestaurants',
-              badge: pendingCount > 0 ? '$pendingCount' : null,
-              color: AppColors.resolve(AppColors.accent, AppDarkColors.accent),
-              onTap: () {
-                if (userRole == AppRole.superAdmin) {
-                  Navigator.push(
-                      context,
-                      CupertinoPageRoute(
-                          builder: (_) =>
-                              CountryPage(sectionType: 'restaurants')));
-                } else {
-                  Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              RestaurantListPage(country: userCountry)));
-                }
-              },
-            ),
-
-            const SizedBox(height: AppSpacing.sm),
-
-            // Livreurs
-            _NavCardResponsive(
-              icon: Icons.delivery_dining_rounded,
-              label: l10n.livreurs,
-              count: '$totalLivreurs',
-              color:
-                  AppColors.resolve(AppColors.success, AppDarkColors.success),
-              onTap: () {
-                if (userRole == AppRole.superAdmin) {
-                  Navigator.push(
-                      context,
-                      CupertinoPageRoute(
-                          builder: (_) =>
-                              const CountryPage(sectionType: 'livreurs')));
-                } else {
-                  Navigator.push(
-                      context,
-                      CupertinoPageRoute(
-                          builder: (_) => const LivreurListPage()));
-                }
-              },
-            ),
-
-            const SizedBox(height: AppSpacing.sm),
-
-            // Catégories
-            _NavCardResponsive(
-              icon: Icons.label_outline_rounded,
-              label: l10n.admin_categories,
-              count: '—',
-              color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
-              onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const CategoryManagementPage())),
-            ),
-
-            const SizedBox(height: AppSpacing.sm),
-
-            // Promotions
-            _NavCardResponsive(
-              icon: Icons.discount_rounded,
-              label: l10n.admin_promotions,
-              count: '—',
-              color: AppColors.resolve(AppColors.accent, AppDarkColors.accent),
-              onTap: () => Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const PromotionsPage())),
-            ),
-
-            const SizedBox(height: AppSpacing.sm),
-
-            // Parrainage
-            _NavCardResponsive(
-              icon: Icons.people_alt_rounded,
-              label: l10n.admin_referral,
-              count: '—',
-              color: Colors.teal,
-              onTap: () => Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const ParrainagePage())),
-            ),
-
-            const SizedBox(height: AppSpacing.sm),
-
-            // Audit Log
-            _NavCardResponsive(
-              icon: Icons.history_rounded,
-              label: l10n.auditLog,
-              count: '—',
-              color:
-                  AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted),
-              onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => AuditLogPage(country: userCountry))),
-            ),
-
-            const SizedBox(height: AppSpacing.sm),
-
-            // Suppressions programmées
-            _NavCardResponsive(
-              icon: Icons.delete_sweep_rounded,
-              label: l10n.admin_scheduled_deletions,
-              count: '—',
-              color: AppColors.resolve(AppColors.error, AppDarkColors.error),
-              onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) =>
-                          ScheduledDeletionsPage(country: userCountry))),
-            ),
-
-            if (userRole == AppRole.superAdmin) ...[
-              const SizedBox(height: AppSpacing.sm),
-              _NavCardResponsive(
-                icon: Icons.admin_panel_settings_rounded,
-                label: l10n.administrators,
-                count: '—',
-                color: AppColors.resolve(AppColors.error, AppDarkColors.error),
-                onTap: () => Navigator.push(
-                    context,
-                    CupertinoPageRoute(
-                        builder: (_) =>
-                            CountryPage(sectionType: 'administrateurs'))),
-                onAdd: onAddAdmin,
-              ),
-            ],
-          ],
-        ),
-      );
-    }
-
-    // Pour les écrans moyens et grands, on utilise une grille
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-          AppSpacing.lg, AppSpacing.xl, AppSpacing.lg, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: [
-            Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                color: AppColors.resolve(
-                    AppColors.brandSurface, AppDarkColors.brandSurface),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: const Icon(Icons.grid_view_rounded,
-                  color: AppColors.brand, size: 14),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Text(l10n.admin_management,
-                style: AppTypography.titleMedium(
-                    color:
-                        AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
-          ]),
-          const SizedBox(height: AppSpacing.md),
-
-          // Grille 2 colonnes
-          GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: isMediumScreen ? 2 : 3,
-            mainAxisSpacing: AppSpacing.sm,
-            crossAxisSpacing: AppSpacing.sm,
-            childAspectRatio: 4,
-            children: [
-              // Utilisateurs
-              _NavCardGrid(
-                icon: Icons.people_rounded,
-                label: l10n.users,
-                count: '$totalUsers',
-                sublabel: newUsersMonth > 0 ? '+$newUsersMonth ce mois' : null,
-                color: Colors.blue,
-                onTap: () {
-                  if (userRole == AppRole.superAdmin) {
-                    Navigator.push(
-                        context,
-                        CupertinoPageRoute(
-                            builder: (_) => const CountryPage(
-                                sectionType: 'utilisateurs')));
-                  } else {
-                    Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => UsersListPage(
-                                country: userCountry,
-                                roleFilter: const [2, 3])));
-                  }
-                },
-              ),
-
-              // Restaurants
-              _NavCardGrid(
-                icon: Icons.storefront_rounded,
-                label: l10n.restaurants,
-                count: '$totalRestaurants',
-                badge: pendingCount > 0 ? '$pendingCount' : null,
-                color:
-                    AppColors.resolve(AppColors.accent, AppDarkColors.accent),
-                onTap: () {
-                  if (userRole == AppRole.superAdmin) {
-                    Navigator.push(
-                        context,
-                        CupertinoPageRoute(
-                            builder: (_) =>
-                                CountryPage(sectionType: 'restaurants')));
-                  } else {
-                    Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) =>
-                                RestaurantListPage(country: userCountry)));
-                  }
-                },
-              ),
-
-              // Livreurs
-              _NavCardGrid(
-                icon: Icons.delivery_dining_rounded,
-                label: l10n.livreurs,
-                count: '$totalLivreurs',
-                color:
-                    AppColors.resolve(AppColors.success, AppDarkColors.success),
-                onTap: () {
-                  if (userRole == AppRole.superAdmin) {
-                    Navigator.push(
-                        context,
-                        CupertinoPageRoute(
-                            builder: (_) =>
-                                const CountryPage(sectionType: 'livreurs')));
-                  } else {
-                    Navigator.push(
-                        context,
-                        CupertinoPageRoute(
-                            builder: (_) => const LivreurListPage()));
-                  }
-                },
-              ),
-
-              // Catégories
-              _NavCardGrid(
-                icon: Icons.label_outline_rounded,
-                label: l10n.admin_categories,
-                count: '—',
-                color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
-                onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const CategoryManagementPage())),
-              ),
-
-              // Promotions
-              _NavCardGrid(
-                icon: Icons.discount_rounded,
-                label: l10n.admin_promotions,
-                count: '—',
-                color:
-                    AppColors.resolve(AppColors.accent, AppDarkColors.accent),
-                onTap: () => Navigator.push(context,
-                    MaterialPageRoute(builder: (_) => const PromotionsPage())),
-              ),
-
-              // Parrainage
-              _NavCardGrid(
-                icon: Icons.people_alt_rounded,
-                label: l10n.admin_referral,
-                count: '—',
-                color: Colors.teal,
-                onTap: () => Navigator.push(context,
-                    MaterialPageRoute(builder: (_) => const ParrainagePage())),
-              ),
-
-              // Audit Log
-              _NavCardGrid(
-                icon: Icons.history_rounded,
-                label: l10n.auditLog,
-                count: '—',
-                color: AppColors.resolve(
-                    AppColors.inkMuted, AppDarkColors.inkMuted),
-                onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => AuditLogPage(country: userCountry))),
-              ),
-
-              // Suppressions programmées
-              _NavCardGrid(
-                icon: Icons.delete_sweep_rounded,
-                label: l10n.admin_scheduled_deletions,
-                count: '—',
-                color: AppColors.resolve(AppColors.error, AppDarkColors.error),
-                onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) =>
-                            ScheduledDeletionsPage(country: userCountry))),
-              ),
-
-              if (userRole == AppRole.superAdmin)
-                _NavCardGrid(
-                  icon: Icons.admin_panel_settings_rounded,
-                  label: l10n.administrators,
-                  count: '—',
-                  color:
-                      AppColors.resolve(AppColors.error, AppDarkColors.error),
-                  onTap: () => Navigator.push(
-                      context,
-                      CupertinoPageRoute(
-                          builder: (_) =>
-                              CountryPage(sectionType: 'administrateurs'))),
-                  onAdd: onAddAdmin,
-                ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 // Version responsive du NavCard pour petits écrans
 class _NavCardResponsive extends StatelessWidget {
@@ -1886,127 +1672,6 @@ class _NavCardResponsive extends StatelessWidget {
   }
 }
 
-// Version grille pour écrans moyens et grands
-class _NavCardGrid extends StatelessWidget {
-  const _NavCardGrid({
-    required this.icon,
-    required this.label,
-    required this.count,
-    required this.color,
-    required this.onTap,
-    this.sublabel,
-    this.badge,
-    this.onAdd,
-  });
-
-  final IconData icon;
-  final String label, count;
-  final Color color;
-  final VoidCallback onTap;
-  final String? sublabel, badge;
-  final VoidCallback? onAdd;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(
-          color: AppColors.resolve(AppColors.card, AppDarkColors.card),
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(
-              color: AppColors.resolve(AppColors.border, AppDarkColors.border),
-              width: 0.5),
-          boxShadow: [AppShadows.subtle],
-        ),
-        child: Row(children: [
-          // Icône
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(AppRadius.md),
-            ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          // Label + sous-label
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label,
-                    style: AppTypography.labelLarge(
-                        color: AppColors.resolve(
-                            AppColors.ink, AppDarkColors.ink))),
-                if (sublabel != null)
-                  Text(sublabel!,
-                      style: AppTypography.bodyMedium(
-                              color: AppColors.resolve(
-                                  AppColors.inkMuted, AppDarkColors.inkMuted))
-                          .copyWith(fontSize: 10)),
-              ],
-            ),
-          ),
-          // Badge en attente
-          if (badge != null) ...[
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: AppColors.resolve(
-                    AppColors.errorLight, AppDarkColors.errorLight),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Text(badge!,
-                  style: AppTypography.labelMedium(
-                          color: AppColors.resolve(
-                              AppColors.error, AppDarkColors.error))
-                      .copyWith(fontSize: 11, fontWeight: FontWeight.w800)),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-          ],
-          // Compteur
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(count,
-                style: AppTypography.labelMedium(color: color)
-                    .copyWith(fontSize: 12, fontWeight: FontWeight.w800)),
-          ),
-          if (onAdd != null) ...[
-            const SizedBox(width: AppSpacing.sm),
-            GestureDetector(
-              onTap: onAdd,
-              child: Container(
-                width: 30,
-                height: 30,
-                decoration: BoxDecoration(
-                  color: AppColors.resolve(
-                      AppColors.successLight, AppDarkColors.successLight),
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                ),
-                child: Icon(Icons.add_rounded,
-                    color: AppColors.resolve(
-                        AppColors.success, AppDarkColors.success),
-                    size: 16),
-              ),
-            ),
-          ],
-          const SizedBox(width: AppSpacing.sm),
-          Icon(Icons.chevron_right_rounded,
-              color: AppColors.resolve(
-                  AppColors.inkSubtle, AppDarkColors.inkSubtle),
-              size: 16),
-        ]),
-      ),
-    );
-  }
-}
 
 // ═══════════════════════════════════════════════════════════
 // _ValidationAlert — Bannière d'alerte en attente
@@ -2403,128 +2068,6 @@ class _ActionCard extends StatelessWidget {
                       color: AppColors.resolve(
                           AppColors.inkSubtle, AppDarkColors.inkSubtle))
                   .copyWith(fontSize: 12)),
-        ]),
-      ),
-    );
-  }
-}
-
-class _NavCard extends StatelessWidget {
-  const _NavCard({
-    required this.icon,
-    required this.label,
-    required this.count,
-    required this.color,
-    required this.onTap,
-    this.sublabel,
-    this.badge,
-    this.onAdd,
-  });
-
-  final IconData icon;
-  final String label, count;
-  final Color color;
-  final VoidCallback onTap;
-  final String? sublabel, badge;
-  final VoidCallback? onAdd;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(
-          color: AppColors.resolve(AppColors.card, AppDarkColors.card),
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(
-              color: AppColors.resolve(AppColors.border, AppDarkColors.border),
-              width: 0.5),
-          boxShadow: [AppShadows.subtle],
-        ),
-        child: Row(children: [
-          // Icône
-          Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(AppRadius.md),
-            ),
-            child: Icon(icon, color: color, size: 22),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          // Label + sous-label
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label,
-                    style: AppTypography.labelLarge(
-                        color: AppColors.resolve(
-                            AppColors.ink, AppDarkColors.ink))),
-                if (sublabel != null)
-                  Text(sublabel!,
-                      style: AppTypography.bodyMedium(
-                              color: AppColors.resolve(
-                                  AppColors.inkMuted, AppDarkColors.inkMuted))
-                          .copyWith(fontSize: 11)),
-              ],
-            ),
-          ),
-          // Badge en attente
-          if (badge != null) ...[
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: AppColors.resolve(
-                    AppColors.errorLight, AppDarkColors.errorLight),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Text(badge!,
-                  style: AppTypography.labelMedium(
-                          color: AppColors.resolve(
-                              AppColors.error, AppDarkColors.error))
-                      .copyWith(fontSize: 11, fontWeight: FontWeight.w800)),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-          ],
-          // Compteur
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(count,
-                style: AppTypography.labelMedium(color: color)
-                    .copyWith(fontSize: 13, fontWeight: FontWeight.w800)),
-          ),
-          // Bouton ajouter
-          if (onAdd != null) ...[
-            const SizedBox(width: AppSpacing.sm),
-            GestureDetector(
-              onTap: onAdd,
-              child: Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: AppColors.resolve(
-                      AppColors.successLight, AppDarkColors.successLight),
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                ),
-                child: Icon(Icons.add_rounded,
-                    color: AppColors.resolve(
-                        AppColors.success, AppDarkColors.success),
-                    size: 18),
-              ),
-            ),
-          ],
-          const SizedBox(width: AppSpacing.sm),
-          Icon(Icons.chevron_right_rounded,
-              color: AppColors.resolve(
-                  AppColors.inkSubtle, AppDarkColors.inkSubtle),
-              size: 18),
         ]),
       ),
     );

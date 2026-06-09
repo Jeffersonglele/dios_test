@@ -7,6 +7,7 @@ class CommandeStatus {
   static const paid = 'Payée';
   static const confirmed = 'Confirmée';
   static const cancelled = 'Annulée';
+  static const delivered = 'Livrée';
 
   static String normalize(String? status) {
     final value = (status ?? '').trim();

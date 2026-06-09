@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:dios_delices/l10n/app_localizations.dart';
 import 'package:dios_delices/screens/CustomSearchDelegate.dart';
 import 'package:dios_delices/theme/app_theme.dart';
 
@@ -49,7 +50,7 @@ class _SearchInputState extends State<SearchInput> {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'Rechercher des plats, des restaurateurs,...',
+                  AppLocalizations.of(context)!.search_input_hint,
                   style: AppTypography.bodyLarge(color: AppColors.inkSubtle),
                 ),
               ),
