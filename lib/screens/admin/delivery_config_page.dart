@@ -17,9 +17,11 @@ class _DeliveryConfigPageState extends State<DeliveryConfigPage> {
 
   final _baseFeeCtrl = TextEditingController();
   final _perKmCtrl = TextEditingController();
+  final _commissionRateCtrl = TextEditingController();
 
   int _currentBaseFee = 1500;
   int _currentPerKm = 300;
+  int _currentCommissionRate = 15;
   String _currency = 'CDF';
 
   @override
@@ -32,6 +34,7 @@ class _DeliveryConfigPageState extends State<DeliveryConfigPage> {
   void dispose() {
     _baseFeeCtrl.dispose();
     _perKmCtrl.dispose();
+    _commissionRateCtrl.dispose();
     super.dispose();
   }
 
@@ -45,11 +48,14 @@ class _DeliveryConfigPageState extends State<DeliveryConfigPage> {
         if (data['success'] == true && mounted) {
           final baseFee = (data['baseFee'] as num?)?.toInt() ?? 1500;
           final perKmRate = (data['perKmRate'] as num?)?.toInt() ?? 300;
+          final commissionRate = (data['commissionRate'] as num?)?.toInt() ?? 15;
           _currentBaseFee = baseFee;
           _currentPerKm = perKmRate;
+          _currentCommissionRate = commissionRate;
           _currency = data['currency'] as String? ?? 'CDF';
           _baseFeeCtrl.text = baseFee.toString();
           _perKmCtrl.text = perKmRate.toString();
+          _commissionRateCtrl.text = commissionRate.toString();
         }
       }
     } catch (_) {}
@@ -60,8 +66,9 @@ class _DeliveryConfigPageState extends State<DeliveryConfigPage> {
     final l10n = AppLocalizations.of(context)!;
     final baseFee = int.tryParse(_baseFeeCtrl.text);
     final perKm = int.tryParse(_perKmCtrl.text);
+    final commissionRate = int.tryParse(_commissionRateCtrl.text);
 
-    if (baseFee == null || baseFee < 0 || perKm == null || perKm < 0) {
+    if (baseFee == null || baseFee < 0 || perKm == null || perKm < 0 || commissionRate == null || commissionRate < 0 || commissionRate > 100) {
       Toast(context, l10n.delivery_config_error, false);
       return;
     }
@@ -72,6 +79,7 @@ class _DeliveryConfigPageState extends State<DeliveryConfigPage> {
       final response = await fn.execute(parameters: {
         'baseFee': baseFee,
         'perKmRate': perKm,
+        'commissionRate': commissionRate,
       });
       if (response.success && mounted) {
         Toast(context, l10n.delivery_config_saved, true);
@@ -153,6 +161,12 @@ class _DeliveryConfigPageState extends State<DeliveryConfigPage> {
             icon: Icons.straighten_outlined,
             label: l10n.delivery_config_currency,
             value: _currency,
+          ),
+          const SizedBox(height: 12),
+          _configRow(
+            icon: Icons.percent_outlined,
+            label: l10n.delivery_config_commission_rate,
+            value: '$_currentCommissionRate %',
           ),
           const SizedBox(height: 16),
           Container(
@@ -236,6 +250,17 @@ class _DeliveryConfigPageState extends State<DeliveryConfigPage> {
               labelText: l10n.delivery_config_per_km,
               border: const OutlineInputBorder(),
               isDense: true,
+            ),
+            keyboardType: TextInputType.number,
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _commissionRateCtrl,
+            decoration: InputDecoration(
+              labelText: l10n.delivery_config_commission_rate,
+              border: const OutlineInputBorder(),
+              isDense: true,
+              suffixText: '%',
             ),
             keyboardType: TextInputType.number,
           ),

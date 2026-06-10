@@ -3096,6 +3096,15 @@ class AppLocalizationsFr extends AppLocalizations {
   String get delivery_config_total_fee => 'Frais estimés';
 
   @override
+  String get delivery_config_commission_rate => 'Commission plateforme (%)';
+
+  @override
+  String get delivery_config_commission_label => 'Commission plateforme';
+
+  @override
+  String get delivery_config_commission_formula => 'Sous-total × @pct%';
+
+  @override
   String get cart_address_out_of_zone => 'Zone non couverte pour l\'instant';
 
   @override
@@ -3105,4 +3114,41 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get cart_address_zone_checking =>
       'Vérification de la zone de livraison...';
+
+  @override
+  String get restaurant_form_payment_method => 'Moyen de versement';
+
+  @override
+  String get restaurant_form_payment_mobile_money => 'Mobile Money';
+
+  @override
+  String get restaurant_form_payment_bank => 'Virement bancaire';
+
+  @override
+  String get restaurant_form_payment_phone => 'Téléphone Mobile Money';
+
+  @override
+  String get restaurant_form_payment_phone_required =>
+      'Numéro de téléphone requis pour les versements';
+
+  @override
+  String get restaurant_form_payment_iban => 'IBAN';
+
+  @override
+  String get restaurant_form_payment_iban_required =>
+      'IBAN requis pour le virement';
+
+  @override
+  String get restaurant_form_payment_bank_name => 'Nom de la banque';
+
+  @override
+  String get restaurant_form_payment_bank_name_required =>
+      'Nom de la banque requis';
+
+  @override
+  String get restaurant_form_payment_account_holder => 'Titulaire du compte';
+
+  @override
+  String get restaurant_form_payment_account_holder_required =>
+      'Nom du titulaire requis';
 }

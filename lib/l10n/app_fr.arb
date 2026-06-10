@@ -1103,7 +1103,21 @@
   "delivery_config_admin_nav": "Frais de livraison",
   "delivery_config_distance": "Distance estimée",
   "delivery_config_total_fee": "Frais estimés",
+  "delivery_config_commission_rate": "Commission plateforme (%)",
+  "delivery_config_commission_label": "Commission plateforme",
+  "delivery_config_commission_formula": "Sous-total × @pct%",
   "cart_address_out_of_zone": "Zone non couverte pour l'instant",
   "cart_address_out_of_zone_detail": "Cette adresse se trouve en dehors de notre zone de livraison. Nous livrons uniquement dans les zones de livraison actives.",
-  "cart_address_zone_checking": "Vérification de la zone de livraison..."
+  "cart_address_zone_checking": "Vérification de la zone de livraison...",
+  "restaurant_form_payment_method": "Moyen de versement",
+  "restaurant_form_payment_mobile_money": "Mobile Money",
+  "restaurant_form_payment_bank": "Virement bancaire",
+  "restaurant_form_payment_phone": "Téléphone Mobile Money",
+  "restaurant_form_payment_phone_required": "Numéro de téléphone requis pour les versements",
+  "restaurant_form_payment_iban": "IBAN",
+  "restaurant_form_payment_iban_required": "IBAN requis pour le virement",
+  "restaurant_form_payment_bank_name": "Nom de la banque",
+  "restaurant_form_payment_bank_name_required": "Nom de la banque requis",
+  "restaurant_form_payment_account_holder": "Titulaire du compte",
+  "restaurant_form_payment_account_holder_required": "Nom du titulaire requis"
 }

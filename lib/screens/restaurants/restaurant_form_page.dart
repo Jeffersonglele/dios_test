@@ -34,6 +34,10 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _ibanController = TextEditingController();
+  final TextEditingController _bankNameController = TextEditingController();
+  final TextEditingController _accountHolderController = TextEditingController();
 
   File? _imageFile;
   List<String> _selectedHashtags = [];
@@ -41,6 +45,7 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
   TimeOfDay _openingTime = const TimeOfDay(hour: 9, minute: 0);
   TimeOfDay _closingTime = const TimeOfDay(hour: 20, minute: 0);
   String _recoveryMode = 'delivery';
+  String _paymentMethod = 'mobile_money';
   bool _isDetecting = false;
   bool _isSaving = false;
   bool _removeExistingImage = false;
@@ -99,6 +104,10 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
     _nameController.dispose();
     _addressController.dispose();
     _descriptionController.dispose();
+    _phoneController.dispose();
+    _ibanController.dispose();
+    _bankNameController.dispose();
+    _accountHolderController.dispose();
     super.dispose();
   }
 
@@ -255,6 +264,9 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
                   SizedBox(height: size.height * 0.015),
 
                   _buildDeliveryModeSection(),
+                  SizedBox(height: size.height * 0.02),
+
+                  _buildPaymentSection(),
                   SizedBox(height: size.height * 0.02),
 
                   _buildImageSection(),
@@ -601,6 +613,11 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
             image: parseFile,
             img_url: widget.isEditing && !_removeExistingImage ? widget.restaurant?.image : null,
             date_creation: widget.isEditing ? widget.restaurant?.date_creation : null,
+            paymentMethod: _paymentMethod,
+            mobileMoneyPhone: _paymentMethod == 'mobile_money' ? _phoneController.text.trim() : '',
+            iban: _paymentMethod == 'bank_transfer' ? _ibanController.text.trim() : '',
+            bankName: _paymentMethod == 'bank_transfer' ? _bankNameController.text.trim() : '',
+            accountHolder: _paymentMethod == 'bank_transfer' ? _accountHolderController.text.trim() : '',
           );
 
           if (result == "success") {
@@ -638,6 +655,108 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
                 child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
               )
             : Text(widget.isEditing ? AppLocalizations.of(context)!.save : AppLocalizations.of(context)!.validate),
+      ),
+    );
+  }
+
+  Widget _buildPaymentSection() {
+    final l10n = AppLocalizations.of(context)!;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.account_balance_wallet_outlined, size: 18, color: AppColors.brand),
+              const SizedBox(width: 8),
+              Text(l10n.restaurant_form_payment_method, style: Theme.of(context).textTheme.titleSmall),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8, runSpacing: 8,
+            children: [
+              _ModeChip(
+                value: 'mobile_money',
+                label: l10n.restaurant_form_payment_mobile_money,
+                icon: Icons.phone_android,
+                selected: _paymentMethod == 'mobile_money',
+                multi: false,
+                onTap: () => setState(() => _paymentMethod = 'mobile_money'),
+              ),
+              _ModeChip(
+                value: 'bank_transfer',
+                label: l10n.restaurant_form_payment_bank,
+                icon: Icons.account_balance,
+                selected: _paymentMethod == 'bank_transfer',
+                multi: false,
+                onTap: () => setState(() => _paymentMethod = 'bank_transfer'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (_paymentMethod == 'mobile_money')
+            TextFormField(
+              controller: _phoneController,
+              decoration: InputDecoration(
+                labelText: l10n.restaurant_form_payment_phone,
+                hintText: '+243 99 000 0000',
+                prefixIcon: const Icon(Icons.phone),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              keyboardType: TextInputType.phone,
+              validator: (v) {
+                if (v == null || v.trim().isEmpty) return l10n.restaurant_form_payment_phone_required;
+                return null;
+              },
+            ),
+          if (_paymentMethod == 'bank_transfer') ...[
+            TextFormField(
+              controller: _ibanController,
+              decoration: InputDecoration(
+                labelText: l10n.restaurant_form_payment_iban,
+                hintText: 'CD00 0000 0000 0000 0000 0000 0000',
+                prefixIcon: const Icon(Icons.pin),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              validator: (v) {
+                if (v == null || v.trim().isEmpty) return l10n.restaurant_form_payment_iban_required;
+                return null;
+              },
+            ),
+            const SizedBox(height: 10),
+            TextFormField(
+              controller: _bankNameController,
+              decoration: InputDecoration(
+                labelText: l10n.restaurant_form_payment_bank_name,
+                prefixIcon: const Icon(Icons.business),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              validator: (v) {
+                if (v == null || v.trim().isEmpty) return l10n.restaurant_form_payment_bank_name_required;
+                return null;
+              },
+            ),
+            const SizedBox(height: 10),
+            TextFormField(
+              controller: _accountHolderController,
+              decoration: InputDecoration(
+                labelText: l10n.restaurant_form_payment_account_holder,
+                prefixIcon: const Icon(Icons.person),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              validator: (v) {
+                if (v == null || v.trim().isEmpty) return l10n.restaurant_form_payment_account_holder_required;
+                return null;
+              },
+            ),
+          ],
+        ],
       ),
     );
   }

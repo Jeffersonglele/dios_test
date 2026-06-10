@@ -5781,6 +5781,24 @@ abstract class AppLocalizations {
   /// **'Estimated fee'**
   String get delivery_config_total_fee;
 
+  /// No description provided for @delivery_config_commission_rate.
+  ///
+  /// In en, this message translates to:
+  /// **'Platform commission (%)'**
+  String get delivery_config_commission_rate;
+
+  /// No description provided for @delivery_config_commission_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Platform commission'**
+  String get delivery_config_commission_label;
+
+  /// No description provided for @delivery_config_commission_formula.
+  ///
+  /// In en, this message translates to:
+  /// **'Subtotal × @pct%'**
+  String get delivery_config_commission_formula;
+
   /// No description provided for @cart_address_out_of_zone.
   ///
   /// In en, this message translates to:
@@ -5798,6 +5816,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Checking delivery zone...'**
   String get cart_address_zone_checking;
+
+  /// No description provided for @restaurant_form_payment_method.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment method'**
+  String get restaurant_form_payment_method;
+
+  /// No description provided for @restaurant_form_payment_mobile_money.
+  ///
+  /// In en, this message translates to:
+  /// **'Mobile Money'**
+  String get restaurant_form_payment_mobile_money;
+
+  /// No description provided for @restaurant_form_payment_bank.
+  ///
+  /// In en, this message translates to:
+  /// **'Bank transfer'**
+  String get restaurant_form_payment_bank;
+
+  /// No description provided for @restaurant_form_payment_phone.
+  ///
+  /// In en, this message translates to:
+  /// **'Mobile Money phone'**
+  String get restaurant_form_payment_phone;
+
+  /// No description provided for @restaurant_form_payment_phone_required.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone number required for payouts'**
+  String get restaurant_form_payment_phone_required;
+
+  /// No description provided for @restaurant_form_payment_iban.
+  ///
+  /// In en, this message translates to:
+  /// **'IBAN'**
+  String get restaurant_form_payment_iban;
+
+  /// No description provided for @restaurant_form_payment_iban_required.
+  ///
+  /// In en, this message translates to:
+  /// **'IBAN required for bank transfer'**
+  String get restaurant_form_payment_iban_required;
+
+  /// No description provided for @restaurant_form_payment_bank_name.
+  ///
+  /// In en, this message translates to:
+  /// **'Bank name'**
+  String get restaurant_form_payment_bank_name;
+
+  /// No description provided for @restaurant_form_payment_bank_name_required.
+  ///
+  /// In en, this message translates to:
+  /// **'Bank name required'**
+  String get restaurant_form_payment_bank_name_required;
+
+  /// No description provided for @restaurant_form_payment_account_holder.
+  ///
+  /// In en, this message translates to:
+  /// **'Account holder'**
+  String get restaurant_form_payment_account_holder;
+
+  /// No description provided for @restaurant_form_payment_account_holder_required.
+  ///
+  /// In en, this message translates to:
+  /// **'Account holder name required'**
+  String get restaurant_form_payment_account_holder_required;
 }
 
 class _AppLocalizationsDelegate

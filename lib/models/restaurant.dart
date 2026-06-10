@@ -69,6 +69,12 @@ class Restaurant extends HiveObject {
   String openingHoursByDay;
   String recoveryMode;
   int cityID;
+  String paymentMethod;
+  String mobileMoneyPhone;
+  String iban;
+  String bankName;
+  String accountHolder;
+  String rccm;
 
   Restaurant(
       {required this.restaurantID,
@@ -97,7 +103,13 @@ class Restaurant extends HiveObject {
       this.closedDates = '',
       this.openingHoursByDay = '',
       this.recoveryMode = 'delivery',
-      this.cityID = 1});
+      this.cityID = 1,
+      this.paymentMethod = '',
+      this.mobileMoneyPhone = '',
+      this.iban = '',
+      this.bankName = '',
+      this.accountHolder = '',
+      this.rccm = ''});
 
   Map<String, dynamic> toMap() {
     return {
@@ -128,6 +140,12 @@ class Restaurant extends HiveObject {
       'openingHoursByDay': openingHoursByDay,
       'recoveryMode': recoveryMode,
       'cityID': cityID,
+      'paymentMethod': paymentMethod,
+      'mobileMoneyPhone': mobileMoneyPhone,
+      'iban': iban,
+      'bankName': bankName,
+      'accountHolder': accountHolder,
+      'rccm': rccm,
     };
   }
 
@@ -167,7 +185,13 @@ class Restaurant extends HiveObject {
         closedDates: map['closedDates']?.toString() ?? '',
         openingHoursByDay: map['openingHoursByDay']?.toString() ?? '',
         recoveryMode: map['recoveryMode']?.toString() ?? 'delivery',
-        cityID: int.tryParse(map['cityID']?.toString() ?? '1') ?? 1);
+        cityID: int.tryParse(map['cityID']?.toString() ?? '1') ?? 1,
+        paymentMethod: map['paymentMethod']?.toString() ?? '',
+        mobileMoneyPhone: map['mobileMoneyPhone']?.toString() ?? '',
+        iban: map['iban']?.toString() ?? '',
+        bankName: map['bankName']?.toString() ?? '',
+        accountHolder: map['accountHolder']?.toString() ?? '',
+        rccm: map['rccm']?.toString() ?? '');
   }
 
   Restaurant copy({
@@ -197,6 +221,12 @@ class Restaurant extends HiveObject {
     String? openingHoursByDay,
     String? recoveryMode,
     int? cityID,
+    String? paymentMethod,
+    String? mobileMoneyPhone,
+    String? iban,
+    String? bankName,
+    String? accountHolder,
+    String? rccm,
   }) {
     return Restaurant(
         restaurantID: restaurantID ?? this.restaurantID,
@@ -224,7 +254,13 @@ class Restaurant extends HiveObject {
         closedDates: closedDates ?? this.closedDates,
         openingHoursByDay: openingHoursByDay ?? this.openingHoursByDay,
         recoveryMode: recoveryMode ?? this.recoveryMode,
-        cityID: cityID ?? this.cityID);
+        cityID: cityID ?? this.cityID,
+        paymentMethod: paymentMethod ?? this.paymentMethod,
+        mobileMoneyPhone: mobileMoneyPhone ?? this.mobileMoneyPhone,
+        iban: iban ?? this.iban,
+        bankName: bankName ?? this.bankName,
+        accountHolder: accountHolder ?? this.accountHolder,
+        rccm: rccm ?? this.rccm);
   }
 
   static Future<String> manageRestaurant({
@@ -251,6 +287,12 @@ class Restaurant extends HiveObject {
     String openingDays = 'Lun,Mar,Mer,Jeu,Ven,Sam',
     String recoveryMode = 'delivery',
     int cityID = 1,
+    String paymentMethod = '',
+    String mobileMoneyPhone = '',
+    String iban = '',
+    String bankName = '',
+    String accountHolder = '',
+    String rccm = '',
     double minOrderAmount = 0,
     double deliveryRadius = 10,
     String closedDates = '',
@@ -302,6 +344,12 @@ class Restaurant extends HiveObject {
       'openingDays': openingDays,
       'recoveryMode': recoveryMode,
       'cityID': cityID,
+      'paymentMethod': paymentMethod,
+      'mobileMoneyPhone': mobileMoneyPhone,
+      'iban': iban,
+      'bankName': bankName,
+      'accountHolder': accountHolder,
+      'rccm': rccm,
       'minOrderAmount': minOrderAmount,
       'deliveryRadius': deliveryRadius,
       'closedDates': closedDates,
@@ -344,6 +392,7 @@ class Restaurant extends HiveObject {
             trainingCompleted: trainingCompleted,
             isPro: isPro,
             currency: currency,
+            rccm: rccm,
           );
 
           if (restaurantID == null) {

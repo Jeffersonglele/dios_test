@@ -3070,6 +3070,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get delivery_config_total_fee => 'Estimated fee';
 
   @override
+  String get delivery_config_commission_rate => 'Platform commission (%)';
+
+  @override
+  String get delivery_config_commission_label => 'Platform commission';
+
+  @override
+  String get delivery_config_commission_formula => 'Subtotal × @pct%';
+
+  @override
   String get cart_address_out_of_zone => 'Area not covered yet';
 
   @override
@@ -3078,4 +3087,40 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cart_address_zone_checking => 'Checking delivery zone...';
+
+  @override
+  String get restaurant_form_payment_method => 'Payment method';
+
+  @override
+  String get restaurant_form_payment_mobile_money => 'Mobile Money';
+
+  @override
+  String get restaurant_form_payment_bank => 'Bank transfer';
+
+  @override
+  String get restaurant_form_payment_phone => 'Mobile Money phone';
+
+  @override
+  String get restaurant_form_payment_phone_required =>
+      'Phone number required for payouts';
+
+  @override
+  String get restaurant_form_payment_iban => 'IBAN';
+
+  @override
+  String get restaurant_form_payment_iban_required =>
+      'IBAN required for bank transfer';
+
+  @override
+  String get restaurant_form_payment_bank_name => 'Bank name';
+
+  @override
+  String get restaurant_form_payment_bank_name_required => 'Bank name required';
+
+  @override
+  String get restaurant_form_payment_account_holder => 'Account holder';
+
+  @override
+  String get restaurant_form_payment_account_holder_required =>
+      'Account holder name required';
 }

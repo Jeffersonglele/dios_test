@@ -1100,7 +1100,21 @@
   "delivery_config_admin_nav": "Delivery fees",
   "delivery_config_distance": "Estimated distance",
   "delivery_config_total_fee": "Estimated fee",
+  "delivery_config_commission_rate": "Platform commission (%)",
+  "delivery_config_commission_label": "Platform commission",
+  "delivery_config_commission_formula": "Subtotal × @pct%",
   "cart_address_out_of_zone": "Area not covered yet",
   "cart_address_out_of_zone_detail": "This address is outside our delivery zone. We currently deliver only in active delivery zones.",
-  "cart_address_zone_checking": "Checking delivery zone..."
+  "cart_address_zone_checking": "Checking delivery zone...",
+  "restaurant_form_payment_method": "Payment method",
+  "restaurant_form_payment_mobile_money": "Mobile Money",
+  "restaurant_form_payment_bank": "Bank transfer",
+  "restaurant_form_payment_phone": "Mobile Money phone",
+  "restaurant_form_payment_phone_required": "Phone number required for payouts",
+  "restaurant_form_payment_iban": "IBAN",
+  "restaurant_form_payment_iban_required": "IBAN required for bank transfer",
+  "restaurant_form_payment_bank_name": "Bank name",
+  "restaurant_form_payment_bank_name_required": "Bank name required",
+  "restaurant_form_payment_account_holder": "Account holder",
+  "restaurant_form_payment_account_holder_required": "Account holder name required"
 }
