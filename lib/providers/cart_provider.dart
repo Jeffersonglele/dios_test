@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/restaurant.dart';
 import '../models/users.dart';
+import '../models/address.dart' as addr;
 
 class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
   CartNotifier() : super([]) {
@@ -42,6 +43,20 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
           Restaurant.getRestaurantByRestaurantId(restaurantsList, restau_id);
 
       if (currentUser == null || restaurant == null) return 'error';
+
+      // Récupérer les coordonnées du restaurant depuis son adresse
+      double? restauLat, restauLng;
+      try {
+        final addresses = await addr.Address.fetchAddressesFromDB();
+        final restauAddr = addresses.cast<addr.Address?>().firstWhere(
+          (a) => a?.object == 'Restaurant' && a?.objectID == restaurant.userID,
+          orElse: () => null,
+        );
+        if (restauAddr != null) {
+          restauLat = double.tryParse(restauAddr.lat ?? '');
+          restauLng = double.tryParse(restauAddr.long ?? '');
+        }
+      } catch (_) {}
 
       double finalPrice = price + optionPrice;
 
@@ -124,6 +139,8 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
               "delivery_fee": restaurant.deliveryFee,
               "opening_hours": restaurant.openingHours,
               "is_open": restaurant.isOpen,
+              "restau_lat": restauLat,
+              "restau_lng": restauLng,
             },
           },
         ];

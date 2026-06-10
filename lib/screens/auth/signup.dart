@@ -45,6 +45,7 @@ class _SignUpViewState extends State<SignUpView> {
 
   // ── État formulaire ──────────────────────────────────────
   bool _termsAccepted = false;
+  bool _ageConfirmed = false;
   bool _isLoading = false;
   bool _isDetectingCountry = true;
   int _signupRole = 2;
@@ -355,7 +356,11 @@ class _SignUpViewState extends State<SignUpView> {
             accepted: _termsAccepted,
             onChanged: (v) => setState(() => _termsAccepted = v),
           ),
-
+          const SizedBox(height: AppSpacing.md),
+          _AgeCheckbox(
+            accepted: _ageConfirmed,
+            onChanged: (v) => setState(() => _ageConfirmed = v),
+          ),
           const SizedBox(height: AppSpacing.xl),
 
           // ── 6. Bouton inscription ─────────────────────────
@@ -367,6 +372,10 @@ class _SignUpViewState extends State<SignUpView> {
                 if (!_formKey.currentState!.validate()) return;
                 if (!_termsAccepted) {
                   Toast(context, AppLocalizations.of(context)!.accept_terms_warning, false);
+                  return;
+                }
+                if (!_ageConfirmed) {
+                  Toast(context, AppLocalizations.of(context)!.age_confirm_warning, false);
                   return;
                 }
                 final encrypted =
@@ -384,6 +393,7 @@ class _SignUpViewState extends State<SignUpView> {
                   status: '',
                   identity: '',
                   addressID: 0,
+                  ageConfirmed: true,
                 );
                 if (result is int) {
                   await SessionService.saveUserSession(
@@ -449,6 +459,7 @@ class _SignUpViewState extends State<SignUpView> {
         status: '',
         identity: '',
         addressID: 0,
+        ageConfirmed: true,
       );
 
       if (!mounted) return;
@@ -966,6 +977,55 @@ class _TermsCheckbox extends StatelessWidget {
                   ],
                 ),
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// _AgeCheckbox — Confirmation 18+
+// ═══════════════════════════════════════════════════════════
+class _AgeCheckbox extends StatelessWidget {
+  const _AgeCheckbox({
+    required this.accepted,
+    required this.onChanged,
+  });
+
+  final bool accepted;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return GestureDetector(
+      onTap: () => onChanged(!accepted),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AnimatedContainer(
+            duration: AppMotion.fast,
+            width: 22,
+            height: 22,
+            decoration: BoxDecoration(
+              color: accepted ? AppColors.brand : Colors.transparent,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: accepted ? AppColors.brand : AppColors.border,
+                width: 1.5,
+              ),
+            ),
+            child: accepted
+                ? const Icon(Icons.check_rounded, size: 14, color: Colors.white)
+                : null,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              l10n.age_confirm_label,
+              style: AppTypography.bodyMedium(color: accepted ? AppColors.ink : AppColors.inkMuted),
             ),
           ),
         ],

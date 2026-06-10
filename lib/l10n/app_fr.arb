@@ -1106,6 +1106,9 @@
   "delivery_config_commission_rate": "Commission plateforme (%)",
   "delivery_config_commission_label": "Commission plateforme",
   "delivery_config_commission_formula": "Sous-total × @pct%",
+  "delivery_config_deliverer_section": "Rémunération livreur",
+  "delivery_config_deliverer_base": "Base par course (CDF)",
+  "delivery_config_deliverer_per_km": "Tarif par km (CDF)",
   "cart_address_out_of_zone": "Zone non couverte pour l'instant",
   "cart_address_out_of_zone_detail": "Cette adresse se trouve en dehors de notre zone de livraison. Nous livrons uniquement dans les zones de livraison actives.",
   "cart_address_zone_checking": "Vérification de la zone de livraison...",
@@ -1119,5 +1122,7 @@
   "restaurant_form_payment_bank_name": "Nom de la banque",
   "restaurant_form_payment_bank_name_required": "Nom de la banque requis",
   "restaurant_form_payment_account_holder": "Titulaire du compte",
-  "restaurant_form_payment_account_holder_required": "Nom du titulaire requis"
+  "restaurant_form_payment_account_holder_required": "Nom du titulaire requis",
+  "age_confirm_label": "Je confirme avoir 18 ans ou plus",
+  "age_confirm_warning": "Vous devez confirmer avoir 18 ans ou plus pour vous inscrire"
 }

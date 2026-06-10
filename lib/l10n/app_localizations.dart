@@ -5799,6 +5799,24 @@ abstract class AppLocalizations {
   /// **'Subtotal × @pct%'**
   String get delivery_config_commission_formula;
 
+  /// No description provided for @delivery_config_deliverer_section.
+  ///
+  /// In en, this message translates to:
+  /// **'Deliverer pay'**
+  String get delivery_config_deliverer_section;
+
+  /// No description provided for @delivery_config_deliverer_base.
+  ///
+  /// In en, this message translates to:
+  /// **'Base per delivery (CDF)'**
+  String get delivery_config_deliverer_base;
+
+  /// No description provided for @delivery_config_deliverer_per_km.
+  ///
+  /// In en, this message translates to:
+  /// **'Rate per km (CDF)'**
+  String get delivery_config_deliverer_per_km;
+
   /// No description provided for @cart_address_out_of_zone.
   ///
   /// In en, this message translates to:
@@ -5882,6 +5900,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Account holder name required'**
   String get restaurant_form_payment_account_holder_required;
+
+  /// No description provided for @age_confirm_label.
+  ///
+  /// In en, this message translates to:
+  /// **'I confirm I am 18 or older'**
+  String get age_confirm_label;
+
+  /// No description provided for @age_confirm_warning.
+  ///
+  /// In en, this message translates to:
+  /// **'You must confirm you are 18 or older to sign up'**
+  String get age_confirm_warning;
 }
 
 class _AppLocalizationsDelegate

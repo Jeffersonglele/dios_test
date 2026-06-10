@@ -1,4 +1,5 @@
 import 'package:dios_delices/l10n/app_localizations.dart';
+import 'package:dios_delices/services/session_service.dart';
 import 'package:dios_delices/theme/app_theme.dart';
 import 'package:dios_delices/utils/toast.dart';
 import 'package:flutter/material.dart';
@@ -18,10 +19,14 @@ class _DeliveryConfigPageState extends State<DeliveryConfigPage> {
   final _baseFeeCtrl = TextEditingController();
   final _perKmCtrl = TextEditingController();
   final _commissionRateCtrl = TextEditingController();
+  final _delivererBasePayCtrl = TextEditingController();
+  final _delivererPerKmCtrl = TextEditingController();
 
   int _currentBaseFee = 1500;
   int _currentPerKm = 300;
   int _currentCommissionRate = 15;
+  int _currentDelivererBasePay = 500;
+  int _currentDelivererPerKm = 200;
   String _currency = 'CDF';
 
   @override
@@ -35,6 +40,8 @@ class _DeliveryConfigPageState extends State<DeliveryConfigPage> {
     _baseFeeCtrl.dispose();
     _perKmCtrl.dispose();
     _commissionRateCtrl.dispose();
+    _delivererBasePayCtrl.dispose();
+    _delivererPerKmCtrl.dispose();
     super.dispose();
   }
 
@@ -49,13 +56,19 @@ class _DeliveryConfigPageState extends State<DeliveryConfigPage> {
           final baseFee = (data['baseFee'] as num?)?.toInt() ?? 1500;
           final perKmRate = (data['perKmRate'] as num?)?.toInt() ?? 300;
           final commissionRate = (data['commissionRate'] as num?)?.toInt() ?? 15;
+          final delivererBasePay = (data['delivererBasePay'] as num?)?.toInt() ?? 500;
+          final delivererPerKm = (data['delivererPerKm'] as num?)?.toInt() ?? 200;
           _currentBaseFee = baseFee;
           _currentPerKm = perKmRate;
           _currentCommissionRate = commissionRate;
+          _currentDelivererBasePay = delivererBasePay;
+          _currentDelivererPerKm = delivererPerKm;
           _currency = data['currency'] as String? ?? 'CDF';
           _baseFeeCtrl.text = baseFee.toString();
           _perKmCtrl.text = perKmRate.toString();
           _commissionRateCtrl.text = commissionRate.toString();
+          _delivererBasePayCtrl.text = delivererBasePay.toString();
+          _delivererPerKmCtrl.text = delivererPerKm.toString();
         }
       }
     } catch (_) {}
@@ -67,8 +80,10 @@ class _DeliveryConfigPageState extends State<DeliveryConfigPage> {
     final baseFee = int.tryParse(_baseFeeCtrl.text);
     final perKm = int.tryParse(_perKmCtrl.text);
     final commissionRate = int.tryParse(_commissionRateCtrl.text);
+    final delivererBasePay = int.tryParse(_delivererBasePayCtrl.text);
+    final delivererPerKm = int.tryParse(_delivererPerKmCtrl.text);
 
-    if (baseFee == null || baseFee < 0 || perKm == null || perKm < 0 || commissionRate == null || commissionRate < 0 || commissionRate > 100) {
+    if (baseFee == null || baseFee < 0 || perKm == null || perKm < 0 || commissionRate == null || commissionRate < 0 || commissionRate > 100 || delivererBasePay == null || delivererBasePay < 0 || delivererPerKm == null || delivererPerKm < 0) {
       Toast(context, l10n.delivery_config_error, false);
       return;
     }
@@ -76,10 +91,15 @@ class _DeliveryConfigPageState extends State<DeliveryConfigPage> {
     setState(() => _saving = true);
     try {
       final fn = ParseCloudFunction('updateDeliveryConfig');
+      final session = await SessionService.readSession();
       final response = await fn.execute(parameters: {
         'baseFee': baseFee,
         'perKmRate': perKm,
         'commissionRate': commissionRate,
+        'delivererBasePay': delivererBasePay,
+        'delivererPerKm': delivererPerKm,
+        'updatedBy': session.userId,
+        'updatedByName': session.email ?? 'admin',
       });
       if (response.success && mounted) {
         Toast(context, l10n.delivery_config_saved, true);
@@ -167,6 +187,21 @@ class _DeliveryConfigPageState extends State<DeliveryConfigPage> {
             icon: Icons.percent_outlined,
             label: l10n.delivery_config_commission_rate,
             value: '$_currentCommissionRate %',
+          ),
+          const SizedBox(height: 16),
+          Text(l10n.delivery_config_deliverer_section,
+              style: AppTypography.labelMedium(color: AppColors.inkMuted)),
+          const SizedBox(height: 12),
+          _configRow(
+            icon: Icons.pedal_bike_outlined,
+            label: l10n.delivery_config_deliverer_base,
+            value: '$_currentDelivererBasePay $_currency',
+          ),
+          const SizedBox(height: 12),
+          _configRow(
+            icon: Icons.speed_outlined,
+            label: l10n.delivery_config_deliverer_per_km,
+            value: '$_currentDelivererPerKm $_currency',
           ),
           const SizedBox(height: 16),
           Container(
@@ -261,6 +296,29 @@ class _DeliveryConfigPageState extends State<DeliveryConfigPage> {
               border: const OutlineInputBorder(),
               isDense: true,
               suffixText: '%',
+            ),
+            keyboardType: TextInputType.number,
+          ),
+          const SizedBox(height: 24),
+          Text(l10n.delivery_config_deliverer_section,
+              style: AppTypography.labelMedium(color: AppColors.inkMuted)),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _delivererBasePayCtrl,
+            decoration: InputDecoration(
+              labelText: l10n.delivery_config_deliverer_base,
+              border: const OutlineInputBorder(),
+              isDense: true,
+            ),
+            keyboardType: TextInputType.number,
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _delivererPerKmCtrl,
+            decoration: InputDecoration(
+              labelText: l10n.delivery_config_deliverer_per_km,
+              border: const OutlineInputBorder(),
+              isDense: true,
             ),
             keyboardType: TextInputType.number,
           ),

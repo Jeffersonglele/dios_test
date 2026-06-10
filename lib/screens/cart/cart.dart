@@ -95,12 +95,46 @@ class _CartState extends ConsumerState<Cart> {
     await _filterAddresses();
   }
 
-  double calculateDeliveryFee(List<Map<String, dynamic>> cartItems) {
+  double _staticDeliveryFee(List<Map<String, dynamic>> cartItems) {
     if (cartItems.isEmpty) return 0.0;
     final restaurant = cartItems.first['restaurant'] as Map<String, dynamic>?;
     final fee = restaurant?['delivery_fee'];
     if (fee is num) return fee.toDouble();
     return double.tryParse(fee?.toString() ?? '0') ?? 0.0;
+  }
+
+  Future<double> calculateDeliveryFee(List<Map<String, dynamic>> cartItems) async {
+    if (cartItems.isEmpty) return _staticDeliveryFee(cartItems);
+    if (selectedAddress == null) return _staticDeliveryFee(cartItems);
+
+    final dlvLat = double.tryParse(selectedAddress!.lat ?? '');
+    final dlvLng = double.tryParse(selectedAddress!.long ?? '');
+    if (dlvLat == null || dlvLng == null) return _staticDeliveryFee(cartItems);
+
+    final resto = cartItems.first['restaurant'] as Map<String, dynamic>?;
+    if (resto == null) return _staticDeliveryFee(cartItems);
+
+    final rstLat = (resto['restau_lat'] as num?)?.toDouble();
+    final rstLng = (resto['restau_lng'] as num?)?.toDouble();
+    if (rstLat == null || rstLng == null) return _staticDeliveryFee(cartItems);
+
+    try {
+      final fn = ParseCloudFunction('calculateDeliveryFee');
+      final response = await fn.execute(parameters: {
+        'restauLat': rstLat,
+        'restauLng': rstLng,
+        'deliveryLat': dlvLat,
+        'deliveryLng': dlvLng,
+      });
+      if (response.success && response.result != null) {
+        final data = response.result as Map<String, dynamic>;
+        if (data['success'] == true && data['delivery_fee'] != null) {
+          return (data['delivery_fee'] as num).toDouble();
+        }
+      }
+    } catch (_) {}
+
+    return _staticDeliveryFee(cartItems);
   }
 
   String _countryFromCart(List<Map<String, dynamic>> items) {
@@ -170,7 +204,7 @@ class _CartState extends ConsumerState<Cart> {
     final cc = _currencyCode(country);
     final cs = _currencySymbol(country);
     final deliveryFee =
-        safeOption == kDeliveryOptionLivraison ? calculateDeliveryFee(cartItems) : 0.0;
+        safeOption == kDeliveryOptionLivraison ? _staticDeliveryFee(cartItems) : 0.0;
     final cartTotal = _subtotal(cartItems);
     final reduction = _appliedPromo?.discountAmount ?? 0.0;
     final payableTotal =
@@ -557,7 +591,7 @@ class _CartState extends ConsumerState<Cart> {
     final items = List<Map<String, dynamic>>.from(cartItems);
     final country = _countryFromCart(items);
     final cc = _currencyCode(country);
-    final fee = option == kDeliveryOptionLivraison ? calculateDeliveryFee(items) : 0.0;
+    final fee = option == kDeliveryOptionLivraison ? await calculateDeliveryFee(items) : 0.0;
     final discount = _appliedPromo?.discountAmount ?? 0.0;
 
     setState(() => _isSubmittingPayment = true);
@@ -623,7 +657,7 @@ class _CartState extends ConsumerState<Cart> {
     final items = List<Map<String, dynamic>>.from(cartItems);
     final country = _countryFromCart(items);
     final cc = _currencyCode(country);
-    final fee = option == kDeliveryOptionLivraison ? calculateDeliveryFee(items) : 0.0;
+    final fee = option == kDeliveryOptionLivraison ? await calculateDeliveryFee(items) : 0.0;
     final discount = _appliedPromo?.discountAmount ?? 0.0;
     final total =
         (_subtotal(items) + fee - discount).clamp(0.0, double.infinity);

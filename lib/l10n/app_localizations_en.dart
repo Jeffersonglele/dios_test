@@ -3079,6 +3079,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get delivery_config_commission_formula => 'Subtotal × @pct%';
 
   @override
+  String get delivery_config_deliverer_section => 'Deliverer pay';
+
+  @override
+  String get delivery_config_deliverer_base => 'Base per delivery (CDF)';
+
+  @override
+  String get delivery_config_deliverer_per_km => 'Rate per km (CDF)';
+
+  @override
   String get cart_address_out_of_zone => 'Area not covered yet';
 
   @override
@@ -3123,4 +3132,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get restaurant_form_payment_account_holder_required =>
       'Account holder name required';
+
+  @override
+  String get age_confirm_label => 'I confirm I am 18 or older';
+
+  @override
+  String get age_confirm_warning =>
+      'You must confirm you are 18 or older to sign up';
 }

@@ -72,6 +72,8 @@ class Users extends HiveObject {
   @HiveField(14)
   int cityID;
 
+  bool ageConfirmed;
+
   String? parrain;
 
   Users({
@@ -92,6 +94,7 @@ class Users extends HiveObject {
     required this.addressID,
     this.cityID = 1,
     this.mustChangePassword = false,
+    this.ageConfirmed = false,
     this.birthDate,
     this.consentRGPD = false,
     this.consentDate,
@@ -120,6 +123,7 @@ class Users extends HiveObject {
       'identityStatus': identityStatus,
       'addressID': addressID,
       'cityID': cityID,
+      'ageConfirmed': ageConfirmed,
       'mustChangePassword': mustChangePassword,
       'birthDate': birthDate,
       'consentRGPD': consentRGPD,
@@ -148,6 +152,7 @@ class Users extends HiveObject {
       identityStatus: map['identityStatus']?.toString(),
       addressID: int.tryParse(map['addressID']?.toString() ?? '0') ?? 0,
       cityID: int.tryParse(map['cityID']?.toString() ?? '1') ?? 1,
+      ageConfirmed: map['ageConfirmed'] == true || map['ageConfirmed']?.toString() == 'true',
       last_login: map['last_login'] != null
           ? (map['last_login'] is String
               ? DateTime.tryParse(map['last_login'])
@@ -191,6 +196,7 @@ class Users extends HiveObject {
     String? identityStatus,
     int? addressID,
     int? cityID,
+    bool? ageConfirmed,
     String? birthDate,
     bool? consentRGPD,
     String? consentDate,
@@ -216,6 +222,7 @@ class Users extends HiveObject {
       identityStatus: identityStatus ?? this.identityStatus,
       addressID: addressID ?? this.addressID,
       cityID: cityID ?? this.cityID,
+      ageConfirmed: ageConfirmed ?? this.ageConfirmed,
       birthDate: birthDate ?? this.birthDate,
       consentRGPD: consentRGPD ?? this.consentRGPD,
       consentDate: consentDate ?? this.consentDate,
@@ -248,6 +255,7 @@ class Users extends HiveObject {
     String? consentDate,
     String? permisType,
     String? identityStatus,
+    bool ageConfirmed = false,
   }) async {
     String functionName = userID == null ? 'add1User' : 'updateUser';
     var cloudFunction = ParseCloudFunction(functionName);
@@ -279,6 +287,7 @@ class Users extends HiveObject {
       'identity': identity,
       'addressID': addressID,
       'cityID': cityID,
+      'ageConfirmed': ageConfirmed,
       'birthDate': birthDate,
       'consentRGPD': consentRGPD,
       'consentDate': consentDate,
