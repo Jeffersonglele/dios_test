@@ -623,14 +623,8 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage> {
     switch (_commande.moyenPaiementID) {
       case 1:
         return AppLocalizations.of(context)!.commande_details_cash;
-      case 2:
-        return AppLocalizations.of(context)!.commande_details_card;
-      case 3:
-        return AppLocalizations.of(context)!.commande_details_om;
-      case 4:
-        return AppLocalizations.of(context)!.commande_details_wave;
       default:
-        return 'Moyen #${_commande.moyenPaiementID}';
+        return AppLocalizations.of(context)!.commande_details_cinetpay;
     }
   }
 

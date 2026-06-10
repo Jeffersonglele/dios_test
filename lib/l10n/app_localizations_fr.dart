@@ -763,7 +763,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get cart_payment_cod => 'À la livraison';
 
   @override
-  String get cart_payment_fedapay => 'Fedapay';
+  String get cart_payment_fedapay => 'Mobile Money (CinetPay)';
 
   @override
   String get cart_processing => 'Traitement...';
@@ -789,7 +789,11 @@ class AppLocalizationsFr extends AppLocalizations {
   String get cart_payment_url_error => 'Erreur : URL de paiement introuvable.';
 
   @override
-  String get cart_payment_fedapay_error => 'Erreur paiement Fedapay.';
+  String get cart_payment_fedapay_error => 'Erreur de paiement en ligne';
+
+  @override
+  String get cart_payment_online_error =>
+      'Erreur de paiement en ligne. Veuillez réessayer ou choisir un autre mode de paiement.';
 
   @override
   String get cart_payment_error => 'Erreur paiement.';
@@ -1754,6 +1758,9 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get commande_details_wave => 'Wave';
+
+  @override
+  String get commande_details_cinetpay => 'Mobile Money (CinetPay)';
 
   @override
   String get commande_details_items => 'Articles';
@@ -3051,4 +3058,51 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get please_modify_a_file => 'Merci de modifier un des fichiers.';
+
+  @override
+  String get delivery_config_title => 'Configuration des frais de livraison';
+
+  @override
+  String get delivery_config_current => 'Valeurs actuelles';
+
+  @override
+  String get delivery_config_base_fee => 'Frais de base (CDF)';
+
+  @override
+  String get delivery_config_per_km => 'Tarif par km (CDF)';
+
+  @override
+  String get delivery_config_currency => 'Devise';
+
+  @override
+  String get delivery_config_save => 'Enregistrer';
+
+  @override
+  String get delivery_config_saved => 'Configuration mise à jour avec succès';
+
+  @override
+  String get delivery_config_error => 'Erreur lors de la mise à jour';
+
+  @override
+  String get delivery_config_loading => 'Chargement de la configuration...';
+
+  @override
+  String get delivery_config_admin_nav => 'Frais de livraison';
+
+  @override
+  String get delivery_config_distance => 'Distance estimée';
+
+  @override
+  String get delivery_config_total_fee => 'Frais estimés';
+
+  @override
+  String get cart_address_out_of_zone => 'Zone non couverte pour l\'instant';
+
+  @override
+  String get cart_address_out_of_zone_detail =>
+      'Cette adresse se trouve en dehors de notre zone de livraison. Nous livrons uniquement dans les zones de livraison actives.';
+
+  @override
+  String get cart_address_zone_checking =>
+      'Vérification de la zone de livraison...';
 }

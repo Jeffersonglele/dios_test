@@ -25,7 +25,6 @@
   "yes": "Yes",
   "no": "No",
   "continueLabel": "Continue",
-
   "home": "Home",
   "menu": "Menu",
   "cart": "Cart",
@@ -35,7 +34,6 @@
   "logout": "Logout",
   "boutique": "Store",
   "dashboard": "Dashboard",
-
   "login": "Login",
   "signup": "Sign Up",
   "email": "Email",
@@ -51,7 +49,6 @@
   "verificationCode": "Verification code",
   "resendCode": "Resend code",
   "connectError": "Connection error. Check your network.",
-
   "myProfile": "My Profile",
   "editProfile": "Edit my information",
   "editProfileTitle": "Edit my profile",
@@ -69,7 +66,6 @@
   "changePhoto": "Change photo",
   "gallery": "Gallery",
   "camera": "Camera",
-
   "appearance": "Appearance",
   "darkMode": "Dark mode",
   "enabled": "Enabled",
@@ -77,17 +73,14 @@
   "language": "Language",
   "notifications": "Notifications",
   "testNotifications": "Test notifications",
-
   "deleteAccount": "Delete my account",
   "deleteAccountWarning": "This action is irreversible. All your personal data and orders will be permanently deleted.\n\nAre you sure you want to continue?",
   "softDeleteMessage": "Your account will be deactivated now and permanently deleted in 30 days. Your restaurants, dishes and orders will be hidden.",
-
   "legalInfo": "Legal information",
   "privacyPolicy": "Privacy policy",
   "termsOfService": "Terms of service",
   "legalNotice": "Legal notice",
   "about": "About",
-
   "myRestaurant": "My restaurant",
   "createRestaurant": "Create my restaurant",
   "restaurantName": "Restaurant name",
@@ -109,7 +102,6 @@
   "restaurantPendingBanner": "Your restaurant is being reviewed by our administrators. You will be able to manage your restaurant, add dishes and receive orders once it is validated.",
   "noRestaurant": "No restaurant",
   "createRestaurantPrompt": "Create your restaurant to start selling your dishes.",
-
   "addDish": "Add dish",
   "dishName": "Dish name",
   "dishDescription": "Dish description",
@@ -123,7 +115,6 @@
   "mainPhoto": "Main photo",
   "secondaryPhoto": "Secondary photo",
   "noOptions": "No options",
-
   "orders": "Orders",
   "myOrders": "My orders",
   "pending": "Pending",
@@ -136,7 +127,6 @@
   "noOrders": "No orders",
   "noOrderReceived": "No orders received.",
   "noOrderFound": "No orders found.",
-
   "users": "Users",
   "restaurants": "Restaurants",
   "livreurs": "Drivers",
@@ -155,45 +145,36 @@
   "addAdmin": "Add administrator",
   "reject": "Reject",
   "rejectReason": "Reject reason",
-
   "contact": "Contact us",
   "chat": "Chat",
   "messages": "Messages",
   "noConversation": "No conversation",
   "online": "Online",
   "yourMessage": "Your message...",
-
   "country": "Country",
   "role": "Role",
   "session": "Session",
-
   "noInternet": "No internet connection",
   "noData": "No data",
   "noResults": "No results",
   "comingSoon": "Coming soon",
-
   "demandReceived": "Request sent!",
   "demandSubtitle": "Your restaurant request has been received.",
   "comeBackHome": "Back to home",
   "refreshStatus": "Refresh status",
-
   "mySales": "My sales",
   "myProducts": "My products",
   "myDeliveries": "My deliveries",
-
   "review": "Review",
   "rating": "Rating",
   "comment": "Comment",
   "send": "Send",
   "thankYou": "Thank you!",
-
   "restaurantDeleted": "Deleted restaurant",
   "accountDeactivated": "Account deactivated. Permanent deletion in 30 days.",
   "accountBeingDeleted": "This account is being deleted.",
-
   "splash_subtitle": "Homemade dishes, delivered to you",
   "splash_loading": "Loading...",
-
   "onboarding_step_1_title": "Discover homemade flavors near you",
   "onboarding_step_1_body": "Discover the best homemade dishes near you, prepared with passion.",
   "onboarding_step_2_title": "Order easily, wherever you are",
@@ -247,7 +228,6 @@
   "next": "Next",
   "skip": "Skip",
   "start": "Start",
-
   "cart_title": "Your Cart",
   "cart_empty": "Your cart is empty",
   "cart_empty_hint": "Add homemade dishes!",
@@ -265,7 +245,7 @@
   "cart_discount": "Discount",
   "cart_payment_section": "Payment method",
   "cart_payment_cod": "Cash on delivery",
-  "cart_payment_fedapay": "Fedapay",
+  "cart_payment_fedapay": "Mobile Money (CinetPay)",
   "cart_processing": "Processing...",
   "cart_order_button": "Order · {amount}",
   "cart_choose_address_warning": "Please choose an address.",
@@ -273,7 +253,8 @@
   "cart_order_failed": "Failed to create order.",
   "cart_order_error_retry": "Error. Please retry.",
   "cart_payment_url_error": "Error: Payment URL not found.",
-  "cart_payment_fedapay_error": "Fedapay payment error.",
+  "cart_payment_fedapay_error": "Online payment error",
+  "cart_payment_online_error": "Online payment error. Please try again or choose another payment method.",
   "cart_payment_error": "Payment error.",
   "cart_order_confirmed_message": "Your order #{orderId} has been placed successfully.",
   "cart_track_order": "Track my order",
@@ -286,12 +267,10 @@
   "cart_your_addresses": "Your addresses",
   "cart_new_address": "New address",
   "cart_item_deleted": "{mealName} removed",
-
   "street": "Street",
   "postal_code": "Postal code",
   "city": "City",
   "address_selection_hint": "Select an address",
-
   "home_category_all": "All",
   "home_top_picks": "Top picks near you",
   "home_see_all": "See all",
@@ -308,7 +287,6 @@
   "home_no_restaurants": "No restaurants nearby",
   "home_no_restaurants_hint": "Expand your area or come back later.",
   "home_explore_categories": "Explore all categories",
-
   "dish_added_to_cart": "Added to cart!",
   "dish_cannot_mix_restaurants": "You cannot order from two different restaurants.",
   "dish_add_error": "Error adding to cart.",
@@ -319,7 +297,6 @@
   "dish_options": "Options",
   "dish_reviews": "Reviews",
   "dish_add_to_cart": "Add to cart · {price}",
-
   "store_my_earnings": "My earnings",
   "store_delivery_radius": "Delivery radius",
   "store_become_seller": "Become a seller",
@@ -342,7 +319,6 @@
   "store_max_distance_limit": "Limited to 10 km maximum",
   "store_radius_updated": "Radius updated: {distance} km",
   "store_update_error": "Update error",
-
   "admin_dashboard_title": "Administration",
   "admin_greeting": "Hello, {name}",
   "admin_validation_alert": "{count} restaurant(s) pending",
@@ -366,7 +342,6 @@
   "admin_restaurant_validated": "{name} validated ✓",
   "admin_restaurant_rejected": "{name} rejected",
   "admin_rejection_reason_hint": "Rejection reason…",
-
   "admin_pro_requests": "Pro Requests",
   "admin_pro_requests_pending": "Pending",
   "admin_pro_requests_validated": "Validated",
@@ -384,9 +359,7 @@
   "admin_pro_view_document": "View",
   "admin_pro_description": "Request description",
   "admin_pro_no_description": "No description provided.",
-
   "optional": "optional",
-
   "delivery_status_assigned": "Assigned",
   "delivery_status_picked_up": "Picked up",
   "delivery_status_in_transit": "In transit",
@@ -412,7 +385,6 @@
   "delivery_tracking_steps_picked": "Picked up",
   "delivery_tracking_steps_transit": "In transit",
   "delivery_tracking_steps_delivered": "Delivered",
-
   "livreur_fiche_title": "Driver profile",
   "livreur_not_found": "Driver not found",
   "livreur_stats": "Delivery statistics",
@@ -456,7 +428,6 @@
   "livreur_map_accept": "Accept",
   "livreur_order_accepted": "Order #{id} accepted",
   "livreur_order_already_in_progress": "Cannot accept: you already have an order in progress",
-
   "restaurant_form_title_create": "Create my restaurant",
   "restaurant_form_title_edit": "Edit my restaurant",
   "restaurant_form_section_restaurant": "Your restaurant",
@@ -483,14 +454,12 @@
   "restaurant_form_delivery_fee_hint": "Delivery fee",
   "restaurant_form_opening_hours_hint": "Opening hours (e.g. 09:00 - 20:00)",
   "restaurant_form_open_now": "Restaurant currently open",
-
   "restaurant_details_menu": "Menu",
   "restaurant_details_dish_count": "{count} dishes",
   "restaurant_details_reviews": "Reviews",
   "restaurant_details_mode_delivery": "Delivery + Takeaway",
   "restaurant_details_mode_takeaway": "Takeaway",
   "restaurant_details_mode_delivery_only": "Delivery",
-
   "restaurant_list_title": "Restaurants · {country}",
   "restaurant_list_search_hint": "Search restaurants...",
   "restaurant_list_filter_pending": "Pending",
@@ -501,12 +470,10 @@
   "restaurant_list_reject_hint": "Rejection reason for \"{name}\":",
   "restaurant_list_validated_toast": "Restaurant {name} has been validated{emailSent}",
   "restaurant_list_rejected_toast": "Restaurant {name} has been rejected{emailSent}",
-
   "near_restaurants_title": "Restaurants nearby",
   "near_restaurants_search_hint": "Search restaurant or cuisine",
   "near_restaurants_open_now": "Open now",
   "near_restaurants_no_results": "No restaurants found with these filters.",
-
   "verification_select_status": "Select your status",
   "verification_individual": "Individual",
   "verification_restaurateur": "Restaurateur",
@@ -524,7 +491,6 @@
   "verification_new_code_sent": "New code sent by email.",
   "verification_new_code_error": "Cannot send code.",
   "verification_resend_cooldown": "Resend code ({seconds} s)",
-
   "identity_title": "My identity",
   "identity_your_photo": "Your photo",
   "identity_no_photo": "No photo taken",
@@ -544,17 +510,14 @@
   "identity_gallery_error": "Cannot open gallery.",
   "identity_pending_title": "New identity pending verification",
   "identity_pending_body": "Log in to validate or reject the user.",
-
   "confirmation_request_taken": "Your request has been received.",
   "confirmation_wait_contact": "You will be contacted if your restaurant idea is accepted.",
   "confirmation_wait_email": "You will receive an email when our administrators have reviewed your information.",
   "confirmation_back_home": "Back to home",
-
   "start_address_instructions": "We will save your address: follow the instructions until the end",
   "start_identity_instructions": "Last step: we will verify your identity",
   "start_begin": "Start >",
   "start_cancel_return": "Cancel (return to login)",
-
   "user_orders_received": "Received orders",
   "user_orders_my": "My orders",
   "user_orders_confirm": "Confirm",
@@ -573,7 +536,6 @@
   "user_orders_thanks_review_driver": "Thank you for your driver review!",
   "user_orders_tap_to_enlarge": "Tap to enlarge",
   "user_orders_no_driver": "No driver available online in the distance area.",
-
   "commande_details_title": "Order details",
   "commande_details_confirm_order": "Confirm order",
   "commande_details_cancel_order": "Cancel order",
@@ -585,6 +547,7 @@
   "commande_details_card": "Credit card",
   "commande_details_om": "Orange Money",
   "commande_details_wave": "Wave",
+  "commande_details_cinetpay": "Mobile Money (CinetPay)",
   "commande_details_items": "Items",
   "commande_details_no_items": "No items",
   "commande_details_address": "Delivery address",
@@ -598,39 +561,30 @@
   "commande_details_confirmed": "Confirmed",
   "commande_details_delivered": "Delivered",
   "commande_details_cancelled": "Order cancelled",
-
   "sales_title": "My sales",
   "sales_no_sales": "No sales.",
   "sales_revenue": "Revenue",
   "sales_delivery_fees": "Delivery fees: ",
-
   "my_products_title": "My dishes",
   "my_products_no_products": "No dishes.",
   "my_products_add": "Add a dish",
-
   "menu_no_dishes": "No dishes in your menu.",
   "menu_add_first_dish": "Add your first dish!",
-
   "contact_need_help": "Need help?",
   "contact_description": "Contact us for any questions or changes to your information.",
   "contact_chat_hours": "Available from 9am to 6pm",
   "contact_chat_soon": "Chat coming soon!",
-
   "chat_no_conversations": "No conversations.",
   "chat_placeholder": "Your exchanges will appear here.",
   "chat_unknown": "Unknown",
   "chat_first_message": "Send a first message!",
-
   "explore_title": "Explore",
   "explore_no_dishes": "No dishes available.",
-
   "near_meals_title": "Meals nearby",
   "near_meals_search_hint": "Search for a dish or restaurant",
   "near_meals_filter_open": "Open restaurants",
   "near_meals_no_results": "No dishes found with these filters.",
-
   "food_categories_title": "Categories",
-
   "promo_create_title": "Create promo code",
   "promo_code_label": "Code",
   "promo_required": "Required",
@@ -653,7 +607,6 @@
   "promo_create_code": "Create a code",
   "promo_active": "Active",
   "promo_inactive": "Inactive",
-
   "category_manage_title": "Manage categories",
   "category_name_required": "Please enter a category name.",
   "category_added": "Category added.",
@@ -665,7 +618,6 @@
   "category_add": "Add",
   "category_empty": "No categories.",
   "category_delete_title": "Delete",
-
   "scheduled_deletions_title": "Scheduled deletions",
   "scheduled_deletions_empty": "No scheduled deletions",
   "scheduled_deletions_all_active": "All accounts are active for {country}",
@@ -683,14 +635,11 @@
   "scheduled_deletions_last_day": "Last day",
   "scheduled_deletions_days_elapsed": "{days}d elapsed",
   "scheduled_deletions_days_remaining": "{days}d remaining",
-
   "audit_log_title": "Audit Log — {country}",
   "audit_log_empty": "No logs for this country.",
-
   "support_chat_title": "Support Messaging — {country}",
   "support_chat_search_hint": "Search users…",
   "support_chat_no_results": "No users found.",
-
   "referral_title": "Referral",
   "referral_godchildren": "Godchildren",
   "referral_active_codes": "Active codes",
@@ -698,28 +647,22 @@
   "referral_codes_section": "Referral codes",
   "referral_empty": "No referral codes",
   "referral_empty_hint": "Referral codes will appear here when users create them.",
-
   "wait_identity_title": "Your identity has not been validated yet.",
   "wait_identity_body": "You will receive an email when our administrators have reviewed your information.",
   "wait_restaurant_title": "Your restaurant has not been validated yet.",
   "wait_restaurant_body": "You will receive an email if your restaurant idea is accepted.",
-
   "verification_email_missing": "Email address not found. Please reconnect.",
   "verification_sending": "Sending verification code...",
   "verification_reconnect": "Reconnect",
-
   "dishes": "Dishes",
   "identity_naming_error": "Error: check that your file names follow naming conventions.",
-
   "orderCancelled": "Order cancelled",
-
   "user_orders_new_orders_hint": "New orders will appear here in real time.",
   "user_orders_past_orders_hint": "Your past orders will appear here.",
   "user_orders_pending_title": "Restaurant pending validation",
   "user_orders_pending_body": "Your restaurant is being reviewed by our administrators. You will be able to receive orders once it is validated.",
   "user_orders_notified_email": "You will be notified by email",
   "user_orders_receive_orders": "And receive orders",
-
   "commande_details_load_error": "Unable to load details",
   "commande_details_actions": "Actions",
   "commande_details_tracking": "Order tracking",
@@ -727,68 +670,69 @@
   "commande_details_rating_label": "Rating",
   "commande_details_livraison": "Delivery",
   "commande_details_reduction": "Discount",
-
-  "delivery_status_assigned": "Assigned",
-  "delivery_status_picked_up": "Picked up",
-  "delivery_status_in_transit": "In transit",
-  "delivery_status_delivered": "Delivered",
   "delivery_status_pending_assign": "Awaiting assignment",
-
   "store_pending_validation": "Pending validation",
   "store_pending_validation_body": "Your restaurant is being reviewed. You will be able to manage your restaurant, add dishes, and receive orders once it is validated.",
-
   "delivery_livraison_label": "Delivery: {amount}",
-  "@delivery_livraison_label": { "placeholders": { "amount": {} } },
-
+  "@delivery_livraison_label": {
+    "placeholders": {
+      "amount": {}
+    }
+  },
   "tracking_paid": "Paid",
   "tracking_confirmed": "Confirmed",
   "tracking_pending_label": "Order created, awaiting confirmation.",
   "tracking_paid_label": "Payment confirmed, the restaurant is processing the order.",
   "tracking_confirmed_label": "Order confirmed, being prepared.",
   "tracking_cancelled_label": "Order cancelled.",
-
   "country_select_hint": "Select a country",
-
   "error_with_message": "Error: {message}",
-  "@error_with_message": { "placeholders": { "message": {} } },
-
+  "@error_with_message": {
+    "placeholders": {
+      "message": {}
+    }
+  },
   "favorites_title": "My favorites",
   "favorites_subtitle": "Find your favorite restaurants and dishes.",
   "favorites_empty_restaurants": "No favorite restaurants.",
   "favorites_empty_dishes": "No favorite dishes.",
   "favorites_restaurants_tab": "Restaurants",
   "favorites_dishes_tab": "Dishes",
-
   "guest_title": "Dios Délices",
   "guest_login": "Login",
   "guest_no_restaurants": "No restaurants available.",
   "guest_all": "All",
-
   "location_disabled": "Location disabled. Enable it in settings.",
   "location_detect_failed": "Unable to detect location.",
   "location_my_address": "My address",
   "location_instruction": "Enter your address to receive your orders.",
   "location_get": "Get my location",
   "location_locating": "Locating...",
-
   "search_no_results": "No results for \"{query}\"",
-  "@search_no_results": { "placeholders": { "query": {} } },
+  "@search_no_results": {
+    "placeholders": {
+      "query": {}
+    }
+  },
   "search_restaurants": "Restaurants",
   "search_dishes": "Dishes",
   "search_input_hint": "Search for dishes, restaurants...",
-
   "country_title": "Manage {title}",
-  "@country_title": { "placeholders": { "title": {} } },
+  "@country_title": {
+    "placeholders": {
+      "title": {}
+    }
+  },
   "country_view": "View {title} in {name}",
-  "@country_view": { "placeholders": { "title": {}, "name": {} } },
-
+  "@country_view": {
+    "placeholders": {
+      "title": {},
+      "name": {}
+    }
+  },
   "order_tracking_paid": "Paid",
   "order_tracking_confirmed": "Confirmed",
   "order_tracking_cancelled": "Cancelled",
-
-  "users": "Users",
-  "administrators": "Administrators",
-
   "pro_request_title": "Become Pro",
   "pro_request_subtitle": "Submit your documents to upgrade to a professional account.",
   "pro_request_description_label": "Your request",
@@ -803,30 +747,22 @@
   "pro_request_error_description": "Please write a description of your request.",
   "pro_request_error_identity": "Please attach your identity document.",
   "pro_request_error_pro_doc": "Please attach a professional document.",
-
-  "optional": "optional",
   "promo_activate": "Activate",
   "promo_deactivate": "Deactivate",
   "promo_delete_confirm": "Delete promo code?",
   "promo_edit_title": "Edit promo",
-
   "role_admin": "Admin",
   "role_client": "Client",
   "role_restaurateur": "Chef",
   "role_livreur": "Driver",
-
   "later": "Later",
-
   "verification_email_exists": "This email is already in use.",
-
   "home_add_address_banner": "Add your address to see restaurants near you.",
   "welcome_title": "Welcome to Dios Délices",
   "welcome_subtitle": "Your account has been created.",
   "welcome_discover": "Discover",
-
   "store_unverified_title": "Account not verified",
   "store_unverified_body": "Your account has not been verified yet. Our team will review it shortly.\n\nYou can contact the administrators for more information.",
-
   "test_notification_sent": "Test notification sent!",
   "notif_orders_title": "Orders",
   "notif_orders_desc": "Order status notifications",
@@ -837,20 +773,31 @@
   "delivery_preferences": "Delivery preferences",
   "max_delivery_distance": "Max delivery distance",
   "max_delivery_distance_desc": "Maximum distance for your deliveries: {distance} km",
-  "@max_delivery_distance_desc": { "placeholders": { "distance": {} } },
+  "@max_delivery_distance_desc": {
+    "placeholders": {
+      "distance": {}
+    }
+  },
   "sell_your_dishes": "Sell your dishes",
   "app_tagline": "Neighborhood cuisine, warmer and simpler.",
   "delete_account_understand_hint": "I understand my data will be deleted after 30 days. If I want to recover my account before then, I must contact the administrators.",
   "delete_account_recovery_hint": "If you wish to recover your account before this deadline, contact the administrators.",
   "confirm_your_email": "Confirm your email",
-
   "identity_validated_email_subject": "🎉 Welcome to Dios Délices - Your profile is validated!",
   "identity_rejected_email_subject": "❌ Update: Your profile validation on Dios Délices",
   "identity_validated_email_body": "Hello {firstname},\n\nWe are delighted to inform you that your profile on Dios Délices has been validated. You can now fully enjoy all the features of the application.\n\nWelcome aboard!\n\nThe Dios Délices team",
-  "@identity_validated_email_body": { "placeholders": { "firstname": {} } },
+  "@identity_validated_email_body": {
+    "placeholders": {
+      "firstname": {}
+    }
+  },
   "identity_rejected_email_body": "Hello {firstname},\n\nWe regret to inform you that your profile on Dios Délices could not be validated at this time.\n\nReason: {reason}\n\nYou can modify your information and resubmit your request from the application.\n\nThe Dios Délices team",
-  "@identity_rejected_email_body": { "placeholders": { "firstname": {}, "reason": {} } },
-
+  "@identity_rejected_email_body": {
+    "placeholders": {
+      "firstname": {},
+      "reason": {}
+    }
+  },
   "address_detected": "Detected address",
   "address_detected_label": "Detected address:",
   "address_manual_label": "Manual address:",
@@ -864,24 +811,34 @@
   "address_not_found_check": "Address not found. Please verify accuracy.",
   "address_not_found_verify": "Address not found, please verify the information.",
   "address_not_match_country": "Your address ({address}) does not match your country. Please check.",
-  "@address_not_match_country": { "placeholders": { "address": {} } },
+  "@address_not_match_country": {
+    "placeholders": {
+      "address": {}
+    }
+  },
   "enter_address_manually": "Enter my address manually",
   "hide_form": "Hide form",
   "full_address_hint": "Full address (street, building, directions...)",
   "district": "District / Borough",
   "clear": "Clear",
   "enter_or_detect_address": "Please enter or detect an address.",
-
-  "overview": "Overview",
   "pending_orders": "Pending orders",
   "to_process": "To process",
   "cancelled_orders": "Cancelled orders",
   "available_dishes": "Available dishes",
   "servings_sold": "Servings sold",
   "unavailable_dishes_num": "{count} unavailable",
-  "@unavailable_dishes_num": { "placeholders": { "count": {} } },
+  "@unavailable_dishes_num": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "available_servings_of": "/ {total} available",
-  "@available_servings_of": { "placeholders": { "total": {} } },
+  "@available_servings_of": {
+    "placeholders": {
+      "total": {}
+    }
+  },
   "manage": "Manage",
   "last_orders": "Last orders",
   "see_all": "See all",
@@ -893,8 +850,12 @@
   "owner": "Owner",
   "pro_badge": "PRO",
   "owner_info": "Owner: {firstname} · {email}",
-  "@owner_info": { "placeholders": { "firstname": {}, "email": {} } },
-
+  "@owner_info": {
+    "placeholders": {
+      "firstname": {},
+      "email": {}
+    }
+  },
   "user_details_information": "Information",
   "user_details_firstname": "First name",
   "user_details_lastname": "Last name",
@@ -918,13 +879,27 @@
   "type_delete_to_confirm": "Type \"DELETE\" to confirm",
   "must_type_delete": "Type DELETE to confirm",
   "user_deleted": "{firstname} deleted.",
-  "@user_deleted": { "placeholders": { "firstname": {} } },
+  "@user_deleted": {
+    "placeholders": {
+      "firstname": {}
+    }
+  },
   "force_delete_button": "DELETE ALL",
   "profile_validated_email_sent": "{firstname} {lastname}'s profile has been validated and an email has been sent.",
-  "@profile_validated_email_sent": { "placeholders": { "firstname": {}, "lastname": {} } },
+  "@profile_validated_email_sent": {
+    "placeholders": {
+      "firstname": {},
+      "lastname": {}
+    }
+  },
   "profile_validated_email_error": "Profile validated but error sending email.",
   "profile_rejected_email_sent": "{firstname} {lastname}'s profile has been rejected and an email has been sent.",
-  "@profile_rejected_email_sent": { "placeholders": { "firstname": {}, "lastname": {} } },
+  "@profile_rejected_email_sent": {
+    "placeholders": {
+      "firstname": {},
+      "lastname": {}
+    }
+  },
   "profile_rejected_email_error": "Profile rejected but error sending email.",
   "view_existing_file": "View existing file",
   "no_photo_available": "No photo available",
@@ -941,149 +916,191 @@
   "choose_from_gallery": "Choose from gallery",
   "choose_image_file": "Choose an image file",
   "choose_image_from_gallery": "Choose an image from gallery",
-
   "users_list_title": "Users · {country}",
-  "@users_list_title": { "placeholders": { "country": {} } },
+  "@users_list_title": {
+    "placeholders": {
+      "country": {}
+    }
+  },
   "search_name_email_phone": "Search name, email, phone...",
   "all_filter": "All",
   "pending_filter": "Pending",
   "validated_filter": "Validated",
   "rejected_filter": "Rejected",
   "users_count": "{displayed} / {total} user(s)",
-  "@users_count": { "placeholders": { "displayed": {}, "total": {} } },
+  "@users_count": {
+    "placeholders": {
+      "displayed": {},
+      "total": {}
+    }
+  },
   "pending_count": "{count} pending",
-  "@pending_count": { "placeholders": { "count": {} } },
+  "@pending_count": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "validated_count": "{count} validated",
-  "@validated_count": { "placeholders": { "count": {} } },
+  "@validated_count": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "no_user_found": "No user found",
   "super_admin": "Super Admin",
   "profile_rejected": "Profile rejected",
   "profile_validated": "Profile validated",
   "profile_pending": "Profile pending",
-
   "favorites_my": "My favorites",
-  "favorites_subtitle": "Find your favorite restaurants and dishes.",
-  "favorites_empty_restaurants": "No favorite restaurants.",
-  "favorites_empty_dishes": "No favorite dishes.",
-  "favorites_restaurants_tab": "Restaurants",
-  "favorites_dishes_tab": "Dishes",
   "no_dishes": "No dishes.",
-
-  "rating": "Rating",
   "rate": "Rate",
   "user_not_connected": "User not connected",
   "ordered_dishes": "Ordered dishes",
   "dish_num": "Dish #{id}",
-  "@dish_num": { "placeholders": { "id": {} } },
+  "@dish_num": {
+    "placeholders": {
+      "id": {}
+    }
+  },
   "features": "Features",
   "your_review": "Your review",
   "share_experience_hint": "Share your experience in a few words…",
   "no_reviews_yet": "No reviews yet.",
   "reviews_count": "{count} reviews",
-  "@reviews_count": { "placeholders": { "count": {} } },
+  "@reviews_count": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "previous": "Previous",
-  "next": "Next",
-
   "order_tracking_title": "Order tracking",
   "order_num": "Order #{id}",
-  "@order_num": { "placeholders": { "id": {} } },
+  "@order_num": {
+    "placeholders": {
+      "id": {}
+    }
+  },
   "delivery_cost": "Delivery {amount}",
-  "@delivery_cost": { "placeholders": { "amount": {} } },
+  "@delivery_cost": {
+    "placeholders": {
+      "amount": {}
+    }
+  },
   "discount_amount": "Discount {amount}",
-  "@discount_amount": { "placeholders": { "amount": {} } },
-
+  "@discount_amount": {
+    "placeholders": {
+      "amount": {}
+    }
+  },
   "validate_this_image": "Validate this image",
   "test_notification_title": "Test Notification",
   "test_notification_body": "This is a test notification",
   "new_order_title": "New order!",
   "new_order_body": "Order of {amount} {currency} from {restaurant}",
-  "@new_order_body": { "placeholders": { "amount": {}, "currency": {}, "restaurant": {} } },
-
+  "@new_order_body": {
+    "placeholders": {
+      "amount": {},
+      "currency": {},
+      "restaurant": {}
+    }
+  },
   "modify_dish": "Modify dish",
   "add_dish_title": "Add dish",
   "no_options_available": "No options",
   "add_option_button": "Add an option",
   "add_option_count": "Add an option ({count}/3)",
-  "@add_option_count": { "placeholders": { "count": {} } },
+  "@add_option_count": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "main_photo_badge": "Main",
   "option_name": "Option name",
   "option_price_hint": "Option price (required, e.g. 2.50)",
-
   "admin_role_label": "Admin",
   "super_admin_role_label": "Super Admin",
   "resto_role_label": "Resto",
   "livreur_role_label": "Driver",
   "individual_role_label": "Individual",
   "restaurateur_role_label": "Restaurateur",
-
   "change_password_title_dialog": "Change password",
   "current_password_label": "Current password",
   "new_password_label": "New password",
   "confirm_password_label": "Confirm password",
-
   "become_restaurateur_dialog_title": "Become a home chef",
   "become_restaurateur_dialog_body": "By becoming a home chef, you will be able to publish your dishes and sell them directly to customers. Would you like to continue?",
   "yes_sell_my_dishes": "Yes, I want to sell my dishes",
-
   "delete_account_dialog_title": "Delete my account",
   "delete_account_dialog_warning": "This action is irreversible. Your personal data will be deleted after 30 days.",
-
   "notifications_switch_orders": "Orders",
   "notifications_switch_promos": "Promotions",
   "notifications_switch_messages": "Messages",
-
   "add_your_address": "Add your address",
   "my_orders_button": "My orders",
-
   "search_no_results_for": "No results for \"{query}\"",
-  "@search_no_results_for": { "placeholders": { "query": {} } },
+  "@search_no_results_for": {
+    "placeholders": {
+      "query": {}
+    }
+  },
   "restaurants_section": "Restaurants",
   "dishes_section": "Dishes",
   "search_hint_input": "Search for dishes, restaurants...",
-
   "password_reset_code_hint": "Please enter a 6-digit code",
   "verification_code_title": "Verification code",
   "code_sent_to_email": "A code was sent to {email}",
-  "@code_sent_to_email": { "placeholders": { "email": {} } },
+  "@code_sent_to_email": {
+    "placeholders": {
+      "email": {}
+    }
+  },
   "verification_enter_new_password": "Enter your new password",
   "return_button": "Back",
-
   "first_login_title": "Password change",
   "first_login_subtitle": "For security reasons, please choose a new password.",
   "change_password_button": "Change password",
-
   "password_reset_success_title": "Password reset!",
   "password_reset_success_body": "Your password has been changed successfully. You can now log in.",
-
   "enable_notifications_title": "Enable notifications",
   "enable_notifications_body": "Receive updates on your orders, promotions, and messages from our team.\n\nYou can change this setting in the settings.",
   "enable_button": "Enable",
-
   "onboarding_splash_subtitle": "Neighbourhood\ncooking.",
-
   "admin_welcome_title": "Welcome Admin!",
   "admin_welcome_body": "Your administrator account has been created successfully.\nYou can now manage the platform.",
-
   "identity_section_label": "Identity",
   "contact_section_label": "Contact",
   "security_section_label": "Security",
   "accept_terms_warning": "Please accept the terms.",
   "too_long_max_80": "Too long (max 80 characters)",
-
   "position_not_available": "Position not available",
   "save_profile": "Save",
-
   "cgv_title": "Terms and Conditions of Sale",
   "cgv_last_update": "Last updated: June 2026",
   "legal_notice_title": "Legal Notice",
   "privacy_policy_title": "Privacy Policy",
-
   "promo_edit_title_key": "Edit {code}",
-  "@promo_edit_title_key": { "placeholders": { "code": {} } },
-
+  "@promo_edit_title_key": {
+    "placeholders": {
+      "code": {}
+    }
+  },
   "address": "Address",
   "version_admin": "v1.0.0 · Administration",
   "refresh": "Refresh",
-
-  "please_modify_a_file": "Please modify one of the files."
+  "please_modify_a_file": "Please modify one of the files.",
+  "delivery_config_title": "Delivery fee configuration",
+  "delivery_config_current": "Current values",
+  "delivery_config_base_fee": "Base fee (CDF)",
+  "delivery_config_per_km": "Rate per km (CDF)",
+  "delivery_config_currency": "Currency",
+  "delivery_config_save": "Save",
+  "delivery_config_saved": "Configuration updated successfully",
+  "delivery_config_error": "Error updating configuration",
+  "delivery_config_loading": "Loading configuration...",
+  "delivery_config_admin_nav": "Delivery fees",
+  "delivery_config_distance": "Estimated distance",
+  "delivery_config_total_fee": "Estimated fee",
+  "cart_address_out_of_zone": "Area not covered yet",
+  "cart_address_out_of_zone_detail": "This address is outside our delivery zone. We currently deliver only in active delivery zones.",
+  "cart_address_zone_checking": "Checking delivery zone..."
 }

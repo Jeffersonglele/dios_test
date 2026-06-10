@@ -1,8 +1,9 @@
 {
   "@@locale": "fr",
   "helloWorld": "Bonjour le monde !",
-  "@helloWorld": { "description": "Test simple" },
-
+  "@helloWorld": {
+    "description": "Test simple"
+  },
   "appTitle": "Dios Délices",
   "welcome": "Bienvenue !",
   "welcomeSubtitle": "Votre compte a été créé avec succès.\nDécouvrez les meilleurs plats faits maison près de chez vous.",
@@ -27,7 +28,6 @@
   "yes": "Oui",
   "no": "Non",
   "continueLabel": "Continuer",
-
   "home": "Accueil",
   "menu": "Menu",
   "cart": "Panier",
@@ -37,7 +37,6 @@
   "logout": "Déconnexion",
   "boutique": "Boutique",
   "dashboard": "Tableau de bord",
-
   "login": "Connexion",
   "signup": "Inscription",
   "email": "Email",
@@ -53,7 +52,6 @@
   "verificationCode": "Code de vérification",
   "resendCode": "Renvoyer le code",
   "connectError": "Erreur de connexion. Vérifiez votre réseau.",
-
   "myProfile": "Mon profil",
   "editProfile": "Modifier mes informations",
   "editProfileTitle": "Modifier mon profil",
@@ -71,7 +69,6 @@
   "changePhoto": "Changer la photo",
   "gallery": "Galerie",
   "camera": "Caméra",
-
   "appearance": "Apparence",
   "darkMode": "Mode sombre",
   "enabled": "Activé",
@@ -79,17 +76,14 @@
   "language": "Langue",
   "notifications": "Notifications",
   "testNotifications": "Tester les notifications",
-
   "deleteAccount": "Supprimer mon compte",
   "deleteAccountWarning": "Cette action est irréversible. Toutes vos données personnelles et vos commandes seront définitivement supprimées.\n\nVoulez-vous vraiment continuer ?",
   "softDeleteMessage": "Votre compte sera désactivé immédiatement et définitivement supprimé sous 30 jours. Vos restaurants, plats et commandes seront masqués.",
-
   "legalInfo": "Informations légales",
   "privacyPolicy": "Politique de confidentialité",
   "termsOfService": "Conditions générales",
   "legalNotice": "Mentions légales",
   "about": "À propos",
-
   "myRestaurant": "Mon restaurant",
   "createRestaurant": "Créer mon restaurant",
   "restaurantName": "Nom du restaurant",
@@ -111,7 +105,6 @@
   "restaurantPendingBanner": "Votre restaurant est en cours d'examen par nos administrateurs. Vous pourrez gérer votre restaurant, ajouter des plats et recevoir des commandes dès qu'il sera validé.",
   "noRestaurant": "Aucun restaurant",
   "createRestaurantPrompt": "Créez votre restaurant pour commencer à vendre vos plats.",
-
   "addDish": "Ajouter un plat",
   "dishName": "Nom du plat",
   "dishDescription": "Description du plat",
@@ -125,7 +118,6 @@
   "mainPhoto": "Photo principale",
   "secondaryPhoto": "Photo secondaire",
   "noOptions": "Aucune option",
-
   "orders": "Commandes",
   "myOrders": "Mes commandes",
   "pending": "En attente",
@@ -138,7 +130,6 @@
   "noOrders": "Aucune commande",
   "noOrderReceived": "Aucune commande reçue.",
   "noOrderFound": "Aucune commande trouvée.",
-
   "users": "Utilisateurs",
   "restaurants": "Restaurants",
   "livreurs": "Livreurs",
@@ -157,45 +148,36 @@
   "addAdmin": "Ajouter un administrateur",
   "reject": "Rejeter",
   "rejectReason": "Motif du rejet",
-
   "contact": "Nous contacter",
   "chat": "Chat",
   "messages": "Messages",
   "noConversation": "Aucune conversation",
   "online": "En ligne",
   "yourMessage": "Votre message...",
-
   "country": "Pays",
   "role": "Rôle",
   "session": "Session",
-
   "noInternet": "Pas de connexion Internet",
   "noData": "Aucune donnée",
   "noResults": "Aucun résultat",
   "comingSoon": "Bientôt disponible",
-
   "demandReceived": "Demande envoyée !",
   "demandSubtitle": "Votre demande de restaurant a bien été prise en compte.",
   "comeBackHome": "Retourner à l'accueil",
   "refreshStatus": "Rafraîchir le statut",
-
   "mySales": "Mes ventes",
   "myProducts": "Mes produits",
   "myDeliveries": "Mes livraisons",
-
   "review": "Avis",
   "rating": "Note",
   "comment": "Commentaire",
   "send": "Envoyer",
   "thankYou": "Merci !",
-
   "restaurantDeleted": "Restaurant supprimé",
   "accountDeactivated": "Compte désactivé. Suppression définitive dans 30 jours.",
   "accountBeingDeleted": "Ce compte est en cours de suppression.",
-
   "splash_subtitle": "Des plats faits maison, livrés chez vous",
   "splash_loading": "Chargement...",
-
   "onboarding_step_1_title": "Découvrez les saveurs maison près de vous",
   "onboarding_step_1_body": "Découvrez les meilleurs plats faits maison près de chez vous, préparés avec passion.",
   "onboarding_step_2_title": "Commandez simplement, оù que vous soyez",
@@ -249,7 +231,6 @@
   "next": "Suivant",
   "skip": "Passer",
   "start": "Commencer",
-
   "cart_title": "Votre Panier",
   "cart_empty": "Votre panier est vide",
   "cart_empty_hint": "Ajoutez des plats faits maison !",
@@ -267,7 +248,7 @@
   "cart_discount": "Réduction",
   "cart_payment_section": "Mode de paiement",
   "cart_payment_cod": "À la livraison",
-  "cart_payment_fedapay": "Fedapay",
+  "cart_payment_fedapay": "Mobile Money (CinetPay)",
   "cart_processing": "Traitement...",
   "cart_order_button": "Commander · {amount}",
   "cart_choose_address_warning": "Choisissez une adresse.",
@@ -275,7 +256,8 @@
   "cart_order_failed": "Impossible de créer la commande.",
   "cart_order_error_retry": "Erreur. Réessayez.",
   "cart_payment_url_error": "Erreur : URL de paiement introuvable.",
-  "cart_payment_fedapay_error": "Erreur paiement Fedapay.",
+  "cart_payment_fedapay_error": "Erreur de paiement en ligne",
+  "cart_payment_online_error": "Erreur de paiement en ligne. Veuillez réessayer ou choisir un autre mode de paiement.",
   "cart_payment_error": "Erreur paiement.",
   "cart_order_confirmed_message": "Votre commande #{orderId} a été passée avec succès.",
   "cart_track_order": "Suivre ma commande",
@@ -288,12 +270,10 @@
   "cart_your_addresses": "Vos adresses",
   "cart_new_address": "Nouvelle adresse",
   "cart_item_deleted": "{mealName} supprimé",
-
   "street": "Rue",
   "postal_code": "Code postal",
   "city": "Ville",
   "address_selection_hint": "Sélectionnez une adresse",
-
   "home_category_all": "Tout",
   "home_top_picks": "Top picks près de vous",
   "home_see_all": "Voir tout",
@@ -310,7 +290,6 @@
   "home_no_restaurants": "Aucun restaurant à proximité",
   "home_no_restaurants_hint": "Élargissez votre zone ou revenez plus tard.",
   "home_explore_categories": "Explorer toutes les catégories",
-
   "dish_added_to_cart": "Ajouté au panier !",
   "dish_cannot_mix_restaurants": "Vous ne pouvez pas commander de deux restaurants différents.",
   "dish_add_error": "Erreur lors de l'ajout au panier.",
@@ -321,7 +300,6 @@
   "dish_options": "Options",
   "dish_reviews": "Avis",
   "dish_add_to_cart": "Ajouter au panier · {price}",
-
   "store_my_earnings": "Mes revenus",
   "store_delivery_radius": "Rayon de livraison",
   "store_become_seller": "Devenir vendeur",
@@ -344,7 +322,6 @@
   "store_max_distance_limit": "Limité à 10 km maximum",
   "store_radius_updated": "Rayon mis à jour : {distance} km",
   "store_update_error": "Erreur de mise à jour",
-
   "admin_dashboard_title": "Administration",
   "admin_greeting": "Bonjour, {name}",
   "admin_validation_alert": "{count} restaurant(s) en attente",
@@ -368,7 +345,6 @@
   "admin_restaurant_validated": "{name} validé ✓",
   "admin_restaurant_rejected": "{name} rejeté",
   "admin_rejection_reason_hint": "Raison du rejet…",
-
   "admin_pro_requests": "Demandes Pro",
   "admin_pro_requests_pending": "En attente",
   "admin_pro_requests_validated": "Validées",
@@ -386,8 +362,7 @@
   "admin_pro_view_document": "Voir",
   "admin_pro_description": "Description de la demande",
   "admin_pro_no_description": "Aucune description fournie.",
-
-  "delivery_status_assigned": "Assignée",
+  "delivery_status_assigned": "Assigné",
   "delivery_status_picked_up": "Récupérée",
   "delivery_status_in_transit": "En route",
   "delivery_status_delivered": "Livrée",
@@ -412,7 +387,6 @@
   "delivery_tracking_steps_picked": "Récupéré",
   "delivery_tracking_steps_transit": "En route",
   "delivery_tracking_steps_delivered": "Livré",
-
   "livreur_fiche_title": "Fiche livreur",
   "livreur_not_found": "Livreur introuvable",
   "livreur_stats": "Statistiques de livraison",
@@ -456,7 +430,6 @@
   "livreur_map_accept": "Accepter",
   "livreur_order_accepted": "Commande #{id} acceptée",
   "livreur_order_already_in_progress": "Impossible d'accepter : vous avez déjà une commande en cours",
-
   "restaurant_form_title_create": "Créer mon restaurant",
   "restaurant_form_title_edit": "Modifier mon restaurant",
   "restaurant_form_section_restaurant": "Votre restaurant",
@@ -483,14 +456,12 @@
   "restaurant_form_delivery_fee_hint": "Frais de livraison",
   "restaurant_form_opening_hours_hint": "Horaires d'ouverture (ex: 09:00 - 20:00)",
   "restaurant_form_open_now": "Restaurant actuellement ouvert",
-
   "restaurant_details_menu": "Menu",
   "restaurant_details_dish_count": "{count} plats",
   "restaurant_details_reviews": "Avis",
   "restaurant_details_mode_delivery": "Livraison + À emporter",
   "restaurant_details_mode_takeaway": "À emporter",
   "restaurant_details_mode_delivery_only": "Livraison",
-
   "restaurant_list_title": "Restaurants · {country}",
   "restaurant_list_search_hint": "Rechercher un restaurant...",
   "restaurant_list_filter_pending": "En attente",
@@ -501,12 +472,10 @@
   "restaurant_list_reject_hint": "Motif du rejet pour \"{name}\" :",
   "restaurant_list_validated_toast": "Le restaurant {name} a été validé{emailSent}",
   "restaurant_list_rejected_toast": "Le restaurant {name} a été rejeté{emailSent}",
-
   "near_restaurants_title": "Restaurants à proximité",
   "near_restaurants_search_hint": "Rechercher un restaurant ou une cuisine",
   "near_restaurants_open_now": "Ouverts maintenant",
   "near_restaurants_no_results": "Aucun restaurant trouvé avec ces filtres.",
-
   "verification_select_status": "Sélectionnez votre statut",
   "verification_individual": "Particulier",
   "verification_restaurateur": "Restaurateur",
@@ -524,7 +493,6 @@
   "verification_new_code_sent": "Nouveau code envoyé par email.",
   "verification_new_code_error": "Impossible d'envoyer le code.",
   "verification_resend_cooldown": "Renvoyer le code ({seconds} s)",
-
   "identity_title": "Mon identité",
   "identity_your_photo": "Votre photo",
   "identity_no_photo": "Aucune photo prise",
@@ -544,17 +512,14 @@
   "identity_gallery_error": "Impossible d'ouvrir la galerie.",
   "identity_pending_title": "Nouvelle identité en attente de vérification",
   "identity_pending_body": "Connectez-vous pour valider ou non l'utilisateur.",
-
   "confirmation_request_taken": "Votre demande a bien été prise en compte.",
   "confirmation_wait_contact": "Vous serez contacté si votre idée de restaurant est acceptée.",
   "confirmation_wait_email": "Vous recevrez un mail lorsque nos administrateurs auront examiné vos informations.",
   "confirmation_back_home": "Retourner à l'accueil",
-
   "start_address_instructions": "Nous allons enregistrer votre adresse : suivez les instructions jusqu'à la fin",
   "start_identity_instructions": "Dernière étape : nous allons vérifier votre identité",
   "start_begin": "Commencer >",
   "start_cancel_return": "Annuler (retour à la connexion)",
-
   "user_orders_received": "Commandes reçues",
   "user_orders_my": "Mes commandes",
   "user_orders_confirm": "Confirmer",
@@ -573,7 +538,6 @@
   "user_orders_thanks_review_driver": "Merci pour votre avis sur le livreur !",
   "user_orders_tap_to_enlarge": "Toucher pour agrandir",
   "user_orders_no_driver": "Aucun livreur disponible en ligne dans la zone de distance.",
-
   "commande_details_title": "Détails de la commande",
   "commande_details_confirm_order": "Confirmer la commande",
   "commande_details_cancel_order": "Annuler la commande",
@@ -585,6 +549,7 @@
   "commande_details_card": "Carte bancaire",
   "commande_details_om": "Orange Money",
   "commande_details_wave": "Wave",
+  "commande_details_cinetpay": "Mobile Money (CinetPay)",
   "commande_details_items": "Articles",
   "commande_details_no_items": "Aucun article",
   "commande_details_address": "Adresse de livraison",
@@ -598,39 +563,30 @@
   "commande_details_confirmed": "Confirmée",
   "commande_details_delivered": "Livrée",
   "commande_details_cancelled": "Commande annulée",
-
   "sales_title": "Mes ventes",
   "sales_no_sales": "Aucune vente.",
   "sales_revenue": "Chiffre d'affaires",
   "sales_delivery_fees": "Frais livraison : ",
-
   "my_products_title": "Mes plats",
   "my_products_no_products": "Aucun plat.",
   "my_products_add": "Ajouter un plat",
-
   "menu_no_dishes": "Aucun plat dans votre menu.",
   "menu_add_first_dish": "Ajoutez votre premier plat !",
-
   "contact_need_help": "Besoin d'aide ?",
   "contact_description": "Contactez-nous pour toute question ou modification de vos informations.",
   "contact_chat_hours": "Disponible de 9h à 18h",
   "contact_chat_soon": "Chat bientôt disponible !",
-
   "chat_no_conversations": "Aucune conversation.",
   "chat_placeholder": "Vos échanges apparaîtront ici.",
   "chat_unknown": "Inconnu",
   "chat_first_message": "Envoyez un premier message !",
-
   "explore_title": "Explorer",
   "explore_no_dishes": "Aucun plat disponible.",
-
   "near_meals_title": "Plats à proximité",
   "near_meals_search_hint": "Rechercher un plat ou un restaurant",
   "near_meals_filter_open": "Restos ouverts",
   "near_meals_no_results": "Aucun plat trouvé avec ces filtres.",
-
   "food_categories_title": "Catégories",
-
   "promo_create_title": "Créer un code promo",
   "promo_code_label": "Code",
   "promo_required": "Requis",
@@ -653,7 +609,6 @@
   "promo_create_code": "Créer un code",
   "promo_active": "Actif",
   "promo_inactive": "Inactif",
-
   "category_manage_title": "Gérer les catégories",
   "category_name_required": "Veuillez entrer un nom de catégorie.",
   "category_added": "Catégorie ajoutée.",
@@ -665,7 +620,6 @@
   "category_add": "Ajouter",
   "category_empty": "Aucune catégorie.",
   "category_delete_title": "Supprimer",
-
   "scheduled_deletions_title": "Suppressions programmées",
   "scheduled_deletions_empty": "Aucune suppression programmée",
   "scheduled_deletions_all_active": "Tous les comptes sont actifs pour {country}",
@@ -683,14 +637,11 @@
   "scheduled_deletions_last_day": "Dernier jour",
   "scheduled_deletions_days_elapsed": "{days}j écoulés",
   "scheduled_deletions_days_remaining": "{days}j restants",
-
   "audit_log_title": "Audit Log — {country}",
   "audit_log_empty": "Aucun log pour ce pays.",
-
   "support_chat_title": "Support Messagerie — {country}",
   "support_chat_search_hint": "Rechercher un utilisateur…",
   "support_chat_no_results": "Aucun utilisateur trouvé.",
-
   "referral_title": "Parrainage",
   "referral_godchildren": "Filleuls",
   "referral_active_codes": "Codes actifs",
@@ -698,28 +649,22 @@
   "referral_codes_section": "Codes de parrainage",
   "referral_empty": "Aucun code de parrainage",
   "referral_empty_hint": "Les codes de parrainage apparaîtront ici lorsque des utilisateurs les créeront.",
-
   "wait_identity_title": "Votre identité n'a pas encore été validée.",
   "wait_identity_body": "Vous recevrez un mail lorsque nos administrateurs auront examiné vos informations.",
   "wait_restaurant_title": "Votre restaurant n'a pas encore été validé.",
   "wait_restaurant_body": "Vous recevrez un mail si votre idée de restaurant est acceptée.",
-
   "verification_email_missing": "Adresse email introuvable. Veuillez vous reconnecter.",
   "verification_sending": "Envoi du code de vérification...",
   "verification_reconnect": "Se reconnecter",
-
   "dishes": "Plats",
   "identity_naming_error": "Erreur : vérifiez que les noms de vos fichiers respectent les conventions de nommage.",
-
   "orderCancelled": "Commande annulée",
-
   "user_orders_new_orders_hint": "Les nouvelles commandes apparaîtront ici en temps réel.",
   "user_orders_past_orders_hint": "Vos commandes passées apparaîtront ici.",
   "user_orders_pending_title": "Restaurant en cours de validation",
   "user_orders_pending_body": "Votre restaurant est en cours d'examen par nos administrateurs. Vous pourrez recevoir des commandes dès qu'il sera validé.",
   "user_orders_notified_email": "Vous serez notifié par email",
   "user_orders_receive_orders": "Et recevoir des commandes",
-
   "commande_details_load_error": "Impossible de charger les détails",
   "commande_details_actions": "Actions",
   "commande_details_tracking": "Suivi de commande",
@@ -727,68 +672,69 @@
   "commande_details_rating_label": "Note",
   "commande_details_livraison": "Livraison",
   "commande_details_reduction": "Réduction",
-
-  "delivery_status_assigned": "Assigné",
-  "delivery_status_picked_up": "Récupérée",
-  "delivery_status_in_transit": "En route",
-  "delivery_status_delivered": "Livrée",
   "delivery_status_pending_assign": "En attente d'assignation",
-
   "store_pending_validation": "En attente de validation",
   "store_pending_validation_body": "Votre restaurant est en cours d'examen. Vous pourrez gérer votre restaurant, ajouter des plats et recevoir des commandes dès qu'il sera validé.",
-
   "delivery_livraison_label": "Livraison : {amount}",
-  "@delivery_livraison_label": { "placeholders": { "amount": {} } },
-
+  "@delivery_livraison_label": {
+    "placeholders": {
+      "amount": {}
+    }
+  },
   "tracking_paid": "Payée",
   "tracking_confirmed": "Confirmée",
   "tracking_pending_label": "Commande créée, en attente de confirmation.",
   "tracking_paid_label": "Paiement confirmé, le restaurant traite la commande.",
   "tracking_confirmed_label": "Commande confirmée, en préparation.",
   "tracking_cancelled_label": "Commande annulée.",
-
   "country_select_hint": "Sélectionnez un pays",
-
   "error_with_message": "Erreur : {message}",
-  "@error_with_message": { "placeholders": { "message": {} } },
-
+  "@error_with_message": {
+    "placeholders": {
+      "message": {}
+    }
+  },
   "favorites_title": "Mes favoris",
   "favorites_subtitle": "Retrouvez vos restaurants et plats préférés.",
   "favorites_empty_restaurants": "Aucun restaurant en favori.",
   "favorites_empty_dishes": "Aucun plat en favori.",
   "favorites_restaurants_tab": "Restaurants",
   "favorites_dishes_tab": "Plats",
-
   "guest_title": "Dios Délices",
   "guest_login": "Connexion",
   "guest_no_restaurants": "Aucun restaurant disponible.",
   "guest_all": "Tout",
-
   "location_disabled": "Localisation désactivée. Activez-la dans les paramètres.",
   "location_detect_failed": "Impossible de détecter la position.",
   "location_my_address": "Mon adresse",
   "location_instruction": "Indiquez votre adresse pour recevoir vos commandes.",
   "location_get": "Obtenir ma localisation",
   "location_locating": "Localisation...",
-
   "search_no_results": "Aucun résultat pour \"{query}\"",
-  "@search_no_results": { "placeholders": { "query": {} } },
+  "@search_no_results": {
+    "placeholders": {
+      "query": {}
+    }
+  },
   "search_restaurants": "Restaurants",
   "search_dishes": "Plats",
   "search_input_hint": "Rechercher des plats, des restaurateurs...",
-
   "country_title": "Gestion {title}",
-  "@country_title": { "placeholders": { "title": {} } },
+  "@country_title": {
+    "placeholders": {
+      "title": {}
+    }
+  },
   "country_view": "Voir les {title} en {name}",
-  "@country_view": { "placeholders": { "title": {}, "name": {} } },
-
+  "@country_view": {
+    "placeholders": {
+      "title": {},
+      "name": {}
+    }
+  },
   "order_tracking_paid": "Payée",
   "order_tracking_confirmed": "Confirmée",
   "order_tracking_cancelled": "Annulée",
-
-  "users": "Utilisateurs",
-  "administrators": "Administrateurs",
-
   "pro_request_title": "Devenir Pro",
   "pro_request_subtitle": "Soumettez vos documents pour passer en compte professionnel.",
   "pro_request_description_label": "Votre demande",
@@ -803,30 +749,23 @@
   "pro_request_error_description": "Veuillez rédiger une description de votre demande.",
   "pro_request_error_identity": "Veuillez joindre votre pièce d'identité.",
   "pro_request_error_pro_doc": "Veuillez joindre un document professionnel.",
-
   "optional": "optionnel",
   "promo_activate": "Activer",
   "promo_deactivate": "Désactiver",
   "promo_delete_confirm": "Supprimer le code promo ?",
   "promo_edit_title": "Modifier la promo",
-
   "role_admin": "Admin",
   "role_client": "Client",
   "role_restaurateur": "Restaurateur",
   "role_livreur": "Livreur",
-
   "later": "Plus tard",
-
   "verification_email_exists": "Cet email est déjà utilisé.",
-
   "home_add_address_banner": "Ajoutez votre adresse pour voir les restaurants près de chez vous.",
   "welcome_title": "Bienvenue sur Dios Délices",
   "welcome_subtitle": "Votre compte a été créé avec succès.",
   "welcome_discover": "Découvrir",
-
   "store_unverified_title": "Compte non vérifié",
   "store_unverified_body": "Votre compte n'a pas encore été vérifié. Notre équipe l'examinera prochainement.\n\nVous pouvez contacter les administrateurs pour plus d'informations.",
-
   "test_notification_sent": "Notification de test envoyée !",
   "notif_orders_title": "Commandes",
   "notif_orders_desc": "Notifications des statuts de commande",
@@ -837,20 +776,31 @@
   "delivery_preferences": "Préférences de livraison",
   "max_delivery_distance": "Distance max de livraison",
   "max_delivery_distance_desc": "Distance maximale pour vos livraisons : {distance} km",
-  "@max_delivery_distance_desc": { "placeholders": { "distance": {} } },
+  "@max_delivery_distance_desc": {
+    "placeholders": {
+      "distance": {}
+    }
+  },
   "sell_your_dishes": "Vendre vos plats",
   "app_tagline": "La cuisine de quartier, plus chaleureuse et plus simple.",
   "delete_account_understand_hint": "Je comprends que mes données seront supprimées après 30 jours. Si je souhaite récupérer mon compte avant ce délai, je dois contacter les administrateurs.",
   "delete_account_recovery_hint": "Si vous souhaitez récupérer votre compte avant ce délai, contactez les administrateurs.",
   "confirm_your_email": "Confirmez votre email",
-
   "identity_validated_email_subject": "🎉 Bienvenue sur Dios Délices - Votre profil est validé !",
   "identity_rejected_email_subject": "❌ Mise à jour : Validation de votre profil sur Dios Délices",
   "identity_validated_email_body": "Bonjour {firstname},\n\nNous sommes ravis de vous informer que votre profil sur Dios Délices a été validé. Vous pouvez désormais profiter pleinement de toutes les fonctionnalités de l'application.\n\nBienvenue à bord !\n\nL'équipe Dios Délices",
-  "@identity_validated_email_body": { "placeholders": { "firstname": {} } },
+  "@identity_validated_email_body": {
+    "placeholders": {
+      "firstname": {}
+    }
+  },
   "identity_rejected_email_body": "Bonjour {firstname},\n\nNous regrettons de vous informer que votre profil sur Dios Délices n'a pas pu être validé pour le moment.\n\nMotif : {reason}\n\nVous pouvez modifier vos informations et soumettre à nouveau votre demande depuis l'application.\n\nL'équipe Dios Délices",
-  "@identity_rejected_email_body": { "placeholders": { "firstname": {}, "reason": {} } },
-
+  "@identity_rejected_email_body": {
+    "placeholders": {
+      "firstname": {},
+      "reason": {}
+    }
+  },
   "address_detected": "Adresse détectée",
   "address_detected_label": "Adresse détectée :",
   "address_manual_label": "Adresse manuelle :",
@@ -864,24 +814,34 @@
   "address_not_found_check": "Adresse introuvable. Vérifiez l'exactitude.",
   "address_not_found_verify": "Adresse introuvable, vérifiez les informations.",
   "address_not_match_country": "Votre adresse ({address}) ne correspond pas à votre pays. Veuillez vérifier.",
-  "@address_not_match_country": { "placeholders": { "address": {} } },
+  "@address_not_match_country": {
+    "placeholders": {
+      "address": {}
+    }
+  },
   "enter_address_manually": "Entrer mon adresse manuellement",
   "hide_form": "Masquer le formulaire",
   "full_address_hint": "Adresse complète (rue, immeuble, indications...)",
   "district": "Quartier / Arrondissement",
   "clear": "Effacer",
   "enter_or_detect_address": "Veuillez entrer ou détecter une adresse.",
-
-  "overview": "Vue d'ensemble",
   "pending_orders": "Commandes en attente",
   "to_process": "À traiter",
   "cancelled_orders": "Commandes annulées",
   "available_dishes": "Plats disponibles",
   "servings_sold": "Portions vendues",
   "unavailable_dishes_num": "{count} indisponibles",
-  "@unavailable_dishes_num": { "placeholders": { "count": {} } },
+  "@unavailable_dishes_num": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "available_servings_of": "/ {total} disponibles",
-  "@available_servings_of": { "placeholders": { "total": {} } },
+  "@available_servings_of": {
+    "placeholders": {
+      "total": {}
+    }
+  },
   "manage": "Gérer",
   "last_orders": "Dernières commandes",
   "see_all": "Tout voir",
@@ -893,8 +853,12 @@
   "owner": "Propriétaire",
   "pro_badge": "PRO",
   "owner_info": "Propriétaire: {firstname} · {email}",
-  "@owner_info": { "placeholders": { "firstname": {}, "email": {} } },
-
+  "@owner_info": {
+    "placeholders": {
+      "firstname": {},
+      "email": {}
+    }
+  },
   "user_details_information": "Informations",
   "user_details_firstname": "Prénom",
   "user_details_lastname": "Nom",
@@ -918,13 +882,27 @@
   "type_delete_to_confirm": "Tapez \"DELETE\" pour confirmer",
   "must_type_delete": "Tapez DELETE pour confirmer",
   "user_deleted": "{firstname} supprimé.",
-  "@user_deleted": { "placeholders": { "firstname": {} } },
+  "@user_deleted": {
+    "placeholders": {
+      "firstname": {}
+    }
+  },
   "force_delete_button": "SUPPRIMER TOUT",
   "profile_validated_email_sent": "Le profil de {firstname} {lastname} a été validé et un email a été envoyé.",
-  "@profile_validated_email_sent": { "placeholders": { "firstname": {}, "lastname": {} } },
+  "@profile_validated_email_sent": {
+    "placeholders": {
+      "firstname": {},
+      "lastname": {}
+    }
+  },
   "profile_validated_email_error": "Profil validé mais erreur lors de l'envoi de l'email.",
   "profile_rejected_email_sent": "Le profil de {firstname} {lastname} a été rejeté et un email a été envoyé.",
-  "@profile_rejected_email_sent": { "placeholders": { "firstname": {}, "lastname": {} } },
+  "@profile_rejected_email_sent": {
+    "placeholders": {
+      "firstname": {},
+      "lastname": {}
+    }
+  },
   "profile_rejected_email_error": "Profil rejeté mais erreur lors de l'envoi de l'email.",
   "view_existing_file": "Voir le fichier existant",
   "no_photo_available": "Aucune photo disponible",
@@ -941,149 +919,191 @@
   "choose_from_gallery": "Choisir depuis la galerie",
   "choose_image_file": "Choisir un fichier image",
   "choose_image_from_gallery": "Choisir une image depuis la galerie",
-
   "users_list_title": "Utilisateurs · {country}",
-  "@users_list_title": { "placeholders": { "country": {} } },
+  "@users_list_title": {
+    "placeholders": {
+      "country": {}
+    }
+  },
   "search_name_email_phone": "Rechercher nom, email, téléphone...",
   "all_filter": "Tous",
   "pending_filter": "En attente",
   "validated_filter": "Validé",
   "rejected_filter": "Rejeté",
   "users_count": "{displayed} / {total} utilisateur(s)",
-  "@users_count": { "placeholders": { "displayed": {}, "total": {} } },
+  "@users_count": {
+    "placeholders": {
+      "displayed": {},
+      "total": {}
+    }
+  },
   "pending_count": "{count} en attente",
-  "@pending_count": { "placeholders": { "count": {} } },
+  "@pending_count": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "validated_count": "{count} validés",
-  "@validated_count": { "placeholders": { "count": {} } },
+  "@validated_count": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "no_user_found": "Aucun utilisateur trouvé",
   "super_admin": "Super Admin",
   "profile_rejected": "Profil rejeté",
   "profile_validated": "Profil validé",
   "profile_pending": "Profil en attente",
-
   "favorites_my": "Mes favoris",
-  "favorites_subtitle": "Retrouvez vos restaurants et plats préférés.",
-  "favorites_empty_restaurants": "Aucun restaurant en favori.",
-  "favorites_empty_dishes": "Aucun plat en favori.",
-  "favorites_restaurants_tab": "Restaurants",
-  "favorites_dishes_tab": "Plats",
   "no_dishes": "Aucun plat.",
-
-  "rating": "Note",
   "rate": "Noter",
   "user_not_connected": "Utilisateur non connecté",
   "ordered_dishes": "Plats commandés",
   "dish_num": "Plat #{id}",
-  "@dish_num": { "placeholders": { "id": {} } },
+  "@dish_num": {
+    "placeholders": {
+      "id": {}
+    }
+  },
   "features": "Caractéristiques",
   "your_review": "Votre avis",
   "share_experience_hint": "Partagez votre expérience en quelques mots…",
   "no_reviews_yet": "Aucun avis pour le moment.",
   "reviews_count": "{count} avis",
-  "@reviews_count": { "placeholders": { "count": {} } },
+  "@reviews_count": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "previous": "Précédent",
-  "next": "Suivant",
-
   "order_tracking_title": "Suivi de commande",
   "order_num": "Commande #{id}",
-  "@order_num": { "placeholders": { "id": {} } },
+  "@order_num": {
+    "placeholders": {
+      "id": {}
+    }
+  },
   "delivery_cost": "Livraison {amount}",
-  "@delivery_cost": { "placeholders": { "amount": {} } },
+  "@delivery_cost": {
+    "placeholders": {
+      "amount": {}
+    }
+  },
   "discount_amount": "Réduction {amount}",
-  "@discount_amount": { "placeholders": { "amount": {} } },
-
+  "@discount_amount": {
+    "placeholders": {
+      "amount": {}
+    }
+  },
   "validate_this_image": "Valider cette image",
   "test_notification_title": "Notification de test",
   "test_notification_body": "Ceci est une notification de test",
   "new_order_title": "Nouvelle commande !",
   "new_order_body": "Commande de {amount} {currency} chez {restaurant}",
-  "@new_order_body": { "placeholders": { "amount": {}, "currency": {}, "restaurant": {} } },
-
+  "@new_order_body": {
+    "placeholders": {
+      "amount": {},
+      "currency": {},
+      "restaurant": {}
+    }
+  },
   "modify_dish": "Modifier le plat",
   "add_dish_title": "Ajouter un plat",
   "no_options_available": "Aucune option",
   "add_option_button": "Ajouter une option",
   "add_option_count": "Ajouter une option ({count}/3)",
-  "@add_option_count": { "placeholders": { "count": {} } },
+  "@add_option_count": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "main_photo_badge": "Principale",
   "option_name": "Nom de l'option",
   "option_price_hint": "Prix de l'option (obligatoire, ex: 2,50)",
-
   "admin_role_label": "Admin",
   "super_admin_role_label": "Super Admin",
   "resto_role_label": "Resto",
   "livreur_role_label": "Livreur",
   "individual_role_label": "Particulier",
   "restaurateur_role_label": "Restaurateur",
-
   "change_password_title_dialog": "Modifier le mot de passe",
   "current_password_label": "Mot de passe actuel",
   "new_password_label": "Nouveau mot de passe",
   "confirm_password_label": "Confirmer le mot de passe",
-
   "become_restaurateur_dialog_title": "Devenir micro-restaurateur",
   "become_restaurateur_dialog_body": "En devenant micro-restaurateur, vous pourrez publier vos plats et les vendre directement aux clients. Souhaitez-vous continuer ?",
   "yes_sell_my_dishes": "Oui, je veux vendre mes plats",
-
   "delete_account_dialog_title": "Supprimer mon compte",
   "delete_account_dialog_warning": "Cette action est irréversible. Vos données personnelles seront supprimées après 30 jours.",
-
   "notifications_switch_orders": "Commandes",
   "notifications_switch_promos": "Promotions",
   "notifications_switch_messages": "Messages",
-
   "add_your_address": "Ajoutez votre adresse",
   "my_orders_button": "Mes commandes",
-
   "search_no_results_for": "Aucun résultat pour \"{query}\"",
-  "@search_no_results_for": { "placeholders": { "query": {} } },
+  "@search_no_results_for": {
+    "placeholders": {
+      "query": {}
+    }
+  },
   "restaurants_section": "Restaurants",
   "dishes_section": "Plats",
   "search_hint_input": "Rechercher des plats, des restaurateurs...",
-
   "password_reset_code_hint": "Veuillez entrer un code à 6 chiffres",
   "verification_code_title": "Code de vérification",
   "code_sent_to_email": "Un code a été envoyé à {email}",
-  "@code_sent_to_email": { "placeholders": { "email": {} } },
+  "@code_sent_to_email": {
+    "placeholders": {
+      "email": {}
+    }
+  },
   "verification_enter_new_password": "Entrez votre nouveau mot de passe",
   "return_button": "Retour",
-
   "first_login_title": "Changement de mot de passe",
   "first_login_subtitle": "Pour des raisons de sécurité, veuillez choisir un nouveau mot de passe.",
   "change_password_button": "Changer le mot de passe",
-
   "password_reset_success_title": "Mot de passe réinitialisé !",
   "password_reset_success_body": "Votre mot de passe a été changé avec succès. Vous pouvez maintenant vous connecter.",
-
   "enable_notifications_title": "Activer les notifications",
   "enable_notifications_body": "Recevez les mises à jour de vos commandes, les promotions et les messages de notre équipe.\n\nVous pourrez modifier ce choix dans les paramètres.",
   "enable_button": "Activer",
-
   "onboarding_splash_subtitle": "La cuisine du quartier,\nlivrée.",
-
   "admin_welcome_title": "Bienvenue Admin !",
   "admin_welcome_body": "Votre compte administrateur a été créé avec succès.\nVous pouvez maintenant gérer la plateforme.",
-
   "identity_section_label": "Identité",
   "contact_section_label": "Contact",
   "security_section_label": "Sécurité",
   "accept_terms_warning": "Veuillez accepter les conditions.",
   "too_long_max_80": "Trop long (max 80 caractères)",
-
   "position_not_available": "Position indisponible",
   "save_profile": "Enregistrer",
-
   "cgv_title": "Conditions générales de vente",
   "cgv_last_update": "Dernière mise à jour : juin 2026",
   "legal_notice_title": "Mentions légales",
   "privacy_policy_title": "Politique de confidentialité",
-
   "promo_edit_title_key": "Modifier {code}",
-  "@promo_edit_title_key": { "placeholders": { "code": {} } },
-
+  "@promo_edit_title_key": {
+    "placeholders": {
+      "code": {}
+    }
+  },
   "address": "Adresse",
   "version_admin": "v1.0.0 · Administration",
   "refresh": "Rafraîchir",
-
-  "please_modify_a_file": "Merci de modifier un des fichiers."
+  "please_modify_a_file": "Merci de modifier un des fichiers.",
+  "delivery_config_title": "Configuration des frais de livraison",
+  "delivery_config_current": "Valeurs actuelles",
+  "delivery_config_base_fee": "Frais de base (CDF)",
+  "delivery_config_per_km": "Tarif par km (CDF)",
+  "delivery_config_currency": "Devise",
+  "delivery_config_save": "Enregistrer",
+  "delivery_config_saved": "Configuration mise à jour avec succès",
+  "delivery_config_error": "Erreur lors de la mise à jour",
+  "delivery_config_loading": "Chargement de la configuration...",
+  "delivery_config_admin_nav": "Frais de livraison",
+  "delivery_config_distance": "Distance estimée",
+  "delivery_config_total_fee": "Frais estimés",
+  "cart_address_out_of_zone": "Zone non couverte pour l'instant",
+  "cart_address_out_of_zone_detail": "Cette adresse se trouve en dehors de notre zone de livraison. Nous livrons uniquement dans les zones de livraison actives.",
+  "cart_address_zone_checking": "Vérification de la zone de livraison..."
 }

@@ -68,6 +68,7 @@ class Restaurant extends HiveObject {
 
   String openingHoursByDay;
   String recoveryMode;
+  int cityID;
 
   Restaurant(
       {required this.restaurantID,
@@ -95,7 +96,8 @@ class Restaurant extends HiveObject {
       this.deliveryRadius = 10,
       this.closedDates = '',
       this.openingHoursByDay = '',
-      this.recoveryMode = 'delivery'});
+      this.recoveryMode = 'delivery',
+      this.cityID = 1});
 
   Map<String, dynamic> toMap() {
     return {
@@ -125,6 +127,7 @@ class Restaurant extends HiveObject {
       'closedDates': closedDates,
       'openingHoursByDay': openingHoursByDay,
       'recoveryMode': recoveryMode,
+      'cityID': cityID,
     };
   }
 
@@ -163,7 +166,8 @@ class Restaurant extends HiveObject {
         deliveryRadius: double.tryParse(map['deliveryRadius']?.toString() ?? '10') ?? 10,
         closedDates: map['closedDates']?.toString() ?? '',
         openingHoursByDay: map['openingHoursByDay']?.toString() ?? '',
-        recoveryMode: map['recoveryMode']?.toString() ?? 'delivery');
+        recoveryMode: map['recoveryMode']?.toString() ?? 'delivery',
+        cityID: int.tryParse(map['cityID']?.toString() ?? '1') ?? 1);
   }
 
   Restaurant copy({
@@ -192,6 +196,7 @@ class Restaurant extends HiveObject {
     String? closedDates,
     String? openingHoursByDay,
     String? recoveryMode,
+    int? cityID,
   }) {
     return Restaurant(
         restaurantID: restaurantID ?? this.restaurantID,
@@ -218,7 +223,8 @@ class Restaurant extends HiveObject {
         deliveryRadius: deliveryRadius ?? this.deliveryRadius,
         closedDates: closedDates ?? this.closedDates,
         openingHoursByDay: openingHoursByDay ?? this.openingHoursByDay,
-        recoveryMode: recoveryMode ?? this.recoveryMode);
+        recoveryMode: recoveryMode ?? this.recoveryMode,
+        cityID: cityID ?? this.cityID);
   }
 
   static Future<String> manageRestaurant({
@@ -244,6 +250,7 @@ class Restaurant extends HiveObject {
     String currency = 'EUR',
     String openingDays = 'Lun,Mar,Mer,Jeu,Ven,Sam',
     String recoveryMode = 'delivery',
+    int cityID = 1,
     double minOrderAmount = 0,
     double deliveryRadius = 10,
     String closedDates = '',
@@ -294,6 +301,7 @@ class Restaurant extends HiveObject {
       'currency': currency,
       'openingDays': openingDays,
       'recoveryMode': recoveryMode,
+      'cityID': cityID,
       'minOrderAmount': minOrderAmount,
       'deliveryRadius': deliveryRadius,
       'closedDates': closedDates,

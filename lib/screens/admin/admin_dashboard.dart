@@ -25,6 +25,7 @@ import 'parrainage_page.dart';
 import 'scheduled_deletions_page.dart';
 import 'audit_log_page.dart';
 import 'pro_management_page.dart';
+import 'delivery_config_page.dart';
 import '../users/user_details.dart';
 
 // ═══════════════════════════════════════════════════════════
@@ -917,6 +918,20 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 MaterialPageRoute(
                     builder: (_) =>
                         ScheduledDeletionsPage(country: _userCountry))),
+          ),
+        ),
+      ),
+      const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.sm)),
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
+          child: _NavCardResponsive(
+            icon: Icons.local_shipping_rounded,
+            label: l10n.delivery_config_admin_nav,
+            color: AppColors.resolve(AppColors.accent, AppDarkColors.accent),
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(
+                    builder: (_) => const DeliveryConfigPage())),
           ),
         ),
       ),

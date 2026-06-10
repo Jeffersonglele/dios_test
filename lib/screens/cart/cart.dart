@@ -10,6 +10,7 @@ import 'package:geocoding/geocoding.dart' as geocoding;
 
 import '../../config/app_config.dart';
 import '../../l10n/app_localizations.dart';
+import '../../db/database_helper.dart';
 import '../../models/address.dart' as delivery;
 import '../../models/commande.dart';
 import '../../models/restaurant.dart';
@@ -50,6 +51,7 @@ class _CartState extends ConsumerState<Cart> {
 
   int current_userID = 0;
   int current_user_role = 0;
+  int _cityID = 1;
 
   @override
   void initState() {
@@ -71,6 +73,8 @@ class _CartState extends ConsumerState<Cart> {
       current_userID = session.userId;
       current_user_role = session.role.id;
     });
+    final user = await DatabaseHelper.getUser(current_userID);
+    _cityID = user?.cityID ?? 1;
     await _filterAddresses();
   }
 
@@ -481,7 +485,7 @@ class _CartState extends ConsumerState<Cart> {
                   child: ElevatedButton(
                     onPressed: cartItems.isNotEmpty && !_isSubmittingPayment
                         ? () => _payOnline
-                            ? _handleFedapayPayment()
+                                ? _handleOnlinePayment()
                             : _handleOrder()
                         : null,
                     child: Text(
@@ -517,11 +521,36 @@ class _CartState extends ConsumerState<Cart> {
   }
 
   // ── Logique métier (inchangée) ──────────────────────────
+  Future<bool> _checkAddressInZone(delivery.Address address) async {
+    final l10n = AppLocalizations.of(context)!;
+    final lat = double.tryParse(address.lat ?? '');
+    final lng = double.tryParse(address.long ?? '');
+    if (lat == null || lng == null) {
+      Toast(context, l10n.cart_address_out_of_zone_detail, false);
+      return false;
+    }
+    try {
+      final fn = ParseCloudFunction('checkAddressInZone');
+      final response = await fn.execute(parameters: {'lat': lat, 'lng': lng});
+      if (response.success && response.result != null) {
+        final data = response.result as Map<String, dynamic>;
+        if (data['deliverable'] == true) return true;
+      }
+    } catch (_) {}
+    Toast(context, l10n.cart_address_out_of_zone, false);
+    return false;
+  }
+
   Future<void> _handleOrder() async {
     final option = ref.read(selectedDeliveryProvider);
+    final l10n = AppLocalizations.of(context)!;
     if (option == kDeliveryOptionLivraison && selectedAddress == null) {
-      Toast(context, AppLocalizations.of(context)!.cart_choose_address_warning, false);
+      Toast(context, l10n.cart_choose_address_warning, false);
       return;
+    }
+    if (option == kDeliveryOptionLivraison && selectedAddress != null) {
+      final inZone = await _checkAddressInZone(selectedAddress!);
+      if (!inZone) return;
     }
     final cartItems = ref.read(cartStateProvider);
     final cartNotifier = ref.read(cartStateProvider.notifier);
@@ -542,9 +571,10 @@ class _CartState extends ConsumerState<Cart> {
         currencyCode: cc,
         reduction: discount,
         promoCode: _appliedPromo?.code,
+        cityID: _userCityId,
       );
       if (commandeId != null) {
-        Toast(context, AppLocalizations.of(context)!.cart_order_confirm_message, true);
+        Toast(context, l10n.cart_order_confirm_message, true);
         final restaurantId = cartItems.first['restaurant']['restau_id'];
         final restaurantsList = await Restaurant.fetchRestaurantsFromDB();
         final currentRestaurant = Restaurant.getRestaurantByRestaurantId(
@@ -568,20 +598,25 @@ class _CartState extends ConsumerState<Cart> {
                       OrderConfirmationPage(commandeId: commandeId)));
         }
       } else {
-        Toast(context, AppLocalizations.of(context)!.cart_order_failed, false);
+        Toast(context, l10n.cart_order_failed, false);
       }
     } catch (_) {
-      Toast(context, AppLocalizations.of(context)!.cart_order_error_retry, false);
+      Toast(context, l10n.cart_order_error_retry, false);
     } finally {
       if (mounted) setState(() => _isSubmittingPayment = false);
     }
   }
 
-  Future<void> _handleFedapayPayment() async {
+  Future<void> _handleOnlinePayment() async {
     final option = ref.read(selectedDeliveryProvider);
+    final l10n = AppLocalizations.of(context)!;
     if (option == kDeliveryOptionLivraison && selectedAddress == null) {
-      Toast(context, AppLocalizations.of(context)!.cart_choose_address_warning, false);
+      Toast(context, l10n.cart_choose_address_warning, false);
       return;
+    }
+    if (option == kDeliveryOptionLivraison && selectedAddress != null) {
+      final inZone = await _checkAddressInZone(selectedAddress!);
+      if (!inZone) return;
     }
     final cartItems = ref.read(cartStateProvider);
     final cartNotifier = ref.read(cartStateProvider.notifier);
@@ -592,7 +627,7 @@ class _CartState extends ConsumerState<Cart> {
     final discount = _appliedPromo?.discountAmount ?? 0.0;
     final total =
         (_subtotal(items) + fee - discount).clamp(0.0, double.infinity);
-    final currencyIso = CurrencyUtil.code(country).toUpperCase() == 'XOF' ? 'XOF' : 'EUR';
+    final currencyIso = country == 'CD' ? 'CDF' : CurrencyUtil.code(country).toUpperCase() == 'XOF' ? 'XOF' : 'EUR';
 
     setState(() => _isSubmittingPayment = true);
     try {
@@ -605,6 +640,7 @@ class _CartState extends ConsumerState<Cart> {
         currencyCode: cc,
         reduction: discount,
         promoCode: _appliedPromo?.code,
+        cityID: _userCityId,
       );
       if (commandeId == null) {
         Toast(context, AppLocalizations.of(context)!.cart_order_failed, false);
@@ -621,10 +657,11 @@ class _CartState extends ConsumerState<Cart> {
         'customerName':
             '${currentUser?.firstname ?? ""} ${currentUser?.lastname ?? ""}',
         'customerEmail': currentUser?.email ?? '',
-        'country': country,
+        'customerPhone': currentUser?.telephone?.toString() ?? '',
+        'channels': 'ALL',
       };
       final response = await http.post(
-        Uri.parse('${AppConfig.vercelBackendUrl}/api/fedapay-initiate'),
+        Uri.parse('${AppConfig.vercelBackendUrl}/api/cinetpay-initiate'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(body),
       );
@@ -661,7 +698,7 @@ class _CartState extends ConsumerState<Cart> {
           Toast(context, AppLocalizations.of(context)!.cart_payment_url_error, false);
         }
       } else {
-        Toast(context, AppLocalizations.of(context)!.cart_payment_fedapay_error, false);
+        Toast(context, AppLocalizations.of(context)!.cart_payment_online_error, false);
       }
     } catch (_) {
       Toast(context, AppLocalizations.of(context)!.cart_payment_error, false);
@@ -669,6 +706,8 @@ class _CartState extends ConsumerState<Cart> {
       if (mounted) setState(() => _isSubmittingPayment = false);
     }
   }
+
+  int get _userCityId => _cityID;
 
   Future<String?> createOrder(
     List<dynamic> cartItems,
@@ -679,6 +718,7 @@ class _CartState extends ConsumerState<Cart> {
     required String currencyCode,
     required double reduction,
     String? promoCode,
+    int cityID = 1,
   }) async {
     final restaurantsList = await Restaurant.fetchRestaurantsFromDB();
     final restaurantId = cartItems.first['restaurant']['restau_id'];
@@ -717,6 +757,7 @@ class _CartState extends ConsumerState<Cart> {
       "totalAmount": totalAmount,
       "items": items,
       if (idPaiement != null) "moyenPaiementID": idPaiement,
+      "cityID": cityID,
       if (promoCode != null) "promo_code": promoCode,
       if (idAdresse != null) "id_adresse_livraison": idAdresse,
     };

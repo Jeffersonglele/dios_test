@@ -56,6 +56,9 @@ class Commande extends HiveObject {
   @HiveField(15)
   double? livreurLng;
 
+  @HiveField(16)
+  int cityID;
+
   double totalAmount;
   String? deliveryMode;
   String? promoCode;
@@ -83,6 +86,7 @@ class Commande extends HiveObject {
     this.deliveryMode,
     this.promoCode,
     this.subtotalAmount,
+    this.cityID = 1,
     this.country,
   });
 
@@ -109,6 +113,7 @@ class Commande extends HiveObject {
       promoCode: map['promoCode']?.toString(),
       subtotalAmount: (map['subtotalAmount'] ?? map['totalAmount'] ?? 0)?.toDouble(),
       country: map['country']?.toString(),
+      cityID: int.tryParse(map['cityID']?.toString() ?? '1') ?? 1,
     );
   }
 
@@ -134,6 +139,7 @@ class Commande extends HiveObject {
     'promoCode': promoCode,
     'subtotalAmount': subtotalAmount,
     'country': country,
+    'cityID': cityID,
   };
 
 
@@ -150,8 +156,9 @@ class Commande extends HiveObject {
     int? addressID,
     double? note,
     String status = CommandeStatus.pending,
+    int cityID = 1,
   }) async {
-    final functionName = commandeID == null ? 'add1Commande' : 'updateCommande'; // Tu peux créer updateCommande plus tard si besoin
+    final functionName = commandeID == null ? 'add1Commande' : 'updateCommande';
     final cloudFunction = ParseCloudFunction(functionName);
 
     final params = {
@@ -165,6 +172,7 @@ class Commande extends HiveObject {
       'dateCommande': dateCommande.toIso8601String(),
       'heure': heure,
       'status': status,
+      'cityID': cityID,
       if (addressID != null) 'addressID': addressID,
       if (note != null) 'note': note,
     };
@@ -188,6 +196,7 @@ class Commande extends HiveObject {
           addressID: addressID,
           note: note,
           status: status,
+          cityID: cityID,
         );
 
         await DatabaseHelper.createCommande(commande);

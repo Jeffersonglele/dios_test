@@ -1571,7 +1571,7 @@ abstract class AppLocalizations {
   /// No description provided for @cart_payment_fedapay.
   ///
   /// In en, this message translates to:
-  /// **'Fedapay'**
+  /// **'Mobile Money (CinetPay)'**
   String get cart_payment_fedapay;
 
   /// No description provided for @cart_processing.
@@ -1619,8 +1619,14 @@ abstract class AppLocalizations {
   /// No description provided for @cart_payment_fedapay_error.
   ///
   /// In en, this message translates to:
-  /// **'Fedapay payment error.'**
+  /// **'Online payment error'**
   String get cart_payment_fedapay_error;
+
+  /// No description provided for @cart_payment_online_error.
+  ///
+  /// In en, this message translates to:
+  /// **'Online payment error. Please try again or choose another payment method.'**
+  String get cart_payment_online_error;
 
   /// No description provided for @cart_payment_error.
   ///
@@ -3373,6 +3379,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Wave'**
   String get commande_details_wave;
+
+  /// No description provided for @commande_details_cinetpay.
+  ///
+  /// In en, this message translates to:
+  /// **'Mobile Money (CinetPay)'**
+  String get commande_details_cinetpay;
 
   /// No description provided for @commande_details_items.
   ///
@@ -5696,6 +5708,96 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Please modify one of the files.'**
   String get please_modify_a_file;
+
+  /// No description provided for @delivery_config_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery fee configuration'**
+  String get delivery_config_title;
+
+  /// No description provided for @delivery_config_current.
+  ///
+  /// In en, this message translates to:
+  /// **'Current values'**
+  String get delivery_config_current;
+
+  /// No description provided for @delivery_config_base_fee.
+  ///
+  /// In en, this message translates to:
+  /// **'Base fee (CDF)'**
+  String get delivery_config_base_fee;
+
+  /// No description provided for @delivery_config_per_km.
+  ///
+  /// In en, this message translates to:
+  /// **'Rate per km (CDF)'**
+  String get delivery_config_per_km;
+
+  /// No description provided for @delivery_config_currency.
+  ///
+  /// In en, this message translates to:
+  /// **'Currency'**
+  String get delivery_config_currency;
+
+  /// No description provided for @delivery_config_save.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get delivery_config_save;
+
+  /// No description provided for @delivery_config_saved.
+  ///
+  /// In en, this message translates to:
+  /// **'Configuration updated successfully'**
+  String get delivery_config_saved;
+
+  /// No description provided for @delivery_config_error.
+  ///
+  /// In en, this message translates to:
+  /// **'Error updating configuration'**
+  String get delivery_config_error;
+
+  /// No description provided for @delivery_config_loading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading configuration...'**
+  String get delivery_config_loading;
+
+  /// No description provided for @delivery_config_admin_nav.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery fees'**
+  String get delivery_config_admin_nav;
+
+  /// No description provided for @delivery_config_distance.
+  ///
+  /// In en, this message translates to:
+  /// **'Estimated distance'**
+  String get delivery_config_distance;
+
+  /// No description provided for @delivery_config_total_fee.
+  ///
+  /// In en, this message translates to:
+  /// **'Estimated fee'**
+  String get delivery_config_total_fee;
+
+  /// No description provided for @cart_address_out_of_zone.
+  ///
+  /// In en, this message translates to:
+  /// **'Area not covered yet'**
+  String get cart_address_out_of_zone;
+
+  /// No description provided for @cart_address_out_of_zone_detail.
+  ///
+  /// In en, this message translates to:
+  /// **'This address is outside our delivery zone. We currently deliver only in active delivery zones.'**
+  String get cart_address_out_of_zone_detail;
+
+  /// No description provided for @cart_address_zone_checking.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking delivery zone...'**
+  String get cart_address_zone_checking;
 }
 
 class _AppLocalizationsDelegate

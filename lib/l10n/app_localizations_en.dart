@@ -759,7 +759,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cart_payment_cod => 'Cash on delivery';
 
   @override
-  String get cart_payment_fedapay => 'Fedapay';
+  String get cart_payment_fedapay => 'Mobile Money (CinetPay)';
 
   @override
   String get cart_processing => 'Processing...';
@@ -785,7 +785,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cart_payment_url_error => 'Error: Payment URL not found.';
 
   @override
-  String get cart_payment_fedapay_error => 'Fedapay payment error.';
+  String get cart_payment_fedapay_error => 'Online payment error';
+
+  @override
+  String get cart_payment_online_error =>
+      'Online payment error. Please try again or choose another payment method.';
 
   @override
   String get cart_payment_error => 'Payment error.';
@@ -1737,6 +1741,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get commande_details_wave => 'Wave';
+
+  @override
+  String get commande_details_cinetpay => 'Mobile Money (CinetPay)';
 
   @override
   String get commande_details_items => 'Items';
@@ -3025,4 +3032,50 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get please_modify_a_file => 'Please modify one of the files.';
+
+  @override
+  String get delivery_config_title => 'Delivery fee configuration';
+
+  @override
+  String get delivery_config_current => 'Current values';
+
+  @override
+  String get delivery_config_base_fee => 'Base fee (CDF)';
+
+  @override
+  String get delivery_config_per_km => 'Rate per km (CDF)';
+
+  @override
+  String get delivery_config_currency => 'Currency';
+
+  @override
+  String get delivery_config_save => 'Save';
+
+  @override
+  String get delivery_config_saved => 'Configuration updated successfully';
+
+  @override
+  String get delivery_config_error => 'Error updating configuration';
+
+  @override
+  String get delivery_config_loading => 'Loading configuration...';
+
+  @override
+  String get delivery_config_admin_nav => 'Delivery fees';
+
+  @override
+  String get delivery_config_distance => 'Estimated distance';
+
+  @override
+  String get delivery_config_total_fee => 'Estimated fee';
+
+  @override
+  String get cart_address_out_of_zone => 'Area not covered yet';
+
+  @override
+  String get cart_address_out_of_zone_detail =>
+      'This address is outside our delivery zone. We currently deliver only in active delivery zones.';
+
+  @override
+  String get cart_address_zone_checking => 'Checking delivery zone...';
 }

@@ -69,6 +69,9 @@ class Users extends HiveObject {
   @HiveField(13)
   int addressID;
 
+  @HiveField(14)
+  int cityID;
+
   String? parrain;
 
   Users({
@@ -87,6 +90,7 @@ class Users extends HiveObject {
     required this.identity,
     this.identityStatus,
     required this.addressID,
+    this.cityID = 1,
     this.mustChangePassword = false,
     this.birthDate,
     this.consentRGPD = false,
@@ -115,6 +119,7 @@ class Users extends HiveObject {
       'identity': identity,
       'identityStatus': identityStatus,
       'addressID': addressID,
+      'cityID': cityID,
       'mustChangePassword': mustChangePassword,
       'birthDate': birthDate,
       'consentRGPD': consentRGPD,
@@ -142,6 +147,7 @@ class Users extends HiveObject {
       identity: map['identity']?.toString() ?? '',
       identityStatus: map['identityStatus']?.toString(),
       addressID: int.tryParse(map['addressID']?.toString() ?? '0') ?? 0,
+      cityID: int.tryParse(map['cityID']?.toString() ?? '1') ?? 1,
       last_login: map['last_login'] != null
           ? (map['last_login'] is String
               ? DateTime.tryParse(map['last_login'])
@@ -184,6 +190,7 @@ class Users extends HiveObject {
     String? identity,
     String? identityStatus,
     int? addressID,
+    int? cityID,
     String? birthDate,
     bool? consentRGPD,
     String? consentDate,
@@ -208,6 +215,7 @@ class Users extends HiveObject {
       identity: identity ?? this.identity,
       identityStatus: identityStatus ?? this.identityStatus,
       addressID: addressID ?? this.addressID,
+      cityID: cityID ?? this.cityID,
       birthDate: birthDate ?? this.birthDate,
       consentRGPD: consentRGPD ?? this.consentRGPD,
       consentDate: consentDate ?? this.consentDate,
@@ -231,6 +239,7 @@ class Users extends HiveObject {
     required String status,
     required String identity,
     required int addressID,
+    int cityID = 1,
     String country = "",
     DateTime? last_login,
     ParseFile? image,
@@ -269,6 +278,7 @@ class Users extends HiveObject {
       'status': status,
       'identity': identity,
       'addressID': addressID,
+      'cityID': cityID,
       'birthDate': birthDate,
       'consentRGPD': consentRGPD,
       'consentDate': consentDate,

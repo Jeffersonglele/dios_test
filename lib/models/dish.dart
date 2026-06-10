@@ -52,6 +52,9 @@ class Dish extends HiveObject {
   @HiveField(14)
   String? option3;
 
+  @HiveField(15)
+  int cityID;
+
   String currency;
   String images;
   String country;
@@ -80,6 +83,7 @@ class Dish extends HiveObject {
     this.country = '',
     this.stock = 99,
     this.isDailySpecial = false,
+    this.cityID = 1,
   });
 
   Map<String, dynamic> toMap() {
@@ -98,6 +102,7 @@ class Dish extends HiveObject {
       'images': images,
       'price': price,
       'nb_servings': nb_servings,
+      'cityID': cityID,
       'restauID': restauID,
       'status': status,
       'currency': currency,
@@ -125,6 +130,7 @@ class Dish extends HiveObject {
       status: int.tryParse(map['status']?.toString() ?? '0') ?? 0,
       currency: map['currency']?.toString() ?? 'EUR',
       country: map['country']?.toString() ?? '',
+      cityID: int.tryParse(map['cityID']?.toString() ?? '1') ?? 1,
     );
   }
 
@@ -146,6 +152,7 @@ class Dish extends HiveObject {
     int? restauID,
     int? status,
     String? currency,
+    int? cityID,
   }) {
     return Dish(
       dishID: dishID ?? this.dishID,
@@ -165,6 +172,7 @@ class Dish extends HiveObject {
       restauID: restauID ?? this.restauID,
       status: status ?? this.status,
       currency: currency ?? this.currency,
+      cityID: cityID ?? this.cityID,
     );
   }
 
@@ -188,6 +196,7 @@ class Dish extends HiveObject {
     String? img_url,
     String? images,
     String currency = 'EUR',
+    int cityID = 1,
   }) async {
     String functionName = dishID == null ? 'add1Dish' : 'update1Dish';
     var cloudFunction = ParseCloudFunction(functionName);
@@ -242,6 +251,7 @@ class Dish extends HiveObject {
       'images': imagesStr,
       'price': finalPrice,
       'nb_servings': nb_servings,
+      'cityID': cityID,
       'restauID': restauID,
       'status': status,
       'currency': currency,
@@ -275,7 +285,8 @@ class Dish extends HiveObject {
               nb_servings: nb_servings,
               restauID: restauID,
               status: status,
-              currency: currency);
+              currency: currency,
+              cityID: cityID);
 
           if (dishID == null) {
             await DatabaseHelper.createDish(dish);

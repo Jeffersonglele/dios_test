@@ -34,6 +34,8 @@ class Address extends HiveObject {
   @HiveField(9)
   int? objectID;
 
+  int cityID;
+
   Address({
     this.object,
     this.numero,
@@ -44,6 +46,7 @@ class Address extends HiveObject {
     this.long,
     this.objectID,
     this.addressID,
+    this.cityID = 1,
   });
 
   Map<String, dynamic> toJson() {
@@ -57,6 +60,7 @@ class Address extends HiveObject {
       'fullAddress': fullAddress,
       'lat': lat,
       'long': long,
+      'cityID': cityID,
     };
   }
 
@@ -71,6 +75,7 @@ class Address extends HiveObject {
       fullAddress: map['fullAddress']?.toString() ?? '',
       lat: map['lat']?.toString() ?? '',
       long: map['long']?.toString() ?? '',
+      cityID: int.tryParse(map['cityID']?.toString() ?? '1') ?? 1,
     );
   }
 
@@ -85,6 +90,7 @@ class Address extends HiveObject {
     required String fullAddress,
     String? lat,
     String? long,
+    int cityID = 1,
   }) async {
     // Choix de la Cloud Function (ajout ou mise à jour)
     String functionName = addressID == null ? 'addAddress' : 'updateAddress';
@@ -101,6 +107,7 @@ class Address extends HiveObject {
       'fullAddress': fullAddress,
       'lat': lat,
       'long': long,
+      'cityID': cityID,
     };
 
 
@@ -129,6 +136,7 @@ class Address extends HiveObject {
             fullAddress: fullAddress,
             lat: lat,
             long: long,
+            cityID: cityID,
           );
 
           // 🔹 Enregistrer localement dans Hive
