@@ -12,7 +12,8 @@ import 'package:dios_delices/models/address.dart';
 import 'package:dios_delices/providers/theme_provider.dart';
 import 'package:dios_delices/services/session_service.dart';
 import 'package:dios_delices/theme/app_theme.dart';
-import 'package:dios_delices/theme/theme_provider.dart' show localeProvider, themeModeProvider;
+import 'package:dios_delices/theme/theme_provider.dart'
+    show localeProvider, themeModeProvider;
 import 'package:dios_delices/core/app_role.dart';
 import 'package:flutter/material.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
@@ -67,20 +68,27 @@ class _SettingsState extends ConsumerState<Settings> {
     if (mounted) setState(() => _darkMode = darkMode);
 
     if (session.role.id == 5) {
-      final cachedDist = prefs.getDouble('driver_max_distance_${session.userId}');
+      final cachedDist =
+          prefs.getDouble('driver_max_distance_${session.userId}');
       if (cachedDist != null) {
-        setState(() => _maxDeliveryDistance = cachedDist);
+        setState(() => _maxDeliveryDistance = cachedDist.clamp(1.0, 10.0));
       }
       try {
         final query = QueryBuilder<ParseObject>(ParseObject('Users'))
           ..whereEqualTo('userID', session.userId);
         final response = await query.query();
-        if (response.success && response.results != null && response.results!.isNotEmpty) {
+        if (response.success &&
+            response.results != null &&
+            response.results!.isNotEmpty) {
           final parseUser = response.results!.first as ParseObject;
-          final dist = parseUser.get<num>('maxDeliveryDistance')?.toDouble() ?? 10.0;
-          await prefs.setDouble('driver_max_distance_${session.userId}', dist);
+          final dist =
+              parseUser.get<num>('maxDeliveryDistance')?.toDouble() ?? 10.0;
+          // Clamp to valid range (1-10)
+          final clampedDist = dist.clamp(1.0, 10.0);
+          await prefs.setDouble(
+              'driver_max_distance_${session.userId}', clampedDist);
           if (mounted) {
-            setState(() => _maxDeliveryDistance = dist);
+            setState(() => _maxDeliveryDistance = clampedDist);
           }
         }
       } catch (_) {}
@@ -95,7 +103,9 @@ class _SettingsState extends ConsumerState<Settings> {
       final query = QueryBuilder<ParseObject>(ParseObject('Users'))
         ..whereEqualTo('userID', _userId);
       final response = await query.query();
-      if (response.success && response.results != null && response.results!.isNotEmpty) {
+      if (response.success &&
+          response.results != null &&
+          response.results!.isNotEmpty) {
         final parseUser = response.results!.first as ParseObject;
         parseUser.set('maxDeliveryDistance', distance);
         await parseUser.save();
@@ -126,13 +136,13 @@ class _SettingsState extends ConsumerState<Settings> {
     try {
       await NotificationService.sendTestNotification();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(l10n.test_notification_sent)));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(l10n.test_notification_sent)));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(l10n.error_with_message(e.toString()))));
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l10n.error_with_message(e.toString()))));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -271,18 +281,18 @@ class _SettingsState extends ConsumerState<Settings> {
                 if (currentPwd.isEmpty ||
                     newPwd.isEmpty ||
                     confirmPwd.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text(l10n.allFieldsRequired)));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(l10n.allFieldsRequired)));
                   return;
                 }
                 if (newPwd.length < 6) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text(l10n.passwordMinLength)));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(l10n.passwordMinLength)));
                   return;
                 }
                 if (newPwd != confirmPwd) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text(l10n.passwordsNotMatch)));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(l10n.passwordsNotMatch)));
                   return;
                 }
 
@@ -290,8 +300,8 @@ class _SettingsState extends ConsumerState<Settings> {
                     await Users.encryptPassword(currentPwd);
                 if (currentEncrypted != currentUser.password &&
                     currentPwd != currentUser.password) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text(l10n.incorrectCurrentPassword)));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(l10n.incorrectCurrentPassword)));
                   return;
                 }
 
@@ -467,7 +477,8 @@ class _SettingsState extends ConsumerState<Settings> {
                       height: 24,
                       child: Checkbox(
                         value: understood,
-                        onChanged: (v) => setDialogState(() => understood = v ?? false),
+                        onChanged: (v) =>
+                            setDialogState(() => understood = v ?? false),
                         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
                     ),
@@ -475,7 +486,8 @@ class _SettingsState extends ConsumerState<Settings> {
                     Expanded(
                       child: Text(
                         l10n.delete_account_understand_hint,
-                        style: AppTypography.bodySmall(color: AppColors.inkMuted),
+                        style:
+                            AppTypography.bodySmall(color: AppColors.inkMuted),
                       ),
                     ),
                   ],
@@ -497,11 +509,12 @@ class _SettingsState extends ConsumerState<Settings> {
                 backgroundColor: AppColors.error,
                 disabledBackgroundColor: AppColors.error.withValues(alpha: 0.4),
               ),
-              child: Text(l10n.delete, style: TextStyle(
-                color: enteredEmail == userEmail && understood
-                    ? Colors.white
-                    : Colors.white.withValues(alpha: 0.6),
-              )),
+              child: Text(l10n.delete,
+                  style: TextStyle(
+                    color: enteredEmail == userEmail && understood
+                        ? Colors.white
+                        : Colors.white.withValues(alpha: 0.6),
+                  )),
             ),
           ],
         ),
@@ -516,8 +529,7 @@ class _SettingsState extends ConsumerState<Settings> {
     if (result == 'success') {
       await SessionService.clearAll();
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (_) => const AnimatedSplashScreen()),
+        MaterialPageRoute(builder: (_) => const AnimatedSplashScreen()),
         (route) => false,
       );
       if (mounted) _confirmLogout();
@@ -544,8 +556,10 @@ class _SettingsState extends ConsumerState<Settings> {
             const Padding(
               padding: EdgeInsets.all(16),
               child: SizedBox(
-                width: 20, height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.brand),
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: AppColors.brand),
               ),
             ),
         ],
@@ -590,52 +604,65 @@ class _SettingsState extends ConsumerState<Settings> {
               ),
               if (!_isAdmin) ...[
                 const Divider(height: 1),
-                SwitchListTile(
-                  title: Text(l10n.notif_orders_title, style: AppTypography.labelMedium()),
-                  subtitle: Text(
-                    l10n.notif_orders_desc,
-                    style: AppTypography.bodyMedium(),
+                Material(
+                  color: Colors.transparent,
+                  child: SwitchListTile(
+                    title: Text(l10n.notif_orders_title,
+                        style: AppTypography.labelMedium()),
+                    subtitle: Text(
+                      l10n.notif_orders_desc,
+                      style: AppTypography.bodyMedium(),
+                    ),
+                    value: _orderNotifications,
+                    activeColor: AppColors.brand,
+                    onChanged: (val) {
+                      setState(() => _orderNotifications = val);
+                      _updateNotificationSetting('notif_orders', val, 'orders');
+                    },
+                    secondary: const Icon(Icons.shopping_bag_rounded,
+                        color: AppColors.brand),
                   ),
-                  value: _orderNotifications,
-                  activeColor: AppColors.brand,
-                  onChanged: (val) {
-                    setState(() => _orderNotifications = val);
-                    _updateNotificationSetting('notif_orders', val, 'orders');
-                  },
-                  secondary: const Icon(Icons.shopping_bag_rounded,
-                      color: AppColors.brand),
                 ),
                 const Divider(height: 1),
-                SwitchListTile(
-                  title: Text(l10n.notif_promos_title, style: AppTypography.labelMedium()),
-                  subtitle: Text(
-                    l10n.notif_promos_desc,
-                    style: AppTypography.bodyMedium(),
+                Material(
+                  color: Colors.transparent,
+                  child: SwitchListTile(
+                    title: Text(l10n.notif_promos_title,
+                        style: AppTypography.labelMedium()),
+                    subtitle: Text(
+                      l10n.notif_promos_desc,
+                      style: AppTypography.bodyMedium(),
+                    ),
+                    value: _promoNotifications,
+                    activeColor: AppColors.brand,
+                    onChanged: (val) {
+                      setState(() => _promoNotifications = val);
+                      _updateNotificationSetting('notif_promos', val, 'promos');
+                    },
+                    secondary: const Icon(Icons.local_offer_rounded,
+                        color: AppColors.brand),
                   ),
-                  value: _promoNotifications,
-                  activeColor: AppColors.brand,
-                  onChanged: (val) {
-                    setState(() => _promoNotifications = val);
-                    _updateNotificationSetting('notif_promos', val, 'promos');
-                  },
-                  secondary: const Icon(Icons.local_offer_rounded,
-                      color: AppColors.brand),
                 ),
                 const Divider(height: 1),
-                SwitchListTile(
-                  title: Text(l10n.notif_chat_title, style: AppTypography.labelMedium()),
-                  subtitle: Text(
-                    l10n.notif_chat_desc,
-                    style: AppTypography.bodyMedium(),
+                Material(
+                  color: Colors.transparent,
+                  child: SwitchListTile(
+                    title: Text(l10n.notif_chat_title,
+                        style: AppTypography.labelMedium()),
+                    subtitle: Text(
+                      l10n.notif_chat_desc,
+                      style: AppTypography.bodyMedium(),
+                    ),
+                    value: _messageNotifications,
+                    activeColor: AppColors.brand,
+                    onChanged: (val) {
+                      setState(() => _messageNotifications = val);
+                      _updateNotificationSetting(
+                          'notif_messages', val, 'messages');
+                    },
+                    secondary:
+                        const Icon(Icons.chat_rounded, color: AppColors.brand),
                   ),
-                  value: _messageNotifications,
-                  activeColor: AppColors.brand,
-                  onChanged: (val) {
-                    setState(() => _messageNotifications = val);
-                    _updateNotificationSetting('notif_messages', val, 'messages');
-                  },
-                  secondary:
-                      const Icon(Icons.chat_rounded, color: AppColors.brand),
                 ),
               ],
             ]),
@@ -686,25 +713,35 @@ class _SettingsState extends ConsumerState<Settings> {
               ),
               child: Column(
                 children: [
-                  ListTile(
-                    leading: const Icon(Icons.map_rounded, color: AppColors.brand),
-                    title: Text(l10n.max_delivery_distance, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                    subtitle: Text(l10n.max_delivery_distance_desc(_maxDeliveryDistance.toStringAsFixed(1))),
+                  Material(
+                    color: Colors.transparent,
+                    child: ListTile(
+                      leading:
+                          const Icon(Icons.map_rounded, color: AppColors.brand),
+                      title: Text(l10n.max_delivery_distance,
+                          style: const TextStyle(
+                              fontSize: 15, fontWeight: FontWeight.w600)),
+                      subtitle: Text(l10n.max_delivery_distance_desc(
+                          _maxDeliveryDistance.toStringAsFixed(1))),
+                    ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     child: Slider(
-                      value: _maxDeliveryDistance,
+                      value: _maxDeliveryDistance.clamp(1.0, 10.0),
                       min: 1,
                       max: 10,
                       divisions: 9,
                       activeColor: AppColors.brand,
-                      label: '${_maxDeliveryDistance.toStringAsFixed(0)} km',
+                      label:
+                          '${_maxDeliveryDistance.clamp(1.0, 10.0).toStringAsFixed(0)} km',
                       onChanged: (val) {
-                        setState(() => _maxDeliveryDistance = val);
+                        setState(
+                            () => _maxDeliveryDistance = val.clamp(1.0, 10.0));
                       },
                       onChangeEnd: (val) {
-                        _saveMaxDeliveryDistance(val);
+                        _saveMaxDeliveryDistance(val.clamp(1.0, 10.0));
                       },
                     ),
                   ),

@@ -36,26 +36,105 @@ class _LocationPageState extends ConsumerState<LocationPage> {
   Future<void> getCurrentLocation() async {
     setState(() => _isLocating = true);
     try {
-      LocationPermission permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.deniedForever) {
-        Toast(context, AppLocalizations.of(context)!.location_disabled, false);
+      print('Starting location detection...');
+
+      // Vérifier si les services de localisation sont activés
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        print('Location services are disabled');
+        if (mounted) {
+          Toast(
+              context, AppLocalizations.of(context)!.location_disabled, false);
+        }
         return;
       }
-      Position newPosition = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high);
+
+      print('Location services are enabled');
+
+      // Vérifier les permissions
+      LocationPermission permission = await Geolocator.checkPermission();
+      print('Current permission status: $permission');
+
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        print('New permission status after request: $permission');
+        if (permission == LocationPermission.denied) {
+          if (mounted) {
+            Toast(context, AppLocalizations.of(context)!.location_disabled,
+                false);
+          }
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        if (mounted) {
+          Toast(
+              context, AppLocalizations.of(context)!.location_disabled, false);
+        }
+        return;
+      }
+
+      print('Permissions are granted');
+
+      // Essayer d'obtenir la position actuelle
+      Position? newPosition;
+      try {
+        print('Trying to get current position...');
+        newPosition = await Geolocator.getCurrentPosition(
+            desiredAccuracy: LocationAccuracy.high,
+            timeLimit: const Duration(seconds: 15));
+        print('Got current position: $newPosition');
+      } catch (e) {
+        print('Error getting current position: $e');
+        // Si ça échoue, essayer de récupérer la dernière position connue
+        print('Trying to get last known position...');
+        newPosition = await Geolocator.getLastKnownPosition();
+        print('Last known position: $newPosition');
+      }
+
+      if (newPosition == null) {
+        print('Could not get any position');
+        if (mounted) {
+          Toast(context, AppLocalizations.of(context)!.location_detect_failed,
+              false);
+        }
+        return;
+      }
+
       setState(() => position = newPosition);
 
-      List<Placemark> placeMarks =
-          await placemarkFromCoordinates(position!.latitude, position!.longitude);
+      print('Trying to get address from coordinates...');
+      List<Placemark> placeMarks = [];
+      try {
+        placeMarks = await placemarkFromCoordinates(
+            newPosition.latitude, newPosition.longitude);
+        print('Got ${placeMarks.length} placemarks');
+      } catch (e) {
+        print('Error getting placemarks: $e');
+      }
+
       if (placeMarks.isNotEmpty) {
         Placemark pMarks = placeMarks[0];
+        print('Placemark: $pMarks');
+
         completeAddress =
             '${pMarks.thoroughfare ?? ''}, ${pMarks.locality ?? ''}, ${pMarks.administrativeArea ?? ''}, ${pMarks.country ?? ''}'
                 .replaceAll(RegExp(r'^,\s*|\s*,\s*$'), '');
         locationController.text = completeAddress!;
+        print('Complete address: $completeAddress');
+      } else {
+        print('No placemarks found');
+        if (mounted) {
+          Toast(
+              context, 'Position détectée, mais pas d\'adresse trouvée', false);
+        }
       }
     } catch (e) {
-      Toast(context, AppLocalizations.of(context)!.location_detect_failed, false);
+      print('Unexpected error: $e');
+      if (mounted) {
+        Toast(context, 'Erreur inattendue: $e', false);
+      }
     } finally {
       if (mounted) setState(() => _isLocating = false);
     }
@@ -76,15 +155,21 @@ class _LocationPageState extends ConsumerState<LocationPage> {
     final userCountry = session.country.trim().toLowerCase();
     final city = _extractCity() ?? cityController.text;
     final state = _extractState() ?? stateController.text;
-    final fullAddress = locationController.text.isNotEmpty ? locationController.text : '';
+    final fullAddress =
+        locationController.text.isNotEmpty ? locationController.text : '';
     final lat = position?.latitude.toString();
     final long = position?.longitude.toString();
 
     // Vérifier que le pays détecté correspond au pays de l'utilisateur
     if (state.trim().isNotEmpty && userCountry.isNotEmpty) {
       final stateLower = state.trim().toLowerCase();
-      if (!stateLower.contains(userCountry) && !userCountry.contains(stateLower)) {
-        Toast(context, AppLocalizations.of(context)!.address_not_match_country(state.trim()), false);
+      if (!stateLower.contains(userCountry) &&
+          !userCountry.contains(stateLower)) {
+        Toast(
+            context,
+            AppLocalizations.of(context)!
+                .address_not_match_country(state.trim()),
+            false);
         setState(() => _isSaving = false);
         return;
       }
@@ -105,14 +190,16 @@ class _LocationPageState extends ConsumerState<LocationPage> {
 
       if (validationResult == "EXISTING_ADDRESS") {
         setState(() => addressExists = true);
-        Toast(context, AppLocalizations.of(context)!.address_already_saved, true);
+        Toast(
+            context, AppLocalizations.of(context)!.address_already_saved, true);
         return;
       }
 
       if (validationResult is int) {
         SharedPreferences prefs = await SharedPreferences.getInstance();
         await prefs.setBool('userVerified', true);
-        Toast(context, AppLocalizations.of(context)!.address_saved_success, true);
+        Toast(
+            context, AppLocalizations.of(context)!.address_saved_success, true);
         if (mounted) {
           Navigator.pop(context);
         }
@@ -132,7 +219,8 @@ class _LocationPageState extends ConsumerState<LocationPage> {
     final fullAddress = fullAddressController.text.trim();
 
     if (city.isEmpty || fullAddress.isEmpty) {
-      Toast(context, AppLocalizations.of(context)!.address_fill_city_and_address, false);
+      Toast(context,
+          AppLocalizations.of(context)!.address_fill_city_and_address, false);
       return;
     }
 
@@ -151,7 +239,8 @@ class _LocationPageState extends ConsumerState<LocationPage> {
         locations = await locationFromAddress(query2);
       }
       if (locations.isEmpty) {
-        Toast(context, AppLocalizations.of(context)!.address_not_found_check, false);
+        Toast(context, AppLocalizations.of(context)!.address_not_found_check,
+            false);
         return;
       }
 
@@ -171,14 +260,16 @@ class _LocationPageState extends ConsumerState<LocationPage> {
 
       if (validationResult == "EXISTING_ADDRESS") {
         setState(() => addressExists = true);
-        Toast(context, AppLocalizations.of(context)!.address_already_saved, true);
+        Toast(
+            context, AppLocalizations.of(context)!.address_already_saved, true);
         return;
       }
 
       if (validationResult is int) {
         SharedPreferences prefs = await SharedPreferences.getInstance();
         await prefs.setBool('userVerified', true);
-        Toast(context, AppLocalizations.of(context)!.address_saved_success, true);
+        Toast(
+            context, AppLocalizations.of(context)!.address_saved_success, true);
         if (mounted) {
           Navigator.pop(context);
         }
@@ -186,7 +277,8 @@ class _LocationPageState extends ConsumerState<LocationPage> {
         Toast(context, validationResult, false);
       }
     } catch (e) {
-      Toast(context, AppLocalizations.of(context)!.address_not_found_verify, false);
+      Toast(context, AppLocalizations.of(context)!.address_not_found_verify,
+          false);
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -212,8 +304,7 @@ class _LocationPageState extends ConsumerState<LocationPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               SizedBox(height: size.height * 0.06),
-              if (!isWide)
-                const Center(child: BrandAvatarLogo()),
+              if (!isWide) const Center(child: BrandAvatarLogo()),
               SizedBox(height: size.height * 0.03),
               Padding(
                 padding: const EdgeInsets.only(left: AppSpacing.sm),
@@ -353,7 +444,8 @@ class _LocationPageState extends ConsumerState<LocationPage> {
                     },
                     icon: const Icon(Icons.close_rounded, size: 18),
                     label: Text(l10n.clear),
-                    style: TextButton.styleFrom(foregroundColor: AppColors.inkMuted),
+                    style: TextButton.styleFrom(
+                        foregroundColor: AppColors.inkMuted),
                   ),
                 ),
               ],
@@ -365,13 +457,19 @@ class _LocationPageState extends ConsumerState<LocationPage> {
                   onPressed: _isSaving
                       ? null
                       : () async {
-                          final hasDetected = locationController.text.isNotEmpty;
-                          final hasManual = fullAddressController.text.isNotEmpty ||
-                              cityController.text.isNotEmpty ||
-                              stateController.text.isNotEmpty;
+                          final hasDetected =
+                              locationController.text.isNotEmpty;
+                          final hasManual =
+                              fullAddressController.text.isNotEmpty ||
+                                  cityController.text.isNotEmpty ||
+                                  stateController.text.isNotEmpty;
 
                           if (!hasDetected && !hasManual) {
-                            Toast(context, AppLocalizations.of(context)!.enter_or_detect_address, false);
+                            Toast(
+                                context,
+                                AppLocalizations.of(context)!
+                                    .enter_or_detect_address,
+                                false);
                             return;
                           }
 
@@ -380,33 +478,43 @@ class _LocationPageState extends ConsumerState<LocationPage> {
                             final choice = await showDialog<String>(
                               context: context,
                               builder: (ctx) {
-                              final dl10n = AppLocalizations.of(ctx)!;
-                              return AlertDialog(
-                                title: Text(dl10n.which_address_use),
-                                content: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(dl10n.address_detected_label, style: AppTypography.labelMedium()),
-                                    Text(locationController.text, style: AppTypography.bodyMedium()),
-                                    const SizedBox(height: 12),
-                                    Text(dl10n.address_manual_label, style: AppTypography.labelMedium()),
-                                    Text('${fullAddressController.text}, ${cityController.text}, ${stateController.text}', style: AppTypography.bodyMedium()),
+                                final dl10n = AppLocalizations.of(ctx)!;
+                                return AlertDialog(
+                                  title: Text(dl10n.which_address_use),
+                                  content: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(dl10n.address_detected_label,
+                                          style: AppTypography.labelMedium()),
+                                      Text(locationController.text,
+                                          style: AppTypography.bodyMedium()),
+                                      const SizedBox(height: 12),
+                                      Text(dl10n.address_manual_label,
+                                          style: AppTypography.labelMedium()),
+                                      Text(
+                                          '${fullAddressController.text}, ${cityController.text}, ${stateController.text}',
+                                          style: AppTypography.bodyMedium()),
+                                    ],
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.pop(ctx, 'manual'),
+                                      child: Text(dl10n.manual),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: () =>
+                                          Navigator.pop(ctx, 'detected'),
+                                      style: ElevatedButton.styleFrom(
+                                          backgroundColor: AppColors.brand,
+                                          foregroundColor: Colors.white),
+                                      child: Text(dl10n.detected),
+                                    ),
                                   ],
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(ctx, 'manual'),
-                                    child: Text(dl10n.manual),
-                                  ),
-                                  ElevatedButton(
-                                    onPressed: () => Navigator.pop(ctx, 'detected'),
-                                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.brand, foregroundColor: Colors.white),
-                                    child: Text(dl10n.detected),
-                                  ),
-                                ],
-                              );
-                            },
+                                );
+                              },
                             );
                             if (choice == 'detected') {
                               saveDetectedAddress();

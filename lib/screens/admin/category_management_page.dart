@@ -151,13 +151,16 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
                                 border: Border.all(
                                     color: AppColors.border, width: 0.5),
                               ),
-                              child: ListTile(
-                                title: Text(c.name,
-                                    style: AppTypography.labelMedium()),
-                                trailing: IconButton(
-                                  icon: const Icon(Icons.delete_outline_rounded,
-                                      color: AppColors.error, size: 20),
-                                  onPressed: () => _delete(c),
+                              child: Material(
+                                color: Colors.transparent,
+                                child: ListTile(
+                                  title: Text(c.name,
+                                      style: AppTypography.labelMedium()),
+                                  trailing: IconButton(
+                                    icon: const Icon(Icons.delete_outline_rounded,
+                                        color: AppColors.error, size: 20),
+                                    onPressed: () => _delete(c),
+                                  ),
                                 ),
                               ),
                             );

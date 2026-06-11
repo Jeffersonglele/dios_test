@@ -400,38 +400,41 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                 style: AppTypography.labelMedium(
                                     color: AppColors.inkMuted)),
                           ),
-                          ...ur.take(6).map((u) => ListTile(
-                                dense: true,
-                                onTap: () => _openUser(u),
-                                leading: CircleAvatar(
-                                  backgroundColor: AppColors.resolve(
-                                      AppColors.brandSurface,
-                                      AppDarkColors.brandSurface),
-                                  child: Text(
-                                    u.firstname.isNotEmpty
-                                        ? u.firstname[0].toUpperCase()
-                                        : '?',
-                                    style: AppTypography.labelMedium(
-                                        color: AppColors.brand),
-                                  ),
-                                ),
-                                title: Text('${u.firstname} ${u.lastname}',
-                                    style: AppTypography.bodyLarge()
-                                        .copyWith(fontSize: 14)),
-                                subtitle: Text(u.email,
-                                    style: AppTypography.bodyMedium()
-                                        .copyWith(fontSize: 11)),
-                                trailing: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.accentLight,
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(_roleLabel(u),
+                          ...ur.take(6).map((u) => Material(
+                                color: Colors.transparent,
+                                child: ListTile(
+                                  dense: true,
+                                  onTap: () => _openUser(u),
+                                  leading: CircleAvatar(
+                                    backgroundColor: AppColors.resolve(
+                                        AppColors.brandSurface,
+                                        AppDarkColors.brandSurface),
+                                    child: Text(
+                                      u.firstname.isNotEmpty
+                                          ? u.firstname[0].toUpperCase()
+                                          : '?',
                                       style: AppTypography.labelMedium(
-                                              color: AppColors.accent)
-                                          .copyWith(fontSize: 10)),
+                                          color: AppColors.brand),
+                                    ),
+                                  ),
+                                  title: Text('${u.firstname} ${u.lastname}',
+                                      style: AppTypography.bodyLarge()
+                                          .copyWith(fontSize: 14)),
+                                  subtitle: Text(u.email,
+                                      style: AppTypography.bodyMedium()
+                                          .copyWith(fontSize: 11)),
+                                  trailing: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.accentLight,
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(_roleLabel(u),
+                                        style: AppTypography.labelMedium(
+                                                color: AppColors.accent)
+                                            .copyWith(fontSize: 10)),
+                                  ),
                                 ),
                               )),
                         ],
@@ -442,26 +445,29 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                 style: AppTypography.labelMedium(
                                     color: AppColors.inkMuted)),
                           ),
-                          ...rr.take(4).map((r) => ListTile(
-                                dense: true,
-                                onTap: () => _openRestaurant(r),
-                                leading: Container(
-                                  width: 36,
-                                  height: 36,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.accentLight,
-                                    borderRadius:
-                                        BorderRadius.circular(AppRadius.sm),
+                          ...rr.take(4).map((r) => Material(
+                                color: Colors.transparent,
+                                child: ListTile(
+                                  dense: true,
+                                  onTap: () => _openRestaurant(r),
+                                  leading: Container(
+                                    width: 36,
+                                    height: 36,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.accentLight,
+                                      borderRadius:
+                                          BorderRadius.circular(AppRadius.sm),
+                                    ),
+                                    child: const Icon(Icons.storefront_rounded,
+                                        size: 18, color: AppColors.accent),
                                   ),
-                                  child: const Icon(Icons.storefront_rounded,
-                                      size: 18, color: AppColors.accent),
+                                  title: Text(r.name,
+                                      style: AppTypography.bodyLarge()
+                                          .copyWith(fontSize: 14)),
+                                  subtitle: Text(r.categories,
+                                      style: AppTypography.bodyMedium()
+                                          .copyWith(fontSize: 11)),
                                 ),
-                                title: Text(r.name,
-                                    style: AppTypography.bodyLarge()
-                                        .copyWith(fontSize: 14)),
-                                subtitle: Text(r.categories,
-                                    style: AppTypography.bodyMedium()
-                                        .copyWith(fontSize: 11)),
                               )),
                         ],
                         if (ur.isEmpty && rr.isEmpty)

@@ -63,6 +63,7 @@ class _MyStoreState extends State<MyStore> {
     };
     return getters[key]!();
   }
+
   List<_StoreSection> sections = [];
   Restaurant? _restaurant;
   int _restoState = 0;
@@ -95,20 +96,18 @@ class _MyStoreState extends State<MyStore> {
     if (userRole.isProfessional) {
       _buildVendreSection(newSections, session);
     } else if (userRole.isDelivery) {
-      newSections.add(_StoreSection(
-          Icons.delivery_dining_rounded, 'Mes livraisons',
-          const DeliveryDashboard()));
-      newSections.add(_StoreSection(
-          Icons.monetization_on_rounded, 'Mes revenus',
-          const LivreurEarningsPage()));
+      newSections.add(_StoreSection(Icons.delivery_dining_rounded,
+          'Mes livraisons', const DeliveryDashboard()));
+      newSections.add(_StoreSection(Icons.monetization_on_rounded,
+          'Mes revenus', const LivreurEarningsPage()));
       newSections.add(_StoreSection(
           Icons.map_rounded, 'Rayon de livraison', null,
           action: () => _showDistanceConfig(currentUser)));
     } else {
       newSections.add(_StoreSection(
-          Icons.storefront_rounded, 'Devenir vendeur', null, isSellerRequest: true));
-      newSections.add(_StoreSection(Icons.receipt_long_rounded,
-          'Mes commandes',
+          Icons.storefront_rounded, 'Devenir vendeur', null,
+          isSellerRequest: true));
+      newSections.add(_StoreSection(Icons.receipt_long_rounded, 'Mes commandes',
           const UserOrdersPage(showRestaurantOrders: false)));
     }
 
@@ -129,16 +128,23 @@ class _MyStoreState extends State<MyStore> {
       case 0: // pending validation
         newSections.add(_StoreSection(
             Icons.hourglass_bottom_rounded, 'Mon restaurant', null,
-            action: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => RestaurantFormPage(restaurant: _restaurant)))));
+            action: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) =>
+                        RestaurantFormPage(restaurant: _restaurant)))));
         newSections.add(_StoreSection(
             Icons.arrow_forward_rounded, 'Continuer ma demande', null,
-            action: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => RestaurantFormPage(restaurant: _restaurant)))));
+            action: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) =>
+                        RestaurantFormPage(restaurant: _restaurant)))));
         newSections.add(_StoreSection(
             Icons.cancel_rounded, 'Annuler la demande', null,
             action: _cancelDemande));
-        newSections.add(_StoreSection(Icons.receipt_long_rounded,
+        newSections.add(_StoreSection(
+            Icons.receipt_long_rounded,
             'Mes commandes',
             const UserOrdersPage(showRestaurantOrders: false)));
         break;
@@ -148,16 +154,15 @@ class _MyStoreState extends State<MyStore> {
             'Mon restaurant',
             RestaurantDetails(restaurant_id: session.restaurantId!)));
         newSections.add(_StoreSection(
-            Icons.edit_rounded, 'Modifier mon restaurant',
+            Icons.edit_rounded,
+            'Modifier mon restaurant',
             RestaurantFormPage(restaurant: _restaurant)));
-        newSections.add(_StoreSection(
-            Icons.monetization_on_rounded, 'Mes revenus',
-            const RestaurantEarningsPage()));
+        newSections.add(_StoreSection(Icons.monetization_on_rounded,
+            'Mes revenus', const RestaurantEarningsPage()));
         newSections.add(_StoreSection(Icons.receipt_long_rounded,
-            'Mes commandes',
-            const UserOrdersPage(showRestaurantOrders: true)));
-        newSections.add(_StoreSection(Icons.workspace_premium_rounded,
-            'Devenir Pro', null,
+            'Mes commandes', const UserOrdersPage(showRestaurantOrders: true)));
+        newSections.add(_StoreSection(
+            Icons.workspace_premium_rounded, 'Devenir Pro', null,
             action: () => Navigator.push(context,
                 MaterialPageRoute(builder: (_) => const ProRequestPage()))));
         break;
@@ -165,8 +170,7 @@ class _MyStoreState extends State<MyStore> {
         newSections.add(
             _StoreSection(Icons.storefront_rounded, 'Mon restaurant', null));
         newSections.add(_StoreSection(Icons.receipt_long_rounded,
-            'Mes commandes',
-            const UserOrdersPage(showRestaurantOrders: true)));
+            'Mes commandes', const UserOrdersPage(showRestaurantOrders: true)));
     }
   }
 
@@ -264,38 +268,47 @@ class _MyStoreState extends State<MyStore> {
     }
     if (s.page == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.store_no_restaurant_data)),
+        SnackBar(
+            content:
+                Text(AppLocalizations.of(context)!.store_no_restaurant_data)),
       );
       return;
     }
     Navigator.push(context, MaterialPageRoute(builder: (_) => s.page!));
   }
+
   Future<void> _showUnverifiedDialog() async {
     final l10n = AppLocalizations.of(context)!;
     await showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.lg)),
         title: Row(children: [
           Container(
-            width: 32, height: 32,
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
               color: AppColors.accentLight,
               borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
-            child: const Icon(Icons.hourglass_bottom_rounded, color: AppColors.accent, size: 18),
+            child: const Icon(Icons.hourglass_bottom_rounded,
+                color: AppColors.accent, size: 18),
           ),
           const SizedBox(width: 10),
-          Text(l10n.store_unverified_title, style: AppTypography.titleMedium().copyWith(fontSize: 16)),
+          Text(l10n.store_unverified_title,
+              style: AppTypography.titleMedium().copyWith(fontSize: 16)),
         ]),
-        content: Text(l10n.store_unverified_body, style: AppTypography.bodyLarge()),
+        content:
+            Text(l10n.store_unverified_body, style: AppTypography.bodyLarge()),
         actions: [
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.brand,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.md)),
             ),
             child: Text(l10n.ok),
           ),
@@ -314,7 +327,8 @@ class _MyStoreState extends State<MyStore> {
         ),
         title: Row(children: [
           Container(
-            width: 32, height: 32,
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
               color: AppColors.brandSurface,
               borderRadius: BorderRadius.circular(AppRadius.sm),
@@ -363,7 +377,8 @@ class _MyStoreState extends State<MyStore> {
       if (mounted && response.success) {
         final result = response.result as Map<String, dynamic>?;
         if (result?['success'] == true) {
-          final updatedSession = session.copyWith(role: AppRole.microRestaurant);
+          final updatedSession =
+              session.copyWith(role: AppRole.microRestaurant);
           await SessionService.saveUserSession(
             userId: updatedSession.userId,
             role: updatedSession.role,
@@ -380,7 +395,8 @@ class _MyStoreState extends State<MyStore> {
         } else {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text('${l10n.error} : ${result?['error'] ?? 'inconnue'}'),
+              content:
+                  Text('${l10n.error} : ${result?['error'] ?? 'inconnue'}'),
               backgroundColor: AppColors.error,
             ));
           }
@@ -406,7 +422,8 @@ class _MyStoreState extends State<MyStore> {
         ),
         title: Row(children: [
           Container(
-            width: 32, height: 32,
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
               color: AppColors.errorLight,
               borderRadius: BorderRadius.circular(AppRadius.sm),
@@ -467,7 +484,8 @@ class _MyStoreState extends State<MyStore> {
           }
         } else {
           if (mounted) {
-            Toast(context, '${l10n.error} : ${result?['error'] ?? 'inconnue'}', false);
+            Toast(context, '${l10n.error} : ${result?['error'] ?? 'inconnue'}',
+                false);
           }
         }
       } else {
@@ -480,20 +498,24 @@ class _MyStoreState extends State<MyStore> {
 
   void _showDistanceConfig(Users? currentUser) {
     final l10n = AppLocalizations.of(context)!;
-    double distance = currentUser?.maxDeliveryDistance?.toDouble() ?? 10;
+    double distance =
+        (currentUser?.maxDeliveryDistance?.toDouble() ?? 10).clamp(1.0, 10.0);
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setInnerState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Row(children: [
             Container(
-              width: 32, height: 32,
+              width: 32,
+              height: 32,
               decoration: BoxDecoration(
                 color: AppColors.brandSurface,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.map_rounded, color: AppColors.brand, size: 18),
+              child: const Icon(Icons.map_rounded,
+                  color: AppColors.brand, size: 18),
             ),
             const SizedBox(width: 10),
             Text(l10n.store_delivery_radius,
@@ -506,7 +528,8 @@ class _MyStoreState extends State<MyStore> {
               children: [
                 Text(
                   l10n.store_max_distance(distance.toStringAsFixed(0)),
-                  style: AppTypography.bodyLarge().copyWith(fontWeight: FontWeight.w700),
+                  style: AppTypography.bodyLarge()
+                      .copyWith(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 16),
                 Slider(
@@ -534,15 +557,20 @@ class _MyStoreState extends State<MyStore> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.brand,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
               onPressed: () async {
                 final s = await SessionService.readSession();
-                final ok = await LivreurApi.updateMaxDeliveryDistance(s.userId, distance);
+                final ok = await LivreurApi.updateMaxDeliveryDistance(
+                    s.userId, distance);
                 if (ctx.mounted) Navigator.pop(ctx);
                 if (mounted) {
                   if (ok) {
-                    Toast(context, l10n.store_radius_updated(distance.toStringAsFixed(0)), true);
+                    Toast(
+                        context,
+                        l10n.store_radius_updated(distance.toStringAsFixed(0)),
+                        true);
                     _load();
                   } else {
                     Toast(context, l10n.store_update_error, false);
