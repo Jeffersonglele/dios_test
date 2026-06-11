@@ -50,33 +50,36 @@ class _UserIdentityRejectedState extends ConsumerState<UserIdentityRejected> {
       context: context,
       builder: (context) {
         return SafeArea(
-          child: Wrap(
-            children: [
-              ListTile(
-                leading: const Icon(Icons.camera_alt),
-                title: Text(l10n.take_a_photo),
-                onTap: () {
-                  Navigator.pop(context);
-                  _takePhoto();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.photo_library),
-                title: Text(l10n.choose_from_gallery),
-                onTap: () {
-                  Navigator.pop(context);
-                  _pickPhotoFromGallery();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.attach_file),
-                title: Text(l10n.choose_image_file),
-                onTap: () {
-                  Navigator.pop(context);
-                  _pickPhotoFromFiles();
-                },
-              ),
-            ],
+          child: Material(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            child: Wrap(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.camera_alt),
+                  title: Text(l10n.take_a_photo),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _takePhoto();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.photo_library),
+                  title: Text(l10n.choose_from_gallery),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickPhotoFromGallery();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.attach_file),
+                  title: Text(l10n.choose_image_file),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickPhotoFromFiles();
+                  },
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -98,7 +101,8 @@ class _UserIdentityRejectedState extends ConsumerState<UserIdentityRejected> {
 
       final XFile? image = await picker.pickImage(source: ImageSource.camera);
       if (image != null && mounted) {
-        final confirmed = await showImageConfirmDialog(context, File(image.path));
+        final confirmed =
+            await showImageConfirmDialog(context, File(image.path));
         if (confirmed != null && mounted) {
           setState(() => _userPhoto = confirmed);
         }
@@ -116,7 +120,8 @@ class _UserIdentityRejectedState extends ConsumerState<UserIdentityRejected> {
       final XFile? image = await picker.pickImage(source: ImageSource.gallery);
 
       if (image != null && mounted) {
-        final confirmed = await showImageConfirmDialog(context, File(image.path));
+        final confirmed =
+            await showImageConfirmDialog(context, File(image.path));
         if (confirmed != null && mounted) {
           setState(() => _userPhoto = confirmed);
         }
@@ -147,26 +152,29 @@ class _UserIdentityRejectedState extends ConsumerState<UserIdentityRejected> {
       context: context,
       builder: (context) {
         return SafeArea(
-          child: Wrap(
-            children: [
-              ListTile(
-                leading: const Icon(Icons.photo_library),
-                title: Text(l10n.choose_image_from_gallery),
-                onTap: () {
-                  Navigator.pop(context);
-                  _pickIdentityFromGallery();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.attach_file),
-                title: Text(l10n.choose_from_files),
-                subtitle: Text(l10n.image_or_pdf),
-                onTap: () {
-                  Navigator.pop(context);
-                  _pickIdentityFromFiles();
-                },
-              ),
-            ],
+          child: Material(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            child: Wrap(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.photo_library),
+                  title: Text(l10n.choose_image_from_gallery),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickIdentityFromGallery();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.attach_file),
+                  title: Text(l10n.choose_from_files),
+                  subtitle: Text(l10n.image_or_pdf),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickIdentityFromFiles();
+                  },
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -179,7 +187,8 @@ class _UserIdentityRejectedState extends ConsumerState<UserIdentityRejected> {
       final XFile? image = await picker.pickImage(source: ImageSource.gallery);
 
       if (image != null && mounted) {
-        final confirmed = await showImageConfirmDialog(context, File(image.path));
+        final confirmed =
+            await showImageConfirmDialog(context, File(image.path));
         if (confirmed != null && mounted) {
           setState(() => _identityFile = confirmed);
         }
@@ -267,8 +276,7 @@ class _UserIdentityRejectedState extends ConsumerState<UserIdentityRejected> {
         'subject': 'Nouvelle identité en attente de vérification',
         'text': "Connectez-vous pour valider ou non l'utilisateur.",
       });
-    } catch (e) {
-    }
+    } catch (e) {}
   }
 
   @override
@@ -338,9 +346,9 @@ class _UserIdentityRejectedState extends ConsumerState<UserIdentityRejected> {
                   child: Column(
                     children: [
                       // 📸 Photo de l'utilisateur
-                        Text(
-                          l10n.identity_your_photo,
-                          style: Theme.of(context)
+                      Text(
+                        l10n.identity_your_photo,
+                        style: Theme.of(context)
                             .textTheme
                             .titleMedium!
                             .copyWith(fontWeight: FontWeight.bold),
@@ -348,7 +356,7 @@ class _UserIdentityRejectedState extends ConsumerState<UserIdentityRejected> {
                       SizedBox(height: 10),
                       _userPhoto != null
                           ? _buildImagePreview(_userPhoto!)
-                          :                             current_identity.photo != null
+                          : current_identity.photo != null
                               ? SizedBox(
                                   width: 100,
                                   height: 100,
@@ -435,7 +443,7 @@ class _UserIdentityRejectedState extends ConsumerState<UserIdentityRejected> {
                                 borderRadius: BorderRadius.circular(15)),
                           ),
                           onPressed: () async {
-                             if (_userPhoto == null && _identityFile == null) {
+                            if (_userPhoto == null && _identityFile == null) {
                               final l10n = AppLocalizations.of(context)!;
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
@@ -523,9 +531,7 @@ class _UserIdentityRejectedState extends ConsumerState<UserIdentityRejected> {
                                   _userPhoto = null;
                                 });
                                 Toast(
-                                    context,
-                                    l10n.identity_naming_error,
-                                    false);
+                                    context, l10n.identity_naming_error, false);
                               }
                             }
                           },

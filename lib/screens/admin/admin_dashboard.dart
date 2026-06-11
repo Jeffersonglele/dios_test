@@ -26,6 +26,8 @@ import 'scheduled_deletions_page.dart';
 import 'audit_log_page.dart';
 import 'pro_management_page.dart';
 import 'delivery_config_page.dart';
+import 'delivery_management_page.dart';
+import 'super_admin_dashboard.dart';
 import '../users/user_details.dart';
 
 // ═══════════════════════════════════════════════════════════
@@ -59,6 +61,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
   int _categoryCount = 0;
   int _promoCount = 0;
   int _proPendingCount = 0;
+  int _deliveryPendingCount = 0;
   int _adminCount = 0;
   int _referralCount = 0;
   int _auditLogCount = 0;
@@ -137,7 +140,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
       }
     } catch (_) {}
     try {
-      final resPro = await ParseCloudFunction('getAllProDocuments').execute(parameters: {'country': target});
+      final resPro = await ParseCloudFunction('getAllProDocuments')
+          .execute(parameters: {'country': target});
       if (resPro.success && resPro.result is List) {
         _proPendingCount = (resPro.result as List)
             .where((d) => d['status'] == 'pending')
@@ -145,19 +149,31 @@ class _AdminDashboardState extends State<AdminDashboard> {
       }
     } catch (_) {}
     try {
-      final resRef = await ParseCloudFunction('getReferralCount').execute(parameters: {'country': target});
+      final resDelivery = await ParseCloudFunction('getAllDeliveryDocuments')
+          .execute(parameters: {'country': target});
+      if (resDelivery.success && resDelivery.result is List) {
+        _deliveryPendingCount = (resDelivery.result as List)
+            .where((d) => d['status'] == 'pending')
+            .length;
+      }
+    } catch (_) {}
+    try {
+      final resRef = await ParseCloudFunction('getReferralCount')
+          .execute(parameters: {'country': target});
       if (resRef.success && resRef.result is Map) {
         _referralCount = (resRef.result as Map)['count'] ?? 0;
       }
     } catch (_) {}
     try {
-      final resAudit = await ParseCloudFunction('getAuditLogCount').execute(parameters: {'country': target});
+      final resAudit = await ParseCloudFunction('getAuditLogCount')
+          .execute(parameters: {'country': target});
       if (resAudit.success && resAudit.result is Map) {
         _auditLogCount = (resAudit.result as Map)['count'] ?? 0;
       }
     } catch (_) {}
     try {
-      final resDel = await ParseCloudFunction('getScheduledDeletionsCount').execute(parameters: {'country': target});
+      final resDel = await ParseCloudFunction('getScheduledDeletionsCount')
+          .execute(parameters: {'country': target});
       if (resDel.success && resDel.result is Map) {
         _scheduledDeletionCount = (resDel.result as Map)['count'] ?? 0;
       }
@@ -183,7 +199,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
     final targetRestauIds = cr.map((r) => r.restaurantID).toSet();
     final targetCommandes =
         commandes.where((c) => targetRestauIds.contains(c.restauID)).toList();
-    final confirmedCount = targetCommandes.where((c) => CommandeStatus.isConfirmed(c.status)).length;
+    final confirmedCount = targetCommandes
+        .where((c) => CommandeStatus.isConfirmed(c.status))
+        .length;
 
     int _s(String key, int fallback) =>
         stats != null ? (stats[key] as num?)?.toInt() ?? fallback : fallback;
@@ -193,11 +211,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
     _totalRestaurants = _s('totalRestaurants', cr.length);
     _totalOrders = _s('totalOrders', confirmedCount);
     _totalRevenue = stats != null
-        ? (stats['totalRevenue'] as num?)?.toDouble() ?? _computeRevenueLocal(targetCommandes)
+        ? (stats['totalRevenue'] as num?)?.toDouble() ??
+            _computeRevenueLocal(targetCommandes)
         : _computeRevenueLocal(targetCommandes);
-    _pendingOrders = targetCommandes.where((c) => CommandeStatus.isPending(c.status)).length;
+    _pendingOrders =
+        targetCommandes.where((c) => CommandeStatus.isPending(c.status)).length;
     _confirmedOrders = confirmedCount;
-    _cancelledOrders = targetCommandes.where((c) => CommandeStatus.isCancelled(c.status)).length;
+    _cancelledOrders = targetCommandes
+        .where((c) => CommandeStatus.isCancelled(c.status))
+        .length;
     _newUsersMonth = (stats != null
             ? (stats['newUsersThisMonth'] as num?)?.toInt()
             : null) ??
@@ -222,7 +244,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 
   double _computeRevenueLocal(List<Commande> commandes) {
-    final confirmed = commandes.where((c) => CommandeStatus.isConfirmed(c.status));
+    final confirmed =
+        commandes.where((c) => CommandeStatus.isConfirmed(c.status));
     double total = 0;
     for (final c in confirmed) {
       total += c.totalAmount > 0 ? c.totalAmount : c.fraisLivraison;
@@ -334,15 +357,19 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
           void _openUser(Users u) {
             Navigator.pop(ctx);
-            Navigator.push(context,
-                MaterialPageRoute(builder: (_) => UserDetails(user_id: u.userID)));
+            Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => UserDetails(user_id: u.userID)));
           }
 
           void _openRestaurant(Restaurant r) {
             Navigator.pop(ctx);
-            Navigator.push(context,
+            Navigator.push(
+                context,
                 MaterialPageRoute(
-                    builder: (_) => RestaurantDetails(restaurant_id: r.restaurantID)));
+                    builder: (_) =>
+                        RestaurantDetails(restaurant_id: r.restaurantID)));
           }
 
           return AlertDialog(
@@ -403,7 +430,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                   ),
                                   child: Text(_roleLabel(u),
                                       style: AppTypography.labelMedium(
-                                          color: AppColors.accent).copyWith(fontSize: 10)),
+                                              color: AppColors.accent)
+                                          .copyWith(fontSize: 10)),
                                 ),
                               )),
                         ],
@@ -449,8 +477,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 : null,
             actions: [
               TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: Text(l10n.close)),
+                  onPressed: () => Navigator.pop(ctx), child: Text(l10n.close)),
             ],
           );
         },
@@ -768,15 +795,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
             const SizedBox(width: AppSpacing.sm),
             Text(l10n.admin_management,
                 style: AppTypography.titleMedium(
-                    color: AppColors.resolve(
-                        AppColors.ink, AppDarkColors.ink))),
+                    color:
+                        AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
           ]),
         ),
       ),
       const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
+          padding:
+              const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
           child: _NavCardResponsive(
             icon: Icons.people_rounded,
             label: l10n.users,
@@ -784,10 +812,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
             sublabel: _newUsersMonth > 0 ? '+$_newUsersMonth ce mois' : null,
             color: Colors.blue,
             onTap: () {
-              Navigator.push(context,
+              Navigator.push(
+                  context,
                   MaterialPageRoute(
                       builder: (_) => UsersListPage(
-                          country: _userCountry, roleFilter: _userRole == AppRole.superAdmin ? null : const [2, 3])));
+                          country: _userCountry,
+                          roleFilter: _userRole == AppRole.superAdmin
+                              ? null
+                              : const [2, 3])));
             },
           ),
         ),
@@ -795,15 +827,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
       const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.sm)),
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
+          padding:
+              const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
           child: _NavCardResponsive(
             icon: Icons.storefront_rounded,
             label: l10n.restaurants,
             count: '$_totalRestaurants',
-            badge: _pendingRestaurantCount > 0 ? '$_pendingRestaurantCount' : null,
+            badge:
+                _pendingRestaurantCount > 0 ? '$_pendingRestaurantCount' : null,
             color: AppColors.resolve(AppColors.accent, AppDarkColors.accent),
             onTap: () {
-              Navigator.push(context,
+              Navigator.push(
+                  context,
                   MaterialPageRoute(
                       builder: (_) =>
                           RestaurantListPage(country: _userCountry)));
@@ -814,14 +849,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
       const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.sm)),
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
+          padding:
+              const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
           child: _NavCardResponsive(
             icon: Icons.delivery_dining_rounded,
             label: l10n.livreurs,
             count: '$_totalLivreurs',
             color: AppColors.resolve(AppColors.success, AppDarkColors.success),
             onTap: () {
-              Navigator.push(context,
+              Navigator.push(
+                  context,
                   CupertinoPageRoute(
                       builder: (_) => LivreurListPage(country: _userCountry)));
             },
@@ -831,13 +868,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
       const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.sm)),
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
+          padding:
+              const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
           child: _NavCardResponsive(
             icon: Icons.label_outline_rounded,
             label: l10n.admin_categories,
             count: '$_categoryCount',
             color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
-            onTap: () => Navigator.push(context,
+            onTap: () => Navigator.push(
+                context,
                 MaterialPageRoute(
                     builder: (_) => const CategoryManagementPage())),
           ),
@@ -846,28 +885,30 @@ class _AdminDashboardState extends State<AdminDashboard> {
       const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.sm)),
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
+          padding:
+              const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
           child: _NavCardResponsive(
             icon: Icons.discount_rounded,
             label: l10n.admin_promotions,
             count: '$_promoCount',
             color: AppColors.resolve(AppColors.accent, AppDarkColors.accent),
             onTap: () => Navigator.push(context,
-                MaterialPageRoute(
-                    builder: (_) => const PromotionsPage())),
+                MaterialPageRoute(builder: (_) => const PromotionsPage())),
           ),
         ),
       ),
       const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.sm)),
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
+          padding:
+              const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
           child: _NavCardResponsive(
             icon: Icons.verified_user_rounded,
             label: l10n.admin_pro_requests,
             count: '$_proPendingCount',
             color: AppColors.resolve(AppColors.accent, AppDarkColors.accent),
-            onTap: () => Navigator.push(context,
+            onTap: () => Navigator.push(
+                context,
                 CupertinoPageRoute(
                     builder: (_) => ProManagementPage(country: _userCountry))),
           ),
@@ -876,45 +917,86 @@ class _AdminDashboardState extends State<AdminDashboard> {
       const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.sm)),
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
+          padding:
+              const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
+          child: _NavCardResponsive(
+            icon: Icons.motorcycle_rounded,
+            label: l10n.admin_delivery_requests,
+            count: '$_deliveryPendingCount',
+            color: AppColors.resolve(AppColors.accent, AppDarkColors.accent),
+            onTap: () => Navigator.push(
+                context,
+                CupertinoPageRoute(
+                    builder: (_) =>
+                        DeliveryManagementPage(country: _userCountry))),
+          ),
+        ),
+      ),
+      const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.sm)),
+      if (_userRole == AppRole.superAdmin) ...[
+        SliverToBoxAdapter(
+          child: Padding(
+            padding:
+                const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
+            child: _NavCardResponsive(
+              icon: Icons.admin_panel_settings_rounded,
+              label: l10n.superAdminDashboard ?? 'Super Admin Dashboard',
+              count: '',
+              color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+              onTap: () => Navigator.push(
+                  context,
+                  CupertinoPageRoute(
+                      builder: (_) =>
+                          SuperAdminDashboard(country: _userCountry))),
+            ),
+          ),
+        ),
+        const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.sm)),
+      ],
+      SliverToBoxAdapter(
+        child: Padding(
+          padding:
+              const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
           child: _NavCardResponsive(
             icon: Icons.people_alt_rounded,
             label: l10n.admin_referral,
             count: '$_referralCount',
             color: Colors.teal,
             onTap: () => Navigator.push(context,
-                MaterialPageRoute(
-                    builder: (_) => const ParrainagePage())),
+                MaterialPageRoute(builder: (_) => const ParrainagePage())),
           ),
         ),
       ),
       const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.sm)),
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
+          padding:
+              const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
           child: _NavCardResponsive(
             icon: Icons.history_rounded,
             label: l10n.auditLog,
             count: '$_auditLogCount',
-            color: AppColors.resolve(
-                AppColors.inkMuted, AppDarkColors.inkMuted),
-            onTap: () => Navigator.push(context,
+            color:
+                AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted),
+            onTap: () => Navigator.push(
+                context,
                 MaterialPageRoute(
-                    builder: (_) =>
-                        AuditLogPage(country: _userCountry))),
+                    builder: (_) => AuditLogPage(country: _userCountry))),
           ),
         ),
       ),
       const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.sm)),
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
+          padding:
+              const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
           child: _NavCardResponsive(
             icon: Icons.delete_sweep_rounded,
             label: l10n.admin_scheduled_deletions,
             count: '$_scheduledDeletionCount',
             color: AppColors.resolve(AppColors.error, AppDarkColors.error),
-            onTap: () => Navigator.push(context,
+            onTap: () => Navigator.push(
+                context,
                 MaterialPageRoute(
                     builder: (_) =>
                         ScheduledDeletionsPage(country: _userCountry))),
@@ -924,14 +1006,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
       const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.sm)),
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
+          padding:
+              const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
           child: _NavCardResponsive(
             icon: Icons.local_shipping_rounded,
             label: l10n.delivery_config_admin_nav,
             color: AppColors.resolve(AppColors.accent, AppDarkColors.accent),
             onTap: () => Navigator.push(context,
-                MaterialPageRoute(
-                    builder: (_) => const DeliveryConfigPage())),
+                MaterialPageRoute(builder: (_) => const DeliveryConfigPage())),
+            count: '',
           ),
         ),
       ),
@@ -939,16 +1022,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
         const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.sm)),
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
+            padding:
+                const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
             child: _NavCardResponsive(
               icon: Icons.admin_panel_settings_rounded,
               label: l10n.administrators,
               count: '$_adminCount',
               color: AppColors.resolve(AppColors.error, AppDarkColors.error),
-              onTap: () => Navigator.push(context,
+              onTap: () => Navigator.push(
+                  context,
                   CupertinoPageRoute(
-                      builder: (_) =>
-                          UsersListPage(country: _userCountry, roleFilter: const [1, 4]))),
+                      builder: (_) => UsersListPage(
+                          country: _userCountry, roleFilter: const [1, 4]))),
               onAdd: () => _showAddUser(roleID: 1),
             ),
           ),
@@ -1255,7 +1340,8 @@ class _HeroAppBar extends StatelessWidget {
                         SingleChildScrollView(
                           scrollDirection: Axis.horizontal,
                           child: Row(
-                            children: ['France', 'Bénin', "Côte d'Ivoire"].map((c) {
+                            children:
+                                ['France', 'Bénin', "Côte d'Ivoire"].map((c) {
                               final active = userCountry == c;
                               final flag = c == 'France'
                                   ? '🇫🇷'
@@ -1273,19 +1359,22 @@ class _HeroAppBar extends StatelessWidget {
                                     decoration: BoxDecoration(
                                       color: active
                                           ? Colors.white
-                                          : Colors.white.withValues(alpha: 0.16),
+                                          : Colors.white
+                                              .withValues(alpha: 0.16),
                                       borderRadius: BorderRadius.circular(999),
                                       border: Border.all(
                                         color: active
                                             ? Colors.white
-                                            : Colors.white.withValues(alpha: 0.25),
+                                            : Colors.white
+                                                .withValues(alpha: 0.25),
                                       ),
                                     ),
                                     child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
                                           Text(flag,
-                                              style: const TextStyle(fontSize: 14)),
+                                              style: const TextStyle(
+                                                  fontSize: 14)),
                                           const SizedBox(width: 6),
                                           Text(
                                             c,
@@ -1642,8 +1731,6 @@ class _KpiTile extends StatelessWidget {
   }
 }
 
-
-
 // Version responsive du NavCard pour petits écrans
 class _NavCardResponsive extends StatelessWidget {
   const _NavCardResponsive({
@@ -1772,7 +1859,6 @@ class _NavCardResponsive extends StatelessWidget {
     );
   }
 }
-
 
 // ═══════════════════════════════════════════════════════════
 // _ValidationAlert — Bannière d'alerte en attente

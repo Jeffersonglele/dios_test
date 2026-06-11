@@ -1142,7 +1142,89 @@ class AppLocalizationsFr extends AppLocalizations {
   String get admin_pro_no_description => 'Aucune description fournie.';
 
   @override
+  String get admin_delivery_requests => 'Demandes Livreurs';
+
+  @override
+  String get admin_delivery_requests_pending => 'En attente';
+
+  @override
+  String get admin_delivery_requests_validated => 'Validées';
+
+  @override
+  String get admin_delivery_requests_rejected => 'Refusées';
+
+  @override
+  String get admin_delivery_validate => 'Valider';
+
+  @override
+  String get admin_delivery_reject => 'Refuser';
+
+  @override
+  String get admin_delivery_no_requests => 'Aucune demande livreur.';
+
+  @override
+  String get admin_delivery_status_pending => 'En attente de validation';
+
+  @override
+  String get admin_delivery_status_validated => 'Validé';
+
+  @override
+  String get admin_delivery_status_rejected => 'Refusé';
+
+  @override
+  String get admin_delivery_remark_hint => 'Motif du refus…';
+
+  @override
+  String get admin_delivery_documents => 'Documents';
+
+  @override
+  String get admin_delivery_view_document => 'Voir';
+
+  @override
+  String get admin_delivery_description => 'Description de la demande';
+
+  @override
+  String get admin_delivery_id_card => 'Carte d\'identité';
+
+  @override
+  String get admin_delivery_license => 'Permis de conduire';
+
+  @override
+  String get superAdminDashboard => 'Tableau de bord Super Admin';
+
+  @override
+  String get superAdminWeeklyCommissions => 'Commissions hebdomadaires';
+
+  @override
+  String get superAdminPaymentsCompleted => 'Versements effectués';
+
+  @override
+  String get superAdminPaymentsPending => 'Versements en attente';
+
+  @override
+  String get superAdminDisputesOpen => 'Litiges ouverts';
+
+  @override
+  String get superAdminDisputesInProgress => 'Litiges en cours';
+
+  @override
+  String get superAdminDisputesResolved => 'Litiges résolus';
+
+  @override
+  String get superAdminDisputeRate => 'Taux de litige';
+
+  @override
   String get optional => 'optionnel';
+
+  @override
+  String admin_delivery_validated(Object name) {
+    return '$name validé ✓';
+  }
+
+  @override
+  String admin_delivery_rejected(Object name) {
+    return '$name refusé';
+  }
 
   @override
   String get delivery_status_assigned => 'Assigné';
@@ -1196,7 +1278,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get delivery_this_week => 'cette semaine';
 
   @override
-  String get delivery_this_month => 'ce mois';
+  String get delivery_this_month => 'ce mois-ci';
 
   @override
   String get delivery_period_7days => '7 jours';
@@ -1492,12 +1574,12 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
-  String restaurant_list_validated_toast(Object emailSent, Object name) {
+  String restaurant_list_validated_toast(Object name, Object emailSent) {
     return 'Le restaurant $name a été validé$emailSent';
   }
 
   @override
-  String restaurant_list_rejected_toast(Object emailSent, Object name) {
+  String restaurant_list_rejected_toast(Object name, Object emailSent) {
     return 'Le restaurant $name a été rejeté$emailSent';
   }
 
@@ -2810,7 +2892,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get no_reviews_yet => 'Aucun avis pour le moment.';
 
   @override
-  String reviews_count(Object count) {
+  String reviews_count(int count) {
     return '$count avis';
   }
 

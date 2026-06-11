@@ -125,9 +125,7 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
       final cloudDeliveries = await LivreurApi.getLivreurDeliveries(driverID);
       List<Commande> list = [];
       if (cloudDeliveries.isNotEmpty) {
-        list = cloudDeliveries
-            .map((m) => Commande.fromMap(m))
-            .toList();
+        list = cloudDeliveries.map((m) => Commande.fromMap(m)).toList();
       } else {
         final allC = await Commande.fetchCommandesFromDB();
         list = allC.where((c) => c.livreurID == driverID).toList();
@@ -181,7 +179,9 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
       final query = QueryBuilder<ParseObject>(ParseObject('Users'))
         ..whereEqualTo('userID', driverID);
       final response = await query.query();
-      if (response.success && response.results != null && response.results!.isNotEmpty) {
+      if (response.success &&
+          response.results != null &&
+          response.results!.isNotEmpty) {
         final parseUser = response.results!.first as ParseObject;
         final online = parseUser.get<bool>('isOnline') ?? false;
         await prefs.setBool('driver_online_$driverID', online);
@@ -192,7 +192,8 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
         final users = await Users.fetchUsersFromDB();
         final driver = users.firstWhere(
           (u) => u.userID == driverID,
-          orElse: () => users.isNotEmpty ? users.first : Users.fromMap(const {}),
+          orElse: () =>
+              users.isNotEmpty ? users.first : Users.fromMap(const {}),
         );
         if (mounted) {
           setState(() => isOnline = driver.isOnline);
@@ -216,7 +217,12 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
         await prefs.setBool('driver_online_$driverID', isOnline);
         Toast(context, AppLocalizations.of(context)!.error, false);
       } else if (mounted) {
-        Toast(context, isOnline ? AppLocalizations.of(context)!.delivery_toggle_online : AppLocalizations.of(context)!.delivery_toggle_offline, true);
+        Toast(
+            context,
+            isOnline
+                ? AppLocalizations.of(context)!.delivery_toggle_online
+                : AppLocalizations.of(context)!.delivery_toggle_offline,
+            true);
       }
     } catch (_) {
       if (mounted) {
@@ -251,23 +257,26 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
   Future<void> _updateStatus(Commande commande, String newStatus) async {
     setState(() => isLoading = true);
     try {
-      final ok = await LivreurApi.updateDeliveryStatus(
-          commande.commandeID, newStatus);
+      final ok =
+          await LivreurApi.updateDeliveryStatus(commande.commandeID, newStatus);
       if (ok) {
         if (newStatus == 'in_transit') {
           _startSharingLocation(commande.commandeID);
         }
         if (newStatus == 'delivered') _stopSharingLocation();
         await _load();
-          if (mounted) {
-            final label = _deliveryStatusLabel(newStatus);
-            Toast(context, '✅ $label', true);
-          }
-        } else {
-          if (mounted) Toast(context, AppLocalizations.of(context)!.store_update_error, false);
+        if (mounted) {
+          final label = _deliveryStatusLabel(newStatus);
+          Toast(context, '✅ $label', true);
         }
-      } catch (_) {
-        if (mounted) Toast(context, AppLocalizations.of(context)!.store_update_error, false);
+      } else {
+        if (mounted)
+          Toast(
+              context, AppLocalizations.of(context)!.store_update_error, false);
+      }
+    } catch (_) {
+      if (mounted)
+        Toast(context, AppLocalizations.of(context)!.store_update_error, false);
     } finally {
       if (mounted) setState(() => isLoading = false);
     }
@@ -281,9 +290,13 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
         title: Text(AppLocalizations.of(ctx)!.delivery_abandon_confirm),
         content: Text(AppLocalizations.of(ctx)!.delivery_abandon_body),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(AppLocalizations.of(ctx)!.cancel)),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(AppLocalizations.of(ctx)!.cancel)),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.error,
+                foregroundColor: Colors.white),
             onPressed: () => Navigator.pop(ctx, true),
             child: Text(AppLocalizations.of(ctx)!.delivery_abandon),
           ),
@@ -297,12 +310,18 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
       if (ok) {
         _stopSharingLocation();
         await _load();
-        if (mounted) Toast(context, AppLocalizations.of(context)!.delivery_abandoned, true);
+        if (mounted)
+          Toast(
+              context, AppLocalizations.of(context)!.delivery_abandoned, true);
       } else {
-        if (mounted) Toast(context, AppLocalizations.of(context)!.delivery_abandon_error, false);
+        if (mounted)
+          Toast(context, AppLocalizations.of(context)!.delivery_abandon_error,
+              false);
       }
     } catch (_) {
-      if (mounted) Toast(context, AppLocalizations.of(context)!.delivery_abandon_error, false);
+      if (mounted)
+        Toast(context, AppLocalizations.of(context)!.delivery_abandon_error,
+            false);
     } finally {
       if (mounted) setState(() => isLoading = false);
     }
@@ -316,20 +335,22 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
     final l10n = AppLocalizations.of(context)!;
     if (status == null || status.isEmpty) return l10n.delivery_status_assigned;
     return {
-      'assigned': l10n.delivery_status_assigned,
-      'picked_up': l10n.delivery_status_picked_up,
-      'in_transit': l10n.delivery_status_in_transit,
-      'delivered': l10n.delivery_status_delivered,
-    }[status] ?? status;
+          'assigned': l10n.delivery_status_assigned,
+          'picked_up': l10n.delivery_status_picked_up,
+          'in_transit': l10n.delivery_status_in_transit,
+          'delivered': l10n.delivery_status_delivered,
+        }[status] ??
+        status;
   }
 
   static Color _deliveryStatusColor(String status) {
     return {
-      'assigned': Colors.orange,
-      'picked_up': AppColors.accent,
-      'in_transit': AppColors.brand,
-      'delivered': AppColors.success,
-    }[status] ?? AppColors.inkSubtle;
+          'assigned': Colors.orange,
+          'picked_up': AppColors.accent,
+          'in_transit': AppColors.brand,
+          'delivered': AppColors.success,
+        }[status] ??
+        AppColors.inkSubtle;
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -434,11 +455,12 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
                 Text(
                   isOnline ? l10n.delivery_online : l10n.delivery_offline,
                   style: AppTypography.labelLarge(
-                      color: AppColors.resolve(AppColors.ink, AppDarkColors.ink)),
+                      color:
+                          AppColors.resolve(AppColors.ink, AppDarkColors.ink)),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                   '$_totalDeliveries ${l10n.myDeliveries} · ${CurrencyUtil.formatPrice(_totalEarnings, _country)}',
+                  '$_totalDeliveries ${l10n.myDeliveries} · ${CurrencyUtil.formatPrice(_totalEarnings, _country)}',
                   style: AppTypography.bodyMedium(
                           color: AppColors.resolve(
                               AppColors.inkSubtle, AppDarkColors.inkSubtle))
@@ -460,16 +482,20 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
   // ── Filtres de statut ────────────────────────────────────
   Widget _buildFilters() {
     final l10n = AppLocalizations.of(context)!;
-    final statuses = ['__all__', 'assigned', 'picked_up', 'in_transit', 'delivered'];
+    final statuses = [
+      '__all__',
+      'assigned',
+      'picked_up',
+      'in_transit',
+      'delivered'
+    ];
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         children: statuses.map((s) {
           final active = statusFilter == (s == '__all__' ? null : s);
-          final label = s == '__all__'
-              ? l10n.all
-              : _deliveryStatusLabel(s);
+          final label = s == '__all__' ? l10n.all : _deliveryStatusLabel(s);
           return Padding(
             padding: const EdgeInsets.only(right: 8),
             child: GestureDetector(
@@ -557,8 +583,7 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
                             height: 38,
                             decoration: BoxDecoration(
                               color: statusColor.withValues(alpha: 0.10),
-                              borderRadius:
-                                  BorderRadius.circular(AppRadius.sm),
+                              borderRadius: BorderRadius.circular(AppRadius.sm),
                             ),
                             child: Icon(Icons.delivery_dining_rounded,
                                 color: statusColor, size: 18),
@@ -593,6 +618,106 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
                       ),
                     ),
 
+                    // ── Delivery details (distance, tip, etc.) ──
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                          AppSpacing.md, 0, AppSpacing.md, AppSpacing.sm),
+                      child: Container(
+                        padding: const EdgeInsets.all(AppSpacing.sm),
+                        decoration: BoxDecoration(
+                          color: AppColors.resolve(
+                              AppColors.surfaceWarm, AppDarkColors.surfaceWarm),
+                          borderRadius: BorderRadius.circular(AppRadius.sm),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            // Distance
+                            if (c.distance != null)
+                              Row(
+                                children: [
+                                  Icon(Icons.route_rounded,
+                                      size: 14,
+                                      color: AppColors.resolve(
+                                          AppColors.inkMuted,
+                                          AppDarkColors.inkMuted)),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${c.distance!.toStringAsFixed(1)} km',
+                                    style: AppTypography.labelMedium(
+                                        color: AppColors.resolve(
+                                            AppColors.ink, AppDarkColors.ink)),
+                                  ),
+                                ],
+                              ),
+                            // Base delivery fee
+                            Row(
+                              children: [
+                                Icon(Icons.money_rounded,
+                                    size: 14,
+                                    color: AppColors.resolve(AppColors.inkMuted,
+                                        AppDarkColors.inkMuted)),
+                                const SizedBox(width: 4),
+                                Text(
+                                  CurrencyUtil.formatPrice(
+                                      c.fraisLivraison, _country),
+                                  style: AppTypography.labelMedium(
+                                      color: AppColors.resolve(
+                                          AppColors.ink, AppDarkColors.ink)),
+                                ),
+                              ],
+                            ),
+                            // Tip
+                            if (c.pourboire != null && c.pourboire! > 0)
+                              Row(
+                                children: [
+                                  Icon(Icons.emoji_events_rounded,
+                                      size: 14, color: AppColors.accent),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '+${CurrencyUtil.formatPrice(c.pourboire!, _country)}',
+                                    style: AppTypography.labelMedium(
+                                        color: AppColors.accent),
+                                  ),
+                                ],
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    // ── Payment status ──────────────────────────
+                    if (c.paymentStatus != null)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                            AppSpacing.md, 0, AppSpacing.md, AppSpacing.sm),
+                        child: Row(
+                          children: [
+                            Icon(Icons.account_balance_wallet_rounded,
+                                size: 14,
+                                color: AppColors.resolve(AppColors.inkMuted,
+                                    AppDarkColors.inkMuted)),
+                            const SizedBox(width: 4),
+                            _PaymentStatusBadge(
+                                paymentStatus: c.paymentStatus!),
+                            if (c.paymentDate != null) ...[
+                              const SizedBox(width: 8),
+                              Text(
+                                c.paymentDate!
+                                    .toLocal()
+                                    .toString()
+                                    .split(' ')[0],
+                                style: AppTypography.labelMedium(
+                                        color: AppColors.resolve(
+                                            AppColors.inkSubtle,
+                                            AppDarkColors.inkSubtle))
+                                    .copyWith(fontSize: 10),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+
                     // ── Boutons d'action livreur ───────────────
                     if (status != 'delivered')
                       Padding(
@@ -603,31 +728,31 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
                             if (status == 'assigned')
                               Expanded(
                                 child: _PrimaryActionButton(
-                                  label: AppLocalizations.of(context)!.delivery_status_picked_up,
+                                  label: AppLocalizations.of(context)!
+                                      .delivery_status_picked_up,
                                   icon: Icons.shopping_bag_rounded,
                                   color: AppColors.accent,
-                                  onTap: () =>
-                                      _updateStatus(c, 'picked_up'),
+                                  onTap: () => _updateStatus(c, 'picked_up'),
                                 ),
                               ),
                             if (status == 'picked_up')
                               Expanded(
                                 child: _PrimaryActionButton(
-                                  label: AppLocalizations.of(context)!.delivery_status_in_transit,
+                                  label: AppLocalizations.of(context)!
+                                      .delivery_status_in_transit,
                                   icon: Icons.directions_bike_rounded,
                                   color: AppColors.brand,
-                                  onTap: () =>
-                                      _updateStatus(c, 'in_transit'),
+                                  onTap: () => _updateStatus(c, 'in_transit'),
                                 ),
                               ),
                             if (status == 'in_transit')
                               Expanded(
                                 child: _PrimaryActionButton(
-                                  label: AppLocalizations.of(context)!.delivery_status_delivered,
+                                  label: AppLocalizations.of(context)!
+                                      .delivery_status_delivered,
                                   icon: Icons.check_circle_rounded,
                                   color: AppColors.success,
-                                  onTap: () =>
-                                      _updateStatus(c, 'delivered'),
+                                  onTap: () => _updateStatus(c, 'delivered'),
                                 ),
                               ),
                             const SizedBox(width: AppSpacing.xs),
@@ -668,20 +793,23 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
                                     CommandeDetailsPage(commande: c),
                               ),
                             ),
-                            child: Text(AppLocalizations.of(context)!.user_orders_see_detail,
+                            child: Text(
+                                AppLocalizations.of(context)!
+                                    .user_orders_see_detail,
                                 style: AppTypography.labelMedium(
                                         color: AppColors.brand)
                                     .copyWith(fontSize: 12)),
                           ),
                           const Spacer(),
                           Text(
-                            AppLocalizations.of(context)!.delivery_livraison_label(c.fraisLivraison.toStringAsFixed(2)),
+                            CurrencyUtil.formatPrice(
+                                c.fraisLivraison + (c.pourboire ?? 0),
+                                _country),
                             style: AppTypography.labelMedium(
                                     color: AppColors.resolve(
                                         AppColors.ink, AppDarkColors.ink))
                                 .copyWith(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700),
+                                    fontSize: 12, fontWeight: FontWeight.w700),
                           ),
                         ],
                       ),
@@ -702,18 +830,15 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
                           return Container(
                             padding: const EdgeInsets.all(AppSpacing.md),
                             decoration: BoxDecoration(
-                              color: AppColors.resolve(
-                                  AppColors.surfaceWarm,
+                              color: AppColors.resolve(AppColors.surfaceWarm,
                                   AppDarkColors.surfaceWarm),
-                              borderRadius:
-                                  BorderRadius.circular(AppRadius.md),
+                              borderRadius: BorderRadius.circular(AppRadius.md),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 ...lignes.map((l) => Padding(
-                                      padding:
-                                          const EdgeInsets.only(bottom: 4),
+                                      padding: const EdgeInsets.only(bottom: 4),
                                       child: Row(
                                         children: [
                                           Container(
@@ -722,40 +847,36 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
                                             decoration: BoxDecoration(
                                               color: AppColors.resolve(
                                                   AppColors.brandSurface,
-                                                  AppDarkColors
-                                                      .brandSurface),
+                                                  AppDarkColors.brandSurface),
                                               borderRadius:
                                                   BorderRadius.circular(6),
                                             ),
                                             child: Center(
                                               child: Text(
                                                 '${l.quantite}',
-                                                style: AppTypography
-                                                        .labelMedium(
-                                                            color: AppColors
-                                                                .brand)
-                                                    .copyWith(fontSize: 11),
+                                                style:
+                                                    AppTypography.labelMedium(
+                                                            color:
+                                                                AppColors.brand)
+                                                        .copyWith(fontSize: 11),
                                               ),
                                             ),
                                           ),
-                                          const SizedBox(
-                                              width: AppSpacing.sm),
+                                          const SizedBox(width: AppSpacing.sm),
                                           Expanded(
                                             child: Text(
                                               dishNames[l.platID] ??
                                                   'Plat #${l.platID}',
-                                              style: AppTypography
-                                                  .bodyMedium(),
+                                              style: AppTypography.bodyMedium(),
                                               maxLines: 1,
-                                              overflow:
-                                                  TextOverflow.ellipsis,
+                                              overflow: TextOverflow.ellipsis,
                                             ),
                                           ),
                                           Text(
-                                            CurrencyUtil.formatPrice(l.prixUnitaire, _country),
-                                            style:
-                                                AppTypography.labelMedium(
-                                                    color: AppColors.brand),
+                                            CurrencyUtil.formatPrice(
+                                                l.prixUnitaire, _country),
+                                            style: AppTypography.labelMedium(
+                                                color: AppColors.brand),
                                           ),
                                         ],
                                       ),
@@ -772,15 +893,15 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
                                                     AppDarkColors.inkMuted))
                                             .copyWith(fontSize: 12)),
                                     Text(
-                                        CurrencyUtil.formatPrice(subtotal, _country),
+                                        CurrencyUtil.formatPrice(
+                                            subtotal, _country),
                                         style: AppTypography.labelMedium(
                                                 color: AppColors.resolve(
                                                     AppColors.ink,
                                                     AppDarkColors.ink))
                                             .copyWith(
                                                 fontSize: 12,
-                                                fontWeight:
-                                                    FontWeight.w700)),
+                                                fontWeight: FontWeight.w700)),
                                   ],
                                 ),
                               ],
@@ -798,8 +919,7 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
                         children: [
                           Icon(Icons.person_outline_rounded,
                               size: 14,
-                              color: AppColors.resolve(
-                                  AppColors.inkSubtle,
+                              color: AppColors.resolve(AppColors.inkSubtle,
                                   AppDarkColors.inkSubtle)),
                           const SizedBox(width: 4),
                           Text(
@@ -848,8 +968,7 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
             Text(
               l10n.delivery_no_data,
               style: AppTypography.titleMedium(
-                  color:
-                      AppColors.resolve(AppColors.ink, AppDarkColors.ink)),
+                  color: AppColors.resolve(AppColors.ink, AppDarkColors.ink)),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.xs),
@@ -874,11 +993,11 @@ class _DeliveryStatusBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final label = {
-      'assigned': l10n.delivery_status_assigned,
-      'picked_up': l10n.delivery_status_picked_up,
-      'in_transit': l10n.delivery_status_in_transit,
-      'delivered': l10n.delivery_status_delivered,
-    }[status] ??
+          'assigned': l10n.delivery_status_assigned,
+          'picked_up': l10n.delivery_status_picked_up,
+          'in_transit': l10n.delivery_status_in_transit,
+          'delivered': l10n.delivery_status_delivered,
+        }[status] ??
         status;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -890,6 +1009,47 @@ class _DeliveryStatusBadge extends StatelessWidget {
         label,
         style:
             TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700),
+      ),
+    );
+  }
+}
+
+// ── Badge statut paiement ─────────────────────────────────
+class _PaymentStatusBadge extends StatelessWidget {
+  const _PaymentStatusBadge({required this.paymentStatus});
+  final String paymentStatus;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    Color bgColor;
+    Color textColor;
+    String label;
+
+    switch (paymentStatus) {
+      case 'paid':
+        bgColor = AppColors.successLight;
+        textColor = AppColors.success;
+        label = l10n.admin_delivery_status_validated;
+        break;
+      case 'pending':
+      default:
+        bgColor = AppColors.accentLight;
+        textColor = AppColors.accent;
+        label = l10n.admin_delivery_status_pending;
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+            color: textColor, fontSize: 10, fontWeight: FontWeight.w600),
       ),
     );
   }

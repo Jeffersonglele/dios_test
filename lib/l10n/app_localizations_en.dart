@@ -1136,7 +1136,89 @@ class AppLocalizationsEn extends AppLocalizations {
   String get admin_pro_no_description => 'No description provided.';
 
   @override
+  String get admin_delivery_requests => 'Driver Requests';
+
+  @override
+  String get admin_delivery_requests_pending => 'Pending';
+
+  @override
+  String get admin_delivery_requests_validated => 'Validated';
+
+  @override
+  String get admin_delivery_requests_rejected => 'Rejected';
+
+  @override
+  String get admin_delivery_validate => 'Approve';
+
+  @override
+  String get admin_delivery_reject => 'Reject';
+
+  @override
+  String get admin_delivery_no_requests => 'No driver requests.';
+
+  @override
+  String get admin_delivery_status_pending => 'Pending review';
+
+  @override
+  String get admin_delivery_status_validated => 'Approved';
+
+  @override
+  String get admin_delivery_status_rejected => 'Rejected';
+
+  @override
+  String get admin_delivery_remark_hint => 'Reason for rejection…';
+
+  @override
+  String get admin_delivery_documents => 'Documents';
+
+  @override
+  String get admin_delivery_view_document => 'View';
+
+  @override
+  String get admin_delivery_description => 'Request description';
+
+  @override
+  String get admin_delivery_id_card => 'ID card';
+
+  @override
+  String get admin_delivery_license => 'Driver\'s license';
+
+  @override
+  String get superAdminDashboard => 'Super Admin Dashboard';
+
+  @override
+  String get superAdminWeeklyCommissions => 'Weekly Commissions';
+
+  @override
+  String get superAdminPaymentsCompleted => 'Completed Payments';
+
+  @override
+  String get superAdminPaymentsPending => 'Pending Payments';
+
+  @override
+  String get superAdminDisputesOpen => 'Open Disputes';
+
+  @override
+  String get superAdminDisputesInProgress => 'In Progress Disputes';
+
+  @override
+  String get superAdminDisputesResolved => 'Resolved Disputes';
+
+  @override
+  String get superAdminDisputeRate => 'Dispute Rate';
+
+  @override
   String get optional => 'optional';
+
+  @override
+  String admin_delivery_validated(Object name) {
+    return '$name approved ✓';
+  }
+
+  @override
+  String admin_delivery_rejected(Object name) {
+    return '$name rejected';
+  }
 
   @override
   String get delivery_status_assigned => 'Assigned';
@@ -1483,12 +1565,12 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String restaurant_list_validated_toast(Object emailSent, Object name) {
+  String restaurant_list_validated_toast(Object name, Object emailSent) {
     return 'Restaurant $name has been validated$emailSent';
   }
 
   @override
-  String restaurant_list_rejected_toast(Object emailSent, Object name) {
+  String restaurant_list_rejected_toast(Object name, Object emailSent) {
     return 'Restaurant $name has been rejected$emailSent';
   }
 
@@ -2785,8 +2867,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get no_reviews_yet => 'No reviews yet.';
 
   @override
-  String reviews_count(Object count) {
-    return '$count reviews';
+  String reviews_count(int count) {
+    return '$count avis';
   }
 
   @override

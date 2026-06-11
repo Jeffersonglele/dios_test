@@ -47,33 +47,36 @@ class _IdentityVerificationState extends ConsumerState<IdentityVerification> {
       context: context,
       builder: (context) {
         return SafeArea(
-          child: Wrap(
-            children: [
-              ListTile(
-                leading: const Icon(Icons.camera_alt),
-                title: Text(l10n.identity_take_photo),
-                onTap: () {
-                  Navigator.pop(context);
-                  _takePhoto();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.photo_library),
-                title: Text(l10n.identity_choose_gallery),
-                onTap: () {
-                  Navigator.pop(context);
-                  _pickPhotoFromGallery();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.attach_file),
-                title: Text(l10n.identity_choose_file),
-                onTap: () {
-                  Navigator.pop(context);
-                  _pickPhotoFromFiles();
-                },
-              ),
-            ],
+          child: Material(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            child: Wrap(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.camera_alt),
+                  title: Text(l10n.identity_take_photo),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _takePhoto();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.photo_library),
+                  title: Text(l10n.identity_choose_gallery),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickPhotoFromGallery();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.attach_file),
+                  title: Text(l10n.identity_choose_file),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickPhotoFromFiles();
+                  },
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -88,20 +91,23 @@ class _IdentityVerificationState extends ConsumerState<IdentityVerification> {
 
       if (!cameraSupported) {
         if (!mounted) return;
-        Toast(context, AppLocalizations.of(context)!.identity_camera_unavailable, false);
+        Toast(context,
+            AppLocalizations.of(context)!.identity_camera_unavailable, false);
         return;
       }
 
       final XFile? image = await picker.pickImage(source: ImageSource.camera);
       if (image != null && mounted) {
-        final confirmed = await showImageConfirmDialog(context, File(image.path));
+        final confirmed =
+            await showImageConfirmDialog(context, File(image.path));
         if (confirmed != null && mounted) {
           setState(() => _userPhoto = confirmed);
         }
       }
     } catch (e) {
       if (!mounted) return;
-      Toast(context, AppLocalizations.of(context)!.identity_camera_error, false);
+      Toast(
+          context, AppLocalizations.of(context)!.identity_camera_error, false);
     }
   }
 
@@ -111,14 +117,16 @@ class _IdentityVerificationState extends ConsumerState<IdentityVerification> {
       final XFile? image = await picker.pickImage(source: ImageSource.gallery);
 
       if (image != null && mounted) {
-        final confirmed = await showImageConfirmDialog(context, File(image.path));
+        final confirmed =
+            await showImageConfirmDialog(context, File(image.path));
         if (confirmed != null && mounted) {
           setState(() => _userPhoto = confirmed);
         }
       }
     } catch (e) {
       if (!mounted) return;
-      Toast(context, AppLocalizations.of(context)!.identity_gallery_error, false);
+      Toast(
+          context, AppLocalizations.of(context)!.identity_gallery_error, false);
     }
   }
 
@@ -141,26 +149,29 @@ class _IdentityVerificationState extends ConsumerState<IdentityVerification> {
       context: context,
       builder: (context) {
         return SafeArea(
-          child: Wrap(
-            children: [
-              ListTile(
-                leading: const Icon(Icons.photo_library),
-                title: Text(l10n.identity_choose_gallery_option),
-                onTap: () {
-                  Navigator.pop(context);
-                  _pickIdentityFromGallery();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.attach_file),
-                title: Text(l10n.identity_choose_files_option),
-                subtitle: Text(l10n.identity_format_hint),
-                onTap: () {
-                  Navigator.pop(context);
-                  _pickIdentityFromFiles();
-                },
-              ),
-            ],
+          child: Material(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            child: Wrap(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.photo_library),
+                  title: Text(l10n.identity_choose_gallery_option),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickIdentityFromGallery();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.attach_file),
+                  title: Text(l10n.identity_choose_files_option),
+                  subtitle: Text(l10n.identity_format_hint),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickIdentityFromFiles();
+                  },
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -173,14 +184,16 @@ class _IdentityVerificationState extends ConsumerState<IdentityVerification> {
       final XFile? image = await picker.pickImage(source: ImageSource.gallery);
 
       if (image != null && mounted) {
-        final confirmed = await showImageConfirmDialog(context, File(image.path));
+        final confirmed =
+            await showImageConfirmDialog(context, File(image.path));
         if (confirmed != null && mounted) {
           setState(() => _identityFile = confirmed);
         }
       }
     } catch (e) {
       if (!mounted) return;
-      Toast(context, AppLocalizations.of(context)!.identity_gallery_error, false);
+      Toast(
+          context, AppLocalizations.of(context)!.identity_gallery_error, false);
     }
   }
 
@@ -267,8 +280,7 @@ class _IdentityVerificationState extends ConsumerState<IdentityVerification> {
         'subject': 'Nouvelle identité en attente de vérification',
         'text': "Connectez-vous pour valider ou non l'utilisateur.",
       });
-    } catch (e) {
-    }
+    } catch (e) {}
   }
 
   @override
@@ -343,7 +355,8 @@ class _IdentityVerificationState extends ConsumerState<IdentityVerification> {
                       const SizedBox(height: 10),
                       ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+                            backgroundColor: AppColors.resolve(
+                                AppColors.brand, AppDarkColors.brand),
                             foregroundColor: Colors.white),
                         onPressed: _showPhotoSourcePicker,
                         icon: const Icon(Icons.add_a_photo),
@@ -373,7 +386,8 @@ class _IdentityVerificationState extends ConsumerState<IdentityVerification> {
                       const SizedBox(height: 10),
                       ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+                            backgroundColor: AppColors.resolve(
+                                AppColors.brand, AppDarkColors.brand),
                             foregroundColor: Colors.white),
                         onPressed: _showIdentitySourcePicker,
                         icon: const Icon(Icons.file_present),
@@ -389,7 +403,8 @@ class _IdentityVerificationState extends ConsumerState<IdentityVerification> {
                 Center(
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+                      backgroundColor: AppColors.resolve(
+                          AppColors.brand, AppDarkColors.brand),
                       foregroundColor: Colors.white,
                       textStyle: const TextStyle(
                           fontSize: 18, fontWeight: FontWeight.bold),
@@ -400,8 +415,7 @@ class _IdentityVerificationState extends ConsumerState<IdentityVerification> {
                       if (_userPhoto == null || _identityFile == null) {
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                                content: Text(l10n.identity_provide_both)),
+                            SnackBar(content: Text(l10n.identity_provide_both)),
                           );
                         }
                         return;

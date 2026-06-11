@@ -244,6 +244,11 @@
   "cart_promo_apply": "Appliquer",
   "cart_promo_invalid": "Code promo invalide.",
   "cart_promo_applied": "Code promo appliqué : {description}",
+  "@cart_promo_applied": {
+    "placeholders": {
+      "description": {}
+    }
+  },
   "cart_summary_section": "Résumé",
   "cart_discount": "Réduction",
   "cart_payment_section": "Mode de paiement",
@@ -251,6 +256,11 @@
   "cart_payment_fedapay": "Mobile Money (CinetPay)",
   "cart_processing": "Traitement...",
   "cart_order_button": "Commander · {amount}",
+  "@cart_order_button": {
+    "placeholders": {
+      "amount": {}
+    }
+  },
   "cart_choose_address_warning": "Choisissez une adresse.",
   "cart_order_confirm_message": "Commande confirmée !",
   "cart_order_failed": "Impossible de créer la commande.",
@@ -260,6 +270,11 @@
   "cart_payment_online_error": "Erreur de paiement en ligne. Veuillez réessayer ou choisir un autre mode de paiement.",
   "cart_payment_error": "Erreur paiement.",
   "cart_order_confirmed_message": "Votre commande #{orderId} a été passée avec succès.",
+  "@cart_order_confirmed_message": {
+    "placeholders": {
+      "orderId": {}
+    }
+  },
   "cart_track_order": "Suivre ma commande",
   "cart_address_not_found": "Adresse introuvable.",
   "cart_address_saved": "Adresse enregistrée !",
@@ -270,6 +285,11 @@
   "cart_your_addresses": "Vos adresses",
   "cart_new_address": "Nouvelle adresse",
   "cart_item_deleted": "{mealName} supprimé",
+  "@cart_item_deleted": {
+    "placeholders": {
+      "mealName": {}
+    }
+  },
   "street": "Rue",
   "postal_code": "Code postal",
   "city": "Ville",
@@ -285,6 +305,11 @@
   "home_subtagline": "Plats maison · Chefs locaux · Frais du jour",
   "home_categories": "Catégories",
   "home_delivery_fee_label": "{fee} € livraison",
+  "@home_delivery_fee_label": {
+    "placeholders": {
+      "fee": {}
+    }
+  },
   "home_rated": "Noté",
   "home_contact": "Contactez",
   "home_no_restaurants": "Aucun restaurant à proximité",
@@ -295,11 +320,21 @@
   "dish_add_error": "Erreur lors de l'ajout au panier.",
   "dish_popular": "Populaire",
   "dish_servings_available": "{count} portions disponibles",
+  "@dish_servings_available": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "dish_photos": "Photos",
   "dish_quantity": "Quantité",
   "dish_options": "Options",
   "dish_reviews": "Avis",
   "dish_add_to_cart": "Ajouter au panier · {price}",
+  "@dish_add_to_cart": {
+    "placeholders": {
+      "price": {}
+    }
+  },
   "store_my_earnings": "Mes revenus",
   "store_delivery_radius": "Rayon de livraison",
   "store_become_seller": "Devenir vendeur",
@@ -319,12 +354,32 @@
   "store_yes_cancel": "Oui, annuler",
   "store_request_cancelled": "Demande annulée.",
   "store_max_distance": "Distance maximale : {distance} km",
+  "@store_max_distance": {
+    "placeholders": {
+      "distance": {}
+    }
+  },
   "store_max_distance_limit": "Limité à 10 km maximum",
   "store_radius_updated": "Rayon mis à jour : {distance} km",
+  "@store_radius_updated": {
+    "placeholders": {
+      "distance": {}
+    }
+  },
   "store_update_error": "Erreur de mise à jour",
   "admin_dashboard_title": "Administration",
   "admin_greeting": "Bonjour, {name}",
+  "@admin_greeting": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "admin_validation_alert": "{count} restaurant(s) en attente",
+  "@admin_validation_alert": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "admin_validation_subtitle": "Action requise · Validez ou rejetez ci-dessous",
   "admin_validation_section": "Validation restaurants",
   "admin_quick_actions": "Actions rapides",
@@ -343,7 +398,17 @@
   "admin_validate": "Valider",
   "admin_reject": "Rejeter",
   "admin_restaurant_validated": "{name} validé ✓",
+  "@admin_restaurant_validated": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "admin_restaurant_rejected": "{name} rejeté",
+  "@admin_restaurant_rejected": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "admin_rejection_reason_hint": "Raison du rejet…",
   "admin_pro_requests": "Demandes Pro",
   "admin_pro_requests_pending": "En attente",
@@ -352,7 +417,17 @@
   "admin_pro_validate": "Valider",
   "admin_pro_reject": "Refuser",
   "admin_pro_validated": "{name} validé ✓",
+  "@admin_pro_validated": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "admin_pro_rejected": "{name} refusé",
+  "@admin_pro_rejected": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "admin_pro_no_requests": "Aucune demande Pro.",
   "admin_pro_status_pending": "En attente de validation",
   "admin_pro_status_validated": "Validé",
@@ -362,6 +437,49 @@
   "admin_pro_view_document": "Voir",
   "admin_pro_description": "Description de la demande",
   "admin_pro_no_description": "Aucune description fournie.",
+  "admin_delivery_requests": "Demandes Livreurs",
+  "admin_delivery_requests_pending": "En attente",
+  "admin_delivery_requests_validated": "Validées",
+  "admin_delivery_requests_rejected": "Refusées",
+  "admin_delivery_validate": "Valider",
+  "admin_delivery_reject": "Refuser",
+  "admin_delivery_no_requests": "Aucune demande livreur.",
+  "admin_delivery_status_pending": "En attente de validation",
+  "admin_delivery_status_validated": "Validé",
+  "admin_delivery_status_rejected": "Refusé",
+  "admin_delivery_remark_hint": "Motif du refus…",
+  "admin_delivery_documents": "Documents",
+  "admin_delivery_view_document": "Voir",
+  "admin_delivery_description": "Description de la demande",
+  "admin_delivery_id_card": "Carte d'identité",
+  "admin_delivery_license": "Permis de conduire",
+  "@admin_delivery_license": {
+    "placeholders": {}
+  },
+  "superAdminDashboard": "Tableau de bord Super Admin",
+  "superAdminWeeklyCommissions": "Commissions hebdomadaires",
+  "superAdminPaymentsCompleted": "Versements effectués",
+  "superAdminPaymentsPending": "Versements en attente",
+  "superAdminDisputesOpen": "Litiges ouverts",
+  "superAdminDisputesInProgress": "Litiges en cours",
+  "superAdminDisputesResolved": "Litiges résolus",
+  "superAdminDisputeRate": "Taux de litige",
+  "optional": "optionnel",
+  "@optional": {
+    "description": "Indique que le champ est facultatif"
+  },
+  "admin_delivery_validated": "{name} validé ✓",
+  "@admin_delivery_validated": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "admin_delivery_rejected": "{name} refusé",
+  "@admin_delivery_rejected": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "delivery_status_assigned": "Assigné",
   "delivery_status_picked_up": "Récupérée",
   "delivery_status_in_transit": "En route",
@@ -376,9 +494,14 @@
   "delivery_toggle_online": "✅ En ligne",
   "delivery_toggle_offline": "⛔ Hors ligne",
   "delivery_earnings": "Gains {period}",
+  "@delivery_earnings": {
+    "placeholders": {
+      "period": {}
+    }
+  },
   "delivery_today": "aujourd'hui",
   "delivery_this_week": "cette semaine",
-  "delivery_this_month": "ce mois",
+  "delivery_this_month": "ce mois-ci",
   "delivery_period_7days": "7 jours",
   "delivery_period_30days": "30 jours",
   "delivery_evolution": "Évolution",
@@ -418,17 +541,38 @@
   "livreur_no_results": "Aucun livreur trouvé",
   "livreur_validate_license": "Valider le permis",
   "livreur_validate_license_confirm": "Confirmer la validation du permis de {firstname} {lastname} ?",
+  "@livreur_validate_license_confirm": {
+    "placeholders": {
+      "firstname": {},
+      "lastname": {}
+    }
+  },
   "livreur_license_validated": "Permis de {firstname} validé",
+  "@livreur_license_validated": {
+    "placeholders": {
+      "firstname": {}
+    }
+  },
   "livreur_validate_error": "Erreur lors de la validation",
   "livreur_vehicle_moto": "Moto",
   "livreur_vehicle_bike": "Vélo",
   "livreur_vehicle_car": "Voiture",
   "livreur_vehicle_unspecified": "Non spécifié",
   "livreur_map_title": "Commandes disponibles ({count})",
+  "@livreur_map_title": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "livreur_map_no_orders": "Aucune commande disponible pour le moment.",
   "livreur_map_position_unavailable": "Position indisponible",
   "livreur_map_accept": "Accepter",
   "livreur_order_accepted": "Commande #{id} acceptée",
+  "@livreur_order_accepted": {
+    "placeholders": {
+      "id": {}
+    }
+  },
   "livreur_order_already_in_progress": "Impossible d'accepter : vous avez déjà une commande en cours",
   "restaurant_form_title_create": "Créer mon restaurant",
   "restaurant_form_title_edit": "Modifier mon restaurant",
@@ -458,11 +602,21 @@
   "restaurant_form_open_now": "Restaurant actuellement ouvert",
   "restaurant_details_menu": "Menu",
   "restaurant_details_dish_count": "{count} plats",
+  "@restaurant_details_dish_count": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "restaurant_details_reviews": "Avis",
   "restaurant_details_mode_delivery": "Livraison + À emporter",
   "restaurant_details_mode_takeaway": "À emporter",
   "restaurant_details_mode_delivery_only": "Livraison",
   "restaurant_list_title": "Restaurants · {country}",
+  "@restaurant_list_title": {
+    "placeholders": {
+      "country": {}
+    }
+  },
   "restaurant_list_search_hint": "Rechercher un restaurant...",
   "restaurant_list_filter_pending": "En attente",
   "restaurant_list_filter_validated": "Validé",
@@ -470,8 +624,25 @@
   "restaurant_list_no_results": "Aucun restaurant trouvé",
   "restaurant_list_reject_title": "Rejeter le restaurant",
   "restaurant_list_reject_hint": "Motif du rejet pour \"{name}\" :",
+  "@restaurant_list_reject_hint": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "restaurant_list_validated_toast": "Le restaurant {name} a été validé{emailSent}",
+  "@restaurant_list_validated_toast": {
+    "placeholders": {
+      "name": {},
+      "emailSent": {}
+    }
+  },
   "restaurant_list_rejected_toast": "Le restaurant {name} a été rejeté{emailSent}",
+  "@restaurant_list_rejected_toast": {
+    "placeholders": {
+      "name": {},
+      "emailSent": {}
+    }
+  },
   "near_restaurants_title": "Restaurants à proximité",
   "near_restaurants_search_hint": "Rechercher un restaurant ou une cuisine",
   "near_restaurants_open_now": "Ouverts maintenant",
@@ -486,6 +657,11 @@
   "verification_verify": "Vérifier",
   "verification_resend": "Renvoyer le code",
   "verification_code_hint": "Entrez le code envoyé par email à {email}",
+  "@verification_code_hint": {
+    "placeholders": {
+      "email": {}
+    }
+  },
   "verification_spam_hint": "Si vous ne trouvez pas l'email, vérifiez dans vos spams.",
   "verification_enter_code": "Veuillez entrer le code.",
   "verification_account_error": "Erreur lors de la validation du compte.",
@@ -493,6 +669,11 @@
   "verification_new_code_sent": "Nouveau code envoyé par email.",
   "verification_new_code_error": "Impossible d'envoyer le code.",
   "verification_resend_cooldown": "Renvoyer le code ({seconds} s)",
+  "@verification_resend_cooldown": {
+    "placeholders": {
+      "seconds": {}
+    }
+  },
   "identity_title": "Mon identité",
   "identity_your_photo": "Votre photo",
   "identity_no_photo": "Aucune photo prise",
@@ -528,7 +709,17 @@
   "user_orders_rate": "Noter",
   "user_orders_rate_driver": "Noter livreur",
   "user_orders_confirm_prompt": "Confirmer la commande #{id} ?",
+  "@user_orders_confirm_prompt": {
+    "placeholders": {
+      "id": {}
+    }
+  },
   "user_orders_cancel_prompt": "Annuler la commande #{id} ?",
+  "@user_orders_cancel_prompt": {
+    "placeholders": {
+      "id": {}
+    }
+  },
   "user_orders_yes_confirm": "Oui, confirmer",
   "user_orders_yes_cancel": "Oui, annuler",
   "user_orders_assign_driver": "Assigner un livreur",
@@ -614,6 +805,11 @@
   "category_added": "Catégorie ajoutée.",
   "category_add_error": "Erreur lors de l'ajout.",
   "category_delete_confirm": "Supprimer la catégorie \"{name}\" ?",
+  "@category_delete_confirm": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "category_deleted": "Catégorie supprimée.",
   "category_delete_error": "Erreur lors de la suppression.",
   "category_new_hint": "Nouvelle catégorie...",
@@ -623,23 +819,87 @@
   "scheduled_deletions_title": "Suppressions programmées",
   "scheduled_deletions_empty": "Aucune suppression programmée",
   "scheduled_deletions_all_active": "Tous les comptes sont actifs pour {country}",
+  "@scheduled_deletions_all_active": {
+    "placeholders": {
+      "country": {}
+    }
+  },
   "scheduled_deletions_restore_title": "Restaurer l'utilisateur",
   "scheduled_deletions_restore_confirm": "Voulez-vous restaurer \"{firstname} {lastname}\" ?\n\nSon compte sera réactivé avec le statut \"actif\".",
+  "@scheduled_deletions_restore_confirm": {
+    "placeholders": {
+      "firstname": {},
+      "lastname": {}
+    }
+  },
   "scheduled_deletions_restore": "Restaurer",
   "scheduled_deletions_restored": "{firstname} {lastname} restauré ✓",
+  "@scheduled_deletions_restored": {
+    "placeholders": {
+      "firstname": {},
+      "lastname": {}
+    }
+  },
   "scheduled_deletions_permanent_title": "Suppression définitive",
   "scheduled_deletions_permanent_confirm": "Voulez-vous supprimer définitivement \"{firstname} {lastname}\" ?\n\nCette action est irréversible. Toutes les données associées seront perdues.",
+  "@scheduled_deletions_permanent_confirm": {
+    "placeholders": {
+      "firstname": {},
+      "lastname": {}
+    }
+  },
   "scheduled_deletions_permanent_delete": "Supprimer définitivement",
   "scheduled_deletions_deleted": "{firstname} {lastname} supprimé définitivement",
+  "@scheduled_deletions_deleted": {
+    "placeholders": {
+      "firstname": {},
+      "lastname": {}
+    }
+  },
   "scheduled_deletions_pending": "{count} suppression(s) en attente",
+  "@scheduled_deletions_pending": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "scheduled_deletions_period": "Période de {days}j",
+  "@scheduled_deletions_period": {
+    "placeholders": {
+      "days": {}
+    }
+  },
   "scheduled_deletions_requested_on": "Demandé le {date}",
+  "@scheduled_deletions_requested_on": {
+    "placeholders": {
+      "date": {}
+    }
+  },
   "scheduled_deletions_last_day": "Dernier jour",
   "scheduled_deletions_days_elapsed": "{days}j écoulés",
+  "@scheduled_deletions_days_elapsed": {
+    "placeholders": {
+      "days": {}
+    }
+  },
   "scheduled_deletions_days_remaining": "{days}j restants",
+  "@scheduled_deletions_days_remaining": {
+    "placeholders": {
+      "days": {}
+    }
+  },
   "audit_log_title": "Audit Log — {country}",
+  "@audit_log_title": {
+    "placeholders": {
+      "country": {}
+    }
+  },
   "audit_log_empty": "Aucun log pour ce pays.",
   "support_chat_title": "Support Messagerie — {country}",
+  "@support_chat_title": {
+    "placeholders": {
+      "country": {}
+    }
+  },
   "support_chat_search_hint": "Rechercher un utilisateur…",
   "support_chat_no_results": "Aucun utilisateur trouvé.",
   "referral_title": "Parrainage",
@@ -669,6 +929,11 @@
   "commande_details_actions": "Actions",
   "commande_details_tracking": "Suivi de commande",
   "commande_details_item_count": "{count} article(s)",
+  "@commande_details_item_count": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "commande_details_rating_label": "Note",
   "commande_details_livraison": "Livraison",
   "commande_details_reduction": "Réduction",
@@ -749,7 +1014,6 @@
   "pro_request_error_description": "Veuillez rédiger une description de votre demande.",
   "pro_request_error_identity": "Veuillez joindre votre pièce d'identité.",
   "pro_request_error_pro_doc": "Veuillez joindre un document professionnel.",
-  "optional": "optionnel",
   "promo_activate": "Activer",
   "promo_deactivate": "Désactiver",
   "promo_delete_confirm": "Supprimer le code promo ?",
@@ -970,11 +1234,13 @@
   "share_experience_hint": "Partagez votre expérience en quelques mots…",
   "no_reviews_yet": "Aucun avis pour le moment.",
   "reviews_count": "{count} avis",
-  "@reviews_count": {
-    "placeholders": {
-      "count": {}
+"@reviews_count": {
+  "placeholders": {
+    "count": {
+      "type": "int"
     }
-  },
+  }
+},
   "previous": "Précédent",
   "order_tracking_title": "Suivi de commande",
   "order_num": "Commande #{id}",

@@ -2252,11 +2252,167 @@ abstract class AppLocalizations {
   /// **'No description provided.'**
   String get admin_pro_no_description;
 
-  /// No description provided for @optional.
+  /// No description provided for @admin_delivery_requests.
+  ///
+  /// In en, this message translates to:
+  /// **'Driver Requests'**
+  String get admin_delivery_requests;
+
+  /// No description provided for @admin_delivery_requests_pending.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending'**
+  String get admin_delivery_requests_pending;
+
+  /// No description provided for @admin_delivery_requests_validated.
+  ///
+  /// In en, this message translates to:
+  /// **'Validated'**
+  String get admin_delivery_requests_validated;
+
+  /// No description provided for @admin_delivery_requests_rejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected'**
+  String get admin_delivery_requests_rejected;
+
+  /// No description provided for @admin_delivery_validate.
+  ///
+  /// In en, this message translates to:
+  /// **'Approve'**
+  String get admin_delivery_validate;
+
+  /// No description provided for @admin_delivery_reject.
+  ///
+  /// In en, this message translates to:
+  /// **'Reject'**
+  String get admin_delivery_reject;
+
+  /// No description provided for @admin_delivery_no_requests.
+  ///
+  /// In en, this message translates to:
+  /// **'No driver requests.'**
+  String get admin_delivery_no_requests;
+
+  /// No description provided for @admin_delivery_status_pending.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending review'**
+  String get admin_delivery_status_pending;
+
+  /// No description provided for @admin_delivery_status_validated.
+  ///
+  /// In en, this message translates to:
+  /// **'Approved'**
+  String get admin_delivery_status_validated;
+
+  /// No description provided for @admin_delivery_status_rejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected'**
+  String get admin_delivery_status_rejected;
+
+  /// No description provided for @admin_delivery_remark_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason for rejection…'**
+  String get admin_delivery_remark_hint;
+
+  /// No description provided for @admin_delivery_documents.
+  ///
+  /// In en, this message translates to:
+  /// **'Documents'**
+  String get admin_delivery_documents;
+
+  /// No description provided for @admin_delivery_view_document.
+  ///
+  /// In en, this message translates to:
+  /// **'View'**
+  String get admin_delivery_view_document;
+
+  /// No description provided for @admin_delivery_description.
+  ///
+  /// In en, this message translates to:
+  /// **'Request description'**
+  String get admin_delivery_description;
+
+  /// No description provided for @admin_delivery_id_card.
+  ///
+  /// In en, this message translates to:
+  /// **'ID card'**
+  String get admin_delivery_id_card;
+
+  /// No description provided for @admin_delivery_license.
+  ///
+  /// In en, this message translates to:
+  /// **'Driver\'s license'**
+  String get admin_delivery_license;
+
+  /// No description provided for @superAdminDashboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Super Admin Dashboard'**
+  String get superAdminDashboard;
+
+  /// No description provided for @superAdminWeeklyCommissions.
+  ///
+  /// In en, this message translates to:
+  /// **'Weekly Commissions'**
+  String get superAdminWeeklyCommissions;
+
+  /// No description provided for @superAdminPaymentsCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed Payments'**
+  String get superAdminPaymentsCompleted;
+
+  /// No description provided for @superAdminPaymentsPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending Payments'**
+  String get superAdminPaymentsPending;
+
+  /// No description provided for @superAdminDisputesOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Disputes'**
+  String get superAdminDisputesOpen;
+
+  /// No description provided for @superAdminDisputesInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'In Progress Disputes'**
+  String get superAdminDisputesInProgress;
+
+  /// No description provided for @superAdminDisputesResolved.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolved Disputes'**
+  String get superAdminDisputesResolved;
+
+  /// No description provided for @superAdminDisputeRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Dispute Rate'**
+  String get superAdminDisputeRate;
+
+  /// Indicates a field is optional
   ///
   /// In en, this message translates to:
   /// **'optional'**
   String get optional;
+
+  /// No description provided for @admin_delivery_validated.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} approved ✓'**
+  String admin_delivery_validated(Object name);
+
+  /// No description provided for @admin_delivery_rejected.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} rejected'**
+  String admin_delivery_rejected(Object name);
 
   /// No description provided for @delivery_status_assigned.
   ///
@@ -2910,13 +3066,13 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'Restaurant {name} has been validated{emailSent}'**
-  String restaurant_list_validated_toast(Object emailSent, Object name);
+  String restaurant_list_validated_toast(Object name, Object emailSent);
 
   /// No description provided for @restaurant_list_rejected_toast.
   ///
   /// In en, this message translates to:
   /// **'Restaurant {name} has been rejected{emailSent}'**
-  String restaurant_list_rejected_toast(Object emailSent, Object name);
+  String restaurant_list_rejected_toast(Object name, Object emailSent);
 
   /// No description provided for @near_restaurants_title.
   ///
@@ -5262,8 +5418,8 @@ abstract class AppLocalizations {
   /// No description provided for @reviews_count.
   ///
   /// In en, this message translates to:
-  /// **'{count} reviews'**
-  String reviews_count(Object count);
+  /// **'{count} avis'**
+  String reviews_count(int count);
 
   /// No description provided for @previous.
   ///
