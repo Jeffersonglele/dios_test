@@ -1,0 +1,33 @@
+workflows:
+  ios-build:
+    name: iOS Build Workflow
+    max_build_duration: 60
+    instance_type: mac_mini_m1
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      groups:
+        - ios_credentials
+    scripts:
+      - name: Set up Flutter and dependencies
+        script: |
+          flutter doctor
+          flutter packages pub get
+      - name: Install CocoaPods
+        script: |
+          cd ios && pod install
+      - name: Build iOS IPA (Unsigned / Release)
+        script: |
+          # Génère un fichier .ipa sans nécessiter de compte développeur Apple payant immédiatement
+          flutter build ipa --no-codesign
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - build/ios/iphoneos/*.app
+    publishing:
+      email:
+        recipients:
+          - micheeglele@gmail.com
+        notify:
+          success: true
+          failure: true
