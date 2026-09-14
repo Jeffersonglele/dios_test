@@ -1,0 +1,726 @@
+// PostgreSQL schema for Dios Delices.
+// Fields come from dios-delices-backend/schema/schema.json. Legacy numeric IDs
+// and aliases are retained to make the Parse -> PostgreSQL import lossless.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model AuthUser {
+  id             String         @id @default(uuid()) @db.Uuid
+  parseObjectId  String?        @unique
+  username       String         @unique
+  password       String
+  email          String?        @unique
+  emailVerified  Boolean        @default(false)
+  authData       Json?
+  acl            Json?
+  firstname      String?
+  lastname       String?
+  telephone      String?
+  telephoneLocal String?
+  telephoneE164  String?
+  legacyUserId   Int?           @unique
+  image          String?
+  deletedAt      DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  memberships    AuthUserRole[]
+
+  @@map("auth_users")
+  @@index([firstname])
+}
+
+model AuthRole {
+  id            String         @id @default(uuid()) @db.Uuid
+  parseObjectId String?        @unique
+  name          String         @unique
+  acl           Json?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  memberships   AuthUserRole[]
+  parents       AuthRoleLink[] @relation("ChildRole")
+  children      AuthRoleLink[] @relation("ParentRole")
+
+  @@map("auth_roles")
+}
+
+model AuthUserRole {
+  userId    String   @db.Uuid
+  roleId    String   @db.Uuid
+  createdAt DateTime @default(now())
+  user      AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      AuthRole @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("auth_user_roles")
+}
+
+model AuthRoleLink {
+  parentRoleId String   @db.Uuid
+  childRoleId  String   @db.Uuid
+  createdAt    DateTime @default(now())
+  parentRole   AuthRole @relation("ParentRole", fields: [parentRoleId], references: [id], onDelete: Cascade)
+  childRole    AuthRole @relation("ChildRole", fields: [childRoleId], references: [id], onDelete: Cascade)
+
+  @@id([parentRoleId, childRoleId])
+  @@map("auth_role_links")
+}
+
+model User {
+  id             String    @id @default(uuid()) @db.Uuid
+  parseObjectId  String?   @unique
+  userId         Int?      @unique
+  firstname      String?
+  lastname       String?
+  username       String?
+  email          String?
+  password       String?
+  telephone      String?
+  telephoneLocal String?
+  telephoneE164  String?
+  roleId         Int?
+  country        String?
+  status         String?
+  identity       String?
+  addressId      Int?
+  lastLogin      DateTime?
+  image          String?
+  parrain        String?
+  cityId         Int?
+  phoneVerified  Boolean   @default(false)
+  accountType    String?
+  otpPhone       String?
+  ageConfirmed   Boolean   @default(false)
+  deletedAt      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@map("users")
+  @@index([firstname])
+  @@index([cityId])
+  @@index([email, telephone, username])
+  @@index([roleId])
+}
+
+model Role {
+  id            String    @id @default(uuid()) @db.Uuid
+  parseObjectId String?   @unique
+  roleId        Int?      @unique
+  name          String?
+  nbUsers       Int?
+  nbWaiting     Int?
+  deletedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("roles")
+}
+
+model Gallery {
+  id            String    @id @default(uuid()) @db.Uuid
+  parseObjectId String?   @unique
+  fileUrl       String
+  name          String?
+  deletedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("gallery")
+}
+
+model Restaurant {
+  id                String    @id @default(uuid()) @db.Uuid
+  parseObjectId     String?   @unique
+  restaurantId      Int?      @unique
+  userId            Int?
+  categories        String?
+  description       String?
+  address           String?   @map("adress")
+  addressId         Int?
+  name              String?
+  rating            Float?    @map("note")
+  image             String?
+  dateCreation      DateTime?
+  valid             Int?
+  orderCount        Int?      @map("nb_orders")
+  openingHours      String?
+  deliveryFee       Decimal?  @db.Decimal(14, 2)
+  isOpen            Int?
+  professionalType  String?
+  trainingCompleted Boolean   @default(false)
+  reviewRemark      String?
+  currency          String?
+  openingDays       String?
+  minOrderAmount    Decimal?  @db.Decimal(14, 2)
+  deliveryRadius    Float?
+  closedDates       String?
+  recoveryMode      String?
+  country           String?
+  isPro             Boolean   @default(false)
+  cityId            Int?
+  rccm              String?
+  paymentMethod     String?
+  mobileMoneyPhone  String?
+  iban              String?
+  bankName          String?
+  accountHolder     String?
+  deletedAt         DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@map("restaurants")
+  @@index([userId])
+  @@index([name])
+  @@index([cityId])
+}
+
+model Dish {
+  id            String    @id @default(uuid()) @db.Uuid
+  parseObjectId String?   @unique
+  dishId        Int?      @unique
+  userId        Int?
+  restaurantId  Int?      @map("restau_id")
+  name          String?
+  categories    String?
+  image         String?
+  images        String?
+  orderCount    Int?      @map("nb_orders")
+  price         Decimal?  @db.Decimal(14, 2)
+  description   String?
+  servings      Int?      @map("nb_servings")
+  status        Int?
+  rating        Float?    @map("note")
+  option1       String?
+  option2       String?
+  option3       String?
+  currency      String?
+  country       String?
+  cityId        Int?
+  deletedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("dishes")
+  @@index([restaurantId, name])
+  @@index([cityId])
+  @@index([userId])
+}
+
+model Comment {
+  id            String    @id @default(uuid()) @db.Uuid
+  parseObjectId String?   @unique
+  commentId     Int?      @unique
+  userId        Int?
+  target        Int?
+  targetId      Int?
+  description   String?
+  deletedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("comments")
+  @@index([target, targetId])
+  @@index([userId])
+}
+
+model Address {
+  id            String    @id @default(uuid()) @db.Uuid
+  parseObjectId String?   @unique
+  addressId     Int       @unique
+  objectType    String?   @map("object")
+  objectId      Int?
+  streetNumber  Int?      @map("numero")
+  city          String?
+  state         String?
+  country       String?
+  fullAddress   String?
+  latitude      Float?    @map("lat")
+  longitude     Float?    @map("long")
+  deletedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("addresses")
+  @@index([latitude, longitude, objectType, objectId])
+}
+
+model Identity {
+  id              String    @id @default(uuid()) @db.Uuid
+  parseObjectId   String?   @unique
+  identityId      Int?      @unique
+  userId          Int?
+  identityFileUrl String?   @map("piece_identite")
+  photoUrl        String?   @map("photo")
+  status          String?
+  remark          String?
+  deletedAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("identities")
+  @@index([userId])
+}
+
+model PaymentMethod {
+  id              String    @id @default(uuid()) @db.Uuid
+  parseObjectId   String?   @unique
+  paymentMethodId Int?      @unique @map("id_moyen")
+  externalId      String?   @map("id_moyen_paiement")
+  name            String?   @map("nom")
+  label           String?   @map("libelle")
+  userId          Int?
+  stripePaymentId String?   @map("stripe_pm_id")
+  brand           String?
+  last4           Int?
+  expirationMonth Int?      @map("exp_month")
+  expirationYear  Int?      @map("exp_year")
+  type            String?
+  isDefault       Boolean   @default(false) @map("is_default")
+  deletedAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("payment_methods")
+  @@index([userId])
+}
+
+model Order {
+  id                       String    @id @default(uuid()) @db.Uuid
+  parseObjectId            String?   @unique
+  orderId                  Int?      @unique @map("commande_id")
+  externalOrderId          String?   @map("id_commande")
+  userId                   Int?
+  legacyUserId             Int?      @map("id_user")
+  restaurantId             Int?      @map("restau_id")
+  legacyRestaurantId       Int?      @map("id_restau")
+  restaurateurId           Int?
+  legacyRestaurateurId     Int?      @map("id_restaurateur")
+  paymentMethodId          Int?      @map("moyen_paiement_id")
+  externalPaymentId        String?   @map("id_moyen_paiement")
+  deliveryFee              Decimal?  @map("frais_livraison") @db.Decimal(14, 2)
+  legacyDeliveryFee        Decimal?  @map("fraisLivraison") @db.Decimal(14, 2)
+  reduction                Decimal?  @db.Decimal(14, 2)
+  globalReduction          Decimal?  @map("reduction_globale") @db.Decimal(14, 2)
+  orderedAt                DateTime? @map("date_commande")
+  legacyOrderedAt          DateTime? @map("dateCommande")
+  orderedTime              String?   @map("heure")
+  addressId                Int?
+  deliveryAddressId        Int?      @map("id_adresse_livraison")
+  rating                   Float?    @map("note")
+  comment                  String?   @map("commentaire")
+  status                   String?
+  legacyStatus             String?   @map("statut")
+  orderStatus              String?   @map("statut_commande")
+  currency                 String?
+  promoCode                String?   @map("promo_code")
+  deliveryMode             String?
+  subtotalAmount           Decimal?  @db.Decimal(14, 2)
+  totalAmount              Decimal?  @db.Decimal(14, 2)
+  delivererId              Int?      @map("livreur_id")
+  deliveryStatus           String?
+  country                  String?
+  isPro                    String?
+  delivererName            String?   @map("livreur_nom")
+  livraisonStatus          String?
+  livraisonDate            String?
+  delivererLatitude        Float?    @map("livreur_lat")
+  delivererLongitude       Float?    @map("livreur_lng")
+  cityId                   Int?
+  paymentProvider          String?
+  tipAmount                Decimal?  @db.Decimal(14, 2)
+  delivererBasePay         Decimal?  @db.Decimal(14, 2)
+  delivererDistancePay     Decimal?  @db.Decimal(14, 2)
+  delivererEarningsStatus  String?
+  deletedAt                DateTime?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  @@map("orders")
+  @@index([userId])
+  @@index([restaurantId])
+  @@index([restaurateurId])
+  @@index([delivererId])
+  @@index([cityId])
+  @@index([status])
+}
+
+model OrderLine {
+  id              String    @id @default(uuid()) @db.Uuid
+  parseObjectId   String?   @unique
+  lineId          String?   @unique @map("ligne_id")
+  legacyLineId    String?   @map("id_ligne_commande")
+  orderId         String?   @map("commande_id")
+  externalOrderId String?   @map("id_commande")
+  dishId          Int?      @map("plat_id")
+  legacyDishId    Int?      @map("id_plat")
+  quantity        Int?
+  unitPrice       Decimal?  @map("prix_unitaire") @db.Decimal(14, 2)
+  legacyUnitPrice Decimal?  @map("prixUnitaire") @db.Decimal(14, 2)
+  reduction       Decimal?  @db.Decimal(14, 2)
+  rating          Float?    @map("note")
+  comment         String?   @map("commentaire")
+  options         Json?
+  deletedAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("order_lines")
+  @@index([orderId])
+  @@index([dishId])
+}
+
+model Message {
+  id            String    @id @default(uuid()) @db.Uuid
+  parseObjectId String?   @unique
+  fromUserId    Int?
+  toUserId      Int?
+  text          String?
+  orderId       Int?      @map("commande_id")
+  read          Boolean   @default(false)
+  deletedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("messages")
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@index([orderId])
+}
+
+model UserLogin {
+  id            String    @id @default(uuid()) @db.Uuid
+  parseObjectId String?   @unique
+  userId        Int?
+  username      String?
+  ip            String?
+  loginAt       DateTime?
+  deletedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("user_logins")
+  @@index([userId])
+  @@index([loginAt])
+}
+
+model Report {
+  id             String    @id @default(uuid()) @db.Uuid
+  parseObjectId  String?   @unique
+  reporterUserId Int?
+  targetType     Int?
+  targetId       Int?
+  reason         String?
+  details        String?
+  status         String?
+  deletedAt      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@map("reports")
+  @@index([reporterUserId])
+  @@index([targetType, targetId])
+}
+
+model ProDocument {
+  id                 String    @id @default(uuid()) @db.Uuid
+  parseObjectId      String?   @unique
+  documentId         Int?      @unique
+  userId             Int?
+  restaurantId       Int?
+  siretUrl           String?
+  kbisUrl            String?
+  identityDocumentUrl String?  @map("piece_identite_url")
+  description        String?
+  status             String?
+  remark             String?
+  deletedAt          DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@map("pro_documents")
+  @@index([userId])
+  @@index([restaurantId])
+}
+
+model VerificationCode {
+  id            String    @id @default(uuid()) @db.Uuid
+  parseObjectId String?   @unique
+  email         String
+  code          String
+  expiresAt     DateTime
+  phone         String?
+  purpose       String?
+  attempts      Int       @default(0)
+  blockedUntil  DateTime?
+  verified      Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("verification_codes")
+  @@index([email, purpose])
+  @@index([phone, purpose])
+  @@index([expiresAt])
+}
+
+model PromoCode {
+  id              String    @id @default(uuid()) @db.Uuid
+  parseObjectId   String?   @unique
+  code            String    @unique
+  description     String?
+  discountPercent Float?
+  discountFixed   Decimal?  @db.Decimal(14, 2)
+  minOrder        Decimal?  @db.Decimal(14, 2)
+  validFrom       DateTime?
+  validUntil      DateTime?
+  active          Boolean   @default(true)
+  maxUses         Int?
+  usedCount       Int       @default(0)
+  deletedAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("promo_codes")
+  @@index([active, validUntil])
+}
+
+model Category {
+  id            String    @id @default(uuid()) @db.Uuid
+  parseObjectId String?   @unique
+  categoryId    Int?      @unique
+  name          String?
+  image         String?
+  deletedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("categories")
+  @@index([name])
+}
+
+model City {
+  id            String    @id @default(uuid()) @db.Uuid
+  parseObjectId String?   @unique
+  cityId        Int       @unique
+  name          String
+  country       String?
+  active        Boolean   @default(true)
+  deletedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("cities")
+  @@index([country, active])
+}
+
+model DeliveryZone {
+  id               String    @id @default(uuid()) @db.Uuid
+  parseObjectId    String?   @unique
+  zoneId           Int       @unique
+  cityId           Int
+  name             String
+  polygon          String
+  deliveryTimeMin  Int?      @map("delivery_time_min")
+  deliveryTimeMax  Int?      @map("delivery_time_max")
+  deliveryFeeLevel String?   @map("delivery_fee_level")
+  priority         String?
+  active           Boolean   @default(true)
+  deletedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@map("delivery_zones")
+  @@index([cityId])
+  @@index([active])
+}
+
+model Transaction {
+  id                String    @id @default(uuid()) @db.Uuid
+  parseObjectId     String?   @unique
+  transactionId     String    @unique
+  orderId           Int       @map("commande_id")
+  provider          String
+  amount            Decimal   @db.Decimal(14, 2)
+  currency          String?
+  status            String?
+  providerRef       String?
+  operator          String?
+  phone             String?
+  paymentMethod     String?
+  providerData      Json?
+  settlementStatus  String?
+  commissionRate    Float?
+  subtotalAmount    Decimal?  @db.Decimal(14, 2)
+  commissionAmount  Decimal?  @db.Decimal(14, 2)
+  restaurantShare   Decimal?  @db.Decimal(14, 2)
+  deliveryFeeShare  Decimal?  @db.Decimal(14, 2)
+  settledAt         DateTime?
+  deletedAt         DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@map("transactions")
+  @@index([orderId])
+  @@index([status])
+}
+
+model DeliveryConfig {
+  id                   String    @id @default(uuid()) @db.Uuid
+  parseObjectId        String?   @unique
+  configId             Int       @unique
+  baseFee              Decimal   @db.Decimal(14, 2)
+  perKmRate            Decimal   @db.Decimal(14, 2)
+  currency             String?
+  minFee               Decimal?  @db.Decimal(14, 2)
+  updatedBy            Int?
+  active               Boolean   @default(true)
+  commissionRate       Float?
+  exchangeRate         Decimal?  @db.Decimal(18, 6)
+  delivererBasePay     Decimal?  @db.Decimal(14, 2)
+  delivererPerKm       Decimal?  @db.Decimal(14, 2)
+  subscriptionsEnabled Boolean   @default(false)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@map("delivery_configs")
+}
+
+model AuditLog {
+  id            String    @id @default(uuid()) @db.Uuid
+  parseObjectId String?   @unique
+  action        String?
+  details       String?
+  userName      String?
+  country       String?
+  deletedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("audit_logs")
+  @@index([createdAt])
+  @@index([action])
+}
+
+model Invoice {
+  id                String    @id @default(uuid()) @db.Uuid
+  parseObjectId     String?   @unique
+  invoiceId         String    @unique
+  orderId           Int       @map("commande_id")
+  restaurantId      Int?
+  restaurantName    String?
+  restaurantAddress String?
+  rccm              String?
+  restaurantPhone   String?
+  customerName      String?
+  invoiceDate       DateTime?
+  items             Json?
+  subtotal          Decimal?  @db.Decimal(14, 2)
+  deliveryFee       Decimal?  @db.Decimal(14, 2)
+  totalCdf          Decimal?  @map("total_cdf") @db.Decimal(14, 2)
+  totalUsd          Decimal?  @map("total_usd") @db.Decimal(14, 2)
+  exchangeRate      Decimal?  @db.Decimal(18, 6)
+  currency          String?
+  pdfUrl            String?
+  deletedAt         DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@map("invoices")
+  @@index([orderId])
+  @@index([restaurantId])
+}
+
+model RestaurantPayout {
+  id                   String    @id @default(uuid()) @db.Uuid
+  parseObjectId        String?   @unique
+  payoutId             Int       @unique @map("paiement_id")
+  restaurantId         Int
+  restaurateurId       Int?
+  restaurantName       String?
+  weekStart            DateTime
+  weekEnd              DateTime
+  totalOrders          Int?
+  totalSubtotal        Decimal?  @db.Decimal(14, 2)
+  totalDeliveryFees    Decimal?  @db.Decimal(14, 2)
+  commissionRate       Float?
+  totalCommission      Decimal?  @db.Decimal(14, 2)
+  netAmount            Decimal?  @db.Decimal(14, 2)
+  status               String?
+  payoutMethod         String?
+  mobileMoneyPhone     String?
+  iban                 String?
+  payoutRef            String?
+  paidAt               DateTime?
+  errorMessage         String?
+  cityId               Int?
+  commissionInvoiceUrl String?
+  deletedAt            DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@map("restaurant_payouts")
+  @@index([restaurantId])
+  @@index([status])
+  @@index([weekStart, weekEnd])
+}
+
+model DelivererPayout {
+  id               String    @id @default(uuid()) @db.Uuid
+  parseObjectId    String?   @unique
+  payoutId         Int       @unique @map("paiement_id")
+  delivererId      Int
+  delivererName    String?
+  weekStart        DateTime
+  weekEnd          DateTime
+  totalDeliveries  Int?
+  totalBasePay     Decimal?  @db.Decimal(14, 2)
+  totalDistancePay Decimal?  @db.Decimal(14, 2)
+  totalTips        Decimal?  @db.Decimal(14, 2)
+  netAmount        Decimal?  @db.Decimal(14, 2)
+  status           String?
+  payoutMethod     String?
+  mobileMoneyPhone String?
+  iban             String?
+  payoutRef        String?
+  paidAt           DateTime?
+  errorMessage     String?
+  deletedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@map("deliverer_payouts")
+  @@index([delivererId])
+  @@index([status])
+  @@index([weekStart, weekEnd])
+}
+
+model Subscription {
+  id             String    @id @default(uuid()) @db.Uuid
+  parseObjectId  String?   @unique
+  subscriptionId Int       @unique
+  restaurantId   Int
+  restaurantName String?
+  plan           String?
+  price          Decimal?  @db.Decimal(14, 2)
+  currency       String?
+  startDate      DateTime?
+  endDate        DateTime?
+  status         String?
+  autoRenew      Boolean   @default(false)
+  paymentMethod  String?
+  paymentRef     String?
+  features       Json?
+  cityId         Int?
+  deletedAt      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@map("subscriptions")
+  @@index([restaurantId])
+  @@index([status])
+}
