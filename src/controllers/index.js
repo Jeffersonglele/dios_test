@@ -4,10 +4,12 @@ module.exports = {
   catalog: require('./catalog.controller'),
   communication: require('./communication.controller'),
   delivery: require('./delivery.controller'),
+  geocoding: require('./geocoding.controller'),
   operations: require('./operations.controller'),
   orders: require('./orders.controller'),
   payments: require('./payments.controller'),
   roles: require('./roles.controller'),
   users: require('./users.controller'),
   verification: require('./verification.controller'),
+  wallet: require('./wallet.controller'),
 };

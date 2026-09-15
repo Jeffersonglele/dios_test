@@ -3,6 +3,8 @@ const { randomUUID } = require('crypto');
 const prisma = require('../config/prisma');
 const { createCrudController } = require('./crud.controller');
 const { badRequest, handleControllerError, notFound, pagination, pick, sendPage } = require('./controller.utils');
+const { startDispatchForOrder } = require('../services/delivery-dispatch.service');
+const { quoteDelivery } = require('../services/delivery-pricing.service');
 
 const ORDER_FIELDS = [
   'externalOrderId', 'userId', 'legacyUserId', 'restaurantId', 'legacyRestaurantId',
@@ -35,15 +37,72 @@ async function nextOrderId(tx) {
   return (last?.orderId || 0) + 1;
 }
 
+function hasRole(roleName, roleId) {
+  const configured = String(process.env[`${roleName}_ROLE_IDS`] || '')
+    .split(',')
+    .map((value) => Number.parseInt(value.trim(), 10))
+    .filter(Number.isInteger);
+  return configured.includes(roleId);
+}
+
 async function createOrder(req, res, next) {
   try {
     const payload = req.body.order || req.body;
     const lines = req.body.lines || req.body.orderLines || [];
-    if (!payload.userId || !payload.restaurantId) {
-      throw badRequest('userId et restaurantId sont obligatoires.');
+    const userId = req.auth?.userId;
+    if (!userId || !payload.restaurantId) {
+      throw badRequest('restaurantId est obligatoire pour le client authentifié.');
+    }
+    if (payload.userId !== undefined && Number(payload.userId) !== userId) {
+      throw badRequest('Une commande ne peut être créée que pour le compte connecté.');
     }
     if (!Array.isArray(lines) || lines.length === 0) {
       throw badRequest('Une commande doit contenir au moins une ligne.');
+    }
+
+    const restaurantId = Number.parseInt(payload.restaurantId, 10);
+    if (!Number.isInteger(restaurantId)) throw badRequest('restaurantId est invalide.');
+    const restaurant = await prisma.restaurant.findFirst({ where: { restaurantId, deletedAt: null } });
+    if (!restaurant) throw notFound('Restaurant');
+    if (restaurant.isOpen === 0) throw badRequest('Ce marchand est actuellement fermé.');
+
+    const requestedDishIds = lines.map((line) => Number.parseInt(line.dishId, 10));
+    if (requestedDishIds.some((dishId) => !Number.isInteger(dishId))) {
+      throw badRequest('Chaque ligne doit référencer un plat valide.');
+    }
+    const dishes = await prisma.dish.findMany({
+      where: { dishId: { in: requestedDishIds }, restaurantId, deletedAt: null },
+    });
+    if (dishes.length !== new Set(requestedDishIds).size) {
+      throw badRequest('Le panier contient un plat indisponible ou appartenant à un autre marchand.');
+    }
+    const dishById = new Map(dishes.map((dish) => [dish.dishId, dish]));
+    const normalizedLines = lines.map((line) => {
+      const dishId = Number.parseInt(line.dishId, 10);
+      const quantity = Number.parseInt(line.quantity, 10);
+      const dish = dishById.get(dishId);
+      if (!Number.isInteger(quantity) || quantity < 1 || quantity > 99 || !dish || !Number.isFinite(Number(dish.price))) {
+        throw badRequest('Chaque ligne doit contenir une quantité valide et un plat tarifé.');
+      }
+      return { line, dishId, quantity, unitPrice: Number(dish.price) };
+    });
+    const subtotalAmount = normalizedLines.reduce((total, line) => total + (line.unitPrice * line.quantity), 0);
+    const deliveryMode = String(payload.deliveryMode || 'DELIVERY').toUpperCase();
+    const isDelivery = ['DELIVERY', 'LIVRAISON'].includes(deliveryMode);
+    let quote = null;
+    let deliveryAddress = null;
+    if (isDelivery) {
+      const addressId = Number.parseInt(payload.deliveryAddressId || payload.addressId, 10);
+      if (!Number.isInteger(addressId)) throw badRequest('Une adresse de livraison est obligatoire.');
+      quote = await quoteDelivery({ restaurantId, addressId, userId });
+      if (!quote.available) throw badRequest(quote.message);
+      deliveryAddress = await prisma.address.findFirst({ where: { addressId, objectId: userId, deletedAt: null } });
+    }
+    const deliveryFee = quote?.deliveryFee || 0;
+    const totalAmount = subtotalAmount + deliveryFee;
+    const paymentMethod = String(payload.paymentMethod || payload.paymentProvider || 'CASH').trim().toUpperCase();
+    if (!['CASH', 'CINETPAY'].includes(paymentMethod)) {
+      throw badRequest('Le moyen de paiement doit être CASH ou CINETPAY. Le portefeuille reste désactivé.');
     }
 
     const order = await prisma.$transaction(async (tx) => {
@@ -54,17 +113,67 @@ async function createOrder(req, res, next) {
           ...pick(payload, ORDER_FIELDS),
           orderId,
           externalOrderId,
+          userId,
+          restaurantId,
+          deliveryMode: isDelivery ? 'DELIVERY' : 'PICKUP',
+          deliveryFee,
+          subtotalAmount,
+          totalAmount,
+          currency: 'CDF',
+          paymentProvider: paymentMethod,
+          cityId: quote?.cityId || restaurant.cityId,
+          deliveryDistanceKm: quote?.estimatedDistanceKm || null,
+          deliveryQuoteSnapshot: quote,
+          deliveryAddressSnapshot: deliveryAddress ? {
+            addressId: deliveryAddress.addressId,
+            fullAddress: deliveryAddress.fullAddress,
+            latitude: deliveryAddress.latitude,
+            longitude: deliveryAddress.longitude,
+            cityId: deliveryAddress.cityId,
+          } : undefined,
+          pickupSnapshot: isDelivery ? {
+            restaurantId: restaurant.restaurantId,
+            name: restaurant.name,
+            address: restaurant.address,
+            latitude: restaurant.latitude,
+            longitude: restaurant.longitude,
+            cityId: quote.cityId,
+          } : undefined,
           orderedAt: payload.orderedAt ? new Date(payload.orderedAt) : new Date(),
-          status: payload.status || 'pending',
+          status: paymentMethod === 'CASH' ? 'CONFIRMED_CASH' : 'AWAITING_PAYMENT',
+          orderStatus: paymentMethod === 'CASH' ? 'CONFIRMED_CASH' : 'AWAITING_PAYMENT',
         },
       });
 
+      if (paymentMethod === 'CASH') {
+        await tx.transaction.create({
+          data: {
+            transactionId: `CASH-${orderId}-${randomUUID().replace(/-/g, '')}`,
+            orderId,
+            provider: 'cash',
+            amount: totalAmount,
+            currency: 'CDF',
+            status: 'PENDING_CASH_COLLECTION',
+            paymentMethod: 'CASH',
+            subtotalAmount,
+            restaurantShare: subtotalAmount,
+            deliveryFeeShare: deliveryFee,
+            commissionRate: 0,
+            commissionAmount: 0,
+            settlementStatus: 'PENDING_DELIVERY',
+          },
+        });
+      }
+
       await tx.orderLine.createMany({
-        data: lines.map((line) => ({
-          ...pick(line, ORDER_LINE_FIELDS),
-          lineId: line.lineId || randomUUID(),
+        data: normalizedLines.map(({ line, dishId, quantity, unitPrice }) => ({
+          ...pick(line, ORDER_LINE_FIELDS.filter((field) => !['unitPrice', 'legacyUnitPrice', 'quantity', 'dishId'].includes(field))),
+          lineId: randomUUID(),
           orderId: String(orderId),
           externalOrderId,
+          dishId,
+          quantity,
+          unitPrice,
         })),
       });
       return created;
@@ -115,17 +224,34 @@ async function updateOrderStatus(req, res, next) {
     const order = await prisma.order.findFirst({ where: { id: req.params.id, deletedAt: null } });
     if (!order) throw notFound('Commande');
     if (!req.body.status) throw badRequest('Le statut est obligatoire.');
+    const requestedStatus = String(req.body.status).toUpperCase();
+    const isAdmin = hasRole('ADMIN', req.auth.roleId);
+    const restaurant = await prisma.restaurant.findFirst({ where: { restaurantId: order.restaurantId, deletedAt: null } });
+    const isRestaurantOwner = restaurant?.userId === req.auth.userId;
+    const isCustomer = order.userId === req.auth.userId;
+    const restaurantWorkflowStatuses = ['EN_PREPARATION', 'PRETE', 'READY', 'REFUSED'];
+    const restaurantDispatchStatuses = ['PRETE', 'READY'];
+    const customerCancellationStatuses = ['CANCELLED', 'CANCELED'];
+    if (!isAdmin
+      && !(isRestaurantOwner && restaurantWorkflowStatuses.includes(requestedStatus))
+      && !(isCustomer && customerCancellationStatuses.includes(requestedStatus) && ['PENDING', 'WAITING_PAYMENT'].includes(String(order.status).toUpperCase()))) {
+      throw badRequest('Vous ne pouvez pas appliquer ce statut à cette commande.');
+    }
     const updated = await prisma.order.update({
       where: { id: order.id },
       data: {
-        status: req.body.status,
-        orderStatus: req.body.orderStatus || req.body.status,
+        status: requestedStatus,
+        orderStatus: req.body.orderStatus || requestedStatus,
         deliveryStatus: req.body.deliveryStatus,
-        delivererId: req.body.delivererId,
-        delivererName: req.body.delivererName,
+        ...(isAdmin ? { delivererId: req.body.delivererId, delivererName: req.body.delivererName } : {}),
       },
     });
-    return res.status(200).json({ data: updated });
+    let delivery = null;
+    if (restaurantDispatchStatuses.includes(requestedStatus) && updated.deliveryMode === 'DELIVERY') {
+      const dispatched = await startDispatchForOrder(updated);
+      delivery = dispatched.delivery;
+    }
+    return res.status(200).json({ data: { order: updated, delivery } });
   } catch (error) {
     return handleControllerError(error, next);
   }

@@ -61,6 +61,43 @@ async function updateTransactionStatus(req, res, next) {
   }
 }
 
+async function confirmCashCollection(req, res, next) {
+  try {
+    const order = await prisma.order.findFirst({ where: { id: req.params.id, deletedAt: null } });
+    if (!order) throw notFound('Commande');
+    if (String(order.paymentProvider || '').toUpperCase() !== 'CASH') {
+      throw badRequest('Cette commande n’est pas réglée en espèces.');
+    }
+    const delivery = await prisma.delivery.findFirst({ where: { orderId: order.orderId, delivererId: req.auth.userId } });
+    if (!delivery || delivery.status !== 'DELIVERED') {
+      throw badRequest('Seul le livreur assigné peut confirmer les espèces après la livraison.');
+    }
+    const transaction = await prisma.transaction.findFirst({
+      where: { orderId: order.orderId, provider: 'cash', paymentMethod: 'CASH', deletedAt: null },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!transaction) throw notFound('Encaissement espèces');
+    if (transaction.status === 'PAID') return res.status(200).json({ data: transaction, meta: { idempotent: true } });
+
+    const collectedAmount = req.body.collectedAmount === undefined ? Number(transaction.amount) : Number(req.body.collectedAmount);
+    if (!Number.isFinite(collectedAmount) || collectedAmount !== Number(transaction.amount)) {
+      throw badRequest('Le montant encaissé doit correspondre exactement au total de la commande.');
+    }
+    const updated = await prisma.transaction.update({
+      where: { id: transaction.id },
+      data: {
+        status: 'PAID',
+        settledAt: new Date(),
+        settlementStatus: 'PENDING_PAYOUT',
+        providerData: { ...(transaction.providerData || {}), collectedBy: req.auth.userId, collectedAt: new Date().toISOString() },
+      },
+    });
+    return res.status(200).json({ data: updated, meta: { idempotent: false } });
+  } catch (error) {
+    return handleControllerError(error, next);
+  }
+}
+
 async function validatePromoCode(req, res, next) {
   try {
     const code = String(req.body.code || '').trim().toUpperCase();
@@ -94,5 +131,6 @@ async function validatePromoCode(req, res, next) {
 module.exports = {
   paymentMethod,
   transaction: { ...transaction, create: createTransaction, updateStatus: updateTransactionStatus },
+  confirmCashCollection,
   promoCode: { ...promoCode, validate: validatePromoCode },
 };

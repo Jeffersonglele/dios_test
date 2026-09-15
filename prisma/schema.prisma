@@ -93,6 +93,9 @@ model User {
   image          String?
   parrain        String?
   cityId         Int?
+  courierStatus  String?   @map("courier_status")
+  location       Unsupported("geography(Point,4326)")?
+  locationUpdatedAt DateTime? @map("location_updated_at")
   phoneVerified  Boolean   @default(false)
   accountType    String?
   otpPhone       String?
@@ -159,6 +162,10 @@ model Restaurant {
   openingDays       String?
   minOrderAmount    Decimal?  @db.Decimal(14, 2)
   deliveryRadius    Float?
+  latitude          Float?
+  longitude         Float?
+  location          Unsupported("geography(Point,4326)")?
+  locationUpdatedAt DateTime? @map("location_updated_at")
   closedDates       String?
   recoveryMode      String?
   country           String?
@@ -242,6 +249,11 @@ model Address {
   fullAddress   String?
   latitude      Float?    @map("lat")
   longitude     Float?    @map("long")
+  cityId        Int?
+  location      Unsupported("geography(Point,4326)")?
+  locationSource String?  @map("location_source")
+  locationUpdatedAt DateTime? @map("location_updated_at")
+  nominatimPlaceId String? @map("nominatim_place_id")
   deletedAt     DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -337,6 +349,10 @@ model Order {
   delivererBasePay         Decimal?  @db.Decimal(14, 2)
   delivererDistancePay     Decimal?  @db.Decimal(14, 2)
   delivererEarningsStatus  String?
+  deliveryDistanceKm       Decimal?  @map("delivery_distance_km") @db.Decimal(10, 3)
+  deliveryQuoteSnapshot    Json?     @map("delivery_quote_snapshot")
+  deliveryAddressSnapshot  Json?     @map("delivery_address_snapshot")
+  pickupSnapshot           Json?     @map("pickup_snapshot")
   deletedAt                DateTime?
   createdAt                DateTime  @default(now())
   updatedAt                DateTime  @updatedAt
@@ -509,6 +525,9 @@ model City {
   cityId        Int       @unique
   name          String
   country       String?
+  countryCode   String    @default("CD") @map("country_code")
+  boundary      Unsupported("geometry(MultiPolygon,4326)")?
+  deliveryEnabled Boolean @default(true) @map("delivery_enabled")
   active        Boolean   @default(true)
   deletedAt     DateTime?
   createdAt     DateTime  @default(now())
@@ -525,6 +544,7 @@ model DeliveryZone {
   cityId           Int
   name             String
   polygon          String
+  boundary         Unsupported("geometry(MultiPolygon,4326)")?
   deliveryTimeMin  Int?      @map("delivery_time_min")
   deliveryTimeMax  Int?      @map("delivery_time_max")
   deliveryFeeLevel String?   @map("delivery_fee_level")
@@ -573,8 +593,16 @@ model DeliveryConfig {
   id                   String    @id @default(uuid()) @db.Uuid
   parseObjectId        String?   @unique
   configId             Int       @unique
+  cityId               Int?      @map("city_id")
   baseFee              Decimal   @db.Decimal(14, 2)
   perKmRate            Decimal   @db.Decimal(14, 2)
+  includedDistanceKm   Decimal?  @map("included_distance_km") @db.Decimal(10, 3)
+  maxDistanceKm        Decimal?  @map("max_distance_km") @db.Decimal(10, 3)
+  fuelPricePerLitre    Decimal?  @map("fuel_price_per_litre") @db.Decimal(14, 2)
+  fuelSurcharge        Decimal?  @map("fuel_surcharge") @db.Decimal(14, 2)
+  demandMultiplier     Decimal?  @map("demand_multiplier") @default(1) @db.Decimal(6, 3)
+  weatherMultiplier    Decimal?  @map("weather_multiplier") @default(1) @db.Decimal(6, 3)
+  roundingIncrement    Decimal?  @map("rounding_increment") @default(50) @db.Decimal(14, 2)
   currency             String?
   minFee               Decimal?  @db.Decimal(14, 2)
   updatedBy            Int?
@@ -588,6 +616,163 @@ model DeliveryConfig {
   updatedAt            DateTime  @updatedAt
 
   @@map("delivery_configs")
+  @@index([cityId, active])
+}
+
+model Delivery {
+  id                  String    @id @default(uuid()) @db.Uuid
+  deliveryId          String    @unique @default(uuid()) @map("delivery_id")
+  orderId             Int       @unique @map("commande_id")
+  cityId              Int       @map("city_id")
+  restaurantId        Int?      @map("restaurant_id")
+  delivererId         Int?      @map("livreur_id")
+  status              String    @default("SEARCHING")
+  dispatchAttempt     Int       @default(0) @map("dispatch_attempt")
+  pickupLatitude      Float?    @map("pickup_latitude")
+  pickupLongitude     Float?    @map("pickup_longitude")
+  deliveryLatitude    Float?    @map("delivery_latitude")
+  deliveryLongitude   Float?    @map("delivery_longitude")
+  quotedDistanceKm    Decimal?  @map("quoted_distance_km") @db.Decimal(10, 3)
+  acceptedAt          DateTime? @map("accepted_at")
+  pickedUpAt          DateTime? @map("picked_up_at")
+  deliveredAt         DateTime? @map("delivered_at")
+  cancelledAt         DateTime? @map("cancelled_at")
+  cancellationReason  String?   @map("cancellation_reason")
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@map("deliveries")
+  @@index([cityId, status])
+  @@index([delivererId, status])
+}
+
+model DeliveryOffer {
+  id           String    @id @default(uuid()) @db.Uuid
+  deliveryId   String    @map("delivery_id")
+  delivererId  Int       @map("livreur_id")
+  rank         Int
+  status       String    @default("PENDING")
+  expiresAt    DateTime? @map("expires_at")
+  respondedAt  DateTime? @map("responded_at")
+  distanceToPickupKm Decimal? @map("distance_to_pickup_km") @db.Decimal(10, 3)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@map("delivery_offers")
+  @@unique([deliveryId, delivererId])
+  @@index([delivererId, status])
+}
+
+model CourierLocation {
+  id          String    @id @default(uuid()) @db.Uuid
+  delivererId Int       @map("livreur_id")
+  cityId      Int?      @map("city_id")
+  latitude    Float
+  longitude   Float
+  location    Unsupported("geography(Point,4326)")?
+  accuracyM   Float?    @map("accuracy_m")
+  recordedAt  DateTime  @default(now()) @map("recorded_at")
+  createdAt   DateTime  @default(now())
+
+  @@map("courier_locations")
+  @@index([delivererId, recordedAt])
+  @@index([cityId, recordedAt])
+}
+
+model MobileMoneyAccount {
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      Int       @map("user_id")
+  operator    String
+  phoneE164   String    @map("phone_e164")
+  label       String?
+  verified    Boolean   @default(false)
+  isDefault   Boolean   @default(false) @map("is_default")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("mobile_money_accounts")
+  @@unique([userId, operator, phoneE164])
+  @@index([userId, isDefault])
+}
+
+model WalletAccount {
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      Int       @unique @map("user_id")
+  currency    String    @default("CDF")
+  status      String    @default("DISABLED")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("wallet_accounts")
+}
+
+model WalletLedgerEntry {
+  id             String    @id @default(uuid()) @db.Uuid
+  walletAccountId String   @map("wallet_account_id") @db.Uuid
+  direction      String
+  amount         Decimal   @db.Decimal(14, 2)
+  currency       String    @default("CDF")
+  status         String    @default("PENDING")
+  referenceType  String    @map("reference_type")
+  referenceId    String    @map("reference_id")
+  description    String?
+  createdAt      DateTime  @default(now())
+  postedAt       DateTime? @map("posted_at")
+
+  @@map("wallet_ledger_entries")
+  @@unique([walletAccountId, referenceType, referenceId, direction])
+  @@index([walletAccountId, createdAt])
+}
+
+model Tip {
+  id             String    @id @default(uuid()) @db.Uuid
+  orderId        Int       @map("commande_id")
+  deliveryId     String?   @map("delivery_id")
+  customerId     Int       @map("customer_id")
+  delivererId    Int       @map("livreur_id")
+  amount         Decimal   @db.Decimal(14, 2)
+  currency       String    @default("CDF")
+  paymentMethod  String?   @map("payment_method")
+  transactionId  String?   @unique @map("transaction_id")
+  status         String    @default("PENDING")
+  createdAt      DateTime  @default(now())
+  paidAt         DateTime? @map("paid_at")
+
+  @@map("tips")
+  @@index([orderId, status])
+  @@index([delivererId, status])
+}
+
+model PaymentWebhookEvent {
+  id             String    @id @default(uuid()) @db.Uuid
+  provider       String
+  externalEventId String?  @map("external_event_id")
+  transactionId  String?   @map("transaction_id")
+  payload        Json
+  signatureValid Boolean   @map("signature_valid")
+  processedAt    DateTime? @map("processed_at")
+  createdAt      DateTime  @default(now())
+
+  @@map("payment_webhook_events")
+  @@unique([provider, externalEventId])
+  @@index([transactionId])
+}
+
+model GeocodingCache {
+  id          String    @id @default(uuid()) @db.Uuid
+  cacheKey    String    @unique @map("cache_key")
+  provider    String    @default("nominatim")
+  query       Json
+  displayName String?   @map("display_name")
+  latitude    Float?
+  longitude   Float?
+  raw          Json
+  expiresAt   DateTime  @map("expires_at")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("geocoding_cache")
+  @@index([expiresAt])
 }
 
 model AuditLog {

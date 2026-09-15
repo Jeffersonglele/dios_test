@@ -9,6 +9,7 @@ const morgan = require('morgan');
 const apiRoutes = require('./routes');
 const { errorHandler, notFoundHandler } = require('./middlware/error.middleware');
 const { getHealth } = require('./services/health.service');
+const { uploadDirectory } = require('./services/local-storage.service');
 const { setupSwagger } = require('./swagger');
 
 const app = express();
@@ -30,6 +31,7 @@ app.use(cors({
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || '1mb' }));
 app.use(express.urlencoded({ extended: false, limit: process.env.JSON_BODY_LIMIT || '1mb' }));
+app.use('/uploads', express.static(uploadDirectory(), { fallthrough: false, maxAge: '7d' }));
 app.use(rateLimit({
   windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
   limit: Number(process.env.RATE_LIMIT_MAX) || 300,
