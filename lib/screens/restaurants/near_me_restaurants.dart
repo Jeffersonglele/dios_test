@@ -120,7 +120,8 @@ class _NearMeRestaurantsState extends State<NearMeRestaurants> {
                 prefixIcon: Icon(Icons.search,
                     color: colorScheme.onSurface.withOpacity(0.5)),
                 filled: true,
-                fillColor: AppColors.resolve(AppColors.card, AppDarkColors.card),
+                fillColor:
+                    AppColors.resolve(AppColors.card, AppDarkColors.card),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide.none,
@@ -128,10 +129,60 @@ class _NearMeRestaurantsState extends State<NearMeRestaurants> {
               ),
             ),
             const SizedBox(height: 12),
+            if (!_isLoading)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                decoration: BoxDecoration(
+                  color: AppColors.resolve(
+                          AppColors.brandSurface, AppDarkColors.brandSurface)
+                      .withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color:
+                        AppColors.resolve(AppColors.brand, AppDarkColors.brand)
+                            .withValues(alpha: 0.12),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline_rounded,
+                        size: 16,
+                        color: AppColors.resolve(
+                            AppColors.brand, AppDarkColors.brand)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _visibleRestaurants.where((r) => r.isOutOfRange).isEmpty
+                            ? '${_visibleRestaurants.length} restaurants dans le rayon'
+                            : '${_visibleRestaurants.where((r) => !r.isOutOfRange).length} en livraison • ${_visibleRestaurants.where((r) => r.isOutOfRange).length} hors portée',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: colorScheme.onSurface.withValues(alpha: 0.82),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            if (!_isLoading) const SizedBox(height: 12),
             Wrap(
               spacing: 8,
               runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
+                Padding(
+                  padding: const EdgeInsets.only(right: 2, left: 4),
+                  child: Text(
+                    'Rayon :',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.onSurface.withValues(alpha: 0.55),
+                    ),
+                  ),
+                ),
                 _DistanceChip(
                   label: '5 km',
                   selected: _maxDistanceKm == 5,
@@ -147,6 +198,7 @@ class _NearMeRestaurantsState extends State<NearMeRestaurants> {
                   selected: _maxDistanceKm == 20,
                   onTap: () => _updateDistance(20),
                 ),
+                const SizedBox(width: 2),
                 FilterChip(
                   label: Text(l10n.near_restaurants_open_now,
                       style: TextStyle(
@@ -154,7 +206,8 @@ class _NearMeRestaurantsState extends State<NearMeRestaurants> {
                               ? Colors.white
                               : colorScheme.onSurface)),
                   selected: _openOnly,
-                  selectedColor: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+                  selectedColor:
+                      AppColors.resolve(AppColors.brand, AppDarkColors.brand),
                   checkmarkColor: Colors.white,
                   onSelected: _updateOpenOnly,
                 ),
@@ -164,7 +217,8 @@ class _NearMeRestaurantsState extends State<NearMeRestaurants> {
             if (_isLoading)
               Center(
                   child: CircularProgressIndicator(
-                      color: AppColors.resolve(AppColors.brand, AppDarkColors.brand)))
+                      color: AppColors.resolve(
+                          AppColors.brand, AppDarkColors.brand)))
             else if (_visibleRestaurants.isEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 48),
@@ -175,109 +229,242 @@ class _NearMeRestaurantsState extends State<NearMeRestaurants> {
               )
             else
               ..._visibleRestaurants.map(
-                (result) => Card(
-                  margin: const EdgeInsets.only(bottom: 14),
-                  color: AppColors.resolve(AppColors.card, AppDarkColors.card),
-                  elevation: 1,
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.all(12),
-                    leading:
-                        _RestaurantAvatar(imageUrl: result.restaurant.image),
-                    title: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            result.restaurant.name,
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: colorScheme.onSurface),
-                          ),
-                        ),
-                        if (result.restaurant.isPro)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppColors.resolve(AppColors.accentLight, AppDarkColors.accentLight),
-                              borderRadius: BorderRadius.circular(8),
+                (result) {
+                  final outOfRange = result.isOutOfRange;
+                  final brandColor =
+                      AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+                  final dangerColor = AppColors.resolve(
+                      AppColors.inkMuted, AppDarkColors.inkSubtle);
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 14),
+                    color:
+                        AppColors.resolve(AppColors.card, AppDarkColors.card),
+                    elevation: 1,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: outOfRange
+                          ? BorderSide(
+                              color: colorScheme.onSurface.withOpacity(0.08),
+                              width: 1)
+                          : BorderSide.none,
+                    ),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => RestaurantDetails(
+                              restaurant_id: result.restaurant.restaurantID,
                             ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
+                          ),
+                        );
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Stack(
+                              clipBehavior: Clip.none,
                               children: [
-                                Icon(Icons.verified,
-                                    size: 12,
-                                    color: AppColors.resolve(AppColors.accent, AppDarkColors.accent)),
-                                const SizedBox(width: 2),
-                                Text(
-                                  'PRO',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.resolve(AppColors.accent, AppDarkColors.accent),
+                                _RestaurantAvatar(
+                                    imageUrl: result.restaurant.image),
+                                if (outOfRange)
+                                  Positioned(
+                                    right: -6,
+                                    bottom: -6,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.resolve(
+                                            AppColors.inkSubtle,
+                                            AppDarkColors.ink),
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(
+                                          color: AppColors.resolve(
+                                              AppColors.card,
+                                              AppDarkColors.card),
+                                          width: 1.5,
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black
+                                                .withValues(alpha: 0.08),
+                                            blurRadius: 4,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.location_off_rounded,
+                                              color: Colors.white, size: 11),
+                                          const SizedBox(width: 3),
+                                          const Text(
+                                            'Hors portée',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
                                   ),
+                              ],
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          result.restaurant.name,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: outOfRange
+                                                ? colorScheme.onSurface
+                                                    .withValues(alpha: 0.7)
+                                                : colorScheme.onSurface,
+                                          ),
+                                        ),
+                                      ),
+                                      if (result.restaurant.isPro)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.resolve(
+                                                AppColors.accentLight,
+                                                AppDarkColors.accentLight),
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(Icons.verified,
+                                                  size: 12,
+                                                  color: AppColors.resolve(
+                                                      AppColors.accent,
+                                                      AppDarkColors.accent)),
+                                              const SizedBox(width: 2),
+                                              Text(
+                                                'PRO',
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: AppColors.resolve(
+                                                      AppColors.accent,
+                                                      AppDarkColors.accent),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.near_me_rounded,
+                                        size: 13,
+                                        color: outOfRange
+                                            ? dangerColor
+                                            : brandColor.withValues(alpha: 0.8),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        '${result.distanceKm.toStringAsFixed(1)} km',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 12,
+                                            color: outOfRange
+                                                ? dangerColor
+                                                : colorScheme.onSurface
+                                                    .withOpacity(0.75)),
+                                      ),
+                                      if (outOfRange) ...[
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          '•',
+                                          style: TextStyle(
+                                              color: colorScheme.onSurface
+                                                  .withValues(alpha: 0.3)),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'Livraison indisponible',
+                                          style: TextStyle(
+                                              fontSize: 11, color: dangerColor),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    result.restaurant.categories.isEmpty
+                                        ? result.restaurant.openingHours
+                                        : result.restaurant.categories,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                        color: colorScheme.onSurface
+                                            .withOpacity(0.65)),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Livraison ${result.restaurant.deliveryFee.toStringAsFixed(2)}',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        color: outOfRange
+                                            ? colorScheme.onSurface
+                                                .withValues(alpha: 0.45)
+                                            : brandColor,
+                                        fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  result.restaurant.isCurrentlyOpen
+                                      ? Icons.check_circle
+                                      : Icons.remove_circle,
+                                  color: result.restaurant.isCurrentlyOpen
+                                      ? Colors.green
+                                      : Colors.grey,
+                                  size: 20,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  result.restaurant.isCurrentlyOpen
+                                      ? l10n.open
+                                      : l10n.closed,
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      color: colorScheme.onSurface
+                                          .withOpacity(0.7)),
                                 ),
                               ],
                             ),
-                          ),
-                      ],
+                          ],
+                        ),
+                      ),
                     ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 4),
-                        Text('${result.distanceKm.toStringAsFixed(2)} km',
-                            style: TextStyle(
-                                color: colorScheme.onSurface.withOpacity(0.7))),
-                        Text(
-                          result.restaurant.categories.isEmpty
-                              ? result.restaurant.openingHours
-                              : result.restaurant.categories,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                              color: colorScheme.onSurface.withOpacity(0.7)),
-                        ),
-                        Text(
-                          'Livraison ${result.restaurant.deliveryFee.toStringAsFixed(2)}',
-                          style: TextStyle(
-                              color: colorScheme.onSurface.withOpacity(0.7)),
-                        ),
-                      ],
-                    ),
-                    trailing: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          result.restaurant.isCurrentlyOpen
-                              ? Icons.check_circle
-                              : Icons.remove_circle,
-                          color: result.restaurant.isCurrentlyOpen
-                              ? Colors.green
-                              : Colors.grey,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          result.restaurant.isCurrentlyOpen
-                              ? l10n.open
-                              : l10n.closed,
-                          style: TextStyle(
-                              fontSize: 12,
-                              color: colorScheme.onSurface.withOpacity(0.7)),
-                        ),
-                      ],
-                    ),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => RestaurantDetails(
-                            restaurant_id: result.restaurant.restaurantID,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
+                  );
+                },
               ),
           ],
         ),
@@ -305,8 +492,7 @@ class _DistanceChip extends StatelessWidget {
           style: TextStyle(
               color: selected ? Colors.white : colorScheme.onSurface)),
       selected: selected,
-      selectedColor:
-          AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+      selectedColor: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
       checkmarkColor: Colors.white,
       onSelected: (_) => onTap(),
     );

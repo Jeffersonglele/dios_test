@@ -46,7 +46,8 @@ class _ProfilePageState extends State<ProfilePage> {
     final user = Users.getUsersByUserId(users, session.userId);
     if (!mounted) return;
     final addresses = await Address.fetchAddressesFromDB();
-    final address = Address.getAddressByObject(addresses, 'user', session.userId);
+    final address =
+        Address.getAddressByObject(addresses, 'User', session.userId);
     if (!mounted) return;
     setState(() {
       _user = user;
@@ -88,65 +89,89 @@ class _ProfilePageState extends State<ProfilePage> {
         ]),
         content: Form(
           key: formKey,
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            GestureDetector(
-              onTap: () async {
-                final file = await pickAndConfirmImage(context);
-                if (file != null) setState(() => _newPhoto = file);
-              },
-              child: Stack(children: [
-                CircleAvatar(
-                  radius: 42,
-                  backgroundColor: AppColors.brandSurface,
-                  child: _newPhoto != null
-                      ? ClipOval(child: pickedImagePreview(_newPhoto!, width: 84, height: 84, fit: BoxFit.cover))
-                      : user.image.isNotEmpty
-                          ? ClipOval(child: Image.memory(const Base64Decoder().convert(user.image), width: 84, height: 84, fit: BoxFit.cover))
-                          : Text('${user.firstname.isNotEmpty ? user.firstname[0] : ''}${user.lastname.isNotEmpty ? user.lastname[0] : ''}'.toUpperCase(),
-                              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.brand)),
+          child: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              GestureDetector(
+                onTap: () async {
+                  final file = await pickAndConfirmImage(context);
+                  if (file != null) setState(() => _newPhoto = file);
+                },
+                child: Stack(children: [
+                  CircleAvatar(
+                    radius: 42,
+                    backgroundColor: AppColors.brandSurface,
+                    child: _newPhoto != null
+                        ? ClipOval(
+                            child: pickedImagePreview(_newPhoto!,
+                                width: 84, height: 84, fit: BoxFit.cover))
+                        : user.image.isNotEmpty
+                            ? ClipOval(
+                                child: Image.memory(
+                                    const Base64Decoder().convert(user.image),
+                                    width: 84,
+                                    height: 84,
+                                    fit: BoxFit.cover))
+                            : Text(
+                                '${user.firstname.isNotEmpty ? user.firstname[0] : ''}${user.lastname.isNotEmpty ? user.lastname[0] : ''}'
+                                    .toUpperCase(),
+                                style: const TextStyle(
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.brand)),
+                  ),
+                  Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                            color: AppColors.brand,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2)),
+                        child: const Icon(Icons.camera_alt_rounded,
+                            color: Colors.white, size: 14),
+                      )),
+                ]),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: firstnameCtrl,
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.of(ctx)!.firstName,
+                  prefixIcon:
+                      const Icon(Icons.person_outline_rounded, size: 20),
                 ),
-                Positioned(bottom: 0, right: 0, child: Container(
-                  width: 28, height: 28,
-                  decoration: BoxDecoration(color: AppColors.brand, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)),
-                  child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 14),
-                )),
-              ]),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: firstnameCtrl,
-              decoration: InputDecoration(
-                labelText: AppLocalizations.of(ctx)!.firstName,
-                prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: lastnameCtrl,
-              decoration: InputDecoration(
-                labelText: AppLocalizations.of(ctx)!.lastName,
-                prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
+              const SizedBox(height: 12),
+              TextField(
+                controller: lastnameCtrl,
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.of(ctx)!.lastName,
+                  prefixIcon:
+                      const Icon(Icons.person_outline_rounded, size: 20),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: emailCtrl,
-              keyboardType: TextInputType.emailAddress,
-              decoration: InputDecoration(
-                labelText: AppLocalizations.of(ctx)!.email,
-                prefixIcon: const Icon(Icons.email_outlined, size: 20),
+              const SizedBox(height: 12),
+              TextField(
+                controller: emailCtrl,
+                keyboardType: TextInputType.emailAddress,
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.of(ctx)!.email,
+                  prefixIcon: const Icon(Icons.email_outlined, size: 20),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: phoneCtrl,
-              keyboardType: TextInputType.phone,
-              decoration: InputDecoration(
-                labelText: AppLocalizations.of(ctx)!.phone,
-                prefixIcon: const Icon(Icons.phone_outlined, size: 20),
+              const SizedBox(height: 12),
+              TextField(
+                controller: phoneCtrl,
+                keyboardType: TextInputType.phone,
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.of(ctx)!.phone,
+                  prefixIcon: const Icon(Icons.phone_outlined, size: 20),
+                ),
               ),
-            ),
-          ]),
+            ]),
+          ),
         ),
         actions: [
           TextButton(
@@ -161,7 +186,8 @@ class _ProfilePageState extends State<ProfilePage> {
                   emailCtrl.text.trim().isEmpty ||
                   phoneCtrl.text.trim().isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text(AppLocalizations.of(context)!.allFieldsRequired)));
+                    content:
+                        Text(AppLocalizations.of(context)!.allFieldsRequired)));
                 return;
               }
               final result = await Users.updateProfile(
@@ -223,12 +249,16 @@ class _ProfilePageState extends State<ProfilePage> {
                         radius: 40,
                         backgroundColor: AppColors.brandSurface,
                         child: user.image.isNotEmpty
-                            ? ClipOval(child: Image.memory(base64Decode(user.image), width: 80, height: 80, fit: BoxFit.cover))
+                            ? ClipOval(
+                                child: Image.memory(base64Decode(user.image),
+                                    width: 80, height: 80, fit: BoxFit.cover))
                             : Text(
                                 '${user.firstname.isNotEmpty ? user.firstname[0] : ''}${user.lastname.isNotEmpty ? user.lastname[0] : ''}'
                                     .toUpperCase(),
                                 style: const TextStyle(
-                                  fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.brand,
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.brand,
                                 ),
                               ),
                       ),
@@ -286,8 +316,8 @@ class _ProfilePageState extends State<ProfilePage> {
                                       AppDarkColors.inkMuted),
                                   fontSize: 12)),
                           trailing: Icon(Icons.chevron_right_rounded,
-                              color: AppColors.resolve(AppColors.inkSubtle,
-                                  AppDarkColors.inkSubtle),
+                              color: AppColors.resolve(
+                                  AppColors.inkSubtle, AppDarkColors.inkSubtle),
                               size: 20),
                           onTap: () async {
                             final session = await SessionService.readSession();

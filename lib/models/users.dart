@@ -481,7 +481,8 @@ class Users extends HiveObject {
           return "Erreur : ${response['error']}";
         } else {
           await DatabaseHelper.updateUserProfile(
-              userID, firstname, lastname, email, telephone);
+              userID, firstname, lastname, email, telephone,
+              image: image);
           notifyDataChanged();
           return "success";
         }

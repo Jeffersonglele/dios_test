@@ -1,5 +1,8 @@
 import 'dart:math';
 
+import 'dart:convert';
+
+import 'package:dios_delices/providers/data_version_notifier.dart';
 import 'package:dios_delices/screens/profile/profile_page.dart';
 import 'package:dios_delices/screens/profile/location_page.dart';
 import 'package:flutter/cupertino.dart';
@@ -41,6 +44,9 @@ class _HomeUserState extends State<HomeUser> {
   List<Restaurant> _allRestaus = [];
   List<Restaurant> _restaus = [];
   List<Address> _addresses = [];
+
+  /// Set d'IDs de restaurants qui sont hors du rayon de livraison
+  final Set<int> _outOfRangeRestauIds = {};
 
   int _currentUserID = 0;
   int _currentUserRole = 0;
@@ -103,7 +109,18 @@ class _HomeUserState extends State<HomeUser> {
   @override
   void initState() {
     super.initState();
+    dataVersionNotifier.addListener(_onDataChanged);
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    dataVersionNotifier.removeListener(_onDataChanged);
+    super.dispose();
+  }
+
+  void _onDataChanged() {
+    if (mounted) _loadData();
   }
 
   Future<void> _loadData() async {
@@ -129,55 +146,59 @@ class _HomeUserState extends State<HomeUser> {
       _addresses = addressList;
       _categories = [
         _Category(icon: Icons.restaurant_rounded, label: 'Tout'),
-        ...dbCats.map((c) => _Category(
-            icon: _iconForCategory(c.name), label: c.name)),
+        ...dbCats.map(
+            (c) => _Category(icon: _iconForCategory(c.name), label: c.name)),
       ];
     });
-    await _filterByProximity();
+    await _tagOutOfRangeAndSort();
     _detectLiveLocation();
     if (mounted) setState(() => _isLoading = false);
   }
 
-  Future<void> _filterByProximity() async {
+  Future<void> _tagOutOfRangeAndSort() async {
     const double maxKm = 10.0;
-    List<Restaurant> nearby = [];
-    bool foundUserAddress = false;
+    final inRange = <Restaurant>[];
+    final outOfRange = <Restaurant>[];
+    _outOfRangeRestauIds.clear();
 
-
+    Address? userAddress;
     for (final addr in _addresses) {
-      if (addr.objectID != _currentUserID || addr.object != 'User') continue;
-      foundUserAddress = true;
-
-      for (final r in _allRestaus) {
-        final owner = Users.getUsersByUserId(_users, r.userID);
-        if (owner == null) {
-          continue;
-        }
-        final rAddr = Address.getAddressByObject(_addresses, 'User', r.userID);
-        if (rAddr == null) {
-          continue;
-        }
-        try {
-          final uLat = double.parse(addr.lat ?? '');
-          final uLon = double.parse(addr.long ?? '');
-          final rLat = double.parse(rAddr.lat ?? '');
-          final rLon = double.parse(rAddr.long ?? '');
-          if (_haversine(uLat, uLon, rLat, rLon) <= maxKm) {
-            nearby.add(r);
-          }
-        } catch (e) {
-        }
+      if (addr.objectID == _currentUserID && addr.object == 'User') {
+        userAddress = addr;
+        break;
       }
     }
 
-    // If no user address found, just show all restaurants
-    if (!foundUserAddress) {
-      nearby = List.from(_allRestaus);
+    if (userAddress != null) {
+      double? uLat = double.tryParse(userAddress.lat ?? '');
+      double? uLon = double.tryParse(userAddress.long ?? '');
+
+      for (final r in _allRestaus) {
+        final rAddr = Address.getAddressByObject(_addresses, 'User', r.userID);
+        bool isOut = false;
+        if (uLat != null && uLon != null && rAddr != null) {
+          final rLat = double.tryParse(rAddr.lat ?? '');
+          final rLon = double.tryParse(rAddr.long ?? '');
+          if (rLat != null && rLon != null) {
+            if (_haversine(uLat, uLon, rLat, rLon) > maxKm) {
+              isOut = true;
+            }
+          }
+        }
+        if (isOut) {
+          outOfRange.add(r);
+          _outOfRangeRestauIds.add(r.restaurantID);
+        } else {
+          inRange.add(r);
+        }
+      }
+    } else {
+      inRange.addAll(_allRestaus);
     }
 
     if (mounted) {
       setState(() {
-        _allRestaus = nearby;
+        _allRestaus = [...inRange, ...outOfRange];
       });
     }
     _filterByCategory();
@@ -201,28 +222,38 @@ class _HomeUserState extends State<HomeUser> {
       setState(() {
         _restaus = _allRestaus.where((r) {
           final restauCats = r.categories.toLowerCase();
-          return restauCats.contains('#$selectedCat') || restauCats.contains(selectedCat);
+          return restauCats.contains('#$selectedCat') ||
+              restauCats.contains(selectedCat);
         }).toList();
       });
     }
   }
 
   void _addAddress() {
-    Navigator.push(context, CupertinoPageRoute(builder: (_) => LocationPage(
-      objectID: _currentUserID,
-      user_roleID: _currentUserRole,
-    ))).then((_) => _loadData());
+    Navigator.push(
+        context,
+        CupertinoPageRoute(
+            builder: (_) => LocationPage(
+                  objectID: _currentUserID,
+                  user_roleID: _currentUserRole,
+                ))).then((_) => _loadData());
   }
 
   Future<void> _detectLiveLocation() async {
     try {
       final permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) return;
-      final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.low, timeLimit: const Duration(seconds: 5));
-      final placemarks = await placemarkFromCoordinates(pos.latitude, pos.longitude);
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) return;
+      final pos = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.low,
+          timeLimit: const Duration(seconds: 5));
+      final placemarks =
+          await placemarkFromCoordinates(pos.latitude, pos.longitude);
       if (placemarks.isNotEmpty) {
         final p = placemarks.first;
-        final addr = [p.locality, p.administrativeArea].where((s) => s != null && s.isNotEmpty).join(', ');
+        final addr = [p.locality, p.administrativeArea]
+            .where((s) => s != null && s.isNotEmpty)
+            .join(', ');
         if (mounted && addr.isNotEmpty) setState(() => _liveAddress = addr);
       }
     } catch (_) {}
@@ -248,7 +279,8 @@ class _HomeUserState extends State<HomeUser> {
       child: GestureDetector(
         onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
         child: Scaffold(
-          backgroundColor: AppColors.resolve(AppColors.surface, AppDarkColors.surface),
+          backgroundColor:
+              AppColors.resolve(AppColors.surface, AppDarkColors.surface),
           body: RefreshIndicator(
             color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
             backgroundColor:
@@ -258,7 +290,9 @@ class _HomeUserState extends State<HomeUser> {
               physics: const BouncingScrollPhysics(),
               slivers: [
                 // ── Bannière adresse manquante ───────────
-                if (_currentUserRole == 2 && !_addresses.any((a) => a.objectID == _currentUserID && a.object == 'User'))
+                if (_currentUserRole == 2 &&
+                    !_addresses.any((a) =>
+                        a.objectID == _currentUserID && a.object == 'User'))
                   SliverToBoxAdapter(
                     child: GestureDetector(
                       onTap: () => _addAddress(),
@@ -268,15 +302,20 @@ class _HomeUserState extends State<HomeUser> {
                           color: Color(0xFFBE3A34),
                         ),
                         child: Row(children: [
-                          const Icon(Icons.location_on_rounded, color: Colors.white, size: 22),
+                          const Icon(Icons.location_on_rounded,
+                              color: Colors.white, size: 22),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
                               l10n.home_add_address_banner,
-                              style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500),
                             ),
                           ),
-                          const Icon(Icons.chevron_right_rounded, color: Colors.white70),
+                          const Icon(Icons.chevron_right_rounded,
+                              color: Colors.white70),
                         ]),
                       ),
                     ),
@@ -284,6 +323,7 @@ class _HomeUserState extends State<HomeUser> {
                 // ── Header ──────────────────────────────
                 SliverToBoxAdapter(
                   child: _HomeHeader(
+                    currentUser: Users.getUsersByUserId(_users, _currentUserID),
                     addressLabel: _liveAddress.isNotEmpty ? _liveAddress : null,
                     onTap: () => _addAddress(),
                   ),
@@ -328,6 +368,7 @@ class _HomeUserState extends State<HomeUser> {
                           : _RestaurantCarousel(
                               restaurants: _restaus,
                               users: _users,
+                              outOfRangeRestauIds: _outOfRangeRestauIds,
                               onTap: (id) => Navigator.push(
                                 context,
                                 CupertinoPageRoute(
@@ -374,14 +415,44 @@ class _HomeUserState extends State<HomeUser> {
 // _HomeHeader — SafeArea + padding top généreux
 // ═══════════════════════════════════════════════════════════
 class _HomeHeader extends StatelessWidget {
+  final Users? currentUser;
   final String? addressLabel;
   final VoidCallback? onTap;
-  const _HomeHeader({this.addressLabel, this.onTap});
+  const _HomeHeader({this.currentUser, this.addressLabel, this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final colorScheme = Theme.of(context).colorScheme;
+    final user = currentUser;
+    final brandColor = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+    final brandSurface =
+        AppColors.resolve(AppColors.brandSurface, AppDarkColors.brandSurface);
+    final surfaceColor =
+        AppColors.resolve(AppColors.surface, AppDarkColors.surface);
+    final borderColor =
+        AppColors.resolve(AppColors.border, AppDarkColors.border);
+
+    Widget avatarChild;
+    if (user != null && user.image.isNotEmpty) {
+      try {
+        avatarChild = ClipOval(
+          child: Image.memory(
+            base64Decode(user.image),
+            width: 44,
+            height: 44,
+            fit: BoxFit.cover,
+          ),
+        );
+      } catch (_) {
+        avatarChild = _avatarInitials(user, brandColor);
+      }
+    } else if (user != null) {
+      avatarChild = _avatarInitials(user, brandColor);
+    } else {
+      avatarChild = Icon(Icons.person_rounded, color: brandColor, size: 24);
+    }
+
     return SafeArea(
       bottom: false,
       child: Padding(
@@ -400,8 +471,7 @@ class _HomeHeader extends StatelessWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(Icons.location_on_rounded,
-                              color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
-                              size: 16),
+                              color: brandColor, size: 16),
                           const SizedBox(width: 4),
                           Text(
                             l10n.home_deliver_to,
@@ -443,17 +513,15 @@ class _HomeHeader extends StatelessWidget {
                         height: 44,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: AppColors.resolve(AppColors.brandSurface, AppDarkColors.brandSurface),
+                          color: brandSurface,
                           border: Border.all(
-                            color: AppColors.resolve(AppColors.border, AppDarkColors.border)
-                                .withValues(alpha: 0.6),
+                            color: borderColor.withValues(alpha: 0.6),
                             width: 1.5,
                           ),
                           boxShadow: [AppShadows.subtle],
                         ),
-                        child: Icon(Icons.person_rounded,
-                            color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
-                            size: 24),
+                        clipBehavior: Clip.antiAlias,
+                        child: avatarChild,
                       ),
                     ),
                     Positioned(
@@ -463,11 +531,9 @@ class _HomeHeader extends StatelessWidget {
                         width: 12,
                         height: 12,
                         decoration: BoxDecoration(
-                          color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+                          color: brandColor,
                           shape: BoxShape.circle,
-                          border: Border.all(
-                              color: AppColors.resolve(AppColors.surface, AppDarkColors.surface),
-                              width: 1.5),
+                          border: Border.all(color: surfaceColor, width: 1.5),
                         ),
                       ),
                     ),
@@ -478,6 +544,22 @@ class _HomeHeader extends StatelessWidget {
             const SizedBox(height: AppSpacing.md),
             const SearchInput(),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _avatarInitials(Users user, Color brandColor) {
+    final initials = '${user.firstname.isNotEmpty ? user.firstname[0] : ''}'
+            '${user.lastname.isNotEmpty ? user.lastname[0] : ''}'
+        .toUpperCase();
+    return Center(
+      child: Text(
+        initials,
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          color: brandColor,
         ),
       ),
     );
@@ -672,7 +754,8 @@ class _RoundCategories extends StatelessWidget {
             itemBuilder: (_, i) {
               final selected = i == selectedIndex;
               final cat = categories[i];
-              final resolvedBrand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+              final resolvedBrand =
+                  AppColors.resolve(AppColors.brand, AppDarkColors.brand);
               return GestureDetector(
                 onTap: () => onSelect(i),
                 child: Container(
@@ -689,11 +772,13 @@ class _RoundCategories extends StatelessWidget {
                           shape: BoxShape.circle,
                           color: selected
                               ? resolvedBrand
-                              : AppColors.resolve(AppColors.card, AppDarkColors.card),
+                              : AppColors.resolve(
+                                  AppColors.card, AppDarkColors.card),
                           border: Border.all(
                             color: selected
                                 ? resolvedBrand
-                                : AppColors.resolve(AppColors.border, AppDarkColors.border)
+                                : AppColors.resolve(
+                                        AppColors.border, AppDarkColors.border)
                                     .withValues(alpha: 0.6),
                           ),
                           boxShadow: selected
@@ -712,7 +797,8 @@ class _RoundCategories extends StatelessWidget {
                           size: 24,
                           color: selected
                               ? Colors.white
-                              : AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted),
+                              : AppColors.resolve(
+                                  AppColors.inkMuted, AppDarkColors.inkMuted),
                         ),
                       ),
                       const SizedBox(height: 6),
@@ -724,7 +810,8 @@ class _RoundCategories extends StatelessWidget {
                         style: AppTypography.labelMedium(
                           color: selected
                               ? resolvedBrand
-                              : AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted),
+                              : AppColors.resolve(
+                                  AppColors.inkMuted, AppDarkColors.inkMuted),
                         ).copyWith(
                           fontSize: 11,
                           fontWeight:
@@ -778,7 +865,8 @@ class _SectionHeader extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(
                     horizontal: 12, vertical: AppSpacing.sm),
                 decoration: BoxDecoration(
-                  color: AppColors.resolve(AppColors.brandSurface, AppDarkColors.brandSurface),
+                  color: AppColors.resolve(
+                      AppColors.brandSurface, AppDarkColors.brandSurface),
                   borderRadius: BorderRadius.circular(AppRadius.lg),
                 ),
                 child: Text(
@@ -801,11 +889,13 @@ class _RestaurantCarousel extends StatelessWidget {
     required this.restaurants,
     required this.users,
     required this.onTap,
+    this.outOfRangeRestauIds = const {},
   });
 
   final List<Restaurant> restaurants;
   final List<Users> users;
   final ValueChanged<int> onTap;
+  final Set<int> outOfRangeRestauIds;
 
   @override
   Widget build(BuildContext context) {
@@ -819,9 +909,11 @@ class _RestaurantCarousel extends StatelessWidget {
         itemBuilder: (_, i) {
           final restau = restaurants[i];
           final isPro = restau.isPro;
+          final outOfRange = outOfRangeRestauIds.contains(restau.restaurantID);
           return _RestaurantCard(
             restaurant: restau,
             isPro: isPro,
+            outOfRange: outOfRange,
             onTap: () => onTap(restau.restaurantID),
           );
         },
@@ -835,10 +927,12 @@ class _RestaurantCard extends StatefulWidget {
     required this.restaurant,
     required this.isPro,
     required this.onTap,
+    this.outOfRange = false,
   });
 
   final Restaurant restaurant;
   final bool isPro;
+  final bool outOfRange;
   final VoidCallback onTap;
 
   @override
@@ -882,6 +976,11 @@ class _RestaurantCardState extends State<_RestaurantCard> {
         AppColors.resolve(AppColors.brand, AppDarkColors.brand);
     final resolvedAccent =
         AppColors.resolve(AppColors.accent, AppDarkColors.accent);
+    final inkColor = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
+    final titleColor = widget.outOfRange
+        ? colorScheme.onSurface.withValues(alpha: 0.7)
+        : colorScheme.onSurface;
+
     return GestureDetector(
       onTap: widget.onTap,
       child: Container(
@@ -895,9 +994,8 @@ class _RestaurantCardState extends State<_RestaurantCard> {
               width: 0.5),
           boxShadow: [
             BoxShadow(
-              color:
-                  AppColors.resolve(AppColors.ink, AppDarkColors.ink)
-                      .withValues(alpha: 0.07),
+              color: AppColors.resolve(AppColors.ink, AppDarkColors.ink)
+                  .withValues(alpha: 0.07),
               blurRadius: 16,
               offset: const Offset(0, 6),
             ),
@@ -912,10 +1010,13 @@ class _RestaurantCardState extends State<_RestaurantCard> {
                 SizedBox(
                   height: 180,
                   width: double.infinity,
-                  child: DiosImage(
-                    url: widget.restaurant.image,
-                    width: double.infinity,
-                    height: 180,
+                  child: Opacity(
+                    opacity: widget.outOfRange ? 0.75 : 1,
+                    child: DiosImage(
+                      url: widget.restaurant.image,
+                      width: double.infinity,
+                      height: 180,
+                    ),
                   ),
                 ),
                 Positioned(
@@ -930,13 +1031,37 @@ class _RestaurantCardState extends State<_RestaurantCard> {
                         end: Alignment.bottomCenter,
                         colors: [
                           Colors.transparent,
-                          AppColors.resolve(AppColors.ink, AppDarkColors.ink)
-                              .withValues(alpha: 0.55),
+                          inkColor.withValues(alpha: 0.55),
                         ],
                       ),
                     ),
                   ),
                 ),
+                if (widget.outOfRange)
+                  Positioned.fill(
+                    child: Container(
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      color: Colors.black.withValues(alpha: 0.32),
+                      child: const Text(
+                        'Marchand hors de votre zone de livraison',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w800,
+                          height: 1.25,
+                          shadows: [
+                            Shadow(
+                              blurRadius: 4,
+                              color: Color(0x55000000),
+                              offset: Offset(0, 1),
+                            )
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 Positioned(
                   bottom: AppSpacing.sm,
                   left: AppSpacing.sm,
@@ -944,11 +1069,14 @@ class _RestaurantCardState extends State<_RestaurantCard> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: resolvedBrand,
+                      color: widget.outOfRange
+                          ? inkColor.withValues(alpha: 0.6)
+                          : resolvedBrand,
                       borderRadius: BorderRadius.circular(AppRadius.sm),
                     ),
                     child: Text(
-                      l10n.home_delivery_fee_label(widget.restaurant.deliveryFee.toStringAsFixed(0)),
+                      l10n.home_delivery_fee_label(
+                          widget.restaurant.deliveryFee.toStringAsFixed(0)),
                       style: AppTypography.labelMedium(color: Colors.white)
                           .copyWith(fontSize: 10, fontWeight: FontWeight.w700),
                     ),
@@ -968,9 +1096,50 @@ class _RestaurantCardState extends State<_RestaurantCard> {
                       child: Text(
                         'PRO',
                         style: AppTypography.labelMedium(
-                                color: AppColors.resolve(AppColors.ink, AppDarkColors.ink))
+                                color: AppColors.resolve(
+                                    AppColors.ink, AppDarkColors.ink))
                             .copyWith(
                                 fontSize: 10, fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                  ),
+                if (widget.outOfRange)
+                  Positioned(
+                    bottom: -6,
+                    right: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x1A000000),
+                            blurRadius: 8,
+                            spreadRadius: 1,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.location_off_rounded,
+                            size: 12,
+                            color: inkColor.withValues(alpha: 0.85),
+                          ),
+                          const SizedBox(width: 3),
+                          const Text(
+                            'Hors de portée',
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xDE000000),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -983,7 +1152,8 @@ class _RestaurantCardState extends State<_RestaurantCard> {
                       width: 32,
                       height: 32,
                       decoration: BoxDecoration(
-                        color: AppColors.resolve(AppColors.card, AppDarkColors.card)
+                        color: AppColors.resolve(
+                                AppColors.card, AppDarkColors.card)
                             .withValues(alpha: 0.92),
                         shape: BoxShape.circle,
                         boxShadow: [AppShadows.subtle],
@@ -993,7 +1163,9 @@ class _RestaurantCardState extends State<_RestaurantCard> {
                             ? Icons.favorite_rounded
                             : Icons.favorite_border_rounded,
                         size: 16,
-                        color: resolvedBrand,
+                        color: widget.outOfRange
+                            ? inkColor.withValues(alpha: 0.55)
+                            : resolvedBrand,
                       ),
                     ),
                   ),
@@ -1007,23 +1179,26 @@ class _RestaurantCardState extends State<_RestaurantCard> {
                 children: [
                   Text(
                     widget.restaurant.name,
-                    style:
-                        AppTypography.titleMedium(color: colorScheme.onSurface)
-                            .copyWith(fontSize: 14),
+                    style: AppTypography.titleMedium(color: titleColor)
+                        .copyWith(fontSize: 14),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 6),
                   Row(
                     children: [
-                      Icon(Icons.star_rounded, color: resolvedAccent, size: 13),
+                      Icon(Icons.star_rounded,
+                          color: widget.outOfRange
+                              ? colorScheme.onSurface.withValues(alpha: 0.45)
+                              : resolvedAccent,
+                          size: 13),
                       const SizedBox(width: 3),
                       Text(
                         widget.restaurant.note > 0
                             ? widget.restaurant.note.toStringAsFixed(1)
                             : l10n.home_rated,
                         style: AppTypography.labelMedium(
-                                color: colorScheme.onSurface)
+                                color: titleColor.withValues(alpha: 0.85))
                             .copyWith(fontSize: 11),
                       ),
                       Container(
@@ -1032,7 +1207,7 @@ class _RestaurantCardState extends State<_RestaurantCard> {
                         height: 3,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: colorScheme.onSurface.withOpacity(0.4),
+                          color: colorScheme.onSurface.withOpacity(0.3),
                         ),
                       ),
                       Icon(Icons.schedule_rounded,
@@ -1044,7 +1219,7 @@ class _RestaurantCardState extends State<_RestaurantCard> {
                             ? widget.restaurant.openingHours
                             : l10n.home_contact,
                         style: AppTypography.labelMedium(
-                                color: colorScheme.onSurface.withOpacity(0.4))
+                                color: colorScheme.onSurface.withOpacity(0.5))
                             .copyWith(fontSize: 11),
                       ),
                     ],
@@ -1080,7 +1255,8 @@ class _EmptyRestaurants extends StatelessWidget {
             width: 72,
             height: 72,
             decoration: BoxDecoration(
-              color: AppColors.resolve(AppColors.brandSurface, AppDarkColors.brandSurface),
+              color: AppColors.resolve(
+                  AppColors.brandSurface, AppDarkColors.brandSurface),
               shape: BoxShape.circle,
             ),
             child:
@@ -1155,11 +1331,11 @@ class _RestaurantSkeleton extends StatelessWidget {
           width: 200,
           margin: const EdgeInsets.only(right: AppSpacing.md),
           decoration: BoxDecoration(
-            color:
-                AppColors.resolve(AppColors.card, AppDarkColors.card),
+            color: AppColors.resolve(AppColors.card, AppDarkColors.card),
             borderRadius: BorderRadius.circular(AppRadius.xl),
             border: Border.all(
-                color: AppColors.resolve(AppColors.border, AppDarkColors.border),
+                color:
+                    AppColors.resolve(AppColors.border, AppDarkColors.border),
                 width: 0.5),
           ),
           clipBehavior: Clip.antiAlias,
@@ -1168,7 +1344,8 @@ class _RestaurantSkeleton extends StatelessWidget {
             children: [
               Container(
                   height: 180,
-                  color: AppColors.resolve(AppColors.surfaceWarm, AppDarkColors.surfaceWarm)),
+                  color: AppColors.resolve(
+                      AppColors.surfaceWarm, AppDarkColors.surfaceWarm)),
               const Padding(
                 padding: EdgeInsets.all(12),
                 child: Column(
@@ -1217,7 +1394,8 @@ class _ShimmerBarState extends State<_ShimmerBar>
 
   @override
   Widget build(BuildContext context) {
-    final resolvedSurfaceWarm = AppColors.resolve(AppColors.surfaceWarm, AppDarkColors.surfaceWarm);
+    final resolvedSurfaceWarm =
+        AppColors.resolve(AppColors.surfaceWarm, AppDarkColors.surfaceWarm);
     final resolvedBorder =
         AppColors.resolve(AppColors.border, AppDarkColors.border);
     return AnimatedBuilder(
