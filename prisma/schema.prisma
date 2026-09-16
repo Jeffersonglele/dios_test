@@ -11,6 +11,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+/// Compte d’authentification utilisé pour la connexion et le mot de passe.
 model AuthUser {
   id             String         @id @default(uuid()) @db.Uuid
   parseObjectId  String?        @unique
@@ -36,6 +37,7 @@ model AuthUser {
   @@index([firstname])
 }
 
+/// Rôle technique d’authentification et ses règles d’accès éventuelles.
 model AuthRole {
   id            String         @id @default(uuid()) @db.Uuid
   parseObjectId String?        @unique
@@ -50,6 +52,7 @@ model AuthRole {
   @@map("auth_roles")
 }
 
+/// Table de liaison entre les comptes d’authentification et leurs rôles.
 model AuthUserRole {
   userId    String   @db.Uuid
   roleId    String   @db.Uuid
@@ -61,6 +64,7 @@ model AuthUserRole {
   @@map("auth_user_roles")
 }
 
+/// Hiérarchie entre rôles parent et rôles enfant.
 model AuthRoleLink {
   parentRoleId String   @db.Uuid
   childRoleId  String   @db.Uuid
@@ -72,8 +76,10 @@ model AuthRoleLink {
   @@map("auth_role_links")
 }
 
+/// Profil métier de l’utilisateur, séparé du compte technique `AuthUser`.
 model User {
   id             String    @id @default(uuid()) @db.Uuid
+  /// Identifiant Parse conservé pour assurer la correspondance avec l’ancien système.
   parseObjectId  String?   @unique
   userId         Int?      @unique
   firstname      String?
@@ -94,6 +100,7 @@ model User {
   parrain        String?
   cityId         Int?
   courierStatus  String?   @map("courier_status")
+  /// Position courante du livreur, stockée en géographie PostGIS.
   location       Unsupported("geography(Point,4326)")?
   locationUpdatedAt DateTime? @map("location_updated_at")
   phoneVerified  Boolean   @default(false)
@@ -111,6 +118,7 @@ model User {
   @@index([roleId])
 }
 
+/// Rôle métier historique conservé pour les données importées.
 model Role {
   id            String    @id @default(uuid()) @db.Uuid
   parseObjectId String?   @unique
@@ -125,6 +133,7 @@ model Role {
   @@map("roles")
 }
 
+/// Fichier média associé au catalogue ou à un autre objet métier.
 model Gallery {
   id            String    @id @default(uuid()) @db.Uuid
   parseObjectId String?   @unique
@@ -137,8 +146,10 @@ model Gallery {
   @@map("gallery")
 }
 
+/// Point de vente présent dans le catalogue Dios Délices.
 model Restaurant {
   id                String    @id @default(uuid()) @db.Uuid
+  /// Identifiant numérique historique utilisé par les commandes et les imports.
   parseObjectId     String?   @unique
   restaurantId      Int?      @unique
   userId            Int?
@@ -164,6 +175,7 @@ model Restaurant {
   deliveryRadius    Float?
   latitude          Float?
   longitude         Float?
+  /// Position fixe du restaurant dans PostGIS.
   location          Unsupported("geography(Point,4326)")?
   locationUpdatedAt DateTime? @map("location_updated_at")
   closedDates       String?
@@ -187,6 +199,7 @@ model Restaurant {
   @@index([cityId])
 }
 
+/// Plat vendu par un restaurant.
 model Dish {
   id            String    @id @default(uuid()) @db.Uuid
   parseObjectId String?   @unique
@@ -219,6 +232,7 @@ model Dish {
   @@index([userId])
 }
 
+/// Commentaire laissé par un utilisateur sur une cible métier.
 model Comment {
   id            String    @id @default(uuid()) @db.Uuid
   parseObjectId String?   @unique
@@ -236,6 +250,7 @@ model Comment {
   @@index([userId])
 }
 
+/// Adresse enregistrée pour un utilisateur, enrichie de coordonnées GPS.
 model Address {
   id            String    @id @default(uuid()) @db.Uuid
   parseObjectId String?   @unique
@@ -250,6 +265,7 @@ model Address {
   latitude      Float?    @map("lat")
   longitude     Float?    @map("long")
   cityId        Int?
+  /// Position GPS de l’adresse, utilisée pour vérifier la zone de livraison.
   location      Unsupported("geography(Point,4326)")?
   locationSource String?  @map("location_source")
   locationUpdatedAt DateTime? @map("location_updated_at")
@@ -262,6 +278,7 @@ model Address {
   @@index([latitude, longitude, objectType, objectId])
 }
 
+/// Dossier de vérification de l’identité d’un utilisateur.
 model Identity {
   id              String    @id @default(uuid()) @db.Uuid
   parseObjectId   String?   @unique
@@ -279,6 +296,7 @@ model Identity {
   @@index([userId])
 }
 
+/// Moyen de paiement enregistré pour un utilisateur.
 model PaymentMethod {
   id              String    @id @default(uuid()) @db.Uuid
   parseObjectId   String?   @unique
@@ -302,6 +320,7 @@ model PaymentMethod {
   @@index([userId])
 }
 
+/// Commande client, avec ses montants, son statut et ses instantanés de livraison.
 model Order {
   id                       String    @id @default(uuid()) @db.Uuid
   parseObjectId            String?   @unique
@@ -350,8 +369,11 @@ model Order {
   delivererDistancePay     Decimal?  @db.Decimal(14, 2)
   delivererEarningsStatus  String?
   deliveryDistanceKm       Decimal?  @map("delivery_distance_km") @db.Decimal(10, 3)
+  /// Copie du devis utilisé au moment de la création, pour garantir la traçabilité.
   deliveryQuoteSnapshot    Json?     @map("delivery_quote_snapshot")
+  /// Adresse client figée dans la commande, même si l’adresse est modifiée ensuite.
   deliveryAddressSnapshot  Json?     @map("delivery_address_snapshot")
+  /// Informations du point de retrait figées dans la commande.
   pickupSnapshot           Json?     @map("pickup_snapshot")
   deletedAt                DateTime?
   createdAt                DateTime  @default(now())
@@ -366,6 +388,7 @@ model Order {
   @@index([status])
 }
 
+/// Ligne d’une commande : plat, quantité, prix et options choisies.
 model OrderLine {
   id              String    @id @default(uuid()) @db.Uuid
   parseObjectId   String?   @unique
@@ -391,6 +414,7 @@ model OrderLine {
   @@index([dishId])
 }
 
+/// Message échangé entre utilisateurs, éventuellement lié à une commande.
 model Message {
   id            String    @id @default(uuid()) @db.Uuid
   parseObjectId String?   @unique
@@ -409,6 +433,7 @@ model Message {
   @@index([orderId])
 }
 
+/// Historique des connexions des utilisateurs.
 model UserLogin {
   id            String    @id @default(uuid()) @db.Uuid
   parseObjectId String?   @unique
@@ -425,6 +450,7 @@ model UserLogin {
   @@index([loginAt])
 }
 
+/// Signalement d’un contenu ou d’un objet métier par un utilisateur.
 model Report {
   id             String    @id @default(uuid()) @db.Uuid
   parseObjectId  String?   @unique
@@ -443,6 +469,7 @@ model Report {
   @@index([targetType, targetId])
 }
 
+/// Document professionnel soumis pour validation d’un restaurant ou d’un compte.
 model ProDocument {
   id                 String    @id @default(uuid()) @db.Uuid
   parseObjectId      String?   @unique
@@ -464,6 +491,7 @@ model ProDocument {
   @@index([restaurantId])
 }
 
+/// Code temporaire utilisé pour une vérification ou une réinitialisation.
 model VerificationCode {
   id            String    @id @default(uuid()) @db.Uuid
   parseObjectId String?   @unique
@@ -484,6 +512,7 @@ model VerificationCode {
   @@index([expiresAt])
 }
 
+/// Code promotionnel et règles de réduction applicables à une commande.
 model PromoCode {
   id              String    @id @default(uuid()) @db.Uuid
   parseObjectId   String?   @unique
@@ -505,6 +534,7 @@ model PromoCode {
   @@index([active, validUntil])
 }
 
+/// Catégorie affichée dans le catalogue.
 model Category {
   id            String    @id @default(uuid()) @db.Uuid
   parseObjectId String?   @unique
@@ -519,6 +549,7 @@ model Category {
   @@index([name])
 }
 
+/// Ville dans laquelle la livraison peut être activée.
 model City {
   id            String    @id @default(uuid()) @db.Uuid
   parseObjectId String?   @unique
@@ -526,6 +557,7 @@ model City {
   name          String
   country       String?
   countryCode   String    @default("CD") @map("country_code")
+  /// Limite géographique de la ville utilisée par les contrôles PostGIS.
   boundary      Unsupported("geometry(MultiPolygon,4326)")?
   deliveryEnabled Boolean @default(true) @map("delivery_enabled")
   active        Boolean   @default(true)
@@ -537,13 +569,16 @@ model City {
   @@index([country, active])
 }
 
+/// Zone de livraison rattachée à une ville et définie par un polygone.
 model DeliveryZone {
   id               String    @id @default(uuid()) @db.Uuid
   parseObjectId    String?   @unique
   zoneId           Int       @unique
   cityId           Int
   name             String
+  /// Ancien polygone JSON conservé pour compatibilité avec les données importées.
   polygon          String
+  /// Version PostGIS du polygone, utilisée pour les recherches géographiques.
   boundary         Unsupported("geometry(MultiPolygon,4326)")?
   deliveryTimeMin  Int?      @map("delivery_time_min")
   deliveryTimeMax  Int?      @map("delivery_time_max")
@@ -559,6 +594,7 @@ model DeliveryZone {
   @@index([active])
 }
 
+/// Transaction financière liée à une commande ou à un pourboire.
 model Transaction {
   id                String    @id @default(uuid()) @db.Uuid
   parseObjectId     String?   @unique
@@ -572,6 +608,7 @@ model Transaction {
   operator          String?
   phone             String?
   paymentMethod     String?
+  /// Réponse et métadonnées du prestataire, par exemple CinetPay.
   providerData      Json?
   settlementStatus  String?
   commissionRate    Float?
@@ -589,12 +626,15 @@ model Transaction {
   @@index([status])
 }
 
+/// Paramètres de calcul des frais de livraison et de la rémunération.
 model DeliveryConfig {
   id                   String    @id @default(uuid()) @db.Uuid
   parseObjectId        String?   @unique
   configId             Int       @unique
   cityId               Int?      @map("city_id")
+  /// Frais fixes appliqués au début du calcul de livraison.
   baseFee              Decimal   @db.Decimal(14, 2)
+  /// Tarif appliqué à chaque kilomètre facturable.
   perKmRate            Decimal   @db.Decimal(14, 2)
   includedDistanceKm   Decimal?  @map("included_distance_km") @db.Decimal(10, 3)
   maxDistanceKm        Decimal?  @map("max_distance_km") @db.Decimal(10, 3)
@@ -619,6 +659,7 @@ model DeliveryConfig {
   @@index([cityId, active])
 }
 
+/// Course de livraison créée à partir d’une commande.
 model Delivery {
   id                  String    @id @default(uuid()) @db.Uuid
   deliveryId          String    @unique @default(uuid()) @map("delivery_id")
@@ -626,6 +667,7 @@ model Delivery {
   cityId              Int       @map("city_id")
   restaurantId        Int?      @map("restaurant_id")
   delivererId         Int?      @map("livreur_id")
+  /// Cycle de vie de la course : SEARCHING, ASSIGNED, PICKED_UP, DELIVERED, etc.
   status              String    @default("SEARCHING")
   dispatchAttempt     Int       @default(0) @map("dispatch_attempt")
   pickupLatitude      Float?    @map("pickup_latitude")
@@ -646,12 +688,14 @@ model Delivery {
   @@index([delivererId, status])
 }
 
+/// Proposition d’une course envoyée à un livreur.
 model DeliveryOffer {
   id           String    @id @default(uuid()) @db.Uuid
   deliveryId   String    @map("delivery_id")
   delivererId  Int       @map("livreur_id")
   rank         Int
   status       String    @default("PENDING")
+  /// Date limite après laquelle l’offre n’est plus acceptée.
   expiresAt    DateTime? @map("expires_at")
   respondedAt  DateTime? @map("responded_at")
   distanceToPickupKm Decimal? @map("distance_to_pickup_km") @db.Decimal(10, 3)
@@ -663,6 +707,7 @@ model DeliveryOffer {
   @@index([delivererId, status])
 }
 
+/// Dernières positions GPS enregistrées pour les livreurs actifs.
 model CourierLocation {
   id          String    @id @default(uuid()) @db.Uuid
   delivererId Int       @map("livreur_id")
@@ -679,10 +724,13 @@ model CourierLocation {
   @@index([cityId, recordedAt])
 }
 
+/// Numéro Mobile Money enregistré par un utilisateur pour de futurs paiements.
 model MobileMoneyAccount {
   id          String    @id @default(uuid()) @db.Uuid
   userId      Int       @map("user_id")
+  /// Opérateur normalisé : MPESA, ORANGE_MONEY ou AIRTEL_MONEY.
   operator    String
+  /// Numéro au format international RDC (+243...).
   phoneE164   String    @map("phone_e164")
   label       String?
   verified    Boolean   @default(false)
@@ -695,6 +743,7 @@ model MobileMoneyAccount {
   @@index([userId, isDefault])
 }
 
+/// Compte portefeuille Dios associé à un utilisateur.
 model WalletAccount {
   id          String    @id @default(uuid()) @db.Uuid
   userId      Int       @unique @map("user_id")
@@ -706,9 +755,11 @@ model WalletAccount {
   @@map("wallet_accounts")
 }
 
+/// Écriture du grand livre du portefeuille, en débit ou en crédit.
 model WalletLedgerEntry {
   id             String    @id @default(uuid()) @db.Uuid
   walletAccountId String   @map("wallet_account_id") @db.Uuid
+  /// Sens de l’écriture : CREDIT ou DEBIT.
   direction      String
   amount         Decimal   @db.Decimal(14, 2)
   currency       String    @default("CDF")
@@ -724,6 +775,7 @@ model WalletLedgerEntry {
   @@index([walletAccountId, createdAt])
 }
 
+/// Pourboire séparé versé au livreur après une livraison réussie.
 model Tip {
   id             String    @id @default(uuid()) @db.Uuid
   orderId        Int       @map("commande_id")
@@ -743,12 +795,15 @@ model Tip {
   @@index([delivererId, status])
 }
 
+/// Notification reçue d’un prestataire de paiement, conservée pour audit et idempotence.
 model PaymentWebhookEvent {
   id             String    @id @default(uuid()) @db.Uuid
   provider       String
   externalEventId String?  @map("external_event_id")
   transactionId  String?   @map("transaction_id")
+  /// Payload original reçu du prestataire pour audit et rejeu contrôlé.
   payload        Json
+  /// Indique si la signature du webhook a été vérifiée avec succès.
   signatureValid Boolean   @map("signature_valid")
   processedAt    DateTime? @map("processed_at")
   createdAt      DateTime  @default(now())
@@ -758,8 +813,10 @@ model PaymentWebhookEvent {
   @@index([transactionId])
 }
 
+/// Résultat mis en cache d’une recherche d’adresse auprès de Nominatim.
 model GeocodingCache {
   id          String    @id @default(uuid()) @db.Uuid
+  /// Empêche de refaire plusieurs fois la même requête Nominatim.
   cacheKey    String    @unique @map("cache_key")
   provider    String    @default("nominatim")
   query       Json
@@ -767,6 +824,7 @@ model GeocodingCache {
   latitude    Float?
   longitude   Float?
   raw          Json
+  /// Date à partir de laquelle le résultat doit être recalculé.
   expiresAt   DateTime  @map("expires_at")
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -775,6 +833,7 @@ model GeocodingCache {
   @@index([expiresAt])
 }
 
+/// Trace d’audit d’une action importante réalisée dans l’application.
 model AuditLog {
   id            String    @id @default(uuid()) @db.Uuid
   parseObjectId String?   @unique
@@ -791,6 +850,7 @@ model AuditLog {
   @@index([action])
 }
 
+/// Facture générée à partir d’une commande.
 model Invoice {
   id                String    @id @default(uuid()) @db.Uuid
   parseObjectId     String?   @unique
@@ -820,6 +880,7 @@ model Invoice {
   @@index([restaurantId])
 }
 
+/// Paiement périodique dû à un restaurant.
 model RestaurantPayout {
   id                   String    @id @default(uuid()) @db.Uuid
   parseObjectId        String?   @unique
@@ -854,6 +915,7 @@ model RestaurantPayout {
   @@index([weekStart, weekEnd])
 }
 
+/// Paiement périodique dû à un livreur.
 model DelivererPayout {
   id               String    @id @default(uuid()) @db.Uuid
   parseObjectId    String?   @unique
@@ -884,6 +946,7 @@ model DelivererPayout {
   @@index([weekStart, weekEnd])
 }
 
+/// Abonnement souscrit par un restaurant.
 model Subscription {
   id             String    @id @default(uuid()) @db.Uuid
   parseObjectId  String?   @unique
