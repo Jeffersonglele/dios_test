@@ -10,17 +10,21 @@ workflows:
       groups:
         - ios_credentials
     scripts:
-      - name: Set up Flutter and dependencies
+      - name: Get Flutter dependencies
         script: |
-          flutter doctor
-          flutter packages pub get
+          set -e
+          flutter doctor -v
+          flutter pub get
+          test -f ios/Flutter/Generated.xcconfig
       - name: Install CocoaPods
         script: |
-          cd ios && pod install
-      - name: Build iOS IPA (Unsigned / Release)
+          set -e
+          cd ios
+          pod install
+      - name: Build iOS IPA
         script: |
-          # Génère un fichier .ipa sans nécessiter de compte développeur Apple payant immédiatement
-          flutter build ipa --no-codesign
+          set -e
+          flutter build ipa --release --no-codesign
     artifacts:
       - build/ios/ipa/*.ipa
       - build/ios/iphoneos/*.app

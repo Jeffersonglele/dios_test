@@ -31,9 +31,12 @@ import 'services/notification_service.dart';
 import 'services/session_service.dart';
 import 'theme/app_theme.dart';
 import 'theme/theme_provider.dart';
+import 'core/device_info.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await DeviceInfo.init();
 
   // Configuration de la barre système
   SystemChrome.setEnabledSystemUIMode(

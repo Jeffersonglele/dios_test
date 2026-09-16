@@ -29,16 +29,19 @@ class _CurvedNavigationRestauState extends State<CurvedNavigationRestau> {
       icon: Icon(Icons.home_outlined),
       activeIcon: Icon(Icons.home),
       label: 'Accueil',
+      iosSystemName: 'house.fill',
     ),
     DiosNavItem(
       icon: Icon(Icons.menu_book_outlined),
       activeIcon: Icon(Icons.menu_book),
       label: 'Menu',
+      iosSystemName: 'book.fill',
     ),
     DiosNavItem(
       icon: Icon(Icons.store_outlined),
       activeIcon: Icon(Icons.store),
       label: 'Boutique',
+      iosSystemName: 'storefront.fill',
     ),
   ];
 

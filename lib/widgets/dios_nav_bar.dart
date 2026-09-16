@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../core/device_info.dart';
 import '../theme/app_theme.dart';
 
 /// Barre de navigation inférieure signature Dios Délices
@@ -23,6 +25,10 @@ class DiosNavBar extends StatefulWidget {
 
 class _DiosNavBarState extends State<DiosNavBar>
     with SingleTickerProviderStateMixin {
+  static const _channel = MethodChannel('app.navbar/navigate');
+  static final List<_DiosNavBarState> _activeStates = [];
+  static bool _handlerInitialized = false;
+
   late AnimationController _indicatorController;
   int _previousIndex = 0;
 
@@ -35,6 +41,26 @@ class _DiosNavBarState extends State<DiosNavBar>
       duration: AppMotion.normal,
     );
     _indicatorController.value = 1.0;
+
+    if (DeviceInfo.instance.useNativeIOSNavBar) {
+      _activeStates.add(this);
+      _initNativeHandler();
+    }
+  }
+
+  static void _initNativeHandler() {
+    if (_handlerInitialized) return;
+    _handlerInitialized = true;
+    _channel.setMethodCallHandler((call) async {
+      if (_activeStates.isEmpty) return;
+      final activeState = _activeStates.last;
+      if (!activeState.mounted || call.method != 'selectIndex') return;
+
+      final index = call.arguments as int?;
+      if (index != null && index >= 0 && index < activeState.widget.items.length) {
+        activeState.widget.onTap(index);
+      }
+    });
   }
 
   @override
@@ -46,16 +72,25 @@ class _DiosNavBarState extends State<DiosNavBar>
         ..reset()
         ..forward();
     }
+    if (DeviceInfo.instance.useNativeIOSNavBar &&
+        oldWidget.currentIndex != widget.currentIndex) {
+      _channel.invokeMethod('updateIndex', widget.currentIndex);
+    }
   }
 
   @override
   void dispose() {
     _indicatorController.dispose();
+    _activeStates.remove(this);
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (DeviceInfo.instance.useNativeIOSNavBar) {
+      return _buildLiquidGlass(context);
+    }
+
     final bottomPadding = MediaQuery.of(context).padding.bottom;
     final hasProminent = widget.prominentIndex != null;
 
@@ -96,6 +131,33 @@ class _DiosNavBarState extends State<DiosNavBar>
             );
           }),
         ),
+      ),
+    );
+  }
+
+  Widget _buildLiquidGlass(BuildContext context) {
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
+
+    return SizedBox(
+      height: 72 + bottomPadding + 12,
+      child: UiKitView(
+        viewType: 'liquid_glass_navbar',
+        layoutDirection: TextDirection.ltr,
+        creationParams: {
+          'currentIndex': widget.currentIndex,
+          'items': widget.items
+              .asMap()
+              .entries
+              .map(
+                (entry) => {
+                  'index': entry.key,
+                  'icon': entry.value.iosSystemName ?? 'circle.fill',
+                  'label': entry.value.label,
+                },
+              )
+              .toList(),
+        },
+        creationParamsCodec: const StandardMessageCodec(),
       ),
     );
   }
@@ -224,9 +286,11 @@ class DiosNavItem {
     required this.icon,
     required this.activeIcon,
     required this.label,
+    this.iosSystemName,
   });
 
   final Widget icon;
   final Widget activeIcon;
   final String label;
+  final String? iosSystemName;
 }

@@ -31,21 +31,25 @@ class _CurvedNavigationUserState extends State<CurvedNavigationUser> {
       icon: Icon(Icons.home_outlined),
       activeIcon: Icon(Icons.home),
       label: 'Accueil',
+      iosSystemName: 'house.fill',
     ),
     DiosNavItem(
       icon: Icon(Icons.shopping_cart_outlined),
       activeIcon: Icon(Icons.shopping_cart),
       label: 'Panier',
+      iosSystemName: 'cart.fill',
     ),
     DiosNavItem(
       icon: Icon(Icons.favorite_border),
       activeIcon: Icon(Icons.favorite),
       label: 'Favoris',
+      iosSystemName: 'heart.fill',
     ),
     DiosNavItem(
       icon: Icon(Icons.store_outlined),
       activeIcon: Icon(Icons.store),
       label: 'Profil',
+      iosSystemName: 'storefront.fill',
     ),
   ];
 
