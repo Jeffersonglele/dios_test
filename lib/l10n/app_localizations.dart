@@ -5991,6 +5991,36 @@ abstract class AppLocalizations {
   /// **'Checking delivery zone...'**
   String get cart_address_zone_checking;
 
+  /// No description provided for @cart_delivery_to.
+  ///
+  /// In en, this message translates to:
+  /// **'Deliver to'**
+  String get cart_delivery_to;
+
+  /// No description provided for @cart_choose_current_location.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose an address or use your current location.'**
+  String get cart_choose_current_location;
+
+  /// No description provided for @cart_current_location.
+  ///
+  /// In en, this message translates to:
+  /// **'My current location'**
+  String get cart_current_location;
+
+  /// No description provided for @cart_location_in_progress.
+  ///
+  /// In en, this message translates to:
+  /// **'Finding your location...'**
+  String get cart_location_in_progress;
+
+  /// No description provided for @cart_location_saved.
+  ///
+  /// In en, this message translates to:
+  /// **'Location saved for this order'**
+  String get cart_location_saved;
+
   /// No description provided for @restaurant_form_payment_method.
   ///
   /// In en, this message translates to:

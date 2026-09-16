@@ -78,9 +78,9 @@ class ProDocument extends HiveObject {
     int? documentID,
     required int userID,
     required int restaurantID,
-    ParseFile? siret,
-    ParseFile? kbis,
-    ParseFile? pieceIdentite,
+    ParseFileBase? siret,
+    ParseFileBase? kbis,
+    ParseFileBase? pieceIdentite,
     String? description,
   }) async {
     String functionName = documentID == null
@@ -88,10 +88,10 @@ class ProDocument extends HiveObject {
         : 'updateRestaurantProDocuments';
     var cloudFunction = ParseCloudFunction(functionName);
 
-    Future<String?> uploadFile(ParseFile file) async {
+    Future<String?> uploadFile(ParseFileBase file) async {
       final response = await file.save();
       if (response.success && response.result != null) {
-        return (response.result as ParseFile).url ?? '';
+        return (response.result as ParseFileBase).url ?? '';
       }
       return null;
     }

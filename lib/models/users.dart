@@ -249,7 +249,7 @@ class Users extends HiveObject {
     int cityID = 1,
     String country = "",
     DateTime? last_login,
-    ParseFile? image,
+    ParseFileBase? image,
     String? birthDate,
     bool consentRGPD = false,
     String? consentDate,
@@ -265,7 +265,7 @@ class Users extends HiveObject {
     if (image != null) {
       final response = await image.save();
       if (response.success && response.result != null) {
-        imageUrl = (response.result as ParseFile).url ?? "";
+        imageUrl = (response.result as ParseFileBase).url ?? "";
       } else {
         return "Erreur lors de l'upload de l'image: ${response.error?.message}";
       }

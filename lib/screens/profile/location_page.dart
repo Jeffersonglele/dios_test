@@ -27,6 +27,8 @@ class _LocationPageState extends ConsumerState<LocationPage> {
   bool addressExists = false;
   bool _isLocating = false;
   bool _isSaving = false;
+  String? _detectedCity;
+  String? _detectedCountry;
 
   TextEditingController locationController = TextEditingController();
   TextEditingController cityController = TextEditingController();
@@ -102,8 +104,6 @@ class _LocationPageState extends ConsumerState<LocationPage> {
         return;
       }
 
-      setState(() => position = newPosition);
-
       print('Trying to get address from coordinates...');
       List<Placemark> placeMarks = [];
       try {
@@ -118,18 +118,37 @@ class _LocationPageState extends ConsumerState<LocationPage> {
         Placemark pMarks = placeMarks[0];
         print('Placemark: $pMarks');
 
-        completeAddress =
-            '${pMarks.thoroughfare ?? ''}, ${pMarks.locality ?? ''}, ${pMarks.administrativeArea ?? ''}, ${pMarks.country ?? ''}'
-                .replaceAll(RegExp(r'^,\s*|\s*,\s*$'), '');
+        _detectedCity = _firstNonEmpty([
+          pMarks.locality,
+          pMarks.subAdministrativeArea,
+          pMarks.administrativeArea,
+        ]);
+        _detectedCountry = _firstNonEmpty([pMarks.country]);
+        completeAddress = _joinAddressParts([
+          pMarks.thoroughfare,
+          pMarks.subLocality,
+          pMarks.locality,
+          pMarks.administrativeArea,
+          pMarks.country,
+        ]);
+        // Certains résultats de géocodage contiennent des champs vides.
+        // Les coordonnées restent néanmoins une adresse de livraison valide.
+        if (completeAddress!.isEmpty) {
+          completeAddress = _gpsAddress(newPosition);
+        }
         locationController.text = completeAddress!;
         print('Complete address: $completeAddress');
       } else {
         print('No placemarks found');
+        _setGpsAddress(newPosition);
         if (mounted) {
           Toast(
-              context, 'Position détectée, mais pas d\'adresse trouvée', false);
+              context,
+              'Position GPS détectée. L\'adresse exacte est indisponible.',
+              false);
         }
       }
+      if (mounted) setState(() => position = newPosition);
     } catch (e) {
       print('Unexpected error: $e');
       if (mounted) {
@@ -150,18 +169,66 @@ class _LocationPageState extends ConsumerState<LocationPage> {
     return parts.length > 3 ? parts[3] : null;
   }
 
+  String? _firstNonEmpty(List<String?> values) {
+    for (final value in values) {
+      if (value != null && value.trim().isNotEmpty) return value.trim();
+    }
+    return null;
+  }
+
+  String _joinAddressParts(List<String?> values) {
+    final parts = <String>[];
+    for (final value in values) {
+      if (value == null || value.trim().isEmpty) continue;
+      final part = value.trim();
+      if (!parts.any((existing) =>
+          existing.toLowerCase() == part.toLowerCase())) {
+        parts.add(part);
+      }
+    }
+    return parts.join(', ');
+  }
+
+  String _gpsAddress(Position gpsPosition) =>
+      'Position GPS : ${gpsPosition.latitude.toStringAsFixed(6)}, '
+      '${gpsPosition.longitude.toStringAsFixed(6)}';
+
+  void _setGpsAddress(Position gpsPosition) {
+    _detectedCity = null;
+    _detectedCountry = null;
+    completeAddress = _gpsAddress(gpsPosition);
+    locationController.text = completeAddress!;
+  }
+
   void saveDetectedAddress() async {
     final session = await SessionService.readSession();
     final userCountry = session.country.trim().toLowerCase();
-    final city = _extractCity() ?? cityController.text;
-    final state = _extractState() ?? stateController.text;
+    final city = _firstNonEmpty([
+          _detectedCity,
+          _extractCity(),
+          cityController.text,
+        ]) ??
+        '';
+    final state = _firstNonEmpty([
+          _detectedCountry,
+          _extractState(),
+          stateController.text,
+          session.country,
+        ]) ??
+        '';
     final fullAddress =
-        locationController.text.isNotEmpty ? locationController.text : '';
+        locationController.text.isNotEmpty
+            ? locationController.text
+            : position == null
+                ? ''
+                : _gpsAddress(position!);
     final lat = position?.latitude.toString();
     final long = position?.longitude.toString();
 
     // Vérifier que le pays détecté correspond au pays de l'utilisateur
-    if (state.trim().isNotEmpty && userCountry.isNotEmpty) {
+    if (_detectedCountry != null &&
+        state.trim().isNotEmpty &&
+        userCountry.isNotEmpty) {
       final stateLower = state.trim().toLowerCase();
       if (!stateLower.contains(userCountry) &&
           !userCountry.contains(stateLower)) {
@@ -365,6 +432,8 @@ class _LocationPageState extends ConsumerState<LocationPage> {
                             locationController.clear();
                             position = null;
                             completeAddress = null;
+                            _detectedCity = null;
+                            _detectedCountry = null;
                             setState(() {});
                           },
                         )
@@ -383,6 +452,8 @@ class _LocationPageState extends ConsumerState<LocationPage> {
                         locationController.clear();
                         position = null;
                         completeAddress = null;
+                        _detectedCity = null;
+                        _detectedCountry = null;
                       }
                     });
                   },
@@ -457,8 +528,7 @@ class _LocationPageState extends ConsumerState<LocationPage> {
                   onPressed: _isSaving
                       ? null
                       : () async {
-                          final hasDetected =
-                              locationController.text.isNotEmpty;
+                          final hasDetected = position != null;
                           final hasManual =
                               fullAddressController.text.isNotEmpty ||
                                   cityController.text.isNotEmpty ||

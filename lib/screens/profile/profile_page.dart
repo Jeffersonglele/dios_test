@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:dios_delices/l10n/app_localizations.dart';
 import 'package:dios_delices/models/users.dart';
 import 'package:dios_delices/models/address.dart';
@@ -10,6 +9,7 @@ import 'package:dios_delices/screens/profile/location_page.dart';
 import 'package:dios_delices/screens/orders/user_orders_page.dart';
 import 'package:dios_delices/utils/image_picker_helper.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -19,7 +19,7 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   Users? _user;
-  File? _newPhoto;
+  XFile? _newPhoto;
   String _address = '';
   bool _isAdmin = false;
 
@@ -99,7 +99,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   radius: 42,
                   backgroundColor: AppColors.brandSurface,
                   child: _newPhoto != null
-                      ? ClipOval(child: Image.file(_newPhoto!, width: 84, height: 84, fit: BoxFit.cover))
+                      ? ClipOval(child: pickedImagePreview(_newPhoto!, width: 84, height: 84, fit: BoxFit.cover))
                       : user.image.isNotEmpty
                           ? ClipOval(child: Image.memory(const Base64Decoder().convert(user.image), width: 84, height: 84, fit: BoxFit.cover))
                           : Text('${user.firstname.isNotEmpty ? user.firstname[0] : ''}${user.lastname.isNotEmpty ? user.lastname[0] : ''}'.toUpperCase(),
@@ -170,7 +170,9 @@ class _ProfilePageState extends State<ProfilePage> {
                 lastname: lastnameCtrl.text.trim(),
                 email: emailCtrl.text.trim(),
                 telephone: phoneCtrl.text.trim(),
-                image: _newPhoto != null ? base64Encode(_newPhoto!.readAsBytesSync()) : null,
+                image: _newPhoto != null
+                    ? base64Encode(await _newPhoto!.readAsBytes())
+                    : null,
               );
               if (!ctx.mounted) return;
               Navigator.pop(ctx, result == 'success');

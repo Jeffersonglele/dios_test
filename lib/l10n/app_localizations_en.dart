@@ -3180,6 +3180,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cart_address_zone_checking => 'Checking delivery zone...';
 
   @override
+  String get cart_delivery_to => 'Deliver to';
+
+  @override
+  String get cart_choose_current_location =>
+      'Choose an address or use your current location.';
+
+  @override
+  String get cart_current_location => 'My current location';
+
+  @override
+  String get cart_location_in_progress => 'Finding your location...';
+
+  @override
+  String get cart_location_saved => 'Location saved for this order';
+
+  @override
   String get restaurant_form_payment_method => 'Payment method';
 
   @override

@@ -1,6 +1,6 @@
-import 'dart:io';
 import 'package:dios_delices/models/dish.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
@@ -38,7 +38,7 @@ class _DishFormPageState extends ConsumerState<DishFormPage> {
   final TextEditingController _priceController = TextEditingController();
   final TextEditingController _nbServingsController = TextEditingController();
   List<DishOption> _options = [];
-  List<File> _selectedImages = [];
+  List<XFile> _selectedImages = [];
   int _dishRestauID = 0;
 
   @override
@@ -218,20 +218,20 @@ class _DishFormPageState extends ConsumerState<DishFormPage> {
       }
 
       // Préparation des images
-      ParseFile? parseFile;
-      List<ParseFile> extraImages = [];
+      ParseFileBase? parseFile;
+      List<ParseFileBase> extraImages = [];
       if (_selectedImages.isNotEmpty) {
         String baseName = _nameController.text.replaceAll(RegExp(r'\s+'), '_');
         String extension = p.extension(_selectedImages.first.path);
         String newFileName =
             "${baseName}_${DateTime.now().millisecondsSinceEpoch}$extension";
-        parseFile = ParseFile(_selectedImages.first, name: newFileName);
+        parseFile = ParseXFile(_selectedImages.first, name: newFileName);
 
         for (int i = 1; i < _selectedImages.length; i++) {
           String ext = p.extension(_selectedImages[i].path);
           String name =
               "${baseName}_${DateTime.now().millisecondsSinceEpoch}_$i$ext";
-          extraImages.add(ParseFile(_selectedImages[i], name: name));
+          extraImages.add(ParseXFile(_selectedImages[i], name: name));
         }
       }
 
@@ -527,7 +527,7 @@ class _DishFormPageState extends ConsumerState<DishFormPage> {
                   children: [
                     ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: Image.file(
+                      child: pickedImagePreview(
                         _selectedImages[index],
                         height: 100, width: 100,
                         fit: BoxFit.cover,

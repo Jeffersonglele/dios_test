@@ -63,12 +63,6 @@ class _SignUpViewState extends State<SignUpView> {
     'Bénin': '🇧🇯',
     "Côte d'Ivoire": '🇨🇮',
   };
-  static const Map<String, int> _phoneLengths = {
-    'France': 10,
-    'Bénin': 10,
-    "Côte d'Ivoire": 8,
-  };
-
   final _formKey = GlobalKey<FormState>();
   final _simpleUIController = SimpleUIController();
 
@@ -100,12 +94,20 @@ class _SignUpViewState extends State<SignUpView> {
       final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.low, timeLimit: const Duration(seconds: 5));
       final placemarks = await placemarkFromCoordinates(pos.latitude, pos.longitude);
       if (placemarks.isNotEmpty) {
-        final country = placemarks.first.country ?? '';
-        for (final c in _countryCodes.keys) {
-          if (country.toLowerCase().contains(c.toLowerCase()) || c.toLowerCase().contains(country.toLowerCase())) {
-            if (mounted) setState(() { _selectedCountry = c; _isDetectingCountry = false; });
-            return;
-          }
+        final country = (placemarks.first.country ?? '').toLowerCase();
+        final detectedCountry = country.contains('benin') || country.contains('bénin')
+            ? 'Bénin'
+            : country.contains('ivoire')
+                ? "Côte d'Ivoire"
+                : country.contains('france')
+                    ? 'France'
+                    : null;
+        if (detectedCountry != null && mounted) {
+          setState(() {
+            _selectedCountry = detectedCountry;
+            _isDetectingCountry = false;
+          });
+          return;
         }
       }
     } catch (_) {}
@@ -264,21 +266,21 @@ class _SignUpViewState extends State<SignUpView> {
                 controller: _telephoneCtrl,
                 keyboardType: TextInputType.number,
                 style: AppTypography.bodyLarge(color: colorScheme.onSurface),
-                inputFormatters: _selectedCountry == 'Bénin'
-                    ? [BeninPhoneInputFormatter()]
-                    : [FilteringTextInputFormatter.digitsOnly],
+                inputFormatters: [
+                  CountryPhoneInputFormatter(_selectedCountry),
+                ],
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.phone_outlined),
-                  hintText: _selectedCountry == 'Bénin'
-                      ? '01 xx xx xx xx'
-                      : AppLocalizations.of(context)!.phone_number,
+                  hintText: phoneExampleForCountry(_selectedCountry),
                 ),
                 validator: (v) {
                   if (v == null || v.isEmpty) return AppLocalizations.of(context)!.enter_phone;
-                  if (_selectedCountry == 'Bénin' && !isValidBeninLocalPhone(v))
-                    return AppLocalizations.of(context)!.benin_phone_format;
-                  if (phoneDigits(v).length != _phoneLengths[_selectedCountry]!)
-                    return '${_phoneLengths[_selectedCountry]} ${AppLocalizations.of(context)!.benin_phone_format}';
+                  if (!isValidLocalPhoneForCountry(
+                    phone: v,
+                    country: _selectedCountry,
+                  )) {
+                    return 'Format : ${phoneExampleForCountry(_selectedCountry)}';
+                  }
                   return null;
                 },
               );
@@ -388,7 +390,10 @@ class _SignUpViewState extends State<SignUpView> {
                   lastname: _lastnameCtrl.text,
                   username: _usernameCtrl.text,
                   email: _emailCtrl.text,
-                  telephone: phoneDigits(_telephoneCtrl.text),
+                  telephone: phoneStorageFormatForCountry(
+                    phone: _telephoneCtrl.text,
+                    country: _selectedCountry,
+                  ),
                   country: _selectedCountry,
                   status: '',
                   identity: '',
@@ -411,7 +416,10 @@ class _SignUpViewState extends State<SignUpView> {
                           username: _usernameCtrl.text,
                           userID: result,
                           roleID: _signupRole,
-                          telephone: phoneDigits(_telephoneCtrl.text),
+                          telephone: phoneStorageFormatForCountry(
+                            phone: _telephoneCtrl.text,
+                            country: _selectedCountry,
+                          ),
                           password_crypte: encrypted,
                           password: _passwordCtrl.text,
                           firstname: _firstnameCtrl.text,
@@ -454,7 +462,10 @@ class _SignUpViewState extends State<SignUpView> {
         lastname: _lastnameCtrl.text,
         username: _usernameCtrl.text,
         email: _emailCtrl.text,
-        telephone: phoneDigits(_telephoneCtrl.text),
+        telephone: phoneStorageFormatForCountry(
+          phone: _telephoneCtrl.text,
+          country: _selectedCountry,
+        ),
         country: _selectedCountry,
         status: '',
         identity: '',

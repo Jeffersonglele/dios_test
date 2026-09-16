@@ -1,4 +1,3 @@
-import 'dart:io';
 
 import 'package:dios_delices/l10n/app_localizations.dart';
 import 'package:dios_delices/screens/onboarding/identity_created.dart';
@@ -39,8 +38,8 @@ class _UserIdentityRejectedState extends ConsumerState<UserIdentityRejected> {
   late Users current_user;
   late Identity current_identity;
 
-  File? _userPhoto;
-  File? _identityFile;
+  XFile? _userPhoto;
+  XFile? _identityFile;
 
   bool isLoading = true;
 
@@ -102,7 +101,7 @@ class _UserIdentityRejectedState extends ConsumerState<UserIdentityRejected> {
       final XFile? image = await picker.pickImage(source: ImageSource.camera);
       if (image != null && mounted) {
         final confirmed =
-            await showImageConfirmDialog(context, File(image.path));
+            await showImageConfirmDialog(context, image);
         if (confirmed != null && mounted) {
           setState(() => _userPhoto = confirmed);
         }
@@ -121,7 +120,7 @@ class _UserIdentityRejectedState extends ConsumerState<UserIdentityRejected> {
 
       if (image != null && mounted) {
         final confirmed =
-            await showImageConfirmDialog(context, File(image.path));
+            await showImageConfirmDialog(context, image);
         if (confirmed != null && mounted) {
           setState(() => _userPhoto = confirmed);
         }
@@ -137,11 +136,13 @@ class _UserIdentityRejectedState extends ConsumerState<UserIdentityRejected> {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['jpg', 'jpeg', 'png'],
+      withData: true,
     );
 
-    if (result?.files.single.path != null) {
+    final file = result?.files.single;
+    if (file?.bytes != null) {
       setState(() {
-        _userPhoto = File(result!.files.single.path!);
+        _userPhoto = XFile.fromData(file!.bytes!, name: file.name);
       });
     }
   }
@@ -188,7 +189,7 @@ class _UserIdentityRejectedState extends ConsumerState<UserIdentityRejected> {
 
       if (image != null && mounted) {
         final confirmed =
-            await showImageConfirmDialog(context, File(image.path));
+            await showImageConfirmDialog(context, image);
         if (confirmed != null && mounted) {
           setState(() => _identityFile = confirmed);
         }
@@ -204,22 +205,24 @@ class _UserIdentityRejectedState extends ConsumerState<UserIdentityRejected> {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
+      withData: true,
     );
-    if (result != null) {
+    final file = result?.files.single;
+    if (file?.bytes != null) {
       setState(() {
-        _identityFile = File(result.files.single.path!);
+        _identityFile = XFile.fromData(file!.bytes!, name: file.name);
       });
     }
   }
 
-  bool _isPdf(File file) {
-    return p.extension(file.path).toLowerCase() == '.pdf';
+  bool _isPdf(XFile file) {
+    return p.extension(file.name).toLowerCase() == '.pdf';
   }
 
-  Widget _buildImagePreview(File file, {double size = 120}) {
+  Widget _buildImagePreview(XFile file, {double size = 120}) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
-      child: Image.file(
+      child: pickedImagePreview(
         file,
         width: size,
         height: size,
@@ -228,8 +231,8 @@ class _UserIdentityRejectedState extends ConsumerState<UserIdentityRejected> {
     );
   }
 
-  Widget _buildIdentityPreview(File file) {
-    final fileName = p.basename(file.path);
+  Widget _buildIdentityPreview(XFile file) {
+    final fileName = file.name;
 
     if (_isPdf(file)) {
       return Column(
@@ -242,7 +245,12 @@ class _UserIdentityRejectedState extends ConsumerState<UserIdentityRejected> {
               border: Border.all(color: Colors.black12),
             ),
             clipBehavior: Clip.antiAlias,
-            child: SfPdfViewer.file(file),
+            child: FutureBuilder(
+              future: file.readAsBytes(),
+              builder: (context, snapshot) => snapshot.hasData
+                  ? SfPdfViewer.memory(snapshot.data!)
+                  : const Center(child: CircularProgressIndicator()),
+            ),
           ),
           const SizedBox(height: 8),
           Text(
@@ -451,8 +459,8 @@ class _UserIdentityRejectedState extends ConsumerState<UserIdentityRejected> {
                               );
                               return;
                             } else {
-                              ParseFile? parseFile_userPhoto;
-                              ParseFile? parseFile_identityFile;
+                              ParseFileBase? parseFile_userPhoto;
+                              ParseFileBase? parseFile_identityFile;
 
                               String userPhoto_newFileName =
                                   current_identity.photo ?? "";
@@ -469,8 +477,8 @@ class _UserIdentityRejectedState extends ConsumerState<UserIdentityRejected> {
                                 userPhoto_newFileName =
                                     "$nom_userPhoto$extension_userPhoto";
 
-                                parseFile_userPhoto = ParseFile(
-                                    File(_userPhoto!.path),
+                                parseFile_userPhoto = ParseXFile(
+                                    _userPhoto!,
                                     name: userPhoto_newFileName);
                               }
 
@@ -484,7 +492,7 @@ class _UserIdentityRejectedState extends ConsumerState<UserIdentityRejected> {
                                 piece_newFileName =
                                     "$nomPiece$extension_identityFile";
 
-                                parseFile_identityFile = ParseFile(
+                                parseFile_identityFile = ParseXFile(
                                     _identityFile,
                                     name: piece_newFileName);
                               }

@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
-import 'package:geocoding/geocoding.dart' as geocoding;
+import 'package:geolocator/geolocator.dart';
 
 import '../../config/app_config.dart';
 import '../../l10n/app_localizations.dart';
@@ -44,6 +44,7 @@ class _CartState extends ConsumerState<Cart> {
   PromoApplication? _appliedPromo;
   bool _isSubmittingPayment = false;
   bool _payOnline = false;
+  bool _isUsingCurrentLocation = false;
 
   delivery.Address? selectedAddress;
   List<delivery.Address> addresses = [];
@@ -67,13 +68,17 @@ class _CartState extends ConsumerState<Cart> {
 
   Future<void> loadData() async {
     final session = await SessionService.readSession();
+    await ref.read(cartStateProvider.notifier).activateUser(session.userId);
     final addressesList = await delivery.Address.fetchAddressesFromDB();
+    if (!mounted) return;
     setState(() {
       addresses = addressesList;
       current_userID = session.userId;
       current_user_role = session.role.id;
+      selectedAddress = null;
     });
     final user = await DatabaseHelper.getUser(current_userID);
+    if (!mounted) return;
     _cityID = user?.cityID ?? 1;
     await _filterAddresses();
   }
@@ -93,6 +98,144 @@ class _CartState extends ConsumerState<Cart> {
     final list = await delivery.Address.fetchAddressesFromDB();
     setState(() => addresses = list);
     await _filterAddresses();
+  }
+
+  String _firstText(List<dynamic> values) {
+    for (final value in values) {
+      final text = value?.toString().trim() ?? '';
+      if (text.isNotEmpty) return text;
+    }
+    return '';
+  }
+
+  Future<delivery.Address?> _findNearbySavedAddress(
+    Position position,
+  ) async {
+    final savedAddresses = await delivery.Address.fetchAddressesFromDB();
+    for (final address in savedAddresses) {
+      if (address.objectID != current_userID ||
+          (address.object != 'Livraison' && address.object != 'User')) {
+        continue;
+      }
+      final lat = double.tryParse(address.lat ?? '');
+      final lng = double.tryParse(address.long ?? '');
+      if (lat == null || lng == null) continue;
+      if (Geolocator.distanceBetween(
+            position.latitude,
+            position.longitude,
+            lat,
+            lng,
+          ) <=
+          25) {
+        return address;
+      }
+    }
+    return null;
+  }
+
+  Future<void> _useCurrentLocation() async {
+    if (_isUsingCurrentLocation) return;
+    final l10n = AppLocalizations.of(context)!;
+    setState(() => _isUsingCurrentLocation = true);
+    try {
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        Toast(context, l10n.location_disabled, false);
+        return;
+      }
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        Toast(context, l10n.location_disabled, false);
+        return;
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 15),
+      );
+
+      final nearbyAddress = await _findNearbySavedAddress(position);
+      if (nearbyAddress != null) {
+        await refreshAddresses();
+        if (mounted) setState(() => selectedAddress = nearbyAddress);
+        return;
+      }
+
+      Map<String, dynamic> geocoded = {};
+      try {
+        final response = await ParseCloudFunction(
+          'reverseGeocodeDeliveryLocation',
+        ).execute(parameters: {
+          'lat': position.latitude,
+          'lng': position.longitude,
+        });
+        if (response.success && response.result is Map) {
+          geocoded = Map<String, dynamic>.from(response.result as Map);
+        }
+      } catch (_) {
+        // Les coordonnées GPS suffisent à créer une adresse livrable :
+        // Nominatim reste un enrichissement, pas un point de blocage.
+      }
+
+      final fallbackAddress = 'Position GPS : '
+          '${position.latitude.toStringAsFixed(6)}, '
+          '${position.longitude.toStringAsFixed(6)}';
+      final fullAddress = _firstText([
+        geocoded['displayName'],
+        fallbackAddress,
+      ]);
+      final city = _firstText([geocoded['city'], geocoded['district']]);
+      final state = _firstText([
+        geocoded['district'],
+        geocoded['department'],
+        geocoded['country'],
+      ]);
+
+      final result = await delivery.Address.manageAddress(
+        city: city,
+        state: state,
+        fullAddress: fullAddress,
+        lat: position.latitude.toString(),
+        long: position.longitude.toString(),
+        object: 'Livraison',
+        objectID: current_userID,
+        user_roleID: current_user_role,
+      );
+
+      await refreshAddresses();
+      if (result is int) {
+        final saved = addresses.where((address) => address.addressID == result);
+        if (mounted) {
+          setState(() {
+            selectedAddress = saved.isNotEmpty
+                ? saved.first
+                : delivery.Address(
+                    addressID: result,
+                    object: 'Livraison',
+                    objectID: current_userID,
+                    city: city,
+                    state: state,
+                    fullAddress: fullAddress,
+                    lat: position.latitude.toString(),
+                    long: position.longitude.toString(),
+                  );
+          });
+        }
+      } else if (result == 'EXISTING_ADDRESS') {
+        final existing = await _findNearbySavedAddress(position);
+        if (mounted && existing != null) setState(() => selectedAddress = existing);
+      } else {
+        Toast(context, l10n.location_detect_failed, false);
+      }
+    } catch (_) {
+      if (mounted) Toast(context, l10n.location_detect_failed, false);
+    } finally {
+      if (mounted) setState(() => _isUsingCurrentLocation = false);
+    }
   }
 
   double _staticDeliveryFee(List<Map<String, dynamic>> cartItems) {
@@ -301,14 +444,67 @@ class _CartState extends ConsumerState<Cart> {
                   ),
                   if (safeOption == kDeliveryOptionLivraison) ...[
                     const SizedBox(height: 12),
-                    SizedBox(
+                    Container(
                       width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () => _showAddressPicker(),
-                        icon: const Icon(Icons.location_on_outlined, size: 18),
-                        label: Text(selectedAddress != null
-                            ? l10n.cart_change_address
-                            : l10n.cart_choose_address),
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AppColors.brandSurface,
+                        borderRadius: BorderRadius.circular(AppRadius.lg),
+                        border: Border.all(
+                          color: AppColors.brand.withValues(alpha: 0.18),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            l10n.cart_delivery_to,
+                            style: AppTypography.titleSmall(),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            selectedAddress?.fullAddress ??
+                                l10n.cart_choose_current_location,
+                            style: AppTypography.bodyMedium(
+                              color: AppColors.inkMuted,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: _isUsingCurrentLocation
+                                      ? null
+                                      : _useCurrentLocation,
+                                  icon: _isUsingCurrentLocation
+                                      ? const SizedBox(
+                                          height: 18,
+                                          width: 18,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : const Icon(Icons.my_location_rounded,
+                                          size: 18),
+                                  label: Text(_isUsingCurrentLocation
+                                      ? l10n.cart_location_in_progress
+                                      : l10n.cart_current_location),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              IconButton(
+                                tooltip: selectedAddress != null
+                                    ? l10n.cart_change_address
+                                    : l10n.cart_choose_address,
+                                onPressed: _isUsingCurrentLocation
+                                    ? null
+                                    : _showAddressPicker,
+                                icon: const Icon(Icons.edit_location_alt_outlined),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
                     if (selectedAddress != null) ...[
@@ -321,12 +517,12 @@ class _CartState extends ConsumerState<Cart> {
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.check_circle_outline,
+                            const Icon(Icons.my_location_rounded,
                                 color: AppColors.success, size: 18),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                selectedAddress!.fullAddress ?? '',
+                                l10n.cart_location_saved,
                                 style: AppTypography.labelMedium(
                                     color: AppColors.ink),
                               ),
@@ -565,7 +761,12 @@ class _CartState extends ConsumerState<Cart> {
     }
     try {
       final fn = ParseCloudFunction('checkAddressInZone');
-      final response = await fn.execute(parameters: {'lat': lat, 'lng': lng});
+      final response = await fn.execute(parameters: {
+        'lat': lat,
+        'lng': lng,
+        'cityID': _userCityId,
+        'address': address.fullAddress,
+      });
       if (response.success && response.result != null) {
         final data = response.result as Map<String, dynamic>;
         if (data['deliverable'] == true) return true;
@@ -606,6 +807,7 @@ class _CartState extends ConsumerState<Cart> {
         reduction: discount,
         promoCode: _appliedPromo?.code,
         cityID: _userCityId,
+        deliveryMode: option,
       );
       if (commandeId != null) {
         Toast(context, l10n.cart_order_confirm_message, true);
@@ -675,6 +877,7 @@ class _CartState extends ConsumerState<Cart> {
         reduction: discount,
         promoCode: _appliedPromo?.code,
         cityID: _userCityId,
+        deliveryMode: option,
       );
       if (commandeId == null) {
         Toast(context, AppLocalizations.of(context)!.cart_order_failed, false);
@@ -751,6 +954,7 @@ class _CartState extends ConsumerState<Cart> {
     WidgetRef ref, {
     required String currencyCode,
     required double reduction,
+    required String deliveryMode,
     String? promoCode,
     int cityID = 1,
   }) async {
@@ -763,11 +967,17 @@ class _CartState extends ConsumerState<Cart> {
     final totalAmount =
         (subtotal + deliveryFee - reduction).clamp(0.0, double.infinity);
 
-    final items = cartItems
-        .map((item) => {
+    final items = cartItems.map((item) {
+      final unitPrice =
+          ((item["meal"]["price"] as num?)?.toDouble() ?? 0.0) +
+              ((item["optionPrice"] as num?)?.toDouble() ?? 0.0);
+      return {
+              "platID": item["meal"]["mealID"],
               "id_plat": item["meal"]["mealID"],
               "quantite": item["order"]["quantity"],
-              "prix": item["meal"]["price"],
+              "prixUnitaire": unitPrice,
+              "prix_unitaire": unitPrice,
+              "prix": unitPrice,
               "reduction": reduction,
               "fraisLivraison": deliveryFee,
               if (idPaiement != null) "moyen_paiement_id": idPaiement,
@@ -778,14 +988,15 @@ class _CartState extends ConsumerState<Cart> {
                   "price": (v["price"] as num).toDouble(),
                 }),
               ),
-            })
-        .toList();
+            };
+    }).toList();
     final params = <String, dynamic>{
       "userID": current_userID,
       "restaurantId": restaurantId,
       "id_restaurateur": currentRestaurant?.userID,
       "currency": currencyCode,
       "fraisLivraison": deliveryFee,
+      "deliveryMode": deliveryMode,
       "reduction": reduction,
       "subtotalAmount": subtotal,
       "totalAmount": totalAmount,
@@ -800,9 +1011,10 @@ class _CartState extends ConsumerState<Cart> {
     final response = await cloudFunction.execute(parameters: params);
     if (response.success && response.result != null) {
       final data = response.result as Map<String, dynamic>;
-      if (data['success'] == true) {
+      final commandeId = data['commandeID'];
+      if (data['success'] == true && commandeId != null) {
         await Commande.refreshLocalCommandes();
-        return data['commandeID'];
+        return commandeId.toString();
       }
     }
     return null;
@@ -1106,14 +1318,19 @@ class _DeliveryAddressModalState extends State<DeliveryAddressModal> {
 
     final fullAddress = "$street, $postal $city, $country";
     try {
-      final locations =
-          await geocoding.locationFromAddress("$fullAddress, $city, $country");
-      if (locations.isEmpty) {
+      final response = await ParseCloudFunction('geocodeDeliveryAddress')
+          .execute(parameters: {'query': fullAddress});
+      if (!response.success || response.result is! Map) {
         Toast(context, AppLocalizations.of(context)!.cart_address_not_found, false);
         return;
       }
-      final lat = locations.first.latitude;
-      final long = locations.first.longitude;
+      final geocoded = Map<String, dynamic>.from(response.result as Map);
+      final lat = double.tryParse(geocoded['latitude']?.toString() ?? '');
+      final long = double.tryParse(geocoded['longitude']?.toString() ?? '');
+      if (geocoded['success'] != true || lat == null || long == null) {
+        Toast(context, AppLocalizations.of(context)!.cart_address_not_found, false);
+        return;
+      }
 
       final result = await delivery.Address.manageAddress(
         city: city,
@@ -1129,8 +1346,9 @@ class _DeliveryAddressModalState extends State<DeliveryAddressModal> {
 
       if (result is int) {
         final newAddr = {
+          "addressID": result,
           "object": "Livraison",
-          "objectID": result,
+          "objectID": widget.userId,
           "city": city,
           "state": country,
           "fullAddress": fullAddress,
@@ -1148,6 +1366,7 @@ class _DeliveryAddressModalState extends State<DeliveryAddressModal> {
         setState(() => showForm = false);
         await widget.onRefreshAddresses();
         Toast(context, AppLocalizations.of(context)!.cart_address_saved, true);
+        widget.onAddressSelected(selectedAddress!);
         Navigator.pop(context);
       }
     } catch (_) {
@@ -1214,10 +1433,10 @@ class _DeliveryAddressModalState extends State<DeliveryAddressModal> {
                             color: AppColors.card,
                             borderRadius: BorderRadius.circular(AppRadius.md),
                             border: Border.all(
-                              color: selectedAddressId == addr['objectID']
+                              color: selectedAddressId == addr['addressID']
                                   ? AppColors.brand
                                   : AppColors.border,
-                              width: selectedAddressId == addr['objectID']
+                              width: selectedAddressId == addr['addressID']
                                   ? 1.5
                                   : 0.5,
                             ),
@@ -1225,7 +1444,7 @@ class _DeliveryAddressModalState extends State<DeliveryAddressModal> {
                           child: ListTile(
                             title: Text(addr['fullAddress'] ?? ''),
                             leading: Radio<int>(
-                              value: addr['objectID'],
+                              value: addr['addressID'],
                               groupValue: selectedAddressId,
                               onChanged: (v) => setState(() {
                                 selectedAddressId = v;

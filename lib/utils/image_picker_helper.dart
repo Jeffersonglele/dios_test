@@ -1,12 +1,54 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../l10n/app_localizations.dart';
 
-/// Shows a full-size preview of [file] with a close (X) button and a
-/// "Valider" button. Returns the [File] if confirmed, or null if cancelled.
-Future<File?> showImageConfirmDialog(BuildContext context, File file) {
-  return showDialog<File>(
+/// Builds an image from bytes instead of [Image.file].
+///
+/// `Image.file` is unavailable on Flutter Web, while [XFile] can expose its
+/// bytes on Android, iOS, desktop and Web.
+Widget pickedImagePreview(
+  XFile image, {
+  double? width,
+  double? height,
+  BoxFit fit = BoxFit.cover,
+  Widget Function(BuildContext context, Object error, StackTrace? stackTrace)?
+      errorBuilder,
+}) {
+  return FutureBuilder<Uint8List>(
+    future: image.readAsBytes(),
+    builder: (context, snapshot) {
+      if (snapshot.hasData) {
+        return Image.memory(
+          snapshot.data!,
+          width: width,
+          height: height,
+          fit: fit,
+          errorBuilder: errorBuilder,
+        );
+      }
+      if (snapshot.hasError && errorBuilder != null) {
+        return errorBuilder(context, snapshot.error!, snapshot.stackTrace);
+      }
+      return SizedBox(
+        width: width,
+        height: height,
+        child: const Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    },
+  );
+}
+
+/// Shows a full-size preview of [image] with a close (X) button and a
+/// "Valider" button. Returns the [XFile] if confirmed, or null if cancelled.
+Future<XFile?> showImageConfirmDialog(BuildContext context, XFile image) {
+  return showDialog<XFile>(
     context: context,
     builder: (ctx) {
       final l10n = AppLocalizations.of(ctx)!;
@@ -20,7 +62,7 @@ Future<File?> showImageConfirmDialog(BuildContext context, File file) {
               Stack(
                 children: [
                   InteractiveViewer(
-                    child: Image.file(file,
+                    child: pickedImagePreview(image,
                         fit: BoxFit.contain,
                         width: double.infinity,
                         height: 400),
@@ -46,7 +88,7 @@ Future<File?> showImageConfirmDialog(BuildContext context, File file) {
                   child: ElevatedButton.icon(
                     icon: const Icon(Icons.check_circle, size: 20),
                     label: Text(l10n.validate_this_image),
-                    onPressed: () => Navigator.pop(ctx, file),
+                    onPressed: () => Navigator.pop(ctx, image),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                       foregroundColor: Colors.white,
@@ -66,9 +108,9 @@ Future<File?> showImageConfirmDialog(BuildContext context, File file) {
 }
 
 /// Shows a bottom sheet to choose gallery/camera, picks an image, and
-/// displays a preview with confirm/cancel. Returns the confirmed [File]
+/// displays a preview with confirm/cancel. Returns the confirmed [XFile]
 /// or null if the user cancelled at any step.
-Future<File?> pickAndConfirmImage(BuildContext context) async {
+Future<XFile?> pickAndConfirmImage(BuildContext context) async {
   final picker = ImagePicker();
 
   final source = await showModalBottomSheet<ImageSource>(
@@ -97,5 +139,5 @@ Future<File?> pickAndConfirmImage(BuildContext context) async {
   final XFile? picked = await picker.pickImage(source: source);
   if (picked == null) return null;
 
-  return showImageConfirmDialog(context, File(picked.path));
+  return showImageConfirmDialog(context, picked);
 }

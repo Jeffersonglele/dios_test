@@ -46,19 +46,19 @@ class Identity extends HiveObject {
   static Future<dynamic> manageIdentity({
     int? identityID,
     required int userID,
-    ParseFile? piece_identite,
-    ParseFile? photo,
+    ParseFileBase? piece_identite,
+    ParseFileBase? photo,
     required String photo_name,
     required String piece_name,
   }) async {
     String functionName = identityID == null ? 'addIdentity' : 'updateIdentity';
     var cloudFunction = ParseCloudFunction(functionName);
 
-    Future<String?> uploadFileToGallery(ParseFile file, String nom) async {
+    Future<String?> uploadFileToGallery(ParseFileBase file, String nom) async {
       final response = await file.save();
 
       if (response.success && response.result != null) {
-        final fileUrl = (response.result as ParseFile).url ?? "";
+        final fileUrl = (response.result as ParseFileBase).url ?? "";
 
         final gallery = ParseObject('Gallery')
           ..set('file', file)

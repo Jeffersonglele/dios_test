@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:dios_delices/l10n/app_localizations.dart';
 import 'package:dios_delices/models/pro_document.dart';
 import 'package:dios_delices/services/session_service.dart';
@@ -6,7 +5,9 @@ import 'package:dios_delices/theme/app_theme.dart';
 import 'package:dios_delices/utils/toast.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
+import 'package:path/path.dart' as p;
 
 class ProRequestPage extends StatefulWidget {
   const ProRequestPage({super.key});
@@ -19,8 +20,8 @@ class _ProRequestPageState extends State<ProRequestPage> {
   final _formKey = GlobalKey<FormState>();
   final _descriptionController = TextEditingController();
 
-  File? _identityFile;
-  File? _proDocFile;
+  XFile? _identityFile;
+  XFile? _proDocFile;
   bool _isSubmitting = false;
 
   @override
@@ -33,9 +34,11 @@ class _ProRequestPageState extends State<ProRequestPage> {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+      withData: true,
     );
-    if (result != null && result.files.single.path != null) {
-      setState(() => _identityFile = File(result.files.single.path!));
+    final file = result?.files.single;
+    if (file?.bytes != null) {
+      setState(() => _identityFile = XFile.fromData(file!.bytes!, name: file.name));
     }
   }
 
@@ -43,9 +46,11 @@ class _ProRequestPageState extends State<ProRequestPage> {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+      withData: true,
     );
-    if (result != null && result.files.single.path != null) {
-      setState(() => _proDocFile = File(result.files.single.path!));
+    final file = result?.files.single;
+    if (file?.bytes != null) {
+      setState(() => _proDocFile = XFile.fromData(file!.bytes!, name: file.name));
     }
   }
 
@@ -67,10 +72,15 @@ class _ProRequestPageState extends State<ProRequestPage> {
     try {
       final session = await SessionService.readSession();
 
-      final identityFile = ParseFile(_identityFile!,
-          name: 'identity_${session.userId}_${DateTime.now().millisecondsSinceEpoch}.pdf');
-      final proDocFile = ParseFile(_proDocFile!,
-          name: 'prodoc_${session.userId}_${DateTime.now().millisecondsSinceEpoch}.pdf');
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final identityFile = ParseXFile(
+        _identityFile!,
+        name: 'identity_${session.userId}_$timestamp${p.extension(_identityFile!.name)}',
+      );
+      final proDocFile = ParseXFile(
+        _proDocFile!,
+        name: 'prodoc_${session.userId}_$timestamp${p.extension(_proDocFile!.name)}',
+      );
 
       final result = await ProDocument.submitDocuments(
         userID: session.userId,
@@ -206,7 +216,7 @@ class _ProRequestPageState extends State<ProRequestPage> {
 
 class _DocumentPicker extends StatelessWidget {
   final String label;
-  final File? file;
+  final XFile? file;
   final VoidCallback onPick;
   final AppLocalizations l10n;
 
@@ -250,7 +260,7 @@ class _DocumentPicker extends StatelessWidget {
                 Expanded(
                   child: Text(
                     file != null
-                        ? '${l10n.pro_request_file_selected} (${file!.path.split('/').last})'
+                        ? '${l10n.pro_request_file_selected} (${file!.name})'
                         : l10n.pro_request_no_file,
                     style: AppTypography.bodyMedium(
                       color: file != null ? AppColors.ink : AppColors.inkSubtle,

@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:dios_delices/l10n/app_localizations.dart';
 import 'package:dios_delices/models/restaurant.dart';
 import 'package:dios_delices/models/users.dart';
@@ -39,7 +38,7 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
   final TextEditingController _bankNameController = TextEditingController();
   final TextEditingController _accountHolderController = TextEditingController();
 
-  File? _imageFile;
+  XFile? _imageFile;
   List<String> _selectedHashtags = [];
   List<String> _selectedDays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
   TimeOfDay _openingTime = const TimeOfDay(hour: 9, minute: 0);
@@ -476,7 +475,8 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.file(displayFile, width: 120, height: 80, fit: BoxFit.cover),
+                child: pickedImagePreview(displayFile,
+                    width: 120, height: 80, fit: BoxFit.cover),
               ),
               Positioned(
                 top: -8, right: -8,
@@ -562,12 +562,12 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
             final userCountry = session.country;
             final userRoleID = session.role.id;
 
-            ParseFile? parseFile;
+            ParseFileBase? parseFile;
             final img = _imageFile;
             if (img != null && _nameController.text.isNotEmpty) {
               final ext = p.extension(img.path);
               final name = '${_nameController.text}_$userID$ext';
-              parseFile = ParseFile(File(img.path), name: name);
+              parseFile = ParseXFile(img, name: name);
             }
 
             int? addressID;

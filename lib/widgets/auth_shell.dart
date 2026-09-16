@@ -51,27 +51,25 @@ class AuthShell extends StatelessWidget {
                 final hPad = isWide ? 48.0 : 20.0;
 
                 final content = isWide
-                    ? IntrinsicHeight(
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: _AuthHero(
-                                title: title,
-                                subtitle: subtitle,
-                                heroImage: heroImage,
-                              ),
+                    ? Row(
+                        children: [
+                          Expanded(
+                            child: _AuthHero(
+                              title: title,
+                              subtitle: subtitle,
+                              heroImage: heroImage,
                             ),
-                            const SizedBox(width: 36),
-                            Expanded(
-                              child: _AuthCard(
-                                title: title,
-                                subtitle: subtitle,
-                                form: form,
-                                footer: footer,
-                              ),
+                          ),
+                          const SizedBox(width: 36),
+                          Expanded(
+                            child: _AuthCard(
+                              title: title,
+                              subtitle: subtitle,
+                              form: form,
+                              footer: footer,
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       )
                     : Column(
                         crossAxisAlignment: CrossAxisAlignment.start,

@@ -6,15 +6,117 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/restaurant.dart';
 import '../models/users.dart';
 import '../models/address.dart' as addr;
+import '../services/session_service.dart';
 
 class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
   CartNotifier() : super([]) {
-    _loadCart();
+    _restoreCartForCurrentSession();
   }
 
   double total = 0.0;
+  int? _activeUserId;
+  int? _loadedUserId;
+  int _activationVersion = 0;
 
   List<Map<String, dynamic>> get items => List.unmodifiable(state);
+
+  String _storageKey(int userId) => 'saved_cart_user_$userId';
+
+  Future<void> _restoreCartForCurrentSession() async {
+    final session = await SessionService.readSession();
+    await activateUser(session.userId);
+  }
+
+  /// Charge uniquement le panier du compte actif sur cet appareil.
+  /// Les paniers restent privés même après déconnexion / reconnexion.
+  Future<void> activateUser(int userId) async {
+    final version = ++_activationVersion;
+    if (userId <= 0) {
+      _activeUserId = null;
+      _loadedUserId = null;
+      total = 0;
+      state = [];
+      return;
+    }
+    if (_activeUserId == userId && _loadedUserId == userId) return;
+
+    await _saveCart();
+    if (version != _activationVersion) return;
+
+    _activeUserId = userId;
+    _loadedUserId = null;
+    total = 0;
+    state = [];
+
+    final prefs = await SharedPreferences.getInstance();
+    String? saved = prefs.getString(_storageKey(userId));
+
+    // Migration à usage unique de l'ancien panier global vers son propriétaire.
+    if (saved == null) {
+      final legacy = prefs.getString('saved_cart');
+      if (legacy != null) {
+        try {
+          final legacyItems = List<dynamic>.from(jsonDecode(legacy));
+          final ownedItems = legacyItems
+              .whereType<Map>()
+              .where((item) => item['user_id']?.toString() == userId.toString())
+              .toList();
+          if (ownedItems.isNotEmpty) {
+            saved = jsonEncode(ownedItems);
+            await prefs.setString(_storageKey(userId), saved);
+          }
+        } catch (_) {}
+      }
+    }
+
+    if (version != _activationVersion) return;
+    final restored = _deserializeCart(saved, userId);
+    total = _calculateTotal(restored);
+    _loadedUserId = userId;
+    state = restored;
+  }
+
+  List<Map<String, dynamic>> _deserializeCart(String? saved, int userId) {
+    if (saved == null) return [];
+    try {
+      final rawItems = List<dynamic>.from(jsonDecode(saved));
+      return rawItems.whereType<Map>().map((raw) {
+        final item = Map<String, dynamic>.from(raw);
+        if (item.containsKey('meal')) return item;
+
+        // Compatibilité avec le format compact de l'ancien panier global.
+        return <String, dynamic>{
+          'meal': <String, dynamic>{
+            'mealID': item['mealID'],
+            'meal_name': item['meal_name'],
+            'price': item['price'],
+            'image': item['image'] ?? '',
+            'country': item['country'] ?? 'France',
+            'number_of_servings': 99,
+          },
+          'order': <String, dynamic>{'quantity': item['quantity'] ?? 1},
+          'options': item['options'] ?? <String, dynamic>{},
+          'optionDetails': item['optionDetails'] ?? <String, dynamic>{},
+          'optionPrice': item['optionPrice'] ?? 0,
+          'user': <String, dynamic>{'user_id': userId},
+          'restaurant': <String, dynamic>{
+            'restau_id': item['restau_id'],
+            'delivery_fee': 0,
+          },
+        };
+      }).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  double _calculateTotal(List<Map<String, dynamic>> cart) => cart.fold(
+        0.0,
+        (sum, item) =>
+            sum +
+            ((item['meal']['price'] as num?)?.toDouble() ?? 0) *
+                ((item['order']['quantity'] as num?)?.toInt() ?? 0),
+      );
 
   Future<String> addToCart(
     int mealID,
@@ -31,6 +133,7 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
     List<String?>? rawOptions,
   }) async {
     try {
+      await activateUser(user_id);
       final existingIndex =
           state.indexWhere((item) => item['meal']['meal_name'] == name);
 
@@ -109,6 +212,7 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
             state[existingIndex]['order']['quantity'] + quantity;
         if (newQuantity <= maxServings) {
           state[existingIndex]['order']['quantity'] = newQuantity;
+          state = List<Map<String, dynamic>>.from(state);
         }
       } else {
         state = [
@@ -147,7 +251,7 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
       }
 
       total += finalPrice * quantity;
-      _saveCart();
+      await _saveCart();
       return 'success';
     } catch (e) {
       return 'error';
@@ -160,56 +264,12 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
     _saveCart();
   }
 
-  void _saveCart() {
-    SharedPreferences.getInstance().then((prefs) {
-      final serialized = state.map((item) {
-        final meal = item['meal'];
-        final order = item['order'];
-        final restaurant = item['restaurant'];
-        final user = item['user'];
-
-        return {
-          'mealID': meal['mealID'],
-          'meal_name': meal['meal_name'],
-          'price': meal['price'],
-          'image': meal['image'],
-          'country': meal['country'],
-          'quantity': order['quantity'],
-          'restau_id': restaurant['restau_id'],
-          'user_id': user['user_id'],
-          'options': item['options'],
-          'optionDetails': item['optionDetails'],
-          'optionPrice': item['optionPrice'],
-        };
-      }).toList();
-      prefs.setString('saved_cart', jsonEncode(serialized));
-    });
-  }
-
-  Future<void> _loadCart() async {
+  Future<void> _saveCart() async {
+    final userId = _activeUserId;
+    if (userId == null || userId <= 0) return;
+    final snapshot = List<Map<String, dynamic>>.from(state);
     final prefs = await SharedPreferences.getInstance();
-    final saved = prefs.getString('saved_cart');
-    if (saved == null) return;
-    try {
-      final List items = jsonDecode(saved);
-      for (final i in items) {
-        await addToCart(
-          i['mealID'],
-          i['meal_name'],
-          (i['price'] as num).toDouble(),
-          i['image'] ?? '',
-          i['quantity'],
-          99,
-          i['country'] ?? 'France',
-          i['user_id'],
-          i['restau_id'],
-          optionPrice: (i['optionPrice'] as num?)?.toDouble() ?? 0.0,
-          selectedChoices: {},
-          rawOptions: [],
-        );
-      }
-    } catch (e) {
-    }
+    await prefs.setString(_storageKey(userId), jsonEncode(snapshot));
   }
 
   void clearCart() {

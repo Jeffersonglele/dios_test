@@ -277,7 +277,7 @@ class Restaurant extends HiveObject {
     double deliveryFee = 0.0,
     int isOpen = 1,
     DateTime? date_creation,
-    ParseFile? image,
+    ParseFileBase? image,
     String? img_url,
     int? addressID,
     String professionalType = 'amateur',
@@ -314,7 +314,7 @@ class Restaurant extends HiveObject {
       // Handle the response for file upload
       if (response.success && response.result != null) {
         // Get the URL of the uploaded file
-        imageUrl = (response.result as ParseFile).url ?? "";
+        imageUrl = (response.result as ParseFileBase).url ?? "";
       } else {
         return "Erreur lors de l'upload de l'image: ${response.error?.message}";
       }

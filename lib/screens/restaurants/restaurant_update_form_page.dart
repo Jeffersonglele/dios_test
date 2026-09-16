@@ -1,9 +1,9 @@
-import 'dart:io';
 import 'package:dios_delices/l10n/app_localizations.dart';
 import 'package:dios_delices/models/restaurant.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:geocoding/geocoding.dart' as geo;
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:path/path.dart' as p;
@@ -42,7 +42,7 @@ class _RestaurantUpdateFormPageState
   bool _isOpen = true;
   List<String> _selectedHashtags = [];
 
-  File? _image;
+  XFile? _image;
 
   // Méthode pour ouvrir l'image picker
   Future<void> _pickImage() async {
@@ -244,7 +244,7 @@ class _RestaurantUpdateFormPageState
                     child: Column(
                       children: <Widget>[
                         _image != null
-                            ? Image.file(
+                            ? pickedImagePreview(
                                 _image!,
                                 width: 100,
                                 height: 60,
@@ -306,7 +306,7 @@ class _RestaurantUpdateFormPageState
 
                           final user = ref.read(usersProvider);
                           if (user != null) {
-                            ParseFile? parseFile;
+                            ParseFileBase? parseFile;
                             final _image = this._image;
 
                             if (_image != null) {
@@ -325,7 +325,7 @@ class _RestaurantUpdateFormPageState
                                     "$nom_image$extension"; // Combine name and extension
 
                                 // Create the ParseFile with the new name
-                                parseFile = ParseFile(File(_image.path),
+                                parseFile = ParseXFile(_image,
                                     name: newFileName);
                               } else {
                                 return;

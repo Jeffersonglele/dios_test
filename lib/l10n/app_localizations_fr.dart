@@ -3207,6 +3207,22 @@ class AppLocalizationsFr extends AppLocalizations {
       'Vérification de la zone de livraison...';
 
   @override
+  String get cart_delivery_to => 'Livraison à';
+
+  @override
+  String get cart_choose_current_location =>
+      'Choisissez une adresse ou votre position actuelle.';
+
+  @override
+  String get cart_current_location => 'Ma position actuelle';
+
+  @override
+  String get cart_location_in_progress => 'Localisation en cours...';
+
+  @override
+  String get cart_location_saved => 'Position enregistrée pour cette commande';
+
+  @override
   String get restaurant_form_payment_method => 'Moyen de versement';
 
   @override
