@@ -39,7 +39,9 @@ class _FavoritesState extends State<Favorites> {
     final dishes = await Dish.fetchDishesFromDB();
     if (!mounted) return;
     setState(() {
-      favoriteRestaurants = restaurants.where((r) => restaurantIds.contains(r.restaurantID)).toList();
+      favoriteRestaurants = restaurants
+          .where((r) => restaurantIds.contains(r.restaurantID))
+          .toList();
       favoriteDishes = dishes.where((d) => dishIds.contains(d.dishID)).toList();
       isLoading = false;
     });
@@ -61,10 +63,11 @@ class _FavoritesState extends State<Favorites> {
     return PopScope(
       canPop: false,
       child: Scaffold(
-        backgroundColor: AppColors.surface,
+        backgroundColor:
+            AppColors.resolve(AppColors.surface, AppDarkColors.surface),
         body: SafeArea(
           child: RefreshIndicator(
-            color: AppColors.brand,
+            color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
             onRefresh: _loadFavorites,
             child: isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -72,25 +75,38 @@ class _FavoritesState extends State<Favorites> {
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text(l10n.favorites_my, style: AppTypography.headlineLarge()),
-                          const SizedBox(height: 4),
-                          Text(l10n.favorites_subtitle,
-                              style: AppTypography.bodyMedium()),
-                          const SizedBox(height: 16),
-                          // Tabs
-                          Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: AppColors.surfaceWarm,
-                              borderRadius: BorderRadius.circular(AppRadius.lg),
-                            ),
-                            child: Row(children: [
-                              _TabBtn(l10n.favorites_restaurants_tab, 'restaurants'),
-                              _TabBtn(l10n.favorites_dishes_tab, 'plats'),
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(l10n.favorites_my,
+                                  style: AppTypography.headlineLarge(
+                                    color: AppColors.resolve(
+                                        AppColors.ink, AppDarkColors.inkMuted),
+                                  )),
+                              const SizedBox(height: 4),
+                              Text(l10n.favorites_subtitle,
+                                  style: AppTypography.bodyMedium(
+                                      color: AppColors.resolve(
+                                          AppColors.inkMuted,
+                                          AppDarkColors.inkMuted))),
+                              const SizedBox(height: 16),
+                              // Tabs
+                              Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: AppColors.resolve(
+                                      AppColors.surfaceWarm,
+                                      AppDarkColors.surfaceWarm),
+                                  borderRadius:
+                                      BorderRadius.circular(AppRadius.lg),
+                                ),
+                                child: Row(children: [
+                                  _TabBtn(l10n.favorites_restaurants_tab,
+                                      'restaurants'),
+                                  _TabBtn(l10n.favorites_dishes_tab, 'plats'),
+                                ]),
+                              ),
                             ]),
-                          ),
-                        ]),
                       ),
                     ),
                     const SliverToBoxAdapter(child: SizedBox(height: 16)),
@@ -99,7 +115,8 @@ class _FavoritesState extends State<Favorites> {
                           ? _emptySliver(l10n.favorites_empty_restaurants)
                           : SliverList(
                               delegate: SliverChildBuilderDelegate(
-                                (_, i) => _RestaurantCard(favoriteRestaurants[i]),
+                                (_, i) =>
+                                    _RestaurantCard(favoriteRestaurants[i]),
                                 childCount: favoriteRestaurants.length,
                               ),
                             )
@@ -129,12 +146,19 @@ class _FavoritesState extends State<Favorites> {
           duration: AppMotion.fast,
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: active ? AppColors.card : Colors.transparent,
+            color: active
+                ? AppColors.resolve(AppColors.card, AppDarkColors.card)
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(AppRadius.md),
           ),
           child: Center(
             child: Text(label,
-                style: AppTypography.labelMedium(color: active ? AppColors.brand : AppColors.inkMuted)),
+                style: AppTypography.labelMedium(
+                    color: active
+                        ? AppColors.resolve(
+                            AppColors.brand, AppDarkColors.brand)
+                        : AppColors.resolve(
+                            AppColors.inkMuted, AppDarkColors.inkMuted))),
           ),
         ),
       ),
@@ -143,19 +167,25 @@ class _FavoritesState extends State<Favorites> {
 
   Widget _emptySliver(String msg) => SliverToBoxAdapter(
         child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 20),
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: AppColors.card,
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-          ),
-          child: Center(child: Text(msg, style: AppTypography.bodyMedium())),
-        ),
+            margin: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: AppColors.resolve(AppColors.card, AppDarkColors.card),
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+            ),
+            child: Center(
+                child: Text(msg,
+                    style: AppTypography.bodyMedium(
+                        color: AppColors.resolve(
+                            AppColors.inkMuted, AppDarkColors.inkMuted))))),
       );
 
   Widget _RestaurantCard(Restaurant r) => GestureDetector(
-        onTap: () => Navigator.push(context, CupertinoPageRoute(
-            builder: (_) => RestaurantDetails(restaurant_id: r.restaurantID)))
+        onTap: () => Navigator.push(
+                context,
+                CupertinoPageRoute(
+                    builder: (_) =>
+                        RestaurantDetails(restaurant_id: r.restaurantID)))
             .then((_) => _loadFavorites()),
         child: Container(
           margin: const EdgeInsets.fromLTRB(20, 0, 20, 10),
@@ -167,17 +197,33 @@ class _FavoritesState extends State<Favorites> {
           ),
           child: Row(children: [
             Container(
-              width: 56, height: 56,
-              decoration: BoxDecoration(color: AppColors.brandSurface, borderRadius: BorderRadius.circular(AppRadius.md)),
-              child: const Icon(Icons.storefront_rounded, color: AppColors.brand, size: 26),
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                  color: AppColors.resolve(
+                      AppColors.brandSurface, AppDarkColors.brandSurface),
+                  borderRadius: BorderRadius.circular(AppRadius.md)),
+              child: Icon(Icons.storefront_rounded,
+                  color: AppColors.resolve(
+                      AppColors.brandSurface, AppDarkColors.brandSurface),
+                  size: 26),
             ),
             const SizedBox(width: 14),
             Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(r.name, style: AppTypography.labelMedium()),
-                Text('${r.openingHours} · ${CurrencyUtil.formatPrice(r.deliveryFee, _country)}',
-                    style: AppTypography.bodyMedium().copyWith(fontSize: 12)),
-              ]),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(r.name,
+                        style: AppTypography.labelMedium(
+                            color: AppColors.resolve(
+                                AppColors.inkMuted, AppDarkColors.inkMuted))),
+                    Text(
+                        '${r.openingHours} · ${CurrencyUtil.formatPrice(r.deliveryFee, _country)}',
+                        style: AppTypography.bodyMedium(
+                                color: AppColors.resolve(
+                                    AppColors.inkMuted, AppDarkColors.inkMuted))
+                            .copyWith(fontSize: 12)),
+                  ]),
             ),
             _LikeButton(
               active: true,
@@ -188,16 +234,22 @@ class _FavoritesState extends State<Favorites> {
       );
 
   Widget _DishCard(Dish d) => GestureDetector(
-        onTap: () => Navigator.push(context, CupertinoPageRoute(
-            builder: (_) => DishDetails(from_page: 5, dish_id: d.dishID)))
+        onTap: () => Navigator.push(
+                context,
+                CupertinoPageRoute(
+                    builder: (_) =>
+                        DishDetails(from_page: 5, dish_id: d.dishID)))
             .then((_) => _loadFavorites()),
         child: Container(
           margin: const EdgeInsets.fromLTRB(20, 0, 20, 10),
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: AppColors.card,
+            color: AppColors.resolve(AppColors.card, AppDarkColors.card),
             borderRadius: BorderRadius.circular(AppRadius.lg),
-            border: Border.all(color: AppColors.border, width: 0.5),
+            border: Border.all(
+                color:
+                    AppColors.resolve(AppColors.border, AppDarkColors.border),
+                width: 0.5),
           ),
           child: Row(children: [
             ClipRRect(
@@ -206,11 +258,19 @@ class _FavoritesState extends State<Favorites> {
             ),
             const SizedBox(width: 14),
             Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(d.name ?? 'Plat', style: AppTypography.labelMedium()),
-                Text(CurrencyUtil.formatPrice(d.price?.toDouble() ?? 0, _country),
-                    style: AppTypography.bodyMedium(color: AppColors.brand)),
-              ]),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(d.name ?? 'Plat',
+                        style: AppTypography.labelMedium(
+                            color: AppColors.resolve(
+                                AppColors.inkMuted, AppDarkColors.inkMuted))),
+                    Text(
+                        CurrencyUtil.formatPrice(
+                            d.price?.toDouble() ?? 0, _country),
+                        style:
+                            AppTypography.bodyMedium(color: AppColors.brand)),
+                  ]),
             ),
             _LikeButton(active: true, onTap: () => _removeDish(d.dishID)),
           ]),
@@ -228,16 +288,19 @@ class _LikeButton extends StatefulWidget {
   State<_LikeButton> createState() => _LikeButtonState();
 }
 
-class _LikeButtonState extends State<_LikeButton> with SingleTickerProviderStateMixin {
+class _LikeButtonState extends State<_LikeButton>
+    with SingleTickerProviderStateMixin {
   late AnimationController _ctrl;
   late Animation<double> _scale;
 
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 300));
     _scale = Tween<double>(begin: 1, end: 1.3).animate(
-      CurvedAnimation(parent: _ctrl, curve: const Interval(0, 0.5, curve: Curves.easeOut)),
+      CurvedAnimation(
+          parent: _ctrl, curve: const Interval(0, 0.5, curve: Curves.easeOut)),
     );
   }
 
@@ -260,7 +323,8 @@ class _LikeButtonState extends State<_LikeButton> with SingleTickerProviderState
         animation: _scale,
         builder: (_, __) => Transform.scale(
           scale: _scale.value,
-          child: const Icon(Icons.favorite_rounded, color: AppColors.error, size: 22),
+          child: const Icon(Icons.favorite_rounded,
+              color: AppColors.error, size: 22),
         ),
       ),
     );

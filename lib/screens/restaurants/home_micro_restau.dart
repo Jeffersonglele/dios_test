@@ -317,7 +317,7 @@ class _HeroHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isOpen = restaurant?.isOpen == 1;
+    final isOpen = restaurant?.isCurrentlyOpen ?? false;
 
     return Container(
       // ── Marge top plus généreuse pour descendre le header ──

@@ -26,10 +26,11 @@ class _SearchInputState extends State<SearchInput> {
         child: Container(
           height: 54,
           decoration: BoxDecoration(
-            color: AppColors.card,
+            color: AppColors.resolve(AppColors.card, AppDarkColors.card),
             borderRadius: BorderRadius.circular(AppRadius.lg),
             border: Border.all(
-              color: AppColors.border.withValues(alpha: 0.8),
+              color: AppColors.resolve(AppColors.border, AppDarkColors.border)
+                  .withValues(alpha: 0.8),
             ),
             boxShadow: [
               BoxShadow(
@@ -44,26 +45,32 @@ class _SearchInputState extends State<SearchInput> {
               const SizedBox(width: 16),
               Icon(
                 Icons.search_rounded,
-                color: AppColors.inkMuted,
+                color: AppColors.resolve(
+                    AppColors.inkMuted, AppDarkColors.inkMuted),
                 size: 22,
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   AppLocalizations.of(context)!.search_input_hint,
-                  style: AppTypography.bodyLarge(color: AppColors.inkSubtle),
+                  style: AppTypography.bodyLarge(
+                    color: AppColors.resolve(
+                        AppColors.inkSubtle, AppDarkColors.inkSubtle),
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppColors.brandSurface,
+                  color: AppColors.resolve(
+                      AppColors.brandSurface, AppDarkColors.brandSurface),
                   borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),
                 child: Icon(
                   Icons.tune_rounded,
-                  color: AppColors.brand,
+                  color:
+                      AppColors.resolve(AppColors.brand, AppDarkColors.brand),
                   size: 18,
                 ),
               ),

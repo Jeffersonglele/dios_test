@@ -43,7 +43,8 @@ class NearbyService {
     final addresses = await Address.fetchAddressesFromDB();
 
     final userAddress =
-        Address.getAddressByObject(addresses, "User", session.userId);
+        Address.getAddressByObject(addresses, "User", session.userId) ??
+            Address.getAddressByObject(addresses, "Livraison", session.userId);
     final userLat = double.tryParse(userAddress?.lat ?? '');
     final userLon = double.tryParse(userAddress?.long ?? '');
 
@@ -54,7 +55,8 @@ class NearbyService {
       final associatedUser = Users.getUsersByUserId(users, restaurant.userID);
       final associatedRole = AppRole.fromId(associatedUser?.roleID);
       final restaurantAddress =
-          Address.getAddressByObject(addresses, "User", restaurant.userID);
+          Address.getAddressByObject(addresses, "Restaurant", restaurant.userID) ??
+              Address.getAddressByObject(addresses, "User", restaurant.userID);
 
       if (restaurant.valid != 1 ||
           associatedUser == null ||
@@ -85,7 +87,11 @@ class NearbyService {
             restaurantLat,
             restaurantLon,
           );
-          isOutOfRange = distanceKm > maxDistanceKm;
+          final restaurantRadius = restaurant.deliveryRadius > 0
+              ? restaurant.deliveryRadius
+              : maxDistanceKm;
+          isOutOfRange = distanceKm > maxDistanceKm ||
+              distanceKm > restaurantRadius;
         }
       }
 

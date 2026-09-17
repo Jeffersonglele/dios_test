@@ -180,13 +180,17 @@ class _MyStoreState extends State<MyStore> {
     return PopScope(
       canPop: false,
       child: Scaffold(
-        backgroundColor: AppColors.surface,
+        backgroundColor:
+            AppColors.resolve(AppColors.surface, AppDarkColors.surface),
         body: SafeArea(
           child: Column(children: [
             const SizedBox(height: 20),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text(l10n.mySpace, style: AppTypography.headlineLarge()),
+              child: Text(l10n.mySpace,
+                  style: AppTypography.headlineLarge(
+                      color:
+                          AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
             ),
             const SizedBox(height: 20),
             Expanded(
@@ -201,10 +205,16 @@ class _MyStoreState extends State<MyStore> {
                     child: Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color:
-                            s.isLogout ? AppColors.errorLight : AppColors.card,
+                        color: s.isLogout
+                            ? AppColors.resolve(
+                                AppColors.errorLight, AppDarkColors.errorLight)
+                            : AppColors.resolve(
+                                AppColors.card, AppDarkColors.card),
                         borderRadius: BorderRadius.circular(AppRadius.lg),
-                        border: Border.all(color: AppColors.border, width: 0.5),
+                        border: Border.all(
+                            color: AppColors.resolve(
+                                AppColors.border, AppDarkColors.border),
+                            width: 0.5),
                       ),
                       child: Row(children: [
                         Container(
@@ -212,8 +222,11 @@ class _MyStoreState extends State<MyStore> {
                           height: 48,
                           decoration: BoxDecoration(
                             color: s.isLogout
-                                ? AppColors.error.withValues(alpha: 0.12)
-                                : AppColors.brandSurface,
+                                ? AppColors.resolve(
+                                    AppColors.error.withValues(alpha: 0.12),
+                                    AppDarkColors.error.withValues(alpha: 0.12))
+                                : AppColors.resolve(AppColors.brandSurface,
+                                    AppDarkColors.brandSurface),
                             borderRadius: BorderRadius.circular(AppRadius.md),
                           ),
                           child: Icon(s.icon,
@@ -229,10 +242,12 @@ class _MyStoreState extends State<MyStore> {
                                   fontSize: 19,
                                   color: s.isLogout
                                       ? AppColors.error
-                                      : AppColors.ink)),
+                                      : AppColors.resolve(
+                                          AppColors.ink, AppDarkColors.ink))),
                         ),
-                        const Icon(Icons.chevron_right_rounded,
-                            color: AppColors.inkSubtle),
+                        Icon(Icons.chevron_right_rounded,
+                            color: AppColors.resolve(
+                                AppColors.inkSubtle, AppDarkColors.inkSubtle)),
                       ]),
                     ),
                   );
@@ -289,11 +304,14 @@ class _MyStoreState extends State<MyStore> {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: AppColors.accentLight,
+              color: AppColors.resolve(
+                  AppColors.accentLight, AppDarkColors.accentLight),
               borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
-            child: const Icon(Icons.hourglass_bottom_rounded,
-                color: AppColors.accent, size: 18),
+            child: Icon(Icons.hourglass_bottom_rounded,
+                color:
+                    AppColors.resolve(AppColors.accent, AppDarkColors.accent),
+                size: 18),
           ),
           const SizedBox(width: 10),
           Text(l10n.store_unverified_title,
@@ -330,11 +348,13 @@ class _MyStoreState extends State<MyStore> {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: AppColors.brandSurface,
+              color: AppColors.resolve(
+                  AppColors.brandSurface, AppDarkColors.brandSurface),
               borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
-            child: const Icon(Icons.restaurant_menu_outlined,
-                color: AppColors.brand, size: 18),
+            child: Icon(Icons.restaurant_menu_outlined,
+                color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+                size: 18),
           ),
           const SizedBox(width: 10),
           Text(l10n.store_become_restaurateur_title,
@@ -511,11 +531,14 @@ class _MyStoreState extends State<MyStore> {
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: AppColors.brandSurface,
+                color: AppColors.resolve(
+                    AppColors.brandSurface, AppDarkColors.brandSurface),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.map_rounded,
-                  color: AppColors.brand, size: 18),
+              child: Icon(Icons.map_rounded,
+                  color:
+                      AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+                  size: 18),
             ),
             const SizedBox(width: 10),
             Text(l10n.store_delivery_radius,
@@ -537,13 +560,16 @@ class _MyStoreState extends State<MyStore> {
                   min: 1,
                   max: 10,
                   divisions: 18,
-                  activeColor: AppColors.brand,
+                  activeColor:
+                      AppColors.resolve(AppColors.brand, AppDarkColors.brand),
                   label: '${distance.toStringAsFixed(0)} km',
                   onChanged: (v) => setInnerState(() => distance = v),
                 ),
                 const SizedBox(height: 8),
                 Text(l10n.store_max_distance_limit,
-                    style: AppTypography.bodyMedium(color: AppColors.inkMuted)),
+                    style: AppTypography.bodyMedium(
+                        color: AppColors.resolve(
+                            AppColors.inkMuted, AppDarkColors.inkMuted))),
               ],
             ),
           ),
@@ -551,11 +577,14 @@ class _MyStoreState extends State<MyStore> {
             TextButton(
               onPressed: () => Navigator.pop(ctx),
               child: Text(l10n.cancel,
-                  style: AppTypography.labelMedium(color: AppColors.inkMuted)),
+                  style: AppTypography.labelMedium(
+                      color: AppColors.resolve(
+                          AppColors.inkMuted, AppDarkColors.inkMuted))),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.brand,
+                backgroundColor:
+                    AppColors.resolve(AppColors.brand, AppDarkColors.brand),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),

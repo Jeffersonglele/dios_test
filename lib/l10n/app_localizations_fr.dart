@@ -713,6 +713,35 @@ class AppLocalizationsFr extends AppLocalizations {
   String get cart_title => 'Votre Panier';
 
   @override
+  String get cart_baskets_title => 'Mes paniers';
+
+  @override
+  String get cart_baskets_hint =>
+      'Sélectionnez un vendeur pour voir les détails de son panier.';
+
+  @override
+  String cart_basket_articles(Object count) {
+    return '$count article(s)';
+  }
+
+  @override
+  String get cart_basket_details => 'Voir les détails';
+
+  @override
+  String get cart_leave_restaurant_title => 'Quitter la page du marchand';
+
+  @override
+  String cart_leave_restaurant_message(Object restaurant) {
+    return 'Vous avez des produits du marchand $restaurant dans votre panier. Voulez-vous vider votre panier ? Sinon, vous pourrez le retrouver en retournant chez ce marchand.';
+  }
+
+  @override
+  String get cart_keep_cart => 'Garder mon panier';
+
+  @override
+  String get cart_empty_cart => 'Vider le panier';
+
+  @override
   String get cart_empty => 'Votre panier est vide';
 
   @override
@@ -1521,6 +1550,33 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get restaurant_form_opening_hours_hint =>
       'Horaires d\'ouverture (ex: 09:00 - 20:00)';
+
+  @override
+  String get restaurant_form_day_required =>
+      'Sélectionnez au moins un jour d\'ouverture.';
+
+  @override
+  String restaurant_opens_at(Object time) {
+    return 'Ouvert à partir de $time';
+  }
+
+  @override
+  String restaurant_opens_on(Object day, Object time) {
+    return 'Ouvert $day à $time';
+  }
+
+  @override
+  String get restaurant_closed_today => 'Fermé aujourd\'hui';
+
+  @override
+  String get restaurant_closed_manually => 'Fermé temporairement';
+
+  @override
+  String get restaurant_closed_detail =>
+      'Ce vendeur est actuellement fermé. Réessayez pendant ses heures d\'ouverture.';
+
+  @override
+  String get restaurant_closed_short => 'Restaurant fermé';
 
   @override
   String get restaurant_form_open_now => 'Restaurant actuellement ouvert';
@@ -3201,6 +3257,20 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get cart_address_out_of_zone_detail =>
       'Cette adresse se trouve en dehors de notre zone de livraison. Nous livrons uniquement dans les zones de livraison actives.';
+
+  @override
+  String get delivery_unavailable_title =>
+      'La livraison n\'est pas disponible à cette adresse';
+
+  @override
+  String get delivery_unavailable_detail =>
+      'Ce vendeur est en dehors de votre zone de livraison. Vous pouvez consulter son menu, mais vous ne pouvez pas ajouter de plats au panier.';
+
+  @override
+  String get delivery_unavailable_short => 'Livraison indisponible';
+
+  @override
+  String get delivery_unavailable_close => 'Fermer';
 
   @override
   String get cart_address_zone_checking =>

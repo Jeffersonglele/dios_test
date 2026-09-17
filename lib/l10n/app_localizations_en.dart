@@ -709,6 +709,35 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cart_title => 'Your Cart';
 
   @override
+  String get cart_baskets_title => 'My baskets';
+
+  @override
+  String get cart_baskets_hint =>
+      'Select a seller to see the details of their basket.';
+
+  @override
+  String cart_basket_articles(Object count) {
+    return '$count item(s)';
+  }
+
+  @override
+  String get cart_basket_details => 'View details';
+
+  @override
+  String get cart_leave_restaurant_title => 'Leave the seller\'s page';
+
+  @override
+  String cart_leave_restaurant_message(Object restaurant) {
+    return 'You have products from $restaurant in your basket. Do you want to empty your basket? Otherwise, you can find it again by returning to this seller.';
+  }
+
+  @override
+  String get cart_keep_cart => 'Keep my basket';
+
+  @override
+  String get cart_empty_cart => 'Empty the basket';
+
+  @override
   String get cart_empty => 'Your cart is empty';
 
   @override
@@ -1512,6 +1541,32 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get restaurant_form_opening_hours_hint =>
       'Opening hours (e.g. 09:00 - 20:00)';
+
+  @override
+  String get restaurant_form_day_required => 'Select at least one opening day.';
+
+  @override
+  String restaurant_opens_at(Object time) {
+    return 'Open from $time';
+  }
+
+  @override
+  String restaurant_opens_on(Object day, Object time) {
+    return 'Open $day at $time';
+  }
+
+  @override
+  String get restaurant_closed_today => 'Closed today';
+
+  @override
+  String get restaurant_closed_manually => 'Temporarily closed';
+
+  @override
+  String get restaurant_closed_detail =>
+      'This seller is currently closed. Please try again during opening hours.';
+
+  @override
+  String get restaurant_closed_short => 'Restaurant closed';
 
   @override
   String get restaurant_form_open_now => 'Restaurant currently open';
@@ -3175,6 +3230,20 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get cart_address_out_of_zone_detail =>
       'This address is outside our delivery zone. We currently deliver only in active delivery zones.';
+
+  @override
+  String get delivery_unavailable_title =>
+      'Delivery is not available at this address';
+
+  @override
+  String get delivery_unavailable_detail =>
+      'This seller is outside your delivery area. You can view the menu, but you cannot add dishes to your cart.';
+
+  @override
+  String get delivery_unavailable_short => 'Delivery unavailable';
+
+  @override
+  String get delivery_unavailable_close => 'Close';
 
   @override
   String get cart_address_zone_checking => 'Checking delivery zone...';

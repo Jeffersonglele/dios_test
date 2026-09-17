@@ -1472,6 +1472,54 @@ abstract class AppLocalizations {
   /// **'Your Cart'**
   String get cart_title;
 
+  /// No description provided for @cart_baskets_title.
+  ///
+  /// In en, this message translates to:
+  /// **'My baskets'**
+  String get cart_baskets_title;
+
+  /// No description provided for @cart_baskets_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a seller to see the details of their basket.'**
+  String get cart_baskets_hint;
+
+  /// No description provided for @cart_basket_articles.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} item(s)'**
+  String cart_basket_articles(Object count);
+
+  /// No description provided for @cart_basket_details.
+  ///
+  /// In en, this message translates to:
+  /// **'View details'**
+  String get cart_basket_details;
+
+  /// No description provided for @cart_leave_restaurant_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave the seller\'s page'**
+  String get cart_leave_restaurant_title;
+
+  /// No description provided for @cart_leave_restaurant_message.
+  ///
+  /// In en, this message translates to:
+  /// **'You have products from {restaurant} in your basket. Do you want to empty your basket? Otherwise, you can find it again by returning to this seller.'**
+  String cart_leave_restaurant_message(Object restaurant);
+
+  /// No description provided for @cart_keep_cart.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep my basket'**
+  String get cart_keep_cart;
+
+  /// No description provided for @cart_empty_cart.
+  ///
+  /// In en, this message translates to:
+  /// **'Empty the basket'**
+  String get cart_empty_cart;
+
   /// No description provided for @cart_empty.
   ///
   /// In en, this message translates to:
@@ -2971,6 +3019,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Opening hours (e.g. 09:00 - 20:00)'**
   String get restaurant_form_opening_hours_hint;
+
+  /// No description provided for @restaurant_form_day_required.
+  ///
+  /// In en, this message translates to:
+  /// **'Select at least one opening day.'**
+  String get restaurant_form_day_required;
+
+  /// No description provided for @restaurant_opens_at.
+  ///
+  /// In en, this message translates to:
+  /// **'Open from {time}'**
+  String restaurant_opens_at(Object time);
+
+  /// No description provided for @restaurant_opens_on.
+  ///
+  /// In en, this message translates to:
+  /// **'Open {day} at {time}'**
+  String restaurant_opens_on(Object day, Object time);
+
+  /// No description provided for @restaurant_closed_today.
+  ///
+  /// In en, this message translates to:
+  /// **'Closed today'**
+  String get restaurant_closed_today;
+
+  /// No description provided for @restaurant_closed_manually.
+  ///
+  /// In en, this message translates to:
+  /// **'Temporarily closed'**
+  String get restaurant_closed_manually;
+
+  /// No description provided for @restaurant_closed_detail.
+  ///
+  /// In en, this message translates to:
+  /// **'This seller is currently closed. Please try again during opening hours.'**
+  String get restaurant_closed_detail;
+
+  /// No description provided for @restaurant_closed_short.
+  ///
+  /// In en, this message translates to:
+  /// **'Restaurant closed'**
+  String get restaurant_closed_short;
 
   /// No description provided for @restaurant_form_open_now.
   ///
@@ -5984,6 +6074,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This address is outside our delivery zone. We currently deliver only in active delivery zones.'**
   String get cart_address_out_of_zone_detail;
+
+  /// No description provided for @delivery_unavailable_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery is not available at this address'**
+  String get delivery_unavailable_title;
+
+  /// No description provided for @delivery_unavailable_detail.
+  ///
+  /// In en, this message translates to:
+  /// **'This seller is outside your delivery area. You can view the menu, but you cannot add dishes to your cart.'**
+  String get delivery_unavailable_detail;
+
+  /// No description provided for @delivery_unavailable_short.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery unavailable'**
+  String get delivery_unavailable_short;
+
+  /// No description provided for @delivery_unavailable_close.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get delivery_unavailable_close;
 
   /// No description provided for @cart_address_zone_checking.
   ///

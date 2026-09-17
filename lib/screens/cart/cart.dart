@@ -18,13 +18,16 @@ import '../../models/users.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/selected_delivery.dart';
 import '../../services/commande_api.dart';
+import '../../services/delivery_availability_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/promo_service.dart';
+import '../../services/restaurant_opening_hours_service.dart';
 import '../../services/session_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/currency_util.dart';
 import '../../utils/toast.dart';
 import '../../widgets/animations.dart';
+import '../../widgets/delivery_unavailable.dart';
 import '../../widgets/dios_image.dart';
 import '../orders/order_tracking_page.dart';
 
@@ -32,7 +35,9 @@ const kDeliveryOptionLivraison = 'En Livraison';
 const kDeliveryOptionEmporter = 'À Emporter';
 
 class Cart extends ConsumerStatefulWidget {
-  const Cart({super.key});
+  const Cart({super.key, this.restaurantId});
+
+  final int? restaurantId;
 
   @override
   ConsumerState<Cart> createState() => _CartState();
@@ -45,6 +50,8 @@ class _CartState extends ConsumerState<Cart> {
   bool _isSubmittingPayment = false;
   bool _payOnline = false;
   bool _isUsingCurrentLocation = false;
+  DeliveryAvailability? _cartDeliveryAvailability;
+  RestaurantOpeningStatus? _cartOpeningStatus;
 
   delivery.Address? selectedAddress;
   List<delivery.Address> addresses = [];
@@ -53,6 +60,28 @@ class _CartState extends ConsumerState<Cart> {
   int current_userID = 0;
   int current_user_role = 0;
   int _cityID = 1;
+
+  List<Map<String, dynamic>> _itemsForRestaurant(
+      List<Map<String, dynamic>> items) {
+    if (widget.restaurantId == null) return items;
+    return items.where((item) {
+      final restaurant = item['restaurant'] as Map<String, dynamic>?;
+      return int.tryParse(restaurant?['restau_id']?.toString() ?? '') ==
+          widget.restaurantId;
+    }).toList();
+  }
+
+  Map<int, List<Map<String, dynamic>>> _groupItems(
+      List<Map<String, dynamic>> items) {
+    final groups = <int, List<Map<String, dynamic>>>{};
+    for (final item in items) {
+      final restaurant = item['restaurant'] as Map<String, dynamic>?;
+      final id = int.tryParse(restaurant?['restau_id']?.toString() ?? '');
+      if (id == null) continue;
+      groups.putIfAbsent(id, () => []).add(item);
+    }
+    return groups;
+  }
 
   @override
   void initState() {
@@ -81,6 +110,38 @@ class _CartState extends ConsumerState<Cart> {
     if (!mounted) return;
     _cityID = user?.cityID ?? 1;
     await _filterAddresses();
+    await _refreshCartDeliveryAvailability(
+        _itemsForRestaurant(ref.read(cartStateProvider)));
+  }
+
+  Future<void> _refreshCartDeliveryAvailability(
+      List<Map<String, dynamic>> cartItems) async {
+    if (cartItems.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _cartDeliveryAvailability = null;
+          _cartOpeningStatus = null;
+        });
+      }
+      return;
+    }
+    final restaurantId =
+        (cartItems.first['restaurant'] as Map<String, dynamic>?)?['restau_id'];
+    if (restaurantId == null) return;
+    final restaurants = await Restaurant.fetchRestaurantsFromDB();
+    final restaurant = Restaurant.getRestaurantByRestaurantId(
+        restaurants, int.tryParse(restaurantId.toString()) ?? 0);
+    if (restaurant == null) return;
+    final availability = await DeliveryAvailabilityService.forRestaurant(
+      restaurant,
+      customerAddress: selectedAddress,
+    );
+    if (mounted) {
+      setState(() {
+        _cartDeliveryAvailability = availability;
+        _cartOpeningStatus = restaurant.openingStatus;
+      });
+    }
   }
 
   Future<void> _filterAddresses() async {
@@ -98,6 +159,126 @@ class _CartState extends ConsumerState<Cart> {
     final list = await delivery.Address.fetchAddressesFromDB();
     setState(() => addresses = list);
     await _filterAddresses();
+  }
+
+  Widget _buildBasketSelection(
+    BuildContext context,
+    Map<int, List<Map<String, dynamic>>> groups,
+    AppLocalizations l10n,
+  ) {
+    return Scaffold(
+      backgroundColor:
+          AppColors.resolve(AppColors.surface, AppDarkColors.surface),
+      appBar: AppBar(
+        title: Text(
+          l10n.cart_baskets_title,
+          style: AppTypography.titleLarge(
+            color: AppColors.resolve(AppColors.ink, AppDarkColors.ink),
+          ).copyWith(fontSize: 20),
+        ),
+      ),
+      body: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
+        itemCount: groups.length + 1,
+        separatorBuilder: (_, index) => index == 0
+            ? const SizedBox(height: 18)
+            : const SizedBox(height: 10),
+        itemBuilder: (_, index) {
+          if (index == 0) {
+            return Text(
+              l10n.cart_baskets_hint,
+              style: AppTypography.bodyLarge(
+                color: AppColors.resolve(AppColors.ink, AppDarkColors.ink),
+              ),
+            );
+          }
+
+          final entry = groups.entries.elementAt(index - 1);
+          final items = entry.value;
+          final restaurant = items.first['restaurant'] as Map<String, dynamic>?;
+          final name = restaurant?['name']?.toString() ?? l10n.cart_title;
+          final image = restaurant?['image']?.toString() ?? '';
+          final count = items.fold<int>(
+            0,
+            (sum, item) =>
+                sum +
+                (((item['order'] as Map<String, dynamic>?)?['quantity'] as num?)
+                        ?.toInt() ??
+                    0),
+          );
+          final country = _countryFromCart(items);
+          final total = _subtotal(items);
+
+          return InkWell(
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => Cart(restaurantId: entry.key),
+              ),
+            ),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.resolve(AppColors.card, AppDarkColors.card),
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+                border: Border.all(
+                    color: AppColors.resolve(
+                        AppColors.border, AppDarkColors.border),
+                    width: 0.5),
+              ),
+              child: Row(
+                children: [
+                  ClipOval(
+                    child: SizedBox(
+                      width: 58,
+                      height: 58,
+                      child: image.isEmpty
+                          ? ColoredBox(
+                              color: AppColors.resolve(
+                                  AppColors.ink, AppDarkColors.ink),
+                              child: Icon(Icons.storefront_rounded,
+                                  color: Colors.white, size: 28),
+                            )
+                          : DiosImage(url: image, fit: BoxFit.cover),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(name,
+                            style: AppTypography.titleMedium(
+                                color: AppColors.resolve(
+                                    AppColors.ink, AppDarkColors.ink))),
+                        const SizedBox(height: 5),
+                        Text(
+                          '${_formatAmount(total, _currencyCode(country), _currencySymbol(country))} • ${l10n.cart_basket_articles(count)}',
+                          style: AppTypography.bodyLarge(
+                            color: AppColors.resolve(
+                                AppColors.ink, AppDarkColors.ink),
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          l10n.cart_basket_details,
+                          style: AppTypography.labelLarge(
+                              color: AppColors.resolve(
+                                  AppColors.brand, AppDarkColors.brand)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right_rounded,
+                      color: AppColors.inkMuted, size: 28),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 
   String _firstText(List<dynamic> values) {
@@ -227,7 +408,8 @@ class _CartState extends ConsumerState<Cart> {
         }
       } else if (result == 'EXISTING_ADDRESS') {
         final existing = await _findNearbySavedAddress(position);
-        if (mounted && existing != null) setState(() => selectedAddress = existing);
+        if (mounted && existing != null)
+          setState(() => selectedAddress = existing);
       } else {
         Toast(context, l10n.location_detect_failed, false);
       }
@@ -246,7 +428,8 @@ class _CartState extends ConsumerState<Cart> {
     return double.tryParse(fee?.toString() ?? '0') ?? 0.0;
   }
 
-  Future<double> calculateDeliveryFee(List<Map<String, dynamic>> cartItems) async {
+  Future<double> calculateDeliveryFee(
+      List<Map<String, dynamic>> cartItems) async {
     if (cartItems.isEmpty) return _staticDeliveryFee(cartItems);
     if (selectedAddress == null) return _staticDeliveryFee(cartItems);
 
@@ -319,20 +502,37 @@ class _CartState extends ConsumerState<Cart> {
       return;
     }
     setState(() => _appliedPromo = promo);
-    Toast(context, AppLocalizations.of(context)!.cart_promo_applied(promo.description), true);
+    Toast(
+        context,
+        AppLocalizations.of(context)!.cart_promo_applied(promo.description),
+        true);
   }
 
   @override
   Widget build(BuildContext context) {
-    final cartItems = ref.watch(cartStateProvider);
+    final allCartItems = ref.watch(cartStateProvider);
+    final cartItems = _itemsForRestaurant(allCartItems);
+    final basketGroups = _groupItems(allCartItems);
+    final visibleGlobalIndices = <int>[];
+    for (var i = 0; i < allCartItems.length; i++) {
+      if (widget.restaurantId == null ||
+          int.tryParse(((allCartItems[i]['restaurant']
+                          as Map<String, dynamic>?)?['restau_id'])
+                      ?.toString() ??
+                  '') ==
+              widget.restaurantId) {
+        visibleGlobalIndices.add(i);
+      }
+    }
     final cartNotifier = ref.read(cartStateProvider.notifier);
     final selectedOption = ref.watch(selectedDeliveryProvider);
     final deliveryNotifier = ref.read(selectedDeliveryProvider.notifier);
 
     final l10n = AppLocalizations.of(context)!;
     final allowedOptions = [kDeliveryOptionLivraison, kDeliveryOptionEmporter];
-    final safeOption =
-        allowedOptions.contains(selectedOption) ? selectedOption : kDeliveryOptionEmporter;
+    final safeOption = allowedOptions.contains(selectedOption)
+        ? selectedOption
+        : kDeliveryOptionEmporter;
 
     // Adresse utilisateur par défaut
     if (selectedAddress == null) {
@@ -346,8 +546,9 @@ class _CartState extends ConsumerState<Cart> {
     final country = _countryFromCart(cartItems);
     final cc = _currencyCode(country);
     final cs = _currencySymbol(country);
-    final deliveryFee =
-        safeOption == kDeliveryOptionLivraison ? _staticDeliveryFee(cartItems) : 0.0;
+    final deliveryFee = safeOption == kDeliveryOptionLivraison
+        ? _staticDeliveryFee(cartItems)
+        : 0.0;
     final cartTotal = _subtotal(cartItems);
     final reduction = _appliedPromo?.discountAmount ?? 0.0;
     final payableTotal =
@@ -356,22 +557,38 @@ class _CartState extends ConsumerState<Cart> {
       kDeliveryOptionLivraison: l10n.cart_delivery_option_delivery,
       kDeliveryOptionEmporter: l10n.cart_delivery_option_takeaway,
     };
+    final deliveryBlocked = _cartDeliveryAvailability != null &&
+        !_cartDeliveryAvailability!.canOrder;
+    final restaurantClosed =
+        _cartOpeningStatus != null && !_cartOpeningStatus!.isOpen;
+
+    if (widget.restaurantId == null && basketGroups.length > 1) {
+      return _buildBasketSelection(context, basketGroups, l10n);
+    }
 
     if (cartItems.isEmpty) {
       return Scaffold(
-        backgroundColor: AppColors.surface,
+        backgroundColor:
+            AppColors.resolve(AppColors.surface, AppDarkColors.surface),
         appBar: AppBar(title: Text(l10n.cart_title)),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(Icons.shopping_basket_outlined,
-                  size: 80, color: AppColors.border),
+                  size: 80,
+                  color: AppColors.resolve(
+                      AppColors.border, AppDarkColors.border)),
               const SizedBox(height: 20),
-              Text(l10n.cart_empty, style: AppTypography.titleMedium()),
+              Text(l10n.cart_empty,
+                  style: AppTypography.titleMedium(
+                      color:
+                          AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
               const SizedBox(height: 8),
               Text(l10n.cart_empty_hint,
-                  style: AppTypography.bodyMedium()),
+                  style: AppTypography.bodyMedium(
+                      color:
+                          AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
             ],
           ),
         ),
@@ -379,10 +596,19 @@ class _CartState extends ConsumerState<Cart> {
     }
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor:
+          AppColors.resolve(AppColors.surface, AppDarkColors.surface),
       appBar: AppBar(
-        title: Text(l10n.cart_title,
-            style: AppTypography.titleLarge().copyWith(fontSize: 20)),
+        title: Text(
+            widget.restaurantId != null
+                ? ((cartItems.first['restaurant']
+                            as Map<String, dynamic>?)?['name']
+                        ?.toString() ??
+                    l10n.cart_title)
+                : l10n.cart_title,
+            style: AppTypography.titleLarge(
+              color: AppColors.resolve(AppColors.ink, AppDarkColors.ink),
+            ).copyWith(fontSize: 20)),
       ),
       body: Column(
         children: [
@@ -396,16 +622,19 @@ class _CartState extends ConsumerState<Cart> {
                   // Items
                   ...List.generate(cartItems.length, (index) {
                     final item = cartItems[index];
+                    final globalIndex = visibleGlobalIndices[index];
                     return _CartItemCard(
                       item: item,
                       country: country,
                       onDelete: () {
-                        cartNotifier.removeFromCart(index);
-                        Toast(context, l10n.cart_item_deleted(item['meal']['meal_name']),
+                        cartNotifier.removeFromCart(globalIndex);
+                        Toast(
+                            context,
+                            l10n.cart_item_deleted(item['meal']['meal_name']),
                             true);
                       },
                       onQuantityChanged: (qty) =>
-                          cartNotifier.updateQuantity(index, qty),
+                          cartNotifier.updateQuantity(globalIndex, qty),
                     );
                   }),
                   const SizedBox(height: 20),
@@ -419,7 +648,8 @@ class _CartState extends ConsumerState<Cart> {
                         child: Container(
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
-                            color: AppColors.card,
+                            color: AppColors.resolve(
+                                AppColors.card, AppDarkColors.card),
                             borderRadius: BorderRadius.circular(AppRadius.lg),
                             border:
                                 Border.all(color: AppColors.border, width: 0.5),
@@ -431,7 +661,8 @@ class _CartState extends ConsumerState<Cart> {
                               isExpanded: true,
                               items: allowedOptions
                                   .map((o) => DropdownMenuItem(
-                                      value: o, child: Text(deliveryLabels[o] ?? o)))
+                                      value: o,
+                                      child: Text(deliveryLabels[o] ?? o)))
                                   .toList(),
                               onChanged: (v) {
                                 if (v != null) deliveryNotifier.state = v;
@@ -448,7 +679,8 @@ class _CartState extends ConsumerState<Cart> {
                       width: double.infinity,
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: AppColors.brandSurface,
+                        color: AppColors.resolve(
+                            AppColors.brandSurface, AppDarkColors.brandSurface),
                         borderRadius: BorderRadius.circular(AppRadius.lg),
                         border: Border.all(
                           color: AppColors.brand.withValues(alpha: 0.18),
@@ -459,14 +691,18 @@ class _CartState extends ConsumerState<Cart> {
                         children: [
                           Text(
                             l10n.cart_delivery_to,
-                            style: AppTypography.titleSmall(),
+                            style: AppTypography.titleSmall(
+                              color: AppColors.resolve(
+                                  AppColors.ink, AppDarkColors.ink),
+                            ),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             selectedAddress?.fullAddress ??
                                 l10n.cart_choose_current_location,
                             style: AppTypography.bodyMedium(
-                              color: AppColors.inkMuted,
+                              color: AppColors.resolve(
+                                  AppColors.inkMuted, AppDarkColors.inkMuted),
                             ),
                           ),
                           const SizedBox(height: 12),
@@ -500,7 +736,8 @@ class _CartState extends ConsumerState<Cart> {
                                 onPressed: _isUsingCurrentLocation
                                     ? null
                                     : _showAddressPicker,
-                                icon: const Icon(Icons.edit_location_alt_outlined),
+                                icon: const Icon(
+                                    Icons.edit_location_alt_outlined),
                               ),
                             ],
                           ),
@@ -512,23 +749,41 @@ class _CartState extends ConsumerState<Cart> {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: AppColors.successLight,
+                          color: AppColors.resolve(AppColors.successLight,
+                              AppDarkColors.successLight),
                           borderRadius: BorderRadius.circular(AppRadius.md),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.my_location_rounded,
-                                color: AppColors.success, size: 18),
+                            Icon(Icons.my_location_rounded,
+                                color: AppColors.resolve(
+                                    AppColors.success, AppDarkColors.success),
+                                size: 18),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 l10n.cart_location_saved,
                                 style: AppTypography.labelMedium(
-                                    color: AppColors.ink),
+                                  color: AppColors.resolve(
+                                      AppColors.ink, AppDarkColors.ink),
+                                ),
                               ),
                             ),
                           ],
                         ),
+                      ),
+                    ],
+                    if (deliveryBlocked) ...[
+                      const SizedBox(height: 8),
+                      DeliveryUnavailableBanner(
+                        onTap: () => showDeliveryUnavailableSheet(context),
+                      ),
+                    ],
+                    if (restaurantClosed) ...[
+                      const SizedBox(height: 8),
+                      RestaurantClosedBanner(
+                        status: _cartOpeningStatus!,
+                        onTap: () => showRestaurantClosedSheet(context),
                       ),
                     ],
                   ],
@@ -543,7 +798,10 @@ class _CartState extends ConsumerState<Cart> {
                         child: TextField(
                           controller: _promoController,
                           textCapitalization: TextCapitalization.characters,
-                          style: AppTypography.bodyLarge(),
+                          style: AppTypography.bodyLarge(
+                            color: AppColors.resolve(
+                                AppColors.ink, AppDarkColors.ink),
+                          ),
                           decoration: InputDecoration(
                             hintText: l10n.cart_promo_hint,
                             prefixIcon: const Icon(Icons.local_offer_outlined,
@@ -570,13 +828,16 @@ class _CartState extends ConsumerState<Cart> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: AppColors.successLight,
+                        color: AppColors.resolve(
+                            AppColors.successLight, AppDarkColors.successLight),
                         borderRadius: BorderRadius.circular(AppRadius.md),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.check_circle,
-                              color: AppColors.success, size: 18),
+                          Icon(Icons.check_circle,
+                              color: AppColors.resolve(
+                                  AppColors.success, AppDarkColors.success),
+                              size: 18),
                           const SizedBox(width: 8),
                           Text(
                             '${_appliedPromo!.code} : ${_appliedPromo!.description}',
@@ -594,8 +855,8 @@ class _CartState extends ConsumerState<Cart> {
                   const SizedBox(height: 14),
                   _SummaryRow(l10n.subtotal, _formatAmount(cartTotal, cc, cs)),
                   if (safeOption == kDeliveryOptionLivraison)
-                    _SummaryRow(l10n.deliveryFee,
-                        _formatAmount(deliveryFee, cc, cs)),
+                    _SummaryRow(
+                        l10n.deliveryFee, _formatAmount(deliveryFee, cc, cs)),
                   if (_appliedPromo != null)
                     _SummaryRow(
                       l10n.cart_discount,
@@ -623,13 +884,17 @@ class _CartState extends ConsumerState<Cart> {
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             decoration: BoxDecoration(
                               color: !_payOnline
-                                  ? AppColors.brandSurface
-                                  : AppColors.card,
+                                  ? AppColors.resolve(AppColors.brandSurface,
+                                      AppDarkColors.brandSurface)
+                                  : AppColors.resolve(
+                                      AppColors.card, AppDarkColors.card),
                               borderRadius: BorderRadius.circular(AppRadius.lg),
                               border: Border.all(
                                 color: !_payOnline
-                                    ? AppColors.brand
-                                    : AppColors.border,
+                                    ? AppColors.resolve(
+                                        AppColors.brand, AppDarkColors.brand)
+                                    : AppColors.resolve(
+                                        AppColors.border, AppDarkColors.border),
                                 width: !_payOnline ? 1.5 : 0.5,
                               ),
                             ),
@@ -637,14 +902,19 @@ class _CartState extends ConsumerState<Cart> {
                               children: [
                                 Icon(Icons.payments_outlined,
                                     color: !_payOnline
-                                        ? AppColors.brand
-                                        : AppColors.inkMuted),
+                                        ? AppColors.resolve(AppColors.brand,
+                                            AppDarkColors.brand)
+                                        : AppColors.resolve(AppColors.inkMuted,
+                                            AppDarkColors.inkMuted)),
                                 const SizedBox(height: 4),
                                 Text(l10n.cart_payment_cod,
                                     style: AppTypography.labelMedium(
                                         color: !_payOnline
-                                            ? AppColors.brand
-                                            : AppColors.inkMuted)),
+                                            ? AppColors.resolve(AppColors.brand,
+                                                AppDarkColors.brand)
+                                            : AppColors.resolve(
+                                                AppColors.inkMuted,
+                                                AppDarkColors.inkMuted))),
                               ],
                             ),
                           ),
@@ -658,13 +928,17 @@ class _CartState extends ConsumerState<Cart> {
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             decoration: BoxDecoration(
                               color: _payOnline
-                                  ? AppColors.brandSurface
-                                  : AppColors.card,
+                                  ? AppColors.resolve(AppColors.brandSurface,
+                                      AppDarkColors.brandSurface)
+                                  : AppColors.resolve(
+                                      AppColors.card, AppDarkColors.card),
                               borderRadius: BorderRadius.circular(AppRadius.lg),
                               border: Border.all(
                                 color: _payOnline
-                                    ? AppColors.brand
-                                    : AppColors.border,
+                                    ? AppColors.resolve(
+                                        AppColors.brand, AppDarkColors.brand)
+                                    : AppColors.resolve(
+                                        AppColors.border, AppDarkColors.border),
                                 width: _payOnline ? 1.5 : 0.5,
                               ),
                             ),
@@ -672,14 +946,19 @@ class _CartState extends ConsumerState<Cart> {
                               children: [
                                 Icon(Icons.credit_card_outlined,
                                     color: _payOnline
-                                        ? AppColors.brand
-                                        : AppColors.inkMuted),
+                                        ? AppColors.resolve(AppColors.brand,
+                                            AppDarkColors.brand)
+                                        : AppColors.resolve(AppColors.inkMuted,
+                                            AppDarkColors.inkMuted)),
                                 const SizedBox(height: 4),
                                 Text(l10n.cart_payment_fedapay,
                                     style: AppTypography.labelMedium(
                                         color: _payOnline
-                                            ? AppColors.brand
-                                            : AppColors.inkMuted)),
+                                            ? AppColors.resolve(AppColors.brand,
+                                                AppDarkColors.brand)
+                                            : AppColors.resolve(
+                                                AppColors.inkMuted,
+                                                AppDarkColors.inkMuted))),
                               ],
                             ),
                           ),
@@ -699,10 +978,12 @@ class _CartState extends ConsumerState<Cart> {
           ? Container(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
               decoration: BoxDecoration(
-                color: AppColors.surface,
+                color:
+                    AppColors.resolve(AppColors.surface, AppDarkColors.surface),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.ink.withValues(alpha: 0.04),
+                    color: AppColors.resolve(AppColors.ink, AppDarkColors.ink)
+                        .withValues(alpha: 0.04),
                     blurRadius: 16,
                     offset: const Offset(0, -4),
                   ),
@@ -714,15 +995,30 @@ class _CartState extends ConsumerState<Cart> {
                   height: 56,
                   child: ElevatedButton(
                     onPressed: cartItems.isNotEmpty && !_isSubmittingPayment
-                        ? () => _payOnline
-                                ? _handleOnlinePayment()
-                            : _handleOrder()
+                        ? () async {
+                            if (deliveryBlocked) {
+                              await showDeliveryUnavailableSheet(context);
+                              return;
+                            }
+                            if (restaurantClosed) {
+                              await showRestaurantClosedSheet(context);
+                              return;
+                            }
+                            if (_payOnline) {
+                              await _handleOnlinePayment();
+                            } else {
+                              await _handleOrder();
+                            }
+                          }
                         : null,
                     child: Text(
                       _isSubmittingPayment
                           ? l10n.cart_processing
-                          : l10n.cart_order_button(CurrencyUtil.formatPrice(payableTotal, country)),
-                      style: AppTypography.labelLarge(color: Colors.white),
+                          : l10n.cart_order_button(
+                              CurrencyUtil.formatPrice(payableTotal, country)),
+                      style: AppTypography.labelLarge(
+                          color: AppColors.resolve(
+                              AppColors.card, AppDarkColors.card)),
                     ),
                   ),
                 ),
@@ -744,8 +1040,11 @@ class _CartState extends ConsumerState<Cart> {
         userId: current_userID,
         user_roleID: current_user_role,
         onRefreshAddresses: refreshAddresses,
-        onAddressSelected: (selected) =>
-            setState(() => selectedAddress = selected),
+        onAddressSelected: (selected) async {
+          setState(() => selectedAddress = selected);
+          await _refreshCartDeliveryAvailability(
+              _itemsForRestaurant(ref.read(cartStateProvider)));
+        },
       ),
     );
   }
@@ -787,12 +1086,24 @@ class _CartState extends ConsumerState<Cart> {
       final inZone = await _checkAddressInZone(selectedAddress!);
       if (!inZone) return;
     }
-    final cartItems = ref.read(cartStateProvider);
+    final cartItems = _itemsForRestaurant(ref.read(cartStateProvider));
+    await _refreshCartDeliveryAvailability(cartItems);
+    if (_cartDeliveryAvailability != null &&
+        !_cartDeliveryAvailability!.canOrder) {
+      await showDeliveryUnavailableSheet(context);
+      return;
+    }
+    if (_cartOpeningStatus != null && !_cartOpeningStatus!.isOpen) {
+      await showRestaurantClosedSheet(context);
+      return;
+    }
     final cartNotifier = ref.read(cartStateProvider.notifier);
     final items = List<Map<String, dynamic>>.from(cartItems);
     final country = _countryFromCart(items);
     final cc = _currencyCode(country);
-    final fee = option == kDeliveryOptionLivraison ? await calculateDeliveryFee(items) : 0.0;
+    final fee = option == kDeliveryOptionLivraison
+        ? await calculateDeliveryFee(items)
+        : 0.0;
     final discount = _appliedPromo?.discountAmount ?? 0.0;
 
     setState(() => _isSubmittingPayment = true);
@@ -811,7 +1122,9 @@ class _CartState extends ConsumerState<Cart> {
       );
       if (commandeId != null) {
         Toast(context, l10n.cart_order_confirm_message, true);
-        final restaurantId = cartItems.first['restaurant']['restau_id'];
+        final restaurantId = int.tryParse(
+                cartItems.first['restaurant']['restau_id'].toString()) ??
+            0;
         final restaurantsList = await Restaurant.fetchRestaurantsFromDB();
         final currentRestaurant = Restaurant.getRestaurantByRestaurantId(
             restaurantsList, restaurantId);
@@ -825,7 +1138,7 @@ class _CartState extends ConsumerState<Cart> {
             currencySymbol: CurrencyUtil.symbol(country),
           );
         }
-        cartNotifier.clearCart();
+        await cartNotifier.clearRestaurantCart(restaurantId);
         if (mounted) {
           Navigator.pushReplacement(
               context,
@@ -854,16 +1167,32 @@ class _CartState extends ConsumerState<Cart> {
       final inZone = await _checkAddressInZone(selectedAddress!);
       if (!inZone) return;
     }
-    final cartItems = ref.read(cartStateProvider);
+    final cartItems = _itemsForRestaurant(ref.read(cartStateProvider));
+    await _refreshCartDeliveryAvailability(cartItems);
+    if (_cartDeliveryAvailability != null &&
+        !_cartDeliveryAvailability!.canOrder) {
+      await showDeliveryUnavailableSheet(context);
+      return;
+    }
+    if (_cartOpeningStatus != null && !_cartOpeningStatus!.isOpen) {
+      await showRestaurantClosedSheet(context);
+      return;
+    }
     final cartNotifier = ref.read(cartStateProvider.notifier);
     final items = List<Map<String, dynamic>>.from(cartItems);
     final country = _countryFromCart(items);
     final cc = _currencyCode(country);
-    final fee = option == kDeliveryOptionLivraison ? await calculateDeliveryFee(items) : 0.0;
+    final fee = option == kDeliveryOptionLivraison
+        ? await calculateDeliveryFee(items)
+        : 0.0;
     final discount = _appliedPromo?.discountAmount ?? 0.0;
     final total =
         (_subtotal(items) + fee - discount).clamp(0.0, double.infinity);
-    final currencyIso = country == 'CD' ? 'CDF' : CurrencyUtil.code(country).toUpperCase() == 'XOF' ? 'XOF' : 'EUR';
+    final currencyIso = country == 'CD'
+        ? 'CDF'
+        : CurrencyUtil.code(country).toUpperCase() == 'XOF'
+            ? 'XOF'
+            : 'EUR';
 
     setState(() => _isSubmittingPayment = true);
     try {
@@ -910,7 +1239,9 @@ class _CartState extends ConsumerState<Cart> {
           if (await canLaunchUrl(uri)) {
             await launchUrl(uri, mode: LaunchMode.externalApplication);
           }
-          final restaurantId = cartItems.first['restaurant']['restau_id'];
+          final restaurantId = int.tryParse(
+                  cartItems.first['restaurant']['restau_id'].toString()) ??
+              0;
           final restaurantsList = await Restaurant.fetchRestaurantsFromDB();
           final currentRestaurant = Restaurant.getRestaurantByRestaurantId(
               restaurantsList, restaurantId);
@@ -923,7 +1254,7 @@ class _CartState extends ConsumerState<Cart> {
               currencySymbol: CurrencyUtil.symbol(country),
             );
           }
-          cartNotifier.clearCart();
+          await cartNotifier.clearRestaurantCart(restaurantId);
           if (mounted) {
             Navigator.pushReplacement(
                 context,
@@ -932,10 +1263,12 @@ class _CartState extends ConsumerState<Cart> {
                         OrderConfirmationPage(commandeId: commandeId)));
           }
         } else {
-          Toast(context, AppLocalizations.of(context)!.cart_payment_url_error, false);
+          Toast(context, AppLocalizations.of(context)!.cart_payment_url_error,
+              false);
         }
       } else {
-        Toast(context, AppLocalizations.of(context)!.cart_payment_online_error, false);
+        Toast(context, AppLocalizations.of(context)!.cart_payment_online_error,
+            false);
       }
     } catch (_) {
       Toast(context, AppLocalizations.of(context)!.cart_payment_error, false);
@@ -968,27 +1301,26 @@ class _CartState extends ConsumerState<Cart> {
         (subtotal + deliveryFee - reduction).clamp(0.0, double.infinity);
 
     final items = cartItems.map((item) {
-      final unitPrice =
-          ((item["meal"]["price"] as num?)?.toDouble() ?? 0.0) +
-              ((item["optionPrice"] as num?)?.toDouble() ?? 0.0);
+      final unitPrice = ((item["meal"]["price"] as num?)?.toDouble() ?? 0.0) +
+          ((item["optionPrice"] as num?)?.toDouble() ?? 0.0);
       return {
-              "platID": item["meal"]["mealID"],
-              "id_plat": item["meal"]["mealID"],
-              "quantite": item["order"]["quantity"],
-              "prixUnitaire": unitPrice,
-              "prix_unitaire": unitPrice,
-              "prix": unitPrice,
-              "reduction": reduction,
-              "fraisLivraison": deliveryFee,
-              if (idPaiement != null) "moyen_paiement_id": idPaiement,
-              if (idAdresse != null) "id_adresse_livraison": idAdresse,
-              "options": (item["optionDetails"] ?? {}).map(
-                (k, v) => MapEntry(k.toString(), {
-                  "name": v["name"].toString(),
-                  "price": (v["price"] as num).toDouble(),
-                }),
-              ),
-            };
+        "platID": item["meal"]["mealID"],
+        "id_plat": item["meal"]["mealID"],
+        "quantite": item["order"]["quantity"],
+        "prixUnitaire": unitPrice,
+        "prix_unitaire": unitPrice,
+        "prix": unitPrice,
+        "reduction": reduction,
+        "fraisLivraison": deliveryFee,
+        if (idPaiement != null) "moyen_paiement_id": idPaiement,
+        if (idAdresse != null) "id_adresse_livraison": idAdresse,
+        "options": (item["optionDetails"] ?? {}).map(
+          (k, v) => MapEntry(k.toString(), {
+            "name": v["name"].toString(),
+            "price": (v["price"] as num).toDouble(),
+          }),
+        ),
+      };
     }).toList();
     final params = <String, dynamic>{
       "userID": current_userID,
@@ -1030,7 +1362,9 @@ class _SectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Text(title,
-        style: AppTypography.titleMedium().copyWith(fontSize: 17));
+        style: AppTypography.titleMedium(
+          color: AppColors.resolve(AppColors.ink, AppDarkColors.ink),
+        ).copyWith(fontSize: 17));
   }
 }
 
@@ -1052,16 +1386,23 @@ class _SummaryRow extends StatelessWidget {
           Text(
             label,
             style: isBold
-                ? AppTypography.titleMedium().copyWith(fontSize: 16)
-                : AppTypography.bodyLarge(color: AppColors.inkMuted),
+                ? AppTypography.titleMedium(
+                    color: AppColors.resolve(AppColors.ink, AppDarkColors.ink),
+                  ).copyWith(fontSize: 16)
+                : AppTypography.bodyLarge(
+                    color: AppColors.resolve(AppColors.ink, AppDarkColors.ink),
+                  ),
           ),
-          Text(
-            value,
-            style: (isBold
-                    ? AppTypography.titleMedium().copyWith(fontSize: 16)
-                    : AppTypography.bodyLarge())
-                .copyWith(color: valueColor),
-          ),
+          Text(value,
+              style: (isBold
+                  ? AppTypography.titleMedium(
+                      color:
+                          AppColors.resolve(AppColors.ink, AppDarkColors.ink),
+                    ).copyWith(fontSize: 16)
+                  : AppTypography.bodyLarge(
+                      color:
+                          AppColors.resolve(AppColors.ink, AppDarkColors.ink),
+                    )))
         ],
       ),
     );
@@ -1098,7 +1439,8 @@ class _CartItemCard extends StatelessWidget {
       background: Container(
         margin: const EdgeInsets.only(bottom: 14),
         decoration: BoxDecoration(
-          color: AppColors.errorLight,
+          color:
+              AppColors.resolve(AppColors.errorLight, AppDarkColors.errorLight),
           borderRadius: BorderRadius.circular(AppRadius.lg),
         ),
         alignment: Alignment.centerRight,
@@ -1109,9 +1451,11 @@ class _CartItemCard extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.only(bottom: 14),
         decoration: BoxDecoration(
-          color: AppColors.card,
+          color: AppColors.resolve(AppColors.card, AppDarkColors.card),
           borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(color: AppColors.border, width: 0.5),
+          border: Border.all(
+              color: AppColors.resolve(AppColors.border, AppDarkColors.border),
+              width: 0.5),
         ),
         child: Padding(
           padding: const EdgeInsets.all(12),
@@ -1134,14 +1478,20 @@ class _CartItemCard extends StatelessWidget {
                   children: [
                     Text(
                       meal["meal_name"] ?? '',
-                      style: AppTypography.titleMedium().copyWith(fontSize: 15),
+                      style: AppTypography.titleMedium(
+                        color:
+                            AppColors.resolve(AppColors.ink, AppDarkColors.ink),
+                      ).copyWith(fontSize: 15),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
                     Text(
                       format(lineTotal),
-                      style: AppTypography.bodyLarge(),
+                      style: AppTypography.bodyLarge(
+                        color:
+                            AppColors.resolve(AppColors.ink, AppDarkColors.ink),
+                      ),
                     ),
                     if (item["optionDetails"] != null &&
                         item["optionDetails"] is Map)
@@ -1152,7 +1502,8 @@ class _CartItemCard extends StatelessWidget {
                         return Text(
                           '${entry.key}: ${info["name"] ?? ""}',
                           style: AppTypography.labelMedium(
-                              color: AppColors.inkSubtle),
+                              color: AppColors.resolve(AppColors.inkSubtle,
+                                  AppDarkColors.inkSubtle)),
                         );
                       }),
                   ],
@@ -1163,6 +1514,7 @@ class _CartItemCard extends StatelessWidget {
                 children: [
                   _QtyButton(
                     icon: Icons.add_rounded,
+                    color: AppColors.resolve(AppColors.ink, AppDarkColors.ink),
                     onTap: quantity < maxQty
                         ? () => onQuantityChanged(quantity + 1)
                         : null,
@@ -1171,7 +1523,10 @@ class _CartItemCard extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 2),
                     child: Text(
                       '$quantity',
-                      style: AppTypography.titleMedium().copyWith(fontSize: 16),
+                      style: AppTypography.titleMedium(
+                        color:
+                            AppColors.resolve(AppColors.ink, AppDarkColors.ink),
+                      ).copyWith(fontSize: 16),
                     ),
                   ),
                   _QtyButton(
@@ -1191,8 +1546,13 @@ class _CartItemCard extends StatelessWidget {
 }
 
 class _QtyButton extends StatelessWidget {
-  const _QtyButton({required this.icon, this.onTap});
+  const _QtyButton({
+    required this.icon,
+    this.color,
+    required this.onTap,
+  });
   final IconData icon;
+  final Color? color;
   final VoidCallback? onTap;
 
   @override
@@ -1203,12 +1563,18 @@ class _QtyButton extends StatelessWidget {
         width: 32,
         height: 28,
         decoration: BoxDecoration(
-          color: onTap != null ? AppColors.brandSurface : AppColors.surfaceWarm,
+          color: onTap != null
+              ? AppColors.resolve(
+                  AppColors.brandSurface, AppDarkColors.brandSurface)
+              : AppColors.resolve(
+                  AppColors.surfaceWarm, AppDarkColors.surfaceWarm),
           borderRadius: BorderRadius.circular(AppRadius.sm),
         ),
         child: Icon(icon,
             size: 18,
-            color: onTap != null ? AppColors.brand : AppColors.border),
+            color: onTap != null
+                ? AppColors.resolve(AppColors.brand, AppDarkColors.brand)
+                : AppColors.resolve(AppColors.border, AppDarkColors.border)),
       ),
     );
   }
@@ -1224,7 +1590,8 @@ class OrderConfirmationPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-        backgroundColor: AppColors.surface,
+        backgroundColor:
+            AppColors.resolve(AppColors.surface, AppDarkColors.surface),
         body: OrderConfettiCelebration(
           child: SafeArea(
             child: Center(
@@ -1236,12 +1603,18 @@ class OrderConfirmationPage extends StatelessWidget {
                     const AnimatedSuccessCheck(),
                     const SizedBox(height: 28),
                     Text(l10n.cart_order_confirm_message,
-                        style: AppTypography.headlineMedium(),
+                        style: AppTypography.headlineMedium(
+                          color: AppColors.resolve(
+                              AppColors.ink, AppDarkColors.ink),
+                        ),
                         textAlign: TextAlign.center),
                     const SizedBox(height: 12),
                     Text(
                       l10n.cart_order_confirmed_message(commandeId),
-                      style: AppTypography.bodyLarge(color: AppColors.inkMuted),
+                      style: AppTypography.bodyLarge(
+                        color:
+                            AppColors.resolve(AppColors.ink, AppDarkColors.ink),
+                      ),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 32),
@@ -1321,14 +1694,16 @@ class _DeliveryAddressModalState extends State<DeliveryAddressModal> {
       final response = await ParseCloudFunction('geocodeDeliveryAddress')
           .execute(parameters: {'query': fullAddress});
       if (!response.success || response.result is! Map) {
-        Toast(context, AppLocalizations.of(context)!.cart_address_not_found, false);
+        Toast(context, AppLocalizations.of(context)!.cart_address_not_found,
+            false);
         return;
       }
       final geocoded = Map<String, dynamic>.from(response.result as Map);
       final lat = double.tryParse(geocoded['latitude']?.toString() ?? '');
       final long = double.tryParse(geocoded['longitude']?.toString() ?? '');
       if (geocoded['success'] != true || lat == null || long == null) {
-        Toast(context, AppLocalizations.of(context)!.cart_address_not_found, false);
+        Toast(context, AppLocalizations.of(context)!.cart_address_not_found,
+            false);
         return;
       }
 
@@ -1376,7 +1751,8 @@ class _DeliveryAddressModalState extends State<DeliveryAddressModal> {
 
   Future<void> deleteAddress(int id, String object) async {
     if (object != "Livraison") {
-      Toast(context, AppLocalizations.of(context)!.cart_address_delete_forbidden, false);
+      Toast(context,
+          AppLocalizations.of(context)!.cart_address_delete_forbidden, false);
       return;
     }
     final result = await delivery.Address.deleteAddress(
@@ -1393,7 +1769,8 @@ class _DeliveryAddressModalState extends State<DeliveryAddressModal> {
       });
       Navigator.pop(context);
     } else {
-      Toast(context, AppLocalizations.of(context)!.cart_address_delete_error, false);
+      Toast(context, AppLocalizations.of(context)!.cart_address_delete_error,
+          false);
     }
   }
 
@@ -1416,12 +1793,16 @@ class _DeliveryAddressModalState extends State<DeliveryAddressModal> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: AppColors.border,
+                  color:
+                      AppColors.resolve(AppColors.border, AppDarkColors.border),
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
               const SizedBox(height: 20),
-              Text(l10n.cart_your_addresses, style: AppTypography.titleMedium()),
+              Text(l10n.cart_your_addresses,
+                  style: AppTypography.titleMedium(
+                    color: AppColors.resolve(AppColors.ink, AppDarkColors.ink),
+                  )),
               const SizedBox(height: 16),
               Expanded(
                 child: ListView(
@@ -1430,12 +1811,15 @@ class _DeliveryAddressModalState extends State<DeliveryAddressModal> {
                     ...widget.filteredAddresses.map((addr) => Container(
                           margin: const EdgeInsets.only(bottom: 8),
                           decoration: BoxDecoration(
-                            color: AppColors.card,
+                            color: AppColors.resolve(
+                                AppColors.card, AppDarkColors.card),
                             borderRadius: BorderRadius.circular(AppRadius.md),
                             border: Border.all(
                               color: selectedAddressId == addr['addressID']
-                                  ? AppColors.brand
-                                  : AppColors.border,
+                                  ? AppColors.resolve(
+                                      AppColors.brand, AppDarkColors.brand)
+                                  : AppColors.resolve(
+                                      AppColors.border, AppDarkColors.border),
                               width: selectedAddressId == addr['addressID']
                                   ? 1.5
                                   : 0.5,

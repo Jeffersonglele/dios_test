@@ -9,6 +9,7 @@ import '../../constants/constant.dart';
 import '../../models/dish.dart';
 import '../../models/restaurant.dart';
 import '../../services/favorites_service.dart';
+import '../../services/delivery_availability_service.dart';
 import '../../services/session_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/dios_image.dart';
@@ -17,6 +18,9 @@ import '../../utils/currency_util.dart';
 import '../../utils/stars.dart';
 import '../../utils/toast.dart';
 import '../../widgets/rating_tags_display.dart';
+import '../../widgets/delivery_unavailable.dart';
+import '../../widgets/cart_conflict.dart';
+import '../../providers/cart_provider.dart';
 import '../dish/dish_details.dart';
 import 'restaurant_form_page.dart';
 
@@ -44,6 +48,7 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
   List<String> _selectedHashtags = [];
   List<Dish> dishes = [];
   Restaurant? current_restaurant;
+  DeliveryAvailability? _deliveryAvailability;
 
   @override
   void initState() {
@@ -100,6 +105,10 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
         final fav = await FavoritesService.isRestaurantFavorite(restaurant.restaurantID);
         if (!mounted) return;
         setState(() => isFavorite = fav);
+
+        final availability =
+            await DeliveryAvailabilityService.forRestaurant(restaurant);
+        if (mounted) setState(() => _deliveryAvailability = availability);
       }
     } catch (_) {}
   }
@@ -110,6 +119,26 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
     if (mounted) setState(() => isFavorite = next);
   }
 
+  Future<bool> _handleWillPop() async {
+    final restaurant = current_restaurant;
+    if (restaurant == null || restau_de_luser_connecte) return true;
+
+    final cartNotifier = ref.read(cartStateProvider.notifier);
+    if (!cartNotifier.restaurantIds.contains(restaurant.restaurantID)) {
+      return true;
+    }
+
+    final choice = await showCartConflictSheet(
+      context,
+      restaurantName: restaurant.name,
+    );
+    if (!mounted || choice == CartConflictChoice.cancel) return false;
+    if (choice == CartConflictChoice.replace) {
+      await cartNotifier.clearCart();
+    }
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
@@ -117,11 +146,27 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
     if (current_restaurant == null) return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
     final isOwner = restau_de_luser_connecte;
+    final openingStatus = current_restaurant!.openingStatus;
+    final restaurantClosed = !openingStatus.isOpen;
     final canFavorite = !restau_de_luser_connecte && currentUser_role != 1 && currentUser_role != 4;
+    final deliveryBlocked =
+        !isOwner &&
+        _deliveryAvailability != null &&
+        !_deliveryAvailability!.canOrder;
+    final openingMessage = openingStatus.isClosedManually
+        ? l10n.restaurant_closed_manually
+        : openingStatus.opensLaterToday
+            ? l10n.restaurant_opens_at(openingStatus.opensAt!)
+            : openingStatus.opensOn != null
+                ? l10n.restaurant_opens_on(
+                    openingStatus.opensOn!, openingStatus.opensAt ?? '')
+                : l10n.restaurant_closed_today;
 
     return GestureDetector(
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
-      child: Scaffold(
+      child: WillPopScope(
+        onWillPop: _handleWillPop,
+        child: Scaffold(
         backgroundColor: AppColors.surface,
         body: CustomScrollView(
           slivers: [
@@ -140,7 +185,11 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
                   ),
                   child: const Icon(Icons.arrow_back_rounded, size: 20),
                 ),
-                onPressed: () => Navigator.pop(context),
+                onPressed: () async {
+                  if (await _handleWillPop() && mounted) {
+                    Navigator.pop(context);
+                  }
+                },
               ),
               actions: [
                 if (canFavorite)
@@ -178,6 +227,22 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
                         ),
                       ),
                     ),
+                    if (restaurantClosed)
+                      Positioned.fill(
+                        child: Container(
+                          alignment: Alignment.center,
+                          color: Colors.black.withValues(alpha: 0.34),
+                          child: Text(
+                            openingMessage,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -224,12 +289,12 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: (current_restaurant!.isOpen == 1 ? AppColors.success : AppColors.error).withValues(alpha: 0.1),
+                        color: (openingStatus.isOpen ? AppColors.success : AppColors.error).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(999),
                       ),
-                      child: Text(current_restaurant!.isOpen == 1 ? l10n.open : l10n.closed,
+                      child: Text(openingStatus.isOpen ? l10n.open : l10n.closed,
                           style: TextStyle(
-                            color: current_restaurant!.isOpen == 1 ? AppColors.success : AppColors.error,
+                            color: openingStatus.isOpen ? AppColors.success : AppColors.error,
                             fontSize: 12, fontWeight: FontWeight.w700,
                           )),
                     ),
@@ -247,6 +312,20 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
                       ]),
                     ),
                   CharacteristicsDisplay(targetType: 1, targetID: widget.restaurant_id),
+
+                  if (deliveryBlocked) ...[
+                    const SizedBox(height: 12),
+                    DeliveryUnavailableBanner(
+                      onTap: () => showDeliveryUnavailableSheet(context),
+                    ),
+                  ],
+                  if (!isOwner && restaurantClosed) ...[
+                    const SizedBox(height: 12),
+                    RestaurantClosedBanner(
+                      status: openingStatus,
+                      onTap: () => showRestaurantClosedSheet(context),
+                    ),
+                  ],
 
                   // Adresse
                   if ((current_restaurant!.location ?? '').isNotEmpty)
@@ -368,6 +447,7 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails> {
               ),
             ),
           ],
+        ),
         ),
       ),
     );

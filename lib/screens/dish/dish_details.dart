@@ -4,8 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants/constant.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/dish.dart';
+import '../../models/restaurant.dart';
 import '../../providers/cart_provider.dart';
+import '../../services/delivery_availability_service.dart';
 import '../../services/favorites_service.dart';
+import '../../services/restaurant_opening_hours_service.dart';
 import '../../services/session_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/currency_util.dart';
@@ -13,6 +16,8 @@ import '../../utils/stars.dart';
 import '../../utils/toast.dart';
 import '../../widgets/dios_image.dart';
 import '../../widgets/micro_interactions.dart';
+import '../../widgets/delivery_unavailable.dart';
+import '../../widgets/cart_conflict.dart';
 import '../../widgets/rating_tags_display.dart';
 import 'dish_form_page.dart';
 
@@ -33,6 +38,9 @@ class _DishDetailsState extends ConsumerState<DishDetails> {
   bool isLoading = true;
   bool isFavorite = false;
   bool isOwner = false;
+  DeliveryAvailability? _deliveryAvailability;
+  RestaurantOpeningStatus? _openingStatus;
+  String _restaurantName = '';
 
   List<Dish> dishes = [];
   Dish? current_dish;
@@ -64,6 +72,25 @@ class _DishDetailsState extends ConsumerState<DishDetails> {
     isFavorite = await FavoritesService.isDishFavorite(widget.dish_id);
     if (!mounted) return;
     setState(() {});
+
+    final restaurants = await Restaurant.fetchRestaurantsFromDB();
+    final restaurant = Restaurant.getRestaurantByRestaurantId(
+      restaurants,
+      dish.restauID,
+    );
+    if (restaurant != null) {
+      if (mounted) {
+        setState(() => _restaurantName = restaurant.name);
+      }
+      final availability =
+          await DeliveryAvailabilityService.forRestaurant(restaurant);
+      if (mounted) {
+        setState(() {
+          _deliveryAvailability = availability;
+          _openingStatus = restaurant.openingStatus;
+        });
+      }
+    }
   }
 
   Future<void> _toggleFavorite() async {
@@ -76,6 +103,17 @@ class _DishDetailsState extends ConsumerState<DishDetails> {
     final session = await SessionService.readSession();
     final cartNotifier = ref.read(cartStateProvider.notifier);
     final dish = current_dish!;
+
+    if (cartNotifier.hasOtherRestaurant(dish.restauID)) {
+      final choice = await showCartConflictSheet(
+        context,
+        restaurantName: _restaurantName,
+      );
+      if (!mounted || choice == CartConflictChoice.cancel) return;
+      if (choice == CartConflictChoice.replace) {
+        await cartNotifier.clearCart();
+      }
+    }
 
     final result = await cartNotifier.addToCart(
       dish.dishID,
@@ -95,8 +133,14 @@ class _DishDetailsState extends ConsumerState<DishDetails> {
       case 'success':
         Toast(context, AppLocalizations.of(context)!.dish_added_to_cart, true);
         break;
-      case 'different_restaurant':
-        Toast(context, AppLocalizations.of(context)!.dish_cannot_mix_restaurants, false);
+      case 'out_of_delivery_zone':
+        await showDeliveryUnavailableSheet(context);
+        break;
+      case 'delivery_address_required':
+        await showDeliveryUnavailableSheet(context);
+        break;
+      case 'restaurant_closed':
+        await showRestaurantClosedSheet(context);
         break;
       default:
         Toast(context, AppLocalizations.of(context)!.dish_add_error, false);
@@ -114,6 +158,12 @@ class _DishDetailsState extends ConsumerState<DishDetails> {
 
     final currency = CurrencyUtil.symbol(country ?? '');
     final dish = current_dish!;
+    final deliveryBlocked =
+        !isOwner &&
+        _deliveryAvailability != null &&
+        !_deliveryAvailability!.canOrder;
+    final restaurantClosed =
+        !isOwner && _openingStatus != null && !_openingStatus!.isOpen;
     final extraImages = dish.images
         .split(',')
         .map((s) => s.trim())
@@ -271,6 +321,20 @@ class _DishDetailsState extends ConsumerState<DishDetails> {
                   Text(dish.description ?? '', style: AppTypography.bodyLarge()),
                   const SizedBox(height: 12),
 
+                  if (deliveryBlocked) ...[
+                    DeliveryUnavailableBanner(
+                      onTap: () => showDeliveryUnavailableSheet(context),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  if (restaurantClosed) ...[
+                    RestaurantClosedBanner(
+                      status: _openingStatus!,
+                      onTap: () => showRestaurantClosedSheet(context),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
                   Row(children: [
                     const Icon(Icons.inventory_2_outlined, color: AppColors.inkSubtle, size: 16),
                     const SizedBox(width: 6),
@@ -377,8 +441,18 @@ class _DishDetailsState extends ConsumerState<DishDetails> {
                     child: ElevatedButton.icon(
                       onPressed: _addToCart,
                       icon: const Icon(Icons.shopping_cart_rounded, size: 20),
-                      label: Text(l10n.dish_add_to_cart('${(dish.price ?? 0) * number_of_parts} $currency')),
+                      label: Text(
+                        deliveryBlocked
+                            ? l10n.delivery_unavailable_short
+                            : restaurantClosed
+                                ? l10n.restaurant_closed_short
+                                : l10n.dish_add_to_cart(
+                                    '${(dish.price ?? 0) * number_of_parts} $currency'),
+                      ),
                       style: ElevatedButton.styleFrom(
+                        backgroundColor: deliveryBlocked || restaurantClosed
+                            ? AppColors.inkMuted
+                            : AppColors.brand,
                         textStyle: AppTypography.labelLarge(color: Colors.white),
                       ),
                     ),

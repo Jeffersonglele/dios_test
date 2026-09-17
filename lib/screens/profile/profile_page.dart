@@ -77,15 +77,20 @@ class _ProfilePageState extends State<ProfilePage> {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: AppColors.brandSurface,
+              color: AppColors.resolve(
+                  AppColors.brandSurface, AppDarkColors.brandSurface),
               borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
-            child: const Icon(Icons.person_rounded,
-                color: AppColors.brand, size: 18),
+            child: Icon(Icons.person_rounded,
+                color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+                size: 18),
           ),
           const SizedBox(width: 10),
           Text(AppLocalizations.of(ctx)!.editProfileTitle,
-              style: AppTypography.titleMedium().copyWith(fontSize: 16)),
+              style: AppTypography.titleMedium(
+                      color:
+                          AppColors.resolve(AppColors.ink, AppDarkColors.ink))
+                  .copyWith(fontSize: 16)),
         ]),
         content: Form(
           key: formKey,
@@ -99,7 +104,8 @@ class _ProfilePageState extends State<ProfilePage> {
                 child: Stack(children: [
                   CircleAvatar(
                     radius: 42,
-                    backgroundColor: AppColors.brandSurface,
+                    backgroundColor: AppColors.resolve(
+                        AppColors.brandSurface, AppDarkColors.brandSurface),
                     child: _newPhoto != null
                         ? ClipOval(
                             child: pickedImagePreview(_newPhoto!,
@@ -114,10 +120,11 @@ class _ProfilePageState extends State<ProfilePage> {
                             : Text(
                                 '${user.firstname.isNotEmpty ? user.firstname[0] : ''}${user.lastname.isNotEmpty ? user.lastname[0] : ''}'
                                     .toUpperCase(),
-                                style: const TextStyle(
+                                style: TextStyle(
                                     fontSize: 28,
                                     fontWeight: FontWeight.bold,
-                                    color: AppColors.brand)),
+                                    color: AppColors.resolve(
+                                        AppColors.brand, AppDarkColors.brand))),
                   ),
                   Positioned(
                       bottom: 0,
@@ -126,7 +133,8 @@ class _ProfilePageState extends State<ProfilePage> {
                         width: 28,
                         height: 28,
                         decoration: BoxDecoration(
-                            color: AppColors.brand,
+                            color: AppColors.resolve(
+                                AppColors.brand, AppDarkColors.brand),
                             shape: BoxShape.circle,
                             border: Border.all(color: Colors.white, width: 2)),
                         child: const Icon(Icons.camera_alt_rounded,
@@ -177,7 +185,9 @@ class _ProfilePageState extends State<ProfilePage> {
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
             child: Text(AppLocalizations.of(ctx)!.cancel,
-                style: AppTypography.labelMedium(color: AppColors.inkMuted)),
+                style: AppTypography.labelMedium(
+                    color: AppColors.resolve(
+                        AppColors.inkMuted, AppDarkColors.inkMuted))),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -228,7 +238,8 @@ class _ProfilePageState extends State<ProfilePage> {
     final user = _user;
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor:
+          AppColors.resolve(AppColors.surface, AppDarkColors.surface),
       appBar: AppBar(title: Text(l10n.myProfile)),
       body: SafeArea(
         child: user == null
@@ -240,14 +251,19 @@ class _ProfilePageState extends State<ProfilePage> {
                   Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: AppColors.card,
+                      color:
+                          AppColors.resolve(AppColors.card, AppDarkColors.card),
                       borderRadius: BorderRadius.circular(AppRadius.lg),
-                      border: Border.all(color: AppColors.border, width: 0.5),
+                      border: Border.all(
+                          color: AppColors.resolve(
+                              AppColors.border, AppDarkColors.border),
+                          width: 0.5),
                     ),
                     child: Column(children: [
                       CircleAvatar(
                         radius: 40,
-                        backgroundColor: AppColors.brandSurface,
+                        backgroundColor: AppColors.resolve(
+                            AppColors.brandSurface, AppDarkColors.brandSurface),
                         child: user.image.isNotEmpty
                             ? ClipOval(
                                 child: Image.memory(base64Decode(user.image),
@@ -272,7 +288,8 @@ class _ProfilePageState extends State<ProfilePage> {
                       Text(
                         '@${user.username}',
                         style: AppTypography.bodyMedium(
-                            color: AppColors.inkSubtle),
+                            color: AppColors.resolve(
+                                AppColors.inkSubtle, AppDarkColors.inkSubtle)),
                       ),
                     ]),
                   ),
@@ -281,9 +298,13 @@ class _ProfilePageState extends State<ProfilePage> {
                   // ── Informations ──────────────────────────
                   Container(
                     decoration: BoxDecoration(
-                      color: AppColors.card,
+                      color:
+                          AppColors.resolve(AppColors.card, AppDarkColors.card),
                       borderRadius: BorderRadius.circular(AppRadius.lg),
-                      border: Border.all(color: AppColors.border, width: 0.5),
+                      border: Border.all(
+                          color: AppColors.resolve(
+                              AppColors.border, AppDarkColors.border),
+                          width: 0.5),
                     ),
                     child: Column(children: [
                       _infoTile(
@@ -384,9 +405,12 @@ class _ProfilePageState extends State<ProfilePage> {
     return Material(
       color: Colors.transparent,
       child: ListTile(
-        leading: Icon(icon, color: AppColors.brand),
+        leading: Icon(icon,
+            color: AppColors.resolve(AppColors.brand, AppDarkColors.brand)),
         title: Text(label,
-            style: AppTypography.bodyMedium(color: AppColors.inkSubtle)
+            style: AppTypography.bodyMedium(
+                    color: AppColors.resolve(
+                        AppColors.inkSubtle, AppDarkColors.inkSubtle))
                 .copyWith(fontSize: 12)),
         subtitle: Text(value, style: AppTypography.labelMedium()),
       ),

@@ -156,30 +156,29 @@ class _HomeUserState extends State<HomeUser> {
   }
 
   Future<void> _tagOutOfRangeAndSort() async {
-    const double maxKm = 10.0;
     final inRange = <Restaurant>[];
     final outOfRange = <Restaurant>[];
     _outOfRangeRestauIds.clear();
 
-    Address? userAddress;
-    for (final addr in _addresses) {
-      if (addr.objectID == _currentUserID && addr.object == 'User') {
-        userAddress = addr;
-        break;
-      }
-    }
+    final userAddress =
+        Address.getAddressByObject(_addresses, 'User', _currentUserID) ??
+            Address.getAddressByObject(
+                _addresses, 'Livraison', _currentUserID);
 
     if (userAddress != null) {
       double? uLat = double.tryParse(userAddress.lat ?? '');
       double? uLon = double.tryParse(userAddress.long ?? '');
 
       for (final r in _allRestaus) {
-        final rAddr = Address.getAddressByObject(_addresses, 'User', r.userID);
+        final rAddr =
+            Address.getAddressByObject(_addresses, 'Restaurant', r.userID) ??
+                Address.getAddressByObject(_addresses, 'User', r.userID);
         bool isOut = false;
         if (uLat != null && uLon != null && rAddr != null) {
           final rLat = double.tryParse(rAddr.lat ?? '');
           final rLon = double.tryParse(rAddr.long ?? '');
           if (rLat != null && rLon != null) {
+            final maxKm = r.deliveryRadius > 0 ? r.deliveryRadius : 10.0;
             if (_haversine(uLat, uLon, rLat, rLon) > maxKm) {
               isOut = true;
             }
@@ -292,7 +291,8 @@ class _HomeUserState extends State<HomeUser> {
                 // ── Bannière adresse manquante ───────────
                 if (_currentUserRole == 2 &&
                     !_addresses.any((a) =>
-                        a.objectID == _currentUserID && a.object == 'User'))
+                        a.objectID == _currentUserID &&
+                        (a.object == 'User' || a.object == 'Livraison')))
                   SliverToBoxAdapter(
                     child: GestureDetector(
                       onTap: () => _addAddress(),
@@ -977,6 +977,16 @@ class _RestaurantCardState extends State<_RestaurantCard> {
     final resolvedAccent =
         AppColors.resolve(AppColors.accent, AppDarkColors.accent);
     final inkColor = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
+    final openingStatus = widget.restaurant.openingStatus;
+    final restaurantClosed = !openingStatus.isOpen;
+    final openingMessage = openingStatus.isClosedManually
+        ? l10n.restaurant_closed_manually
+        : openingStatus.opensLaterToday
+            ? l10n.restaurant_opens_at(openingStatus.opensAt!)
+            : openingStatus.opensOn != null
+                ? l10n.restaurant_opens_on(
+                    openingStatus.opensOn!, openingStatus.opensAt ?? '')
+                : l10n.restaurant_closed_today;
     final titleColor = widget.outOfRange
         ? colorScheme.onSurface.withValues(alpha: 0.7)
         : colorScheme.onSurface;
@@ -1011,7 +1021,7 @@ class _RestaurantCardState extends State<_RestaurantCard> {
                   height: 180,
                   width: double.infinity,
                   child: Opacity(
-                    opacity: widget.outOfRange ? 0.75 : 1,
+                    opacity: widget.outOfRange || restaurantClosed ? 0.75 : 1,
                     child: DiosImage(
                       url: widget.restaurant.image,
                       width: double.infinity,
@@ -1062,6 +1072,24 @@ class _RestaurantCardState extends State<_RestaurantCard> {
                       ),
                     ),
                   ),
+                if (!widget.outOfRange && restaurantClosed)
+                  Positioned.fill(
+                    child: Container(
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      color: Colors.black.withValues(alpha: 0.32),
+                      child: Text(
+                        openingMessage,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          height: 1.25,
+                        ),
+                      ),
+                    ),
+                  ),
                 Positioned(
                   bottom: AppSpacing.sm,
                   left: AppSpacing.sm,
@@ -1069,7 +1097,7 @@ class _RestaurantCardState extends State<_RestaurantCard> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: widget.outOfRange
+                      color: widget.outOfRange || restaurantClosed
                           ? inkColor.withValues(alpha: 0.6)
                           : resolvedBrand,
                       borderRadius: BorderRadius.circular(AppRadius.sm),
@@ -1193,13 +1221,17 @@ class _RestaurantCardState extends State<_RestaurantCard> {
                               : resolvedAccent,
                           size: 13),
                       const SizedBox(width: 3),
-                      Text(
-                        widget.restaurant.note > 0
-                            ? widget.restaurant.note.toStringAsFixed(1)
-                            : l10n.home_rated,
-                        style: AppTypography.labelMedium(
-                                color: titleColor.withValues(alpha: 0.85))
-                            .copyWith(fontSize: 11),
+                      Flexible(
+                        child: Text(
+                          widget.restaurant.note > 0
+                              ? widget.restaurant.note.toStringAsFixed(1)
+                              : l10n.home_rated,
+                          style: AppTypography.labelMedium(
+                                  color: titleColor.withValues(alpha: 0.85))
+                              .copyWith(fontSize: 11),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                       Container(
                         margin: const EdgeInsets.symmetric(horizontal: 6),
@@ -1214,13 +1246,19 @@ class _RestaurantCardState extends State<_RestaurantCard> {
                           color: colorScheme.onSurface.withOpacity(0.4),
                           size: 12),
                       const SizedBox(width: 3),
-                      Text(
-                        widget.restaurant.openingHours.isNotEmpty
-                            ? widget.restaurant.openingHours
-                            : l10n.home_contact,
-                        style: AppTypography.labelMedium(
-                                color: colorScheme.onSurface.withOpacity(0.5))
-                            .copyWith(fontSize: 11),
+                      Flexible(
+                        child: Text(
+                          restaurantClosed
+                              ? openingMessage
+                              : widget.restaurant.openingHours.isNotEmpty
+                              ? widget.restaurant.openingHours
+                              : l10n.home_contact,
+                          style: AppTypography.labelMedium(
+                                  color: colorScheme.onSurface.withOpacity(0.5))
+                              .copyWith(fontSize: 11),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ],
                   ),

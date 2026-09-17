@@ -2,6 +2,7 @@ import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:hive/hive.dart';
 import '../db/database_helper.dart';
 import 'package:dios_delices/providers/data_version_notifier.dart';
+import '../services/restaurant_opening_hours_service.dart';
 
 part 'restaurant.g.dart';
 
@@ -60,12 +61,22 @@ class Restaurant extends HiveObject {
 
   String country;
 
+  @HiveField(14)
   String openingDays;
-  bool get isCurrentlyOpen => isOpen == 1;
+  RestaurantOpeningStatus get openingStatus =>
+      RestaurantOpeningHoursService.status(
+        openingDays: openingDays,
+        openingHours: openingHours,
+        openingHoursByDay: openingHoursByDay,
+        manualStatus: isOpen,
+      );
+
+  bool get isCurrentlyOpen => openingStatus.isOpen;
   double minOrderAmount;
   double deliveryRadius;
   String closedDates;
 
+  @HiveField(15)
   String openingHoursByDay;
   String recoveryMode;
   int cityID;
@@ -386,6 +397,8 @@ class Restaurant extends HiveObject {
             image: image == null ? img_url : imageUrl,
             date_creation: date_creation,
             openingHours: openingHours,
+            openingDays: openingDays,
+            openingHoursByDay: openingHoursByDay,
             deliveryFee: deliveryFee,
             isOpen: isOpen,
             professionalType: professionalType,

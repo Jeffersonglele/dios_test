@@ -231,6 +231,16 @@ class _NearMeRestaurantsState extends State<NearMeRestaurants> {
               ..._visibleRestaurants.map(
                 (result) {
                   final outOfRange = result.isOutOfRange;
+                  final openingStatus = result.restaurant.openingStatus;
+                  final openingMessage = openingStatus.isClosedManually
+                      ? l10n.restaurant_closed_manually
+                      : openingStatus.opensLaterToday
+                          ? l10n.restaurant_opens_at(openingStatus.opensAt!)
+                          : openingStatus.opensOn != null
+                              ? l10n.restaurant_opens_on(
+                                  openingStatus.opensOn!,
+                                  openingStatus.opensAt ?? '')
+                              : l10n.restaurant_closed_today;
                   final brandColor =
                       AppColors.resolve(AppColors.brand, AppDarkColors.brand);
                   final dangerColor = AppColors.resolve(
@@ -449,9 +459,9 @@ class _NearMeRestaurantsState extends State<NearMeRestaurants> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  result.restaurant.isCurrentlyOpen
+                                  openingStatus.isOpen
                                       ? l10n.open
-                                      : l10n.closed,
+                                      : openingMessage,
                                   style: TextStyle(
                                       fontSize: 12,
                                       color: colorScheme.onSurface

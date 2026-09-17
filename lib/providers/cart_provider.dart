@@ -7,6 +7,7 @@ import '../models/restaurant.dart';
 import '../models/users.dart';
 import '../models/address.dart' as addr;
 import '../services/session_service.dart';
+import '../services/delivery_availability_service.dart';
 
 class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
   CartNotifier() : super([]) {
@@ -19,6 +20,18 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
   int _activationVersion = 0;
 
   List<Map<String, dynamic>> get items => List.unmodifiable(state);
+
+  Set<int> get restaurantIds => state
+      .map((item) => int.tryParse(
+          ((item['restaurant'] as Map<String, dynamic>?)?['restau_id'])
+                  ?.toString() ??
+              ''))
+      .whereType<int>()
+      .toSet();
+
+  bool hasOtherRestaurant(int restaurantId) => restaurantIds.any(
+        (id) => id != restaurantId,
+      );
 
   String _storageKey(int userId) => 'saved_cart_user_$userId';
 
@@ -134,9 +147,6 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
   }) async {
     try {
       await activateUser(user_id);
-      final existingIndex =
-          state.indexWhere((item) => item['meal']['meal_name'] == name);
-
       List<Users> usersList = await Users.fetchUsersFromDB();
       List<Restaurant> restaurantsList =
           await Restaurant.fetchRestaurantsFromDB();
@@ -146,6 +156,22 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
           Restaurant.getRestaurantByRestaurantId(restaurantsList, restau_id);
 
       if (currentUser == null || restaurant == null) return 'error';
+
+      if (!restaurant.isCurrentlyOpen) {
+        return 'restaurant_closed';
+      }
+
+      // Le contrôle est aussi fait ici afin qu'aucun autre écran ou futur
+      // raccourci UI ne puisse ajouter un plat non livrable au panier.
+      final availability = await DeliveryAvailabilityService.forRestaurant(
+        restaurant,
+        userId: user_id,
+      );
+      if (!availability.canOrder) {
+        return availability.hasCustomerAddress
+            ? 'out_of_delivery_zone'
+            : 'delivery_address_required';
+      }
 
       // Récupérer les coordonnées du restaurant depuis son adresse
       double? restauLat, restauLng;
@@ -162,13 +188,6 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
       } catch (_) {}
 
       double finalPrice = price + optionPrice;
-
-      if (state.isNotEmpty) {
-        final existingRestaurantId = state.first['restaurant']['restau_id'];
-        if (existingRestaurantId != restau_id) {
-          return 'different_restaurant';
-        }
-      }
 
       // Construction des options formatées
       Map<String, dynamic> formattedOptions = {};
@@ -207,6 +226,15 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
         });
       }
 
+      final existingIndex = state.indexWhere((item) {
+        final itemRestaurant = item['restaurant'] as Map<String, dynamic>?;
+        final itemMeal = item['meal'] as Map<String, dynamic>?;
+        return itemRestaurant?['restau_id'] == restau_id &&
+            itemMeal?['mealID'] == mealID &&
+            jsonEncode(item['options'] ?? <String, dynamic>{}) ==
+                jsonEncode(formattedOptions);
+      });
+
       if (existingIndex != -1) {
         final newQuantity =
             state[existingIndex]['order']['quantity'] + quantity;
@@ -240,6 +268,7 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
             "restaurant": {
               "name": restaurant.name,
               "restau_id": restau_id,
+              "image": restaurant.image ?? '',
               "delivery_fee": restaurant.deliveryFee,
               "opening_hours": restaurant.openingHours,
               "is_open": restaurant.isOpen,
@@ -272,10 +301,20 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
     await prefs.setString(_storageKey(userId), jsonEncode(snapshot));
   }
 
-  void clearCart() {
+  Future<void> clearCart() async {
     state = [];
     total = 0.0;
-    _saveCart();
+    await _saveCart();
+  }
+
+  Future<void> clearRestaurantCart(int restaurantId) async {
+    state = state.where((item) {
+      final restaurant = item['restaurant'] as Map<String, dynamic>?;
+      return int.tryParse(restaurant?['restau_id']?.toString() ?? '') !=
+          restaurantId;
+    }).toList();
+    total = _calculateTotal(state);
+    await _saveCart();
   }
 
   void updateQuantity(int index, int newQuantity) {

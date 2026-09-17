@@ -31,13 +31,15 @@ class RestaurantAdapter extends TypeAdapter<Restaurant> {
       openingHours: fields[11] as String,
       deliveryFee: fields[12] as double,
       isOpen: fields[13] as int,
+      openingDays: fields[14] as String? ?? 'Lun,Mar,Mer,Jeu,Ven,Sam',
+      openingHoursByDay: fields[15] as String? ?? '',
     );
   }
 
   @override
   void write(BinaryWriter writer, Restaurant obj) {
     writer
-      ..writeByte(14)
+      ..writeByte(16)
       ..writeByte(0)
       ..write(obj.restaurantID)
       ..writeByte(1)
@@ -65,7 +67,11 @@ class RestaurantAdapter extends TypeAdapter<Restaurant> {
       ..writeByte(12)
       ..write(obj.deliveryFee)
       ..writeByte(13)
-      ..write(obj.isOpen);
+      ..write(obj.isOpen)
+      ..writeByte(14)
+      ..write(obj.openingDays)
+      ..writeByte(15)
+      ..write(obj.openingHoursByDay);
   }
 
   @override

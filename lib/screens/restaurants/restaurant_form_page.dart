@@ -542,6 +542,14 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
             if (context.mounted) Toast(context, AppLocalizations.of(context)!.restaurant_form_fix_errors, false);
             return;
           }
+          if (_selectedDays.isEmpty) {
+            if (context.mounted) {
+              Toast(context,
+                  AppLocalizations.of(context)!.restaurant_form_day_required,
+                  false);
+            }
+            return;
+          }
           setState(() => _isSaving = true);
           try {
             final addressText = _addressController.text.trim();
