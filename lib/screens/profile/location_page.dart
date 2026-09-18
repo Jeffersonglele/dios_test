@@ -181,8 +181,8 @@ class _LocationPageState extends ConsumerState<LocationPage> {
     for (final value in values) {
       if (value == null || value.trim().isEmpty) continue;
       final part = value.trim();
-      if (!parts.any((existing) =>
-          existing.toLowerCase() == part.toLowerCase())) {
+      if (!parts
+          .any((existing) => existing.toLowerCase() == part.toLowerCase())) {
         parts.add(part);
       }
     }
@@ -216,12 +216,11 @@ class _LocationPageState extends ConsumerState<LocationPage> {
           session.country,
         ]) ??
         '';
-    final fullAddress =
-        locationController.text.isNotEmpty
-            ? locationController.text
-            : position == null
-                ? ''
-                : _gpsAddress(position!);
+    final fullAddress = locationController.text.isNotEmpty
+        ? locationController.text
+        : position == null
+            ? ''
+            : _gpsAddress(position!);
     final lat = position?.latitude.toString();
     final long = position?.longitude.toString();
 
@@ -377,7 +376,9 @@ class _LocationPageState extends ConsumerState<LocationPage> {
                 padding: const EdgeInsets.only(left: AppSpacing.sm),
                 child: Text(
                   l10n.location_my_address,
-                  style: AppTypography.displayMedium(),
+                  style: AppTypography.displayMedium(
+                    color: AppColors.resolve(AppColors.ink, AppDarkColors.ink),
+                  ),
                 ),
               ),
               const SizedBox(height: AppSpacing.xs),
@@ -386,7 +387,8 @@ class _LocationPageState extends ConsumerState<LocationPage> {
                 child: Text(
                   l10n.location_instruction,
                   style: AppTypography.bodyLarge(
-                    color: AppColors.inkMuted,
+                    color: AppColors.resolve(
+                        AppColors.inkMuted, AppDarkColors.inkMuted),
                   ),
                 ),
               ),
@@ -396,19 +398,23 @@ class _LocationPageState extends ConsumerState<LocationPage> {
                 child: ElevatedButton.icon(
                   onPressed: _isLocating ? null : getCurrentLocation,
                   icon: _isLocating
-                      ? const SizedBox(
+                      ? SizedBox(
                           width: 20,
                           height: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: AppColors.surface,
+                            color: AppColors.resolve(
+                                AppColors.surface, AppDarkColors.surface),
                           ),
                         )
-                      : const Icon(Icons.my_location, color: AppColors.surface),
+                      : Icon(Icons.my_location,
+                          color: AppColors.resolve(
+                              AppColors.surface, AppDarkColors.surface)),
                   label: Text(
                     _isLocating ? l10n.location_locating : l10n.location_get,
-                    style: const TextStyle(
-                      color: AppColors.surface,
+                    style: TextStyle(
+                      color: AppColors.resolve(
+                          AppColors.surface, AppDarkColors.surface),
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                     ),
@@ -516,7 +522,8 @@ class _LocationPageState extends ConsumerState<LocationPage> {
                     icon: const Icon(Icons.close_rounded, size: 18),
                     label: Text(l10n.clear),
                     style: TextButton.styleFrom(
-                        foregroundColor: AppColors.inkMuted),
+                        foregroundColor: AppColors.resolve(
+                            AppColors.inkMuted, AppDarkColors.inkMuted)),
                   ),
                 ),
               ],
@@ -598,18 +605,20 @@ class _LocationPageState extends ConsumerState<LocationPage> {
                           }
                         },
                   child: _isSaving
-                      ? const SizedBox(
+                      ? SizedBox(
                           width: 22,
                           height: 22,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: AppColors.surface,
+                            color: AppColors.resolve(
+                                AppColors.surface, AppDarkColors.surface),
                           ),
                         )
                       : Text(
                           l10n.save_address,
-                          style: const TextStyle(
-                            color: AppColors.surface,
+                          style: TextStyle(
+                            color: AppColors.resolve(
+                                AppColors.surface, AppDarkColors.surface),
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                           ),

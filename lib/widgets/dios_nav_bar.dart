@@ -57,7 +57,9 @@ class _DiosNavBarState extends State<DiosNavBar>
       if (!activeState.mounted || call.method != 'selectIndex') return;
 
       final index = call.arguments as int?;
-      if (index != null && index >= 0 && index < activeState.widget.items.length) {
+      if (index != null &&
+          index >= 0 &&
+          index < activeState.widget.items.length) {
         activeState.widget.onTap(index);
       }
     });
@@ -98,11 +100,12 @@ class _DiosNavBarState extends State<DiosNavBar>
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       padding: EdgeInsets.only(bottom: bottomPadding > 0 ? 0 : 8),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: AppColors.resolve(AppColors.card, AppDarkColors.card),
         borderRadius: BorderRadius.circular(AppRadius.xl),
         boxShadow: AppShadows.floatingList,
         border: Border.all(
-          color: AppColors.border.withValues(alpha: 0.6),
+          color: AppColors.resolve(AppColors.border, AppDarkColors.border)
+              .withValues(alpha: 0.6),
           width: 0.5,
         ),
       ),
@@ -206,7 +209,8 @@ class _NavBarItem extends StatelessWidget {
                       width: isSelected ? 32 : 0,
                       height: 3,
                       decoration: BoxDecoration(
-                        color: AppColors.brand,
+                        color: AppColors.resolve(
+                            AppColors.brand, AppDarkColors.brand),
                         borderRadius: BorderRadius.circular(AppRadius.xl),
                       ),
                     ),
@@ -214,7 +218,11 @@ class _NavBarItem extends StatelessWidget {
                     // Icône
                     IconTheme(
                       data: IconThemeData(
-                        color: isSelected ? AppColors.brand : AppColors.inkMuted,
+                        color: isSelected
+                            ? AppColors.resolve(
+                                AppColors.brand, AppDarkColors.brand)
+                            : AppColors.resolve(
+                                AppColors.inkMuted, AppDarkColors.inkMuted),
                         size: 24,
                       ),
                       child: isSelected ? item.activeIcon : item.icon,
@@ -224,7 +232,11 @@ class _NavBarItem extends StatelessWidget {
                     AnimatedDefaultTextStyle(
                       duration: AppMotion.fast,
                       style: AppTypography.labelMedium(
-                        color: isSelected ? AppColors.brand : AppColors.inkMuted,
+                        color: isSelected
+                            ? AppColors.resolve(
+                                AppColors.brand, AppDarkColors.brand)
+                            : AppColors.resolve(
+                                AppColors.inkMuted, AppDarkColors.inkMuted),
                       ).copyWith(fontSize: 10),
                       child: Text(
                         item.label,
@@ -261,11 +273,12 @@ class _ProminentButton extends StatelessWidget {
         height: 56,
         margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
-          color: AppColors.brand,
+          color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
           borderRadius: BorderRadius.circular(AppRadius.md),
           boxShadow: [
             BoxShadow(
-              color: AppColors.brand.withValues(alpha: 0.4),
+              color: AppColors.resolve(AppColors.brand, AppDarkColors.brand)
+                  .withValues(alpha: 0.4),
               blurRadius: 16,
               offset: const Offset(0, 6),
             ),

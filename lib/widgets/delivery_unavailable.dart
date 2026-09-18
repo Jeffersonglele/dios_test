@@ -14,8 +14,8 @@ Future<void> showDeliveryUnavailableSheet(BuildContext context) {
       top: false,
       child: Container(
         padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
-        decoration: const BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(
+          color: AppColors.resolve(AppColors.card, AppDarkColors.card),
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
         child: Column(
@@ -25,7 +25,7 @@ Future<void> showDeliveryUnavailableSheet(BuildContext context) {
               width: 42,
               height: 4,
               decoration: BoxDecoration(
-                color: const Color(0xFFE4E4E4),
+                color: AppColors.resolve(AppColors.card, AppDarkColors.card),
                 borderRadius: BorderRadius.circular(99),
               ),
             ),
@@ -33,7 +33,10 @@ Future<void> showDeliveryUnavailableSheet(BuildContext context) {
             Text(
               l10n.delivery_unavailable_title,
               textAlign: TextAlign.center,
-              style: AppTypography.titleLarge().copyWith(
+              style: AppTypography.titleLarge(
+                      color:
+                          AppColors.resolve(AppColors.ink, AppDarkColors.ink))
+                  .copyWith(
                 fontSize: 22,
                 height: 1.15,
               ),
@@ -63,8 +66,8 @@ Future<void> showRestaurantClosedSheet(BuildContext context) {
       top: false,
       child: Container(
         padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
-        decoration: const BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(
+          color: AppColors.resolve(AppColors.card, AppDarkColors.card),
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
         child: Column(
@@ -74,7 +77,7 @@ Future<void> showRestaurantClosedSheet(BuildContext context) {
               width: 42,
               height: 4,
               decoration: BoxDecoration(
-                color: const Color(0xFFE4E4E4),
+                color: AppColors.resolve(AppColors.card, AppDarkColors.card),
                 borderRadius: BorderRadius.circular(99),
               ),
             ),
@@ -82,7 +85,10 @@ Future<void> showRestaurantClosedSheet(BuildContext context) {
             Text(
               l10n.restaurant_closed_detail,
               textAlign: TextAlign.center,
-              style: AppTypography.titleLarge().copyWith(
+              style: AppTypography.titleLarge(
+                      color:
+                          AppColors.resolve(AppColors.ink, AppDarkColors.ink))
+                  .copyWith(
                 fontSize: 21,
                 height: 1.15,
               ),
@@ -121,17 +127,21 @@ class DeliveryUnavailableBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.location_off_rounded, size: 20, color: AppColors.inkMuted),
+          const Icon(Icons.location_off_rounded,
+              size: 20, color: AppColors.inkMuted),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               l10n.delivery_unavailable_detail,
-              style: AppTypography.bodyMedium(color: AppColors.inkMuted),
+              style: AppTypography.bodyMedium(
+                  color:
+                      AppColors.resolve(AppColors.ink, AppDarkColors.inkMuted)),
             ),
           ),
           if (onTap != null) ...[
             const SizedBox(width: 8),
-            const Icon(Icons.info_outline_rounded, size: 18, color: AppColors.inkMuted),
+            const Icon(Icons.info_outline_rounded,
+                size: 18, color: AppColors.inkMuted),
           ],
         ],
       ),

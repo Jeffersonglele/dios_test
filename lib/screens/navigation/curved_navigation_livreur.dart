@@ -61,7 +61,8 @@ class _CurvedNavigationLivreurState extends State<CurvedNavigationLivreur> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor:
+          AppColors.resolve(AppColors.surface, AppDarkColors.surface),
       body: SafeArea(
         child: PageView(
           controller: _pageController,

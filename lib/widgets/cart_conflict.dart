@@ -19,8 +19,8 @@ Future<CartConflictChoice> showCartConflictSheet(
         top: false,
         child: Container(
           padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
-          decoration: const BoxDecoration(
-            color: Colors.white,
+          decoration: BoxDecoration(
+            color: AppColors.resolve(AppColors.card, AppDarkColors.card),
             borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
           ),
           child: Column(
@@ -30,7 +30,7 @@ Future<CartConflictChoice> showCartConflictSheet(
                 width: 42,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE4E4E4),
+                  color: AppColors.resolve(AppColors.card, AppDarkColors.card),
                   borderRadius: BorderRadius.circular(99),
                 ),
               ),
@@ -39,20 +39,25 @@ Future<CartConflictChoice> showCartConflictSheet(
                 width: 72,
                 height: 72,
                 decoration: BoxDecoration(
-                  color: AppColors.brandSurface,
+                  color: AppColors.resolve(
+                      AppColors.brandSurface, AppDarkColors.brandSurface),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.shopping_bag_outlined,
                   size: 34,
-                  color: AppColors.brand,
+                  color:
+                      AppColors.resolve(AppColors.brand, AppDarkColors.brand),
                 ),
               ),
               const SizedBox(height: 18),
               Text(
                 l10n.cart_leave_restaurant_title,
                 textAlign: TextAlign.center,
-                style: AppTypography.titleLarge().copyWith(
+                style: AppTypography.titleLarge(
+                        color:
+                            AppColors.resolve(AppColors.ink, AppDarkColors.ink))
+                    .copyWith(
                   fontSize: 21,
                   height: 1.15,
                 ),
@@ -61,7 +66,9 @@ Future<CartConflictChoice> showCartConflictSheet(
               Text(
                 l10n.cart_leave_restaurant_message(restaurantName),
                 textAlign: TextAlign.center,
-                style: AppTypography.bodyLarge(color: AppColors.inkMuted),
+                style: AppTypography.bodyLarge(
+                    color: AppColors.resolve(
+                        AppColors.inkMuted, AppDarkColors.inkMuted)),
               ),
               const SizedBox(height: 24),
               SizedBox(

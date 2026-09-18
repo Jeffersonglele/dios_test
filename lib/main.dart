@@ -31,6 +31,7 @@ import 'services/notification_service.dart';
 import 'services/session_service.dart';
 import 'theme/app_theme.dart';
 import 'theme/theme_provider.dart';
+import 'providers/theme_provider.dart' as legacy_providers;
 import 'core/device_info.dart';
 
 Future<void> main() async {
@@ -105,6 +106,10 @@ Future<void> main() async {
   final isDarkMode = prefs.getBool('dark_mode') ?? false;
   final savedLang = prefs.getString('app_language') ?? 'fr';
 
+  // Synchronisation du legacy ValueNotifier (utilisé par le splash screen)
+  // avec la préférence stockée, AVANT l'affichage du splash
+  legacy_providers.darkModeNotifier.value = isDarkMode;
+
   runApp(
     ProviderScope(
       overrides: [
@@ -127,11 +132,17 @@ class _MyAppState extends ConsumerState<MyApp> {
   @override
   void initState() {
     super.initState();
+    // Garantir que le legacy ValueNotifier est déjà à jour
+    // AVANT même le premier build du splash screen
+    legacy_providers.darkModeNotifier.value = widget.initialDarkMode;
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final themeNotifier = ref.read(themeModeProvider.notifier);
-      if (widget.initialDarkMode &&
-          ref.read(themeModeProvider) != ThemeMode.dark) {
-        themeNotifier.toggleTheme();
+      final current = ref.read(themeModeProvider);
+      final shouldBeDark = widget.initialDarkMode;
+      final isDark = current == ThemeMode.dark;
+      if (shouldBeDark != isDark) {
+        themeNotifier.setDarkMode(shouldBeDark);
       }
     });
   }

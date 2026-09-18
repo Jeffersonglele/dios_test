@@ -104,8 +104,7 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
       _restoValid = resto?.valid == 1;
     }
 
-    _canAssignLivreur =
-        session.role.isAdmin || session.role == AppRole.livreur;
+    _canAssignLivreur = session.role.isAdmin || session.role == AppRole.livreur;
 
     await Commande.refreshLocalCommandes(); // Refresh orders from Parse first!
     await LigneCommande
@@ -114,8 +113,7 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
     final allD = await Dish.fetchDishesFromDB();
     final allR = await Restaurant.fetchRestaurantsFromDB();
 
-    for (var i = 0; i < allC.length; i++) {
-    }
+    for (var i = 0; i < allC.length; i++) {}
 
     final dn = <int, String>{};
     for (final d in allD) {
@@ -142,8 +140,7 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
     }
     if (statusFilter != null)
       filtered = filtered.where((c) => c.status == statusFilter).toList();
-    for (var i = 0; i < filtered.length; i++) {
-    }
+    for (var i = 0; i < filtered.length; i++) {}
     filtered.sort((a, b) => b.dateCommande.compareTo(a.dateCommande));
 
     if (!mounted) return;
@@ -188,8 +185,8 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
                   ? AppLocalizations.of(context)!.orderConfirmed
                   : AppLocalizations.of(context)!.orderCancelled),
               backgroundColor: newStatus == CommandeStatus.confirmed
-                  ? AppColors.success
-                  : AppColors.error,
+                  ? AppColors.resolve(AppColors.success, AppDarkColors.success)
+                  : AppColors.resolve(AppColors.error, AppDarkColors.error),
               duration: const Duration(seconds: 2),
             ),
           );
@@ -200,7 +197,8 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Erreur: ${e.toString()}'),
-              backgroundColor: AppColors.error,
+              backgroundColor:
+                  AppColors.resolve(AppColors.error, AppDarkColors.error),
               duration: const Duration(seconds: 4),
             ),
           );
@@ -221,7 +219,9 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
           AppColors.resolve(AppColors.surface, AppDarkColors.surface),
       appBar: AppBar(
         title: Text(
-          widget.showRestaurantOrders ? AppLocalizations.of(context)!.user_orders_received : AppLocalizations.of(context)!.user_orders_my,
+          widget.showRestaurantOrders
+              ? AppLocalizations.of(context)!.user_orders_received
+              : AppLocalizations.of(context)!.user_orders_my,
         ),
         actions: [
           if (widget.showRestaurantOrders)
@@ -239,9 +239,9 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
               Expanded(
                 child: isLoading
                     ? const Center(child: CircularProgressIndicator())
-                        : commandes.isEmpty
-                            ? _EmptyOrders(
-                                isRestaurant: widget.showRestaurantOrders)
+                    : commandes.isEmpty
+                        ? _EmptyOrders(
+                            isRestaurant: widget.showRestaurantOrders)
                         : ListView.builder(
                             padding: const EdgeInsets.fromLTRB(16, 4, 16, 40),
                             itemCount: commandes.length,
@@ -265,7 +265,8 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         children: statuses.map((s) {
-          final active = statusFilter == (s == AppLocalizations.of(context)!.all ? null : s);
+          final active = statusFilter ==
+              (s == AppLocalizations.of(context)!.all ? null : s);
           final label = s == AppLocalizations.of(context)!.all
               ? AppLocalizations.of(context)!.all
               : s == CommandeStatus.pending
@@ -275,7 +276,8 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
             padding: const EdgeInsets.only(right: 8),
             child: GestureDetector(
               onTap: () {
-                setState(() => statusFilter = s == AppLocalizations.of(context)!.all ? null : s);
+                setState(() => statusFilter =
+                    s == AppLocalizations.of(context)!.all ? null : s);
                 loadOrders();
               },
               child: AnimatedContainer(
@@ -283,15 +285,25 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
-                  color: active ? AppColors.brand : AppColors.card,
+                  color: active
+                      ? AppColors.resolve(AppColors.brand, AppDarkColors.brand)
+                      : AppColors.resolve(AppColors.card, AppDarkColors.card),
                   borderRadius: BorderRadius.circular(AppRadius.lg),
                   border: Border.all(
-                      color: active ? AppColors.brand : AppColors.border,
+                      color: active
+                          ? AppColors.resolve(
+                              AppColors.brand, AppDarkColors.brand)
+                          : AppColors.resolve(
+                              AppColors.border, AppDarkColors.border),
                       width: 0.5),
                 ),
                 child: Text(label,
                     style: AppTypography.labelMedium(
-                        color: active ? Colors.white : AppColors.inkMuted)),
+                        color: active
+                            ? AppColors.resolve(
+                                AppColors.card, AppDarkColors.card)
+                            : AppColors.resolve(
+                                AppColors.inkMuted, AppDarkColors.inkMuted))),
               ),
             ),
           );
@@ -370,18 +382,20 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
                               children: [
                                 Text(
                                   isRestaurantView
-                                  ? '${AppLocalizations.of(context)!.orders} #${c.commandeID}'
-                                  : restoNames[c.restauID] ??
-                                      '${AppLocalizations.of(context)!.orders} #${c.commandeID}',
+                                      ? '${AppLocalizations.of(context)!.orders} #${c.commandeID}'
+                                      : restoNames[c.restauID] ??
+                                          '${AppLocalizations.of(context)!.orders} #${c.commandeID}',
                                   style: AppTypography.labelLarge(
-                                      color: AppColors.resolve(AppColors.ink, AppDarkColors.ink)),
+                                      color: AppColors.resolve(
+                                          AppColors.ink, AppDarkColors.ink)),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
                                   '$dateStr · ${c.heure}',
                                   style: AppTypography.labelMedium(
                                           color: AppColors.resolve(
-                                              AppColors.inkSubtle, AppDarkColors.inkSubtle))
+                                              AppColors.inkSubtle,
+                                              AppDarkColors.inkSubtle))
                                       .copyWith(fontSize: 11),
                                 ),
                               ],
@@ -402,7 +416,8 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
                             if (!isConfirmed)
                               Expanded(
                                 child: _PrimaryActionButton(
-                                  label: AppLocalizations.of(context)!.user_orders_confirm,
+                                  label: AppLocalizations.of(context)!
+                                      .user_orders_confirm,
                                   icon: Icons.check_rounded,
                                   color: AppColors.success,
                                   onTap: () => updateStatus(
@@ -413,7 +428,7 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
                               const SizedBox(width: AppSpacing.xs),
                             Expanded(
                               child: _PrimaryActionButton(
-                                  label: AppLocalizations.of(context)!.livreurs,
+                                label: AppLocalizations.of(context)!.livreurs,
                                 icon: Icons.delivery_dining_rounded,
                                 color: AppColors.brand,
                                 onTap: () => _showAssignLivreur(c.commandeID),
@@ -455,39 +470,52 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
                             onTap: () => Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => CommandeDetailsPage(
-                                    commande: c),
+                                builder: (_) =>
+                                    CommandeDetailsPage(commande: c),
                               ),
                             ),
-                            child: Text(AppLocalizations.of(context)!.user_orders_see_detail,
+                            child: Text(
+                                AppLocalizations.of(context)!
+                                    .user_orders_see_detail,
                                 style: AppTypography.labelMedium(
                                         color: AppColors.brand)
                                     .copyWith(fontSize: 12)),
                           ),
                           if (!isRestaurantView && isConfirmed) ...[
                             ElevatedButton.icon(
-                              onPressed: () => _showRate(
-                                  c.commandeID, c.restauID),
-                              icon: const Icon(Icons.star_rounded,
-                                  size: 15, color: AppColors.accent),
-                              label: Text(AppLocalizations.of(context)!.user_orders_rate),
+                              onPressed: () =>
+                                  _showRate(c.commandeID, c.restauID),
+                              icon: Icon(Icons.star_rounded,
+                                  size: 15,
+                                  color: AppColors.resolve(
+                                      AppColors.accent, AppDarkColors.accent)),
+                              label: Text(AppLocalizations.of(context)!
+                                  .user_orders_rate),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.accentLight,
-                                foregroundColor: AppColors.accent,
+                                backgroundColor: AppColors.resolve(
+                                    AppColors.accentLight,
+                                    AppDarkColors.accentLight),
+                                foregroundColor: AppColors.resolve(
+                                    AppColors.accent, AppDarkColors.accent),
                                 minimumSize: Size.zero,
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 12, vertical: 8),
-                                ),
                               ),
+                            ),
                             if (c.livreurID != null)
                               ElevatedButton.icon(
                                 onPressed: () => _showRateLivreur(c.livreurID!),
                                 icon: const Icon(Icons.star_rounded,
                                     size: 15, color: AppColors.success),
-                                label: Text(AppLocalizations.of(context)!.user_orders_rate_driver),
+                                label: Text(AppLocalizations.of(context)!
+                                    .user_orders_rate_driver),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.success.withValues(alpha: 0.12),
-                                  foregroundColor: AppColors.success,
+                                  backgroundColor: AppColors.resolve(
+                                      AppColors.success.withValues(alpha: 0.12),
+                                      AppDarkColors.success
+                                          .withValues(alpha: 0.12)),
+                                  foregroundColor: AppColors.resolve(
+                                      AppColors.success, AppDarkColors.success),
                                   minimumSize: Size.zero,
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 12, vertical: 8),
@@ -511,71 +539,82 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
                           return Container(
                             padding: const EdgeInsets.all(AppSpacing.md),
                             decoration: BoxDecoration(
-                              color: AppColors.surfaceWarm,
+                              color: AppColors.resolve(AppColors.surfaceWarm,
+                                  AppDarkColors.surfaceWarm),
                               borderRadius: BorderRadius.circular(AppRadius.md),
                             ),
                             child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              ...lignes.map((l) => Padding(
-                                    padding: const EdgeInsets.only(bottom: 4),
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                          width: 24,
-                                          height: 24,
-                                          decoration: BoxDecoration(
-                                            color: AppColors.brandSurface,
-                                            borderRadius:
-                                                BorderRadius.circular(6),
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                ...lignes.map((l) => Padding(
+                                      padding: const EdgeInsets.only(bottom: 4),
+                                      child: Row(
+                                        children: [
+                                          Container(
+                                            width: 24,
+                                            height: 24,
+                                            decoration: BoxDecoration(
+                                              color: AppColors.resolve(
+                                                  AppColors.brandSurface,
+                                                  AppDarkColors.brandSurface),
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                            ),
+                                            child: Center(
+                                              child: Text('${l.quantite}',
+                                                  style:
+                                                      AppTypography.labelMedium(
+                                                              color: AppColors
+                                                                  .brand)
+                                                          .copyWith(
+                                                              fontSize: 11)),
+                                            ),
                                           ),
-                                          child: Center(
-                                            child: Text('${l.quantite}',
-                                                style: AppTypography
-                                                        .labelMedium(
-                                                            color:
-                                                                AppColors.brand)
-                                                    .copyWith(fontSize: 11)),
+                                          const SizedBox(width: AppSpacing.sm),
+                                          Expanded(
+                                            child: Text(
+                                              dishNames[l.platID] ??
+                                                  'Plat #${l.platID}',
+                                              style: AppTypography.bodyMedium(),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
                                           ),
-                                        ),
-                                        const SizedBox(width: AppSpacing.sm),
-                                        Expanded(
-                                          child: Text(
-                                            dishNames[l.platID] ??
-                                                'Plat #${l.platID}',
-                                            style: AppTypography.bodyMedium(),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
+                                          Text(
+                                            CurrencyUtil.formatPrice(
+                                                l.prixUnitaire, _country),
+                                            style: AppTypography.labelMedium(
+                                                color: AppColors.brand),
                                           ),
-                                        ),
-                                        Text(
-                                          CurrencyUtil.formatPrice(l.prixUnitaire, _country),
-                                          style: AppTypography.labelMedium(
-                                              color: AppColors.brand),
-                                        ),
-                                      ],
-                                    ),
-                                  )),
-                              const Divider(height: 8),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(AppLocalizations.of(context)!.subtotal,
-                                      style: AppTypography.bodyMedium(
-                                              color: AppColors.inkMuted)
-                                          .copyWith(fontSize: 12)),
-                                  Text(
-                                      CurrencyUtil.formatPrice(subtotal, _country),
-                                      style: AppTypography.labelMedium(
-                                              color: AppColors.ink)
-                                          .copyWith(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w700)),
-                                ],
-                              ),
-                            ],
-                          ),
-                        );
+                                        ],
+                                      ),
+                                    )),
+                                const Divider(height: 8),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(AppLocalizations.of(context)!.subtotal,
+                                        style: AppTypography.bodyMedium(
+                                                color: AppColors.resolve(
+                                                    AppColors.inkMuted,
+                                                    AppDarkColors.inkMuted))
+                                            .copyWith(fontSize: 12)),
+                                    Text(
+                                        CurrencyUtil.formatPrice(
+                                            subtotal, _country),
+                                        style: AppTypography.labelMedium(
+                                                color: AppColors.resolve(
+                                                    AppColors.ink,
+                                                    AppDarkColors.ink))
+                                            .copyWith(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w700)),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          );
                         },
                       ),
                     ),
@@ -627,27 +666,39 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
         Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-                color: AppColors.card,
+                color: AppColors.resolve(AppColors.card, AppDarkColors.card),
                 borderRadius: BorderRadius.circular(AppRadius.lg),
-                border: Border.all(color: AppColors.border, width: 0.5)),
+                border: Border.all(
+                    color: AppColors.resolve(
+                        AppColors.border, AppDarkColors.border),
+                    width: 0.5)),
             child: Column(children: [
               Row(children: [
-                Icon(Icons.email_rounded, size: 18, color: AppColors.accent),
+                Icon(Icons.email_rounded,
+                    size: 18,
+                    color: AppColors.resolve(
+                        AppColors.accent, AppDarkColors.accent)),
                 const SizedBox(width: 10),
                 Expanded(
-                    child: Text(AppLocalizations.of(context)!.user_orders_notified_email,
-                        style: AppTypography.bodyMedium()
-                            .copyWith(fontSize: 13)))
+                    child: Text(
+                        AppLocalizations.of(context)!
+                            .user_orders_notified_email,
+                        style:
+                            AppTypography.bodyMedium().copyWith(fontSize: 13)))
               ]),
               const Divider(height: 24),
               Row(children: [
                 Icon(Icons.receipt_long_rounded,
-                    size: 18, color: AppColors.accent),
+                    size: 18,
+                    color: AppColors.resolve(
+                        AppColors.accent, AppDarkColors.accent)),
                 const SizedBox(width: 10),
                 Expanded(
-                    child: Text(AppLocalizations.of(context)!.user_orders_receive_orders,
-                        style: AppTypography.bodyMedium()
-                            .copyWith(fontSize: 13)))
+                    child: Text(
+                        AppLocalizations.of(context)!
+                            .user_orders_receive_orders,
+                        style:
+                            AppTypography.bodyMedium().copyWith(fontSize: 13)))
               ]),
             ])),
       ]),
@@ -661,7 +712,9 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
       final commandQuery = QueryBuilder<ParseObject>(ParseObject('Commande'))
         ..whereEqualTo('commandeID', id);
       final commandResp = await commandQuery.query();
-      if (!commandResp.success || commandResp.results == null || commandResp.results!.isEmpty) {
+      if (!commandResp.success ||
+          commandResp.results == null ||
+          commandResp.results!.isEmpty) {
         if (mounted) setState(() => isLoading = false);
         return;
       }
@@ -671,8 +724,10 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
 
       // 2. Fetch addresses and calculate distance
       final addresses = await Address.fetchAddressesFromDB();
-      final customerAddress = addresses.firstWhere((a) => a.addressID == addressID, orElse: () => Address());
-      final restaurantAddress = Address.getAddressByObject(addresses, "User", restauID);
+      final customerAddress = addresses
+          .firstWhere((a) => a.addressID == addressID, orElse: () => Address());
+      final restaurantAddress =
+          Address.getAddressByObject(addresses, "User", restauID);
 
       final customerLat = double.tryParse(customerAddress.lat ?? '');
       final customerLng = double.tryParse(customerAddress.long ?? '');
@@ -680,8 +735,12 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
       final restoLng = double.tryParse(restaurantAddress?.long ?? '');
 
       double deliveryDistance = 0.0;
-      if (customerLat != null && customerLng != null && restoLat != null && restoLng != null) {
-        deliveryDistance = _calculateDistanceKm(restoLat, restoLng, customerLat, customerLng);
+      if (customerLat != null &&
+          customerLng != null &&
+          restoLat != null &&
+          restoLng != null) {
+        deliveryDistance =
+            _calculateDistanceKm(restoLat, restoLng, customerLat, customerLng);
       }
 
       // 3. Query online drivers from Parse
@@ -694,7 +753,8 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
       if (driverResp.success && driverResp.results != null) {
         for (final obj in driverResp.results!) {
           final parseUser = obj as ParseObject;
-          final maxDist = parseUser.get<num>('maxDeliveryDistance')?.toDouble() ?? 10.0;
+          final maxDist =
+              parseUser.get<num>('maxDeliveryDistance')?.toDouble() ?? 10.0;
 
           if (deliveryDistance <= maxDist) {
             final userMap = <String, dynamic>{
@@ -719,9 +779,9 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
 
       if (filteredLivreurs.isEmpty) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(AppLocalizations.of(context)!.user_orders_no_driver))
-          );
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content:
+                  Text(AppLocalizations.of(context)!.user_orders_no_driver)));
         }
         return;
       }
@@ -741,19 +801,22 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
     } catch (e) {
       if (mounted) setState(() => isLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${AppLocalizations.of(context)!.error}: $e'))
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('${AppLocalizations.of(context)!.error}: $e')));
       }
     }
   }
 
-  double _calculateDistanceKm(double lat1, double lon1, double lat2, double lon2) {
+  double _calculateDistanceKm(
+      double lat1, double lon1, double lat2, double lon2) {
     const earthRadius = 6371.0;
     final dLat = (lat2 - lat1) * (3.141592653589793 / 180.0);
     final dLon = (lon2 - lon1) * (3.141592653589793 / 180.0);
     final a = sin(dLat / 2) * sin(dLat / 2) +
-        cos(lat1 * (3.141592653589793 / 180.0)) * cos(lat2 * (3.141592653589793 / 180.0)) * sin(dLon / 2) * sin(dLon / 2);
+        cos(lat1 * (3.141592653589793 / 180.0)) *
+            cos(lat2 * (3.141592653589793 / 180.0)) *
+            sin(dLon / 2) *
+            sin(dLon / 2);
     final c = 2 * atan2(sqrt(a), sqrt(1 - a));
     return earthRadius * c;
   }
@@ -774,8 +837,10 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
     if (mounted && result == "success") {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(AppLocalizations.of(context)!.user_orders_thanks_review),
-          backgroundColor: AppColors.success,
+          content:
+              Text(AppLocalizations.of(context)!.user_orders_thanks_review),
+          backgroundColor:
+              AppColors.resolve(AppColors.success, AppDarkColors.success),
         ),
       );
     }
@@ -793,14 +858,13 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
     if (mounted && result == "success") {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(AppLocalizations.of(context)!.user_orders_thanks_review_driver),
+          content: Text(
+              AppLocalizations.of(context)!.user_orders_thanks_review_driver),
           backgroundColor: AppColors.success,
         ),
       );
     }
   }
-
-
 }
 
 // ── Bouton action primaire (pleine largeur) ───────────────
@@ -941,11 +1005,12 @@ class _EmptyOrders extends StatelessWidget {
               width: 72,
               height: 72,
               decoration: BoxDecoration(
-                  color: AppColors.resolve(AppColors.brandSurface, AppDarkColors.brandSurface),
+                  color: AppColors.resolve(
+                      AppColors.brandSurface, AppDarkColors.brandSurface),
                   shape: BoxShape.circle),
               child: Icon(Icons.receipt_long_outlined,
-                  color: AppColors.resolve(
-                      AppColors.brand, AppDarkColors.brand),
+                  color:
+                      AppColors.resolve(AppColors.brand, AppDarkColors.brand),
                   size: 34),
             ),
             const SizedBox(height: AppSpacing.md),
@@ -1001,13 +1066,18 @@ class _ConfirmDialog extends StatelessWidget {
             color: color,
             size: 22),
         const SizedBox(width: AppSpacing.sm),
-        Text(isConfirm ? AppLocalizations.of(context)!.confirm : AppLocalizations.of(context)!.cancel,
+        Text(
+            isConfirm
+                ? AppLocalizations.of(context)!.confirm
+                : AppLocalizations.of(context)!.cancel,
             style: AppTypography.titleMedium(color: color)),
       ]),
       content: Text(
         isConfirm
-            ? AppLocalizations.of(context)!.user_orders_confirm_prompt(commandeId)
-            : AppLocalizations.of(context)!.user_orders_cancel_prompt(commandeId),
+            ? AppLocalizations.of(context)!
+                .user_orders_confirm_prompt(commandeId)
+            : AppLocalizations.of(context)!
+                .user_orders_cancel_prompt(commandeId),
         style: AppTypography.bodyLarge(color: color),
       ),
       actions: [
@@ -1017,7 +1087,9 @@ class _ConfirmDialog extends StatelessWidget {
         ElevatedButton(
           onPressed: () => Navigator.pop(context, true),
           style: ElevatedButton.styleFrom(backgroundColor: color),
-          child: Text(isConfirm ? AppLocalizations.of(context)!.user_orders_yes_confirm : AppLocalizations.of(context)!.user_orders_yes_cancel),
+          child: Text(isConfirm
+              ? AppLocalizations.of(context)!.user_orders_yes_confirm
+              : AppLocalizations.of(context)!.user_orders_yes_cancel),
         ),
       ],
     );
@@ -1050,15 +1122,13 @@ class _AssignLivreurDialog extends StatelessWidget {
                   AppColors.brandSurface, AppDarkColors.brandSurface),
               borderRadius: BorderRadius.circular(AppRadius.sm)),
           child: Icon(Icons.delivery_dining_rounded,
-              color: AppColors.resolve(
-                  AppColors.brand, AppDarkColors.brand),
+              color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
               size: 16),
         ),
         const SizedBox(width: AppSpacing.sm),
         Text(AppLocalizations.of(context)!.user_orders_assign_driver,
             style: AppTypography.titleMedium(
-                color: AppColors.resolve(
-                    AppColors.ink, AppDarkColors.ink))),
+                color: AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
       ]),
       content: SizedBox(
         width: double.maxFinite,
@@ -1079,7 +1149,8 @@ class _AssignLivreurDialog extends StatelessWidget {
                     AppColors.surfaceWarm, AppDarkColors.surfaceWarm),
                 child: ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: AppColors.resolve(AppColors.brandSurface, AppDarkColors.brandSurface),
+                    backgroundColor: AppColors.resolve(
+                        AppColors.brandSurface, AppDarkColors.brandSurface),
                     child: Text(
                       l.firstname.isNotEmpty
                           ? l.firstname[0].toUpperCase()
@@ -1098,12 +1169,14 @@ class _AssignLivreurDialog extends StatelessWidget {
                   subtitle: Text(
                     l.telephone.toString(),
                     style: AppTypography.bodyMedium(
-                            color: AppColors.resolve(AppColors.inkSubtle, AppDarkColors.inkSubtle))
+                            color: AppColors.resolve(
+                                AppColors.inkSubtle, AppDarkColors.inkSubtle))
                         .copyWith(fontSize: 11),
                   ),
                   trailing: Icon(Icons.arrow_forward_ios_rounded,
                       size: 14,
-                      color: AppColors.resolve(AppColors.inkSubtle, AppDarkColors.inkSubtle)),
+                      color: AppColors.resolve(
+                          AppColors.inkSubtle, AppDarkColors.inkSubtle)),
                   onTap: () async {
                     Navigator.pop(context);
                     try {
@@ -1140,11 +1213,11 @@ class _DeliveryTracker extends StatelessWidget {
 
   static const _steps = ['assigned', 'picked_up', 'in_transit', 'delivered'];
   static List<String> _labels(BuildContext context) => [
-    AppLocalizations.of(context)!.delivery_tracking_steps_preparation,
-    AppLocalizations.of(context)!.delivery_tracking_steps_picked,
-    AppLocalizations.of(context)!.delivery_tracking_steps_transit,
-    AppLocalizations.of(context)!.delivery_tracking_steps_delivered,
-  ];
+        AppLocalizations.of(context)!.delivery_tracking_steps_preparation,
+        AppLocalizations.of(context)!.delivery_tracking_steps_picked,
+        AppLocalizations.of(context)!.delivery_tracking_steps_transit,
+        AppLocalizations.of(context)!.delivery_tracking_steps_delivered,
+      ];
   static const _icons = [
     Icons.restaurant_rounded,
     Icons.shopping_bag_rounded,
@@ -1174,7 +1247,8 @@ class _DeliveryTracker extends StatelessWidget {
                           color: i <= idx
                               ? AppColors.resolve(
                                   AppColors.brand, AppDarkColors.brand)
-                              : AppColors.resolve(AppColors.border, AppDarkColors.border),
+                              : AppColors.resolve(
+                                  AppColors.border, AppDarkColors.border),
                         ),
                       ),
                     ]),
@@ -1192,8 +1266,10 @@ class _DeliveryTracker extends StatelessWidget {
                     child: Icon(_icons[i],
                         size: 14,
                         color: done
-                            ? AppColors.resolve(AppColors.surface, AppDarkColors.surface)
-                            : AppColors.resolve(AppColors.border, AppDarkColors.inkSubtle)),
+                            ? AppColors.resolve(
+                                AppColors.surface, AppDarkColors.surface)
+                            : AppColors.resolve(
+                                AppColors.border, AppDarkColors.inkSubtle)),
                   ),
                   const SizedBox(height: 4),
                   Text(_labels(context)[i],
@@ -1204,7 +1280,8 @@ class _DeliveryTracker extends StatelessWidget {
                           color: done
                               ? AppColors.resolve(
                                   AppColors.brand, AppDarkColors.brand)
-                              : AppColors.resolve(AppColors.border, AppDarkColors.inkSubtle))),
+                              : AppColors.resolve(
+                                  AppColors.border, AppDarkColors.inkSubtle))),
                 ],
               ),
             );
@@ -1225,9 +1302,9 @@ class _DeliveryTracker extends StatelessWidget {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(AppRadius.md),
                 border: Border.all(
-                    color: AppColors.resolve(
-                            AppColors.brand, AppDarkColors.brand)
-                        .withValues(alpha: 0.3)),
+                    color:
+                        AppColors.resolve(AppColors.brand, AppDarkColors.brand)
+                            .withValues(alpha: 0.3)),
               ),
               clipBehavior: Clip.antiAlias,
               child: Stack(children: [
@@ -1264,14 +1341,16 @@ class _DeliveryTracker extends StatelessWidget {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: AppColors.resolve(
-                              AppColors.ink, AppDarkColors.ink)
+                      color: AppColors.resolve(AppColors.ink, AppDarkColors.ink)
                           .withValues(alpha: 0.7),
                       borderRadius: BorderRadius.circular(4),
                     ),
-                    child: Text(AppLocalizations.of(context)!.user_orders_tap_to_enlarge,
+                    child: Text(
+                        AppLocalizations.of(context)!
+                            .user_orders_tap_to_enlarge,
                         style: TextStyle(
-                            color: AppColors.resolve(AppColors.surface, AppDarkColors.surface),
+                            color: AppColors.resolve(
+                                AppColors.surface, AppDarkColors.surface),
                             fontSize: 10)),
                   ),
                 ),
@@ -1337,7 +1416,8 @@ class _DeliveryMapPageState extends State<DeliveryMapPage> {
     return Scaffold(
       backgroundColor:
           AppColors.resolve(AppColors.surface, AppDarkColors.surface),
-      appBar: AppBar(title: Text(AppLocalizations.of(context)!.commande_details_tracking)),
+      appBar: AppBar(
+          title: Text(AppLocalizations.of(context)!.commande_details_tracking)),
       body: Stack(children: [
         FlutterMap(
           options: MapOptions(
@@ -1355,8 +1435,8 @@ class _DeliveryMapPageState extends State<DeliveryMapPage> {
               PolylineLayer(polylines: [
                 Polyline(
                     points: _route,
-                    color: AppColors.resolve(
-                        AppColors.brand, AppDarkColors.brand),
+                    color:
+                        AppColors.resolve(AppColors.brand, AppDarkColors.brand),
                     strokeWidth: 4),
               ]),
             MarkerLayer(markers: [
@@ -1370,8 +1450,8 @@ class _DeliveryMapPageState extends State<DeliveryMapPage> {
                           AppColors.brand, AppDarkColors.brand),
                       size: 32),
                   Text(AppLocalizations.of(context)!.livreurs,
-                      style: TextStyle(
-                          fontSize: 9, fontWeight: FontWeight.bold)),
+                      style:
+                          TextStyle(fontSize: 9, fontWeight: FontWeight.bold)),
                 ]),
               ),
               if (widget.clientLat != null)
@@ -1388,7 +1468,8 @@ class _DeliveryMapPageState extends State<DeliveryMapPage> {
                         style: TextStyle(
                           fontSize: 9,
                           fontWeight: FontWeight.bold,
-                          color: AppColors.resolve(AppColors.surface, AppDarkColors.surface),
+                          color: AppColors.resolve(
+                              AppColors.surface, AppDarkColors.surface),
                         )),
                   ]),
                 ),

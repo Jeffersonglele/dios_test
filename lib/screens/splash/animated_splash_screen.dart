@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:dios_delices/providers/theme_provider.dart';
 import 'package:dios_delices/screens/auth/signup.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -49,18 +50,21 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
     _OnboardingStep(
       imagePath: 'assets/images/onboarding/slide1.png',
       accentColor: Color(0xFFFFF0E4),
+      accentColorDark: Color(0xFF2A1812),
       titleKey: 'onboarding_step_1_title',
       bodyKey: 'onboarding_step_1_body',
     ),
     _OnboardingStep(
       imagePath: 'assets/images/onboarding/slide2.png',
       accentColor: Color(0xFFF0F7ED),
+      accentColorDark: Color(0xFF14221A),
       titleKey: 'onboarding_step_2_title',
       bodyKey: 'onboarding_step_2_body',
     ),
     _OnboardingStep(
       imagePath: 'assets/images/onboarding/slide3.png',
       accentColor: Color(0xFFFFF4DC),
+      accentColorDark: Color(0xFF2A1F10),
       titleKey: 'onboarding_step_3_title',
       bodyKey: 'onboarding_step_3_body',
     ),
@@ -205,18 +209,26 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.xl)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.xl)),
         title: Row(children: [
           Container(
-            width: 40, height: 40,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
-              color: AppColors.brand.withValues(alpha: 0.12),
+              color: AppColors.resolve(AppColors.brand, AppDarkColors.brand)
+                  .withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.notifications_active_rounded, color: AppColors.brand, size: 22),
+            child: Icon(Icons.notifications_active_rounded,
+                color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+                size: 22),
           ),
           const SizedBox(width: 12),
-          Expanded(child: Text(l10n.enable_notifications_title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600))),
+          Expanded(
+              child: Text(l10n.enable_notifications_title,
+                  style: const TextStyle(
+                      fontSize: 17, fontWeight: FontWeight.w600))),
         ]),
         content: Text(
           l10n.enable_notifications_body,
@@ -225,14 +237,20 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text(l10n.later, style: const TextStyle(color: AppColors.inkMuted)),
+            child: Text(l10n.later,
+                style: TextStyle(
+                    color: AppColors.resolve(
+                        AppColors.inkMuted, AppDarkColors.inkMuted))),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.brand,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+              backgroundColor:
+                  AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+              foregroundColor:
+                  AppColors.resolve(AppColors.card, AppDarkColors.card),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.md)),
             ),
             child: Text(l10n.enable_button),
           ),
@@ -284,34 +302,39 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 500),
-      switchInCurve: AppMotion.standard,
-      switchOutCurve: AppMotion.accelerate,
-      transitionBuilder: (child, animation) => FadeTransition(
-        opacity: animation,
-        child: child,
-      ),
-      child: _showOnboarding
-          ? _OnboardingView(
-              key: const ValueKey('onboarding'),
-              steps: _steps,
-              pageController: _pageController,
-              currentPage: _currentPage,
-              onNext: _onNextStep,
-              onSkip: _completeOnboarding,
-            )
-          : _SplashView(
-              key: const ValueKey('splash'),
-              splashController: _splashController,
-              pulseController: _pulseController,
-              logoScale: _logoScale,
-              logoOpacity: _logoOpacity,
-              textOpacity: _textOpacity,
-              textSlide: _textSlide,
-              pulse: _pulse,
-              isLoading: _isLoading,
-            ),
+    return AnimatedBuilder(
+      animation: darkModeNotifier,
+      builder: (context, _) {
+        return AnimatedSwitcher(
+          duration: const Duration(milliseconds: 500),
+          switchInCurve: AppMotion.standard,
+          switchOutCurve: AppMotion.accelerate,
+          transitionBuilder: (child, animation) => FadeTransition(
+            opacity: animation,
+            child: child,
+          ),
+          child: _showOnboarding
+              ? _OnboardingView(
+                  key: const ValueKey('onboarding'),
+                  steps: _steps,
+                  pageController: _pageController,
+                  currentPage: _currentPage,
+                  onNext: _onNextStep,
+                  onSkip: _completeOnboarding,
+                )
+              : _SplashView(
+                  key: const ValueKey('splash'),
+                  splashController: _splashController,
+                  pulseController: _pulseController,
+                  logoScale: _logoScale,
+                  logoOpacity: _logoOpacity,
+                  textOpacity: _textOpacity,
+                  textSlide: _textSlide,
+                  pulse: _pulse,
+                  isLoading: _isLoading,
+                ),
+        );
+      },
     );
   }
 }
@@ -344,65 +367,71 @@ class _SplashView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          const DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  AppColors.brandLight,
-                  AppColors.brand,
-                ],
+    return AnimatedBuilder(
+      animation: darkModeNotifier,
+      builder: (context, _) {
+        final gradStart =
+            AppColors.resolve(AppColors.brandLight, AppDarkColors.brandDark);
+        final gradEnd = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+        return Scaffold(
+          body: Stack(
+            fit: StackFit.expand,
+            children: [
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      gradStart,
+                      gradEnd,
+                    ],
+                  ),
+                ),
+                child: const SizedBox.expand(),
               ),
-            ),
-            child: SizedBox.expand(),
-          ),
-          SafeArea(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Spacer(flex: 3),
-
-                Center(
-                  child: AnimatedBuilder(
-                    animation: Listenable.merge([splashController, pulseController]),
-                    builder: (context, child) {
-                      final introFinished = splashController.value >= 0.55;
-                      final scale = introFinished ? pulse.value : logoScale.value;
-                      final opacity = introFinished
-                          ? 1.0
-                          : logoOpacity.value.clamp(0.0, 1.0);
-                      return Transform.scale(
-                        scale: scale,
-                        child: Opacity(opacity: opacity, child: child),
-                      );
-                    },
-                    child: const _SplashLogo(),
-                  ),
-                ),
-
-                const Spacer(flex: 3),
-
-                Center(
-                  child: FadeTransition(
-                    opacity: textOpacity,
-                    child: SlideTransition(
-                      position: textSlide,
-                      child: _SplashTagline(isLoading: isLoading),
+              SafeArea(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Spacer(flex: 3),
+                    Center(
+                      child: AnimatedBuilder(
+                        animation: Listenable.merge(
+                            [splashController, pulseController]),
+                        builder: (context, child) {
+                          final introFinished = splashController.value >= 0.55;
+                          final scale =
+                              introFinished ? pulse.value : logoScale.value;
+                          final opacity = introFinished
+                              ? 1.0
+                              : logoOpacity.value.clamp(0.0, 1.0);
+                          return Transform.scale(
+                            scale: scale,
+                            child: Opacity(opacity: opacity, child: child),
+                          );
+                        },
+                        child: const _SplashLogo(),
+                      ),
                     ),
-                  ),
+                    const Spacer(flex: 3),
+                    Center(
+                      child: FadeTransition(
+                        opacity: textOpacity,
+                        child: SlideTransition(
+                          position: textSlide,
+                          child: _SplashTagline(isLoading: isLoading),
+                        ),
+                      ),
+                    ),
+                    const Spacer(flex: 2),
+                  ],
                 ),
-
-                const Spacer(flex: 2),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -463,7 +492,10 @@ class _SplashTagline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final parts = AppLocalizations.of(context)!.onboarding_splash_subtitle.split('\n');
+    final parts =
+        AppLocalizations.of(context)!.onboarding_splash_subtitle.split('\n');
+    final resolvedAccent =
+        AppColors.resolve(AppColors.accent, AppDarkColors.accent);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -484,7 +516,7 @@ class _SplashTagline extends StatelessWidget {
                 style: AppTypography.displayMedium().copyWith(
                   fontSize: 30,
                   height: 1.18,
-                  color: AppColors.accent,
+                  color: resolvedAccent,
                 ),
               ),
             ],
@@ -495,7 +527,8 @@ class _SplashTagline extends StatelessWidget {
           AppLocalizations.of(context)!.splash_subtitle,
           textAlign: TextAlign.center,
           style: AppTypography.bodyLarge(
-            color: Colors.white.withValues(alpha: 0.78),
+            color: AppColors.resolve(AppColors.card, AppDarkColors.card)
+                .withValues(alpha: 0.78),
           ),
         ),
         const SizedBox(height: AppSpacing.xl),
@@ -531,7 +564,8 @@ class _LoadingIndicator extends StatelessWidget {
         Text(
           AppLocalizations.of(context)!.splash_loading,
           style: AppTypography.bodyMedium(
-            color: Colors.white.withValues(alpha: 0.78),
+            color: AppColors.resolve(AppColors.card, AppDarkColors.card)
+                .withValues(alpha: 0.78),
           ),
         ),
       ],
@@ -595,41 +629,46 @@ class _OnboardingViewState extends State<_OnboardingView>
 
   @override
   Widget build(BuildContext context) {
-    final isLast = widget.currentPage.round() == widget.steps.length - 1;
-    final screenH = MediaQuery.of(context).size.height;
-    final Color bgColor =
-        _interpolateStepColor(widget.currentPage, widget.steps);
+    return AnimatedBuilder(
+      animation: Listenable.merge([_entryController, darkModeNotifier]),
+      builder: (context, _) {
+        final isLast = widget.currentPage.round() == widget.steps.length - 1;
+        final screenH = MediaQuery.of(context).size.height;
+        final Color bgColor =
+            _interpolateStepColor(widget.currentPage, widget.steps);
 
-    return Scaffold(
-      backgroundColor: bgColor,
-      body: FadeTransition(
-        opacity: _entryOpacity,
-        child: SlideTransition(
-          position: _entrySlide,
-          child: Column(
-            children: [
-              // ── Zone image — 55% de l'écran ──────────────
-              _OnboardingImageZone(
-                steps: widget.steps,
-                pageController: widget.pageController,
-                currentPage: widget.currentPage,
-                bgColor: bgColor,
-                height: screenH * 0.55,
-                onSkip: widget.onSkip,
+        return Scaffold(
+          backgroundColor: bgColor,
+          body: FadeTransition(
+            opacity: _entryOpacity,
+            child: SlideTransition(
+              position: _entrySlide,
+              child: Column(
+                children: [
+                  // ── Zone image — 55% de l'écran ──────────────
+                  _OnboardingImageZone(
+                    steps: widget.steps,
+                    pageController: widget.pageController,
+                    currentPage: widget.currentPage,
+                    bgColor: bgColor,
+                    height: screenH * 0.55,
+                    onSkip: widget.onSkip,
+                  ),
+                  // ── Zone texte basse ─────────────────────────
+                  Expanded(
+                    child: _OnboardingBottomSheet(
+                      steps: widget.steps,
+                      currentPage: widget.currentPage,
+                      isLast: isLast,
+                      onNext: widget.onNext,
+                    ),
+                  ),
+                ],
               ),
-              // ── Zone texte basse ─────────────────────────
-              Expanded(
-                child: _OnboardingBottomSheet(
-                  steps: widget.steps,
-                  currentPage: widget.currentPage,
-                  isLast: isLast,
-                  onNext: widget.onNext,
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -638,7 +677,12 @@ class _OnboardingViewState extends State<_OnboardingView>
     final int idx = currentPage.floor().clamp(0, steps.length - 1);
     final int nextIdx = (idx + 1).clamp(0, steps.length - 1);
     final double t = (currentPage - idx).clamp(0.0, 1.0);
-    return Color.lerp(steps[idx].accentColor, steps[nextIdx].accentColor, t)!;
+    final isDark = darkModeNotifier.value;
+    final Color start =
+        isDark ? steps[idx].accentColorDark : steps[idx].accentColor;
+    final Color end =
+        isDark ? steps[nextIdx].accentColorDark : steps[nextIdx].accentColor;
+    return Color.lerp(start, end, t)!;
   }
 }
 
@@ -722,15 +766,20 @@ class _SolidSkipButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
-          color: AppColors.card.withValues(alpha: 0.96),
+          color: AppColors.resolve(AppColors.card, AppDarkColors.card)
+              .withValues(alpha: 0.96),
           borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(color: AppColors.border, width: 0.8),
+          border: Border.all(
+              color: AppColors.resolve(AppColors.border, AppDarkColors.border),
+              width: 0.8),
           boxShadow: [AppShadows.subtle],
         ),
         child: Text(
           AppLocalizations.of(context)!.skip,
-          style: AppTypography.labelMedium().copyWith(
-            color: AppColors.inkMuted,
+          style: AppTypography.labelMedium(
+                  color: AppColors.resolve(
+                      AppColors.inkMuted, AppDarkColors.inkMuted))
+              .copyWith(
             fontSize: 13,
           ),
         ),
@@ -759,8 +808,8 @@ class _OnboardingBottomSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
+      decoration: BoxDecoration(
+        color: AppColors.resolve(AppColors.surface, AppDarkColors.surface),
         borderRadius: BorderRadius.vertical(top: Radius.circular(36)),
       ),
       child: Padding(
@@ -779,7 +828,8 @@ class _OnboardingBottomSheet extends StatelessWidget {
                 width: 36,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: AppColors.border,
+                  color:
+                      AppColors.resolve(AppColors.border, AppDarkColors.border),
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
@@ -863,7 +913,9 @@ class _ElasticDots extends StatelessWidget {
           height: 8,
           margin: const EdgeInsets.only(right: 6),
           decoration: BoxDecoration(
-            color: isActive ? AppColors.brand : AppColors.border,
+            color: isActive
+                ? AppColors.resolve(AppColors.brand, AppDarkColors.brand)
+                : AppColors.resolve(AppColors.border, AppDarkColors.border),
             borderRadius: BorderRadius.circular(999),
           ),
         );
@@ -884,8 +936,9 @@ class _NextButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return ElevatedButton(
       style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.brand,
-        foregroundColor: Colors.white,
+        backgroundColor:
+            AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+        foregroundColor: AppColors.resolve(AppColors.card, AppDarkColors.card),
         elevation: 0,
         minimumSize: const Size(148, 52),
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
@@ -899,7 +952,9 @@ class _NextButton extends StatelessWidget {
       ),
       onPressed: onNext,
       child: Text(
-        isLast ? AppLocalizations.of(context)!.start : AppLocalizations.of(context)!.next,
+        isLast
+            ? AppLocalizations.of(context)!.start
+            : AppLocalizations.of(context)!.next,
         maxLines: 1,
         overflow: TextOverflow.visible,
         softWrap: false,
@@ -948,8 +1003,9 @@ class _OnboardingTextBlock extends StatelessWidget {
       children: [
         Text(
           title,
-          style:
-              AppTypography.headlineMedium(color: AppColors.ink).copyWith(
+          style: AppTypography.headlineMedium(
+                  color: AppColors.resolve(AppColors.ink, AppDarkColors.ink))
+              .copyWith(
             height: 1.15,
             letterSpacing: -0.4,
           ),
@@ -957,7 +1013,9 @@ class _OnboardingTextBlock extends StatelessWidget {
         const SizedBox(height: AppSpacing.sm),
         Text(
           body,
-          style: AppTypography.bodyMedium(color: AppColors.inkMuted),
+          style: AppTypography.bodyMedium(
+              color: AppColors.resolve(
+                  AppColors.inkMuted, AppDarkColors.inkMuted)),
         ),
       ],
     );
@@ -971,12 +1029,14 @@ class _OnboardingStep {
   const _OnboardingStep({
     required this.imagePath,
     required this.accentColor,
+    required this.accentColorDark,
     required this.titleKey,
     required this.bodyKey,
   });
 
   final String imagePath;
   final Color accentColor;
+  final Color accentColorDark;
   final String titleKey;
   final String bodyKey;
 }

@@ -362,18 +362,23 @@ class _MyStoreState extends State<MyStore> {
         ]),
         content: Text(
           l10n.store_become_restaurateur_body,
-          style: AppTypography.bodyLarge(),
+          style: AppTypography.bodyLarge(
+              color: AppColors.resolve(AppColors.ink, AppDarkColors.ink)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
             child: Text(l10n.cancel,
-                style: AppTypography.labelMedium(color: AppColors.inkMuted)),
+                style: AppTypography.labelMedium(
+                    color: AppColors.resolve(
+                        AppColors.inkMuted, AppDarkColors.inkMuted))),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.brand,
-              foregroundColor: Colors.white,
+              backgroundColor:
+                  AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+              foregroundColor:
+                  AppColors.resolve(AppColors.surface, AppDarkColors.surface),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(AppRadius.md),
               ),

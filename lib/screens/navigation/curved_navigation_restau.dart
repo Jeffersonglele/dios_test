@@ -10,8 +10,7 @@ class CurvedNavigationRestau extends StatefulWidget {
   const CurvedNavigationRestau({super.key, required this.specified_index});
 
   @override
-  State<CurvedNavigationRestau> createState() =>
-      _CurvedNavigationRestauState();
+  State<CurvedNavigationRestau> createState() => _CurvedNavigationRestauState();
 }
 
 class _CurvedNavigationRestauState extends State<CurvedNavigationRestau> {
@@ -61,8 +60,10 @@ class _CurvedNavigationRestauState extends State<CurvedNavigationRestau> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
-      body: SafeArea(child: PageView(
+      backgroundColor:
+          AppColors.resolve(AppColors.surface, AppDarkColors.surface),
+      body: SafeArea(
+          child: PageView(
         controller: _pageController,
         onPageChanged: (index) => setState(() => _activePage = index),
         children: _pages,

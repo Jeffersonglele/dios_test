@@ -191,9 +191,12 @@ class _FavoritesState extends State<Favorites> {
           margin: const EdgeInsets.fromLTRB(20, 0, 20, 10),
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: AppColors.card,
+            color: AppColors.resolve(AppColors.card, AppDarkColors.card),
             borderRadius: BorderRadius.circular(AppRadius.lg),
-            border: Border.all(color: AppColors.border, width: 0.5),
+            border: Border.all(
+                color:
+                    AppColors.resolve(AppColors.border, AppDarkColors.border),
+                width: 0.5),
           ),
           child: Row(children: [
             Container(

@@ -779,7 +779,9 @@ class _SectionLabel extends StatelessWidget {
                 AppColors.brandSurface, AppDarkColors.brandSurface),
             borderRadius: BorderRadius.circular(AppRadius.sm),
           ),
-          child: Icon(icon, size: 15, color: AppColors.brand),
+          child: Icon(icon,
+              size: 15,
+              color: AppColors.resolve(AppColors.brand, AppDarkColors.brand)),
         ),
         const SizedBox(width: AppSpacing.sm),
         Text(
@@ -879,13 +881,14 @@ class _PasswordStrengthIndicatorState
   Color get _strengthColor {
     switch (_score) {
       case 4:
-        return AppColors.success;
+        return AppColors.resolve(AppColors.success, AppDarkColors.success);
       case 3:
-        return AppColors.accent;
+        return AppColors.resolve(AppColors.accent, AppDarkColors.accent);
       case 2:
-        return const Color(0xFFF59E0B);
+        return AppColors.resolve(
+            const Color(0xFFF59E0B), const Color(0xFFF59E0B));
       default:
-        return AppColors.error;
+        return AppColors.resolve(AppColors.error, AppDarkColors.error);
     }
   }
 
@@ -962,7 +965,8 @@ class _Criterion extends StatelessWidget {
             size: 14,
             color: ok
                 ? AppColors.resolve(AppColors.success, AppDarkColors.success)
-                : AppColors.inkSubtle,
+                : AppColors.resolve(
+                    AppColors.inkSubtle, AppDarkColors.inkSubtle),
           ),
         ),
         const SizedBox(width: 4),
@@ -1005,7 +1009,9 @@ class _TermsCheckbox extends StatelessWidget {
             width: 22,
             height: 22,
             decoration: BoxDecoration(
-              color: accepted ? AppColors.brand : Colors.transparent,
+              color: accepted
+                  ? AppColors.resolve(AppColors.brand, AppDarkColors.brand)
+                  : Colors.transparent,
               borderRadius: BorderRadius.circular(6),
               border: Border.all(
                 color: accepted
@@ -1031,14 +1037,15 @@ class _TermsCheckbox extends StatelessWidget {
                           ? AppColors.resolve(
                               AppColors.inkMuted, AppDarkColors.inkMuted)
                           : AppColors.resolve(
-                                  AppColors.inkSubtle, AppDarkColors.inkMuted)
+                                  AppColors.inkSubtle, AppDarkColors.inkSubtle)
                               .withValues(alpha: 0.8)),
                   children: [
                     TextSpan(text: "J'accepte les "),
                     TextSpan(
                         text: "conditions d'utilisation",
                         style: TextStyle(
-                            color: AppColors.brand,
+                            color: AppColors.resolve(
+                                AppColors.brand, AppDarkColors.brand),
                             decoration: TextDecoration.underline)),
                   ],
                 ),
@@ -1101,7 +1108,7 @@ class _AgeCheckbox extends StatelessWidget {
                       ? AppColors.resolve(
                           AppColors.inkMuted, AppDarkColors.inkMuted)
                       : AppColors.resolve(
-                              AppColors.inkSubtle, AppDarkColors.inkMuted)
+                              AppColors.inkSubtle, AppDarkColors.inkSubtle)
                           .withValues(alpha: 0.8)),
             ),
           ),

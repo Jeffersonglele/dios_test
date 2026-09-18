@@ -585,13 +585,15 @@ class _SettingsState extends ConsumerState<Settings> {
         title: Text(l10n.settings),
         actions: [
           if (_isLoading)
-            const Padding(
+            Padding(
               padding: EdgeInsets.all(16),
               child: SizedBox(
                 width: 20,
                 height: 20,
                 child: CircularProgressIndicator(
-                    strokeWidth: 2, color: AppColors.brand),
+                    strokeWidth: 2,
+                    color: AppColors.resolve(
+                        AppColors.brand, AppDarkColors.brand)),
               ),
             ),
         ],
@@ -1002,7 +1004,9 @@ class _SettingsState extends ConsumerState<Settings> {
 
   Widget _sectionTitle(String title) {
     return Text(title,
-        style: AppTypography.titleMedium().copyWith(fontSize: 17));
+        style: AppTypography.titleMedium(
+                color: AppColors.resolve(AppColors.ink, AppDarkColors.ink))
+            .copyWith(fontSize: 17));
   }
 
   Widget _langTile(String label, String code, String flag) {
@@ -1013,8 +1017,9 @@ class _SettingsState extends ConsumerState<Settings> {
         leading: Text(flag, style: const TextStyle(fontSize: 22)),
         title: Text(label, style: AppTypography.labelMedium()),
         trailing: isSelected
-            ? const Icon(Icons.check_circle_rounded,
-                color: AppColors.brand, size: 22)
+            ? Icon(Icons.check_circle_rounded,
+                color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+                size: 22)
             : null,
         onTap: isSelected ? null : () => _setLanguage(code, label),
       ),
