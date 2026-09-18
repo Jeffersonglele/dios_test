@@ -23,13 +23,14 @@ class LigneCommandeAdapter extends TypeAdapter<LigneCommande> {
       quantite: fields[3] as int,
       prixUnitaire: fields[4] as double,
       reduction: fields[5] as double,
+      nomPlat: fields[6] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, LigneCommande obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(7)
       ..writeByte(0)
       ..write(obj.ligneID)
       ..writeByte(1)
@@ -41,7 +42,9 @@ class LigneCommandeAdapter extends TypeAdapter<LigneCommande> {
       ..writeByte(4)
       ..write(obj.prixUnitaire)
       ..writeByte(5)
-      ..write(obj.reduction);
+      ..write(obj.reduction)
+      ..writeByte(6)
+      ..write(obj.nomPlat);
   }
 
   @override

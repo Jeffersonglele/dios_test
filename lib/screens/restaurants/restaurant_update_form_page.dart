@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geocoding/geocoding.dart' as geo;
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
-import 'package:path/path.dart' as p;
 import '../../constants/constant.dart';
 import '../../utils/image_picker_helper.dart';
 import '../../models/users.dart';
@@ -326,23 +325,13 @@ class _RestaurantUpdateFormPageState
                             final _image = this._image;
 
                             if (_image != null) {
-                              String fileName =
-                                  p.basename(_image.path); // Get the file name
-                              String extension = p.extension(
-                                  fileName); // Get the file extension (.jpg, .png)
-
-                              // Check if name and user ID are not empty
                               if (_nameController.text.isNotEmpty &&
                                   user.userID != null) {
-                                String nom_image = _nameController.text +
-                                    "_" +
-                                    user.userID.toString(); // New image name
-                                String newFileName =
-                                    "$nom_image$extension"; // Combine name and extension
-
-                                // Create the ParseFile with the new name
-                                parseFile = ParseXFile(_image,
-                                    name: newFileName);
+                                final newFileName = safeUploadFileName(
+                                  prefix: 'restaurant_${user.userID}',
+                                  file: _image,
+                                );
+                                parseFile = ParseXFile(_image, name: newFileName);
                               } else {
                                 return;
                               }

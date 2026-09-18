@@ -1,7 +1,26 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path/path.dart' as p;
 import '../l10n/app_localizations.dart';
+
+/// Génère un nom compatible avec les services de stockage Parse.
+/// Les noms saisis par l'utilisateur peuvent contenir des espaces, accents ou
+/// caractères réservés par Parse ; ils ne doivent jamais être utilisés tels quels.
+String safeUploadFileName({required String prefix, required XFile file}) {
+  final sourceName = file.name.trim().isNotEmpty ? file.name : p.basename(file.path);
+  final sourceExtension = p.extension(sourceName).toLowerCase();
+  const allowedExtensions = {'jpg', 'jpeg', 'png', 'webp', 'gif', 'heic'};
+  final extension = allowedExtensions.contains(sourceExtension.replaceFirst('.', ''))
+      ? sourceExtension
+      : '.jpg';
+  final safePrefix = prefix
+      .replaceAll(RegExp(r'[^A-Za-z0-9_-]+'), '_')
+      .replaceAll(RegExp(r'_+'), '_')
+      .replaceAll(RegExp(r'^[_-]+|[_-]+$'), '');
+  final normalizedPrefix = safePrefix.isEmpty ? 'image' : safePrefix;
+  return '${normalizedPrefix}_${DateTime.now().millisecondsSinceEpoch}$extension';
+}
 
 /// Builds an image from bytes instead of [Image.file].
 ///

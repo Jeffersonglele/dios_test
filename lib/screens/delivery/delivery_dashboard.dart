@@ -865,7 +865,10 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
                                           const SizedBox(width: AppSpacing.sm),
                                           Expanded(
                                             child: Text(
-                                              dishNames[l.platID] ??
+                                              (l.nomPlat?.trim().isNotEmpty == true
+                                                      ? l.nomPlat!.trim()
+                                                      : null) ??
+                                                  dishNames[l.platID] ??
                                                   'Plat #${l.platID}',
                                               style: AppTypography.bodyMedium(),
                                               maxLines: 1,

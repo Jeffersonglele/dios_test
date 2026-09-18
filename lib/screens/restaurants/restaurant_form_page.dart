@@ -8,7 +8,6 @@ import 'package:geocoding/geocoding.dart' as geo;
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
-import 'package:path/path.dart' as p;
 import '../../constants/constant.dart';
 import '../../services/session_service.dart';
 import '../../theme/app_theme.dart';
@@ -573,8 +572,10 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
             ParseFileBase? parseFile;
             final img = _imageFile;
             if (img != null && _nameController.text.isNotEmpty) {
-              final ext = p.extension(img.path);
-              final name = '${_nameController.text}_$userID$ext';
+              final name = safeUploadFileName(
+                prefix: 'restaurant_${userID}',
+                file: img,
+              );
               parseFile = ParseXFile(img, name: name);
             }
 

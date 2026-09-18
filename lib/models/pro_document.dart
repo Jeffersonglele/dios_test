@@ -87,11 +87,17 @@ class ProDocument extends HiveObject {
         ? 'submitRestaurantProDocuments'
         : 'updateRestaurantProDocuments';
     var cloudFunction = ParseCloudFunction(functionName);
+    String? uploadError;
 
     Future<String?> uploadFile(ParseFileBase file) async {
-      final response = await file.save();
-      if (response.success && response.result != null) {
-        return (response.result as ParseFileBase).url ?? '';
+      try {
+        final response = await file.save();
+        if (response.success && response.result != null) {
+          return (response.result as ParseFileBase).url ?? '';
+        }
+        uploadError = response.error?.message;
+      } catch (e) {
+        uploadError = e.toString();
       }
       return null;
     }
@@ -108,7 +114,8 @@ class ProDocument extends HiveObject {
     if (kbis != null) {
       kbisUrl = await uploadFile(kbis);
       if (kbisUrl == null) {
-        return "Erreur : l'upload du KBIS a échoué.";
+        final detail = uploadError == null ? '' : ' ($uploadError)';
+        return "Erreur : l'upload du KBIS a échoué$detail";
       }
     }
 

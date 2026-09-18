@@ -87,47 +87,97 @@ class _RestaurantEarningsPageState extends State<RestaurantEarningsPage> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: const EdgeInsets.only(bottom: 32),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 16),
-                  // ── Carte totale ─────────────────────────
                   Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 16),
-                    padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF0D9488), Color(0xFF0F766E)],
+                      color: AppColors.resolve(AppColors.card, AppDarkColors.card),
+                      borderRadius: BorderRadius.circular(AppRadius.xl),
+                      border: Border.all(
+                        color: AppColors.resolve(AppColors.border, AppDarkColors.border),
                       ),
-                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [AppShadows.subtle],
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _StatColumn(label: 'Commandes', value: '$_totalOrders'),
-                        _StatColumn(
-                          label: 'Revenus',
-                          value: CurrencyUtil.formatPrice(_totalRevenue, _country),
+                        Row(
+                          children: [
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: AppColors.resolve(AppColors.brandSurface, AppDarkColors.brandSurface),
+                                borderRadius: BorderRadius.circular(AppRadius.md),
+                              ),
+                              child: Icon(Icons.insights_rounded,
+                                  color: AppColors.resolve(AppColors.brand, AppDarkColors.brand)),
+                            ),
+                            const SizedBox(width: 12),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(l10n.delivery_earnings(periodLabel),
+                                    style: AppTypography.titleSmall(
+                                        color: AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
+                              ],
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _StatColumn(
+                                icon: Icons.receipt_long_rounded,
+                                label: 'Commandes',
+                                value: '$_totalOrders',
+                                valueColor: AppColors.resolve(AppColors.ink, AppDarkColors.ink),
+                                labelColor: AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted),
+                              ),
+                            ),
+                            Container(
+                              width: 1,
+                              height: 56,
+                              color: AppColors.resolve(AppColors.border, AppDarkColors.border),
+                            ),
+                            Expanded(
+                              child: _StatColumn(
+                                icon: Icons.payments_rounded,
+                                label: 'Revenus',
+                                value: CurrencyUtil.formatPrice(_totalRevenue, _country),
+                                valueColor: AppColors.resolve(AppColors.ink, AppDarkColors.ink),
+                                labelColor: AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 24),
-                  // ── Période ───────────────────────────────
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                  Text(l10n.delivery_evolution,
+                      style: AppTypography.titleLarge(
+                          color: AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: AppColors.resolve(AppColors.surfaceWarm, AppDarkColors.surfaceWarm),
+                      borderRadius: BorderRadius.circular(AppRadius.lg),
+                    ),
                     child: Row(
                       children: [
-                        Expanded(
-                          child: Text(l10n.delivery_earnings(periodLabel),
-                              style: AppTypography.titleMedium()),
-                        ),
-                        const SizedBox(width: 8),
-                        _PeriodChip('today', l10n.delivery_today),
-                        const SizedBox(width: 8),
-                        _PeriodChip('week', l10n.delivery_this_week),
-                        const SizedBox(width: 8),
-                        _PeriodChip('month', l10n.delivery_this_month),
+                        Expanded(child: _PeriodChip('today', l10n.delivery_today)),
+                        const SizedBox(width: 4),
+                        Expanded(child: _PeriodChip('week', l10n.delivery_this_week)),
+                        const SizedBox(width: 4),
+                        Expanded(child: _PeriodChip('month', l10n.delivery_this_month)),
                       ],
                     ),
                   ),
@@ -202,16 +252,35 @@ class _RestaurantEarningsPageState extends State<RestaurantEarningsPage> {
                       ),
                     ),
                   if (!hasData)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 60),
-                      child: Center(
-                        child: Column(
-                          children: [
-                            Icon(Icons.bar_chart_rounded, size: 64, color: AppColors.resolve(AppColors.inkSubtle, AppDarkColors.inkSubtle)),
-                            const SizedBox(height: 12),
-                            Text(l10n.delivery_no_data, style: AppTypography.bodyLarge()),
-                          ],
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
+                      decoration: BoxDecoration(
+                        color: AppColors.resolve(AppColors.card, AppDarkColors.card),
+                        borderRadius: BorderRadius.circular(AppRadius.xl),
+                        border: Border.all(
+                          color: AppColors.resolve(AppColors.border, AppDarkColors.border),
                         ),
+                      ),
+                      child: Column(
+                        children: [
+                          Container(
+                            width: 64,
+                            height: 64,
+                            decoration: BoxDecoration(
+                              color: AppColors.resolve(AppColors.brandSurface, AppDarkColors.brandSurface),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(Icons.bar_chart_rounded,
+                                size: 30,
+                                color: AppColors.resolve(AppColors.brand, AppDarkColors.brand)),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(l10n.delivery_no_data,
+                              textAlign: TextAlign.center,
+                              style: AppTypography.titleSmall(
+                                  color: AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
+                        ],
                       ),
                     ),
                 ],
@@ -225,16 +294,21 @@ class _RestaurantEarningsPageState extends State<RestaurantEarningsPage> {
     return GestureDetector(
       onTap: () => _setPeriod(value),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 11),
         decoration: BoxDecoration(
-          color: selected ? AppColors.brand : AppColors.card,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: selected ? AppColors.brand : AppColors.border),
+          color: selected
+              ? AppColors.resolve(AppColors.brand, AppDarkColors.brand)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(AppRadius.md),
         ),
         child: Text(
           label,
+          textAlign: TextAlign.center,
+          overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            color: selected ? Colors.white : AppColors.ink,
+            color: selected
+                ? Colors.white
+                : AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted),
             fontSize: 12,
             fontWeight: FontWeight.w600,
           ),
@@ -245,17 +319,34 @@ class _RestaurantEarningsPageState extends State<RestaurantEarningsPage> {
 }
 
 class _StatColumn extends StatelessWidget {
+  final IconData icon;
   final String label;
   final String value;
-  const _StatColumn({required this.label, required this.value});
+  final Color valueColor;
+  final Color labelColor;
+
+  const _StatColumn({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.valueColor,
+    required this.labelColor,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(value, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.white)),
+        Icon(icon, size: 18, color: AppColors.brand),
+        const SizedBox(height: 6),
+        Text(value,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTypography.titleMedium(color: valueColor)
+                .copyWith(fontSize: 22)),
         const SizedBox(height: 4),
-        Text(label, style: const TextStyle(fontSize: 13, color: Colors.white70)),
+        Text(label, style: AppTypography.bodyMedium(color: labelColor)),
       ],
     );
   }

@@ -687,7 +687,12 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(_dishNames[l.platID] ?? 'Plat #${l.platID}',
+                Text(
+                    (l.nomPlat?.trim().isNotEmpty == true
+                            ? l.nomPlat!.trim()
+                            : null) ??
+                        _dishNames[l.platID] ??
+                        'Plat #${l.platID}',
                     style: AppTypography.bodyMedium(
                         color: AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
                 Text('${CurrencyUtil.formatPrice(l.prixUnitaire, _country)} · x${l.quantite}',

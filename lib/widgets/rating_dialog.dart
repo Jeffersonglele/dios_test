@@ -159,7 +159,11 @@ class _RatingDialogState extends State<RatingDialog> {
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
-                                    widget.dishNames?[l.platID] ?? l10n.dish_num(l.platID),
+                                    (l.nomPlat?.trim().isNotEmpty == true
+                                            ? l.nomPlat!.trim()
+                                            : null) ??
+                                        widget.dishNames?[l.platID] ??
+                                        l10n.dish_num(l.platID),
                                     style: AppTypography.bodyMedium(
                                             color: AppColors.resolve(
                                                 AppColors.ink, AppDarkColors.ink))

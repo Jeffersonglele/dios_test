@@ -1306,6 +1306,7 @@ class _CartState extends ConsumerState<Cart> {
       return {
         "platID": item["meal"]["mealID"],
         "id_plat": item["meal"]["mealID"],
+        "nomPlat": item["meal"]["meal_name"],
         "quantite": item["order"]["quantity"],
         "prixUnitaire": unitPrice,
         "prix_unitaire": unitPrice,

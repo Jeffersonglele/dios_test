@@ -24,6 +24,30 @@ class _ProRequestPageState extends State<ProRequestPage> {
   XFile? _proDocFile;
   bool _isSubmitting = false;
 
+  String _mimeType(String? extension) {
+    switch (extension?.toLowerCase()) {
+      case 'pdf':
+        return 'application/pdf';
+      case 'png':
+        return 'image/png';
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      default:
+        return 'application/octet-stream';
+    }
+  }
+
+  String _documentExtension(String fileName) {
+    final extension = p.extension(fileName).toLowerCase();
+    const allowed = {'.pdf', '.jpg', '.jpeg', '.png'};
+    return allowed.contains(extension) ? extension : '.bin';
+  }
+
+  String _safeDocumentName(String prefix, int userId, int timestamp, XFile file) {
+    return '${prefix}_${userId}_$timestamp${_documentExtension(file.name)}';
+  }
+
   @override
   void dispose() {
     _descriptionController.dispose();
@@ -38,7 +62,11 @@ class _ProRequestPageState extends State<ProRequestPage> {
     );
     final file = result?.files.single;
     if (file?.bytes != null) {
-      setState(() => _identityFile = XFile.fromData(file!.bytes!, name: file.name));
+      setState(() => _identityFile = XFile.fromData(
+            file!.bytes!,
+            name: file.name,
+            mimeType: _mimeType(file.extension),
+          ));
     }
   }
 
@@ -50,7 +78,11 @@ class _ProRequestPageState extends State<ProRequestPage> {
     );
     final file = result?.files.single;
     if (file?.bytes != null) {
-      setState(() => _proDocFile = XFile.fromData(file!.bytes!, name: file.name));
+      setState(() => _proDocFile = XFile.fromData(
+            file!.bytes!,
+            name: file.name,
+            mimeType: _mimeType(file.extension),
+          ));
     }
   }
 
@@ -75,11 +107,13 @@ class _ProRequestPageState extends State<ProRequestPage> {
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final identityFile = ParseXFile(
         _identityFile!,
-        name: 'identity_${session.userId}_$timestamp${p.extension(_identityFile!.name)}',
+        name: _safeDocumentName(
+            'identity', session.userId, timestamp, _identityFile!),
       );
       final proDocFile = ParseXFile(
         _proDocFile!,
-        name: 'prodoc_${session.userId}_$timestamp${p.extension(_proDocFile!.name)}',
+        name: _safeDocumentName(
+            'prodoc', session.userId, timestamp, _proDocFile!),
       );
 
       final result = await ProDocument.submitDocuments(
@@ -116,7 +150,8 @@ class _ProRequestPageState extends State<ProRequestPage> {
           AppColors.resolve(AppColors.surface, AppDarkColors.surface),
       appBar: AppBar(
         title: Text(l10n.pro_request_title,
-            style: AppTypography.titleSmall()),
+            style: AppTypography.titleSmall(
+                color: AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
         backgroundColor:
             AppColors.resolve(AppColors.surface, AppDarkColors.surface),
       ),
@@ -128,7 +163,9 @@ class _ProRequestPageState extends State<ProRequestPage> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(l10n.pro_request_subtitle,
-                  style: AppTypography.bodyLarge()),
+                  style: AppTypography.bodyLarge(
+                      color:
+                          AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
               const SizedBox(height: 24),
 
               // ── Identity document ──────────────────────────
@@ -151,30 +188,43 @@ class _ProRequestPageState extends State<ProRequestPage> {
 
               // ── Description ────────────────────────────────
               Text(l10n.pro_request_description_label,
-                  style: AppTypography.labelMedium()),
+                  style: AppTypography.labelMedium(
+                      color: AppColors.resolve(
+                          AppColors.inkMuted, AppDarkColors.inkMuted))),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _descriptionController,
                 maxLines: 6,
                 maxLength: 1000,
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? l10n.pro_request_error_description : null,
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? l10n.pro_request_error_description
+                    : null,
                 decoration: InputDecoration(
                   hintText: l10n.pro_request_description_hint,
-                  hintStyle: AppTypography.bodyMedium(color: AppColors.inkSubtle),
+                  hintStyle: AppTypography.bodyMedium(
+                      color: AppColors.resolve(
+                          AppColors.inkSubtle, AppDarkColors.inkSubtle)),
                   filled: true,
-                  fillColor: AppColors.resolve(AppColors.card, AppDarkColors.card),
+                  fillColor:
+                      AppColors.resolve(AppColors.card, AppDarkColors.card),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppRadius.md),
-                    borderSide: const BorderSide(color: AppColors.border),
+                    borderSide: BorderSide(
+                        color: AppColors.resolve(
+                            AppColors.border, AppDarkColors.border)),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppRadius.md),
-                    borderSide: const BorderSide(color: AppColors.border),
+                    borderSide: BorderSide(
+                        color: AppColors.resolve(
+                            AppColors.border, AppDarkColors.border)),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppRadius.md),
-                    borderSide: const BorderSide(color: AppColors.brand, width: 1.5),
+                    borderSide: BorderSide(
+                        color: AppColors.resolve(
+                            AppColors.brand, AppDarkColors.brand),
+                        width: 1.5),
                   ),
                 ),
               ),
@@ -186,7 +236,10 @@ class _ProRequestPageState extends State<ProRequestPage> {
                 child: ElevatedButton(
                   onPressed: _isSubmitting ? null : _submit,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.brand,
+                    backgroundColor: AppColors.resolve(
+                        AppColors.brand,
+                        AppColors.resolve(
+                            AppColors.brand, AppDarkColors.brand)),
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(AppRadius.md),
@@ -243,7 +296,9 @@ class _DocumentPicker extends StatelessWidget {
               color: AppColors.resolve(AppColors.card, AppDarkColors.card),
               borderRadius: BorderRadius.circular(AppRadius.md),
               border: Border.all(
-                color: file != null ? AppColors.brand : AppColors.border,
+                color: file != null
+                    ? AppColors.resolve(AppColors.brand, AppDarkColors.brand)
+                    : AppColors.resolve(AppColors.border, AppDarkColors.border),
                 width: file != null ? 1.5 : 1,
               ),
             ),
@@ -263,7 +318,10 @@ class _DocumentPicker extends StatelessWidget {
                         ? '${l10n.pro_request_file_selected} (${file!.name})'
                         : l10n.pro_request_no_file,
                     style: AppTypography.bodyMedium(
-                      color: file != null ? AppColors.ink : AppColors.inkSubtle,
+                      color: file != null
+                          ? AppColors.resolve(AppColors.ink, AppDarkColors.ink)
+                          : AppColors.resolve(
+                              AppColors.inkSubtle, AppDarkColors.inkSubtle),
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -271,7 +329,9 @@ class _DocumentPicker extends StatelessWidget {
                 const SizedBox(width: 8),
                 Text(
                   l10n.pro_request_pick_file,
-                  style: AppTypography.labelMedium(color: AppColors.brand),
+                  style: AppTypography.labelMedium(
+                      color: AppColors.resolve(
+                          AppColors.brand, AppDarkColors.brand)),
                 ),
               ],
             ),
