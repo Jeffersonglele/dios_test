@@ -76,10 +76,14 @@ class _ProManagementPageState extends State<ProManagementPage>
           maxLines: 2,
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.cancel)),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(l10n.cancel)),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.brand, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.brand,
+                foregroundColor: Colors.white),
             child: Text(l10n.admin_pro_validate),
           ),
         ],
@@ -93,7 +97,8 @@ class _ProManagementPageState extends State<ProManagementPage>
       final res = await fn.execute(parameters: {
         'userID': doc['userID'],
         'valid': true,
-        if (remarkController.text.trim().isNotEmpty) 'remark': remarkController.text.trim(),
+        if (remarkController.text.trim().isNotEmpty)
+          'remark': remarkController.text.trim(),
       });
       if (res.success && mounted) {
         Toast(context, l10n.admin_pro_validated(doc['userName'] ?? ''), true);
@@ -116,18 +121,23 @@ class _ProManagementPageState extends State<ProManagementPage>
           key: formKey,
           child: TextFormField(
             controller: remarkController,
-            validator: (v) => (v == null || v.trim().isEmpty) ? l10n.required : null,
+            validator: (v) =>
+                (v == null || v.trim().isEmpty) ? l10n.required : null,
             decoration: InputDecoration(hintText: l10n.admin_pro_remark_hint),
             maxLines: 2,
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.cancel)),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(l10n.cancel)),
           ElevatedButton(
             onPressed: () {
               if (formKey.currentState!.validate()) Navigator.pop(ctx, true);
             },
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.error,
+                foregroundColor: Colors.white),
             child: Text(l10n.admin_pro_reject),
           ),
         ],
@@ -175,9 +185,15 @@ class _ProManagementPageState extends State<ProManagementPage>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(doc['userName'] ?? '', style: AppTypography.titleMedium()),
+                    Text(doc['userName'] ?? '',
+                        style: AppTypography.titleMedium(
+                            color: AppColors.resolve(
+                                AppColors.ink, AppDarkColors.ink))),
                     if ((doc['restaurantName'] as String?)?.isNotEmpty == true)
-                      Text(doc['restaurantName'] ?? '', style: AppTypography.bodyMedium(color: AppColors.inkMuted)),
+                      Text(doc['restaurantName'] ?? '',
+                          style: AppTypography.bodyMedium(
+                              color: AppColors.resolve(
+                                  AppColors.inkMuted, AppDarkColors.inkMuted))),
                   ],
                 ),
               ),
@@ -187,13 +203,24 @@ class _ProManagementPageState extends State<ProManagementPage>
           const SizedBox(height: 8),
           if ((doc['description'] as String?)?.isNotEmpty == true) ...[
             const SizedBox(height: 4),
-            Text(l10n.admin_pro_description, style: AppTypography.labelMedium()),
+            Text(l10n.admin_pro_description,
+                style: AppTypography.labelMedium(
+                    color:
+                        AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
             const SizedBox(height: 2),
-            Text(doc['description'] ?? '', style: AppTypography.bodyMedium(color: AppColors.inkMuted), maxLines: 4, overflow: TextOverflow.ellipsis),
+            Text(doc['description'] ?? '',
+                style: AppTypography.bodyMedium(
+                    color: AppColors.resolve(
+                        AppColors.inkMuted, AppDarkColors.inkMuted)),
+                maxLines: 4,
+                overflow: TextOverflow.ellipsis),
           ],
           if (hasDocs) ...[
             const SizedBox(height: 10),
-            Text(l10n.admin_pro_documents, style: AppTypography.labelMedium()),
+            Text(l10n.admin_pro_documents,
+                style: AppTypography.labelMedium(
+                    color:
+                        AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
             const SizedBox(height: 4),
             Row(
               children: [
@@ -215,7 +242,8 @@ class _ProManagementPageState extends State<ProManagementPage>
                     onPressed: () => _reject(doc),
                     icon: const Icon(Icons.close_rounded, size: 18),
                     label: Text(l10n.admin_pro_reject),
-                    style: OutlinedButton.styleFrom(foregroundColor: AppColors.error),
+                    style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.error),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -224,7 +252,9 @@ class _ProManagementPageState extends State<ProManagementPage>
                     onPressed: () => _validate(doc),
                     icon: const Icon(Icons.check_rounded, size: 18),
                     label: Text(l10n.admin_pro_validate),
-                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.success, foregroundColor: Colors.white),
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.success,
+                        foregroundColor: Colors.white),
                   ),
                 ),
               ],
@@ -243,10 +273,14 @@ class _ProManagementPageState extends State<ProManagementPage>
     final rejected = _filtered(_statusRejected).length;
 
     return Scaffold(
-      backgroundColor: AppColors.resolve(AppColors.surface, AppDarkColors.surface),
+      backgroundColor:
+          AppColors.resolve(AppColors.surface, AppDarkColors.surface),
       appBar: AppBar(
-        title: Text(l10n.admin_pro_requests, style: AppTypography.titleSmall()),
-        backgroundColor: AppColors.resolve(AppColors.surface, AppDarkColors.surface),
+        title: Text(l10n.admin_pro_requests,
+            style: AppTypography.titleSmall(
+                color: AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
+        backgroundColor:
+            AppColors.resolve(AppColors.surface, AppDarkColors.surface),
         bottom: TabBar(
           controller: _tabController,
           labelColor: AppColors.brand,
@@ -260,7 +294,8 @@ class _ProManagementPageState extends State<ProManagementPage>
         ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.brand))
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.brand))
           : RefreshIndicator(
               onRefresh: _fetch,
               child: TabBarView(
@@ -280,7 +315,11 @@ class _ProManagementPageState extends State<ProManagementPage>
       return ListView(
         children: [
           SizedBox(height: MediaQuery.of(context).size.height * 0.3),
-          Center(child: Text(l10n.admin_pro_no_requests, style: AppTypography.bodyLarge(color: AppColors.inkMuted))),
+          Center(
+              child: Text(l10n.admin_pro_no_requests,
+                  style: AppTypography.bodyLarge(
+                      color: AppColors.resolve(
+                          AppColors.inkMuted, AppDarkColors.inkMuted)))),
         ],
       );
     }
@@ -304,18 +343,20 @@ class _StatusBadge extends StatelessWidget {
     String label;
     switch (status) {
       case 'validated':
-        bg = AppColors.successLight;
-        fg = AppColors.success;
+        bg = AppColors.resolve(
+            AppColors.successLight, AppDarkColors.successLight);
+        fg = AppColors.resolve(AppColors.success, AppDarkColors.success);
         label = l10n.admin_pro_status_validated;
         break;
       case 'rejected':
-        bg = AppColors.errorLight;
-        fg = AppColors.error;
+        bg = AppColors.resolve(AppColors.errorLight, AppDarkColors.errorLight);
+        fg = AppColors.resolve(AppColors.error, AppDarkColors.error);
         label = l10n.admin_pro_status_rejected;
         break;
       default:
-        bg = AppColors.accentLight;
-        fg = AppColors.accent;
+        bg =
+            AppColors.resolve(AppColors.accentLight, AppDarkColors.accentLight);
+        fg = AppColors.resolve(AppColors.accent, AppDarkColors.accent);
         label = l10n.admin_pro_status_pending;
     }
     return Container(
@@ -340,22 +381,28 @@ class _DocLink extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: GestureDetector(
-        onTap: () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
+        onTap: () =>
+            launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
-            color: AppColors.brandSurface,
+            color: AppColors.resolve(
+                AppColors.brandSurface, AppDarkColors.brandSurface),
             borderRadius: BorderRadius.circular(AppRadius.sm),
-            border: Border.all(color: AppColors.brand.withValues(alpha: 0.3)),
+            border: Border.all(
+                color: AppColors.resolve(AppColors.brand,
+                    AppDarkColors.brand.withValues(alpha: 0.3))),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(Icons.open_in_new_rounded, size: 14, color: AppColors.brand),
               const SizedBox(width: 4),
-              Text(l10n.admin_pro_view_document, style: AppTypography.labelMedium(color: AppColors.brand)),
+              Text(l10n.admin_pro_view_document,
+                  style: AppTypography.labelMedium(color: AppColors.brand)),
               const SizedBox(width: 2),
-              Text(label, style: AppTypography.labelMedium(color: AppColors.brand)),
+              Text(label,
+                  style: AppTypography.labelMedium(color: AppColors.brand)),
             ],
           ),
         ),

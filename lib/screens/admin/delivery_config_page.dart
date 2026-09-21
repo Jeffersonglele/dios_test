@@ -55,9 +55,12 @@ class _DeliveryConfigPageState extends State<DeliveryConfigPage> {
         if (data['success'] == true && mounted) {
           final baseFee = (data['baseFee'] as num?)?.toInt() ?? 1500;
           final perKmRate = (data['perKmRate'] as num?)?.toInt() ?? 300;
-          final commissionRate = (data['commissionRate'] as num?)?.toInt() ?? 15;
-          final delivererBasePay = (data['delivererBasePay'] as num?)?.toInt() ?? 500;
-          final delivererPerKm = (data['delivererPerKm'] as num?)?.toInt() ?? 200;
+          final commissionRate =
+              (data['commissionRate'] as num?)?.toInt() ?? 15;
+          final delivererBasePay =
+              (data['delivererBasePay'] as num?)?.toInt() ?? 500;
+          final delivererPerKm =
+              (data['delivererPerKm'] as num?)?.toInt() ?? 200;
           _currentBaseFee = baseFee;
           _currentPerKm = perKmRate;
           _currentCommissionRate = commissionRate;
@@ -83,7 +86,17 @@ class _DeliveryConfigPageState extends State<DeliveryConfigPage> {
     final delivererBasePay = int.tryParse(_delivererBasePayCtrl.text);
     final delivererPerKm = int.tryParse(_delivererPerKmCtrl.text);
 
-    if (baseFee == null || baseFee < 0 || perKm == null || perKm < 0 || commissionRate == null || commissionRate < 0 || commissionRate > 100 || delivererBasePay == null || delivererBasePay < 0 || delivererPerKm == null || delivererPerKm < 0) {
+    if (baseFee == null ||
+        baseFee < 0 ||
+        perKm == null ||
+        perKm < 0 ||
+        commissionRate == null ||
+        commissionRate < 0 ||
+        commissionRate > 100 ||
+        delivererBasePay == null ||
+        delivererBasePay < 0 ||
+        delivererPerKm == null ||
+        delivererPerKm < 0) {
       Toast(context, l10n.delivery_config_error, false);
       return;
     }
@@ -119,7 +132,9 @@ class _DeliveryConfigPageState extends State<DeliveryConfigPage> {
     return Scaffold(
       backgroundColor: surface,
       appBar: AppBar(
-        title: Text(l10n.delivery_config_title, style: AppTypography.titleMedium()),
+        title: Text(l10n.delivery_config_title,
+            style: AppTypography.titleMedium(
+                color: AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
       ),
       body: _loading
           ? Center(
@@ -129,7 +144,9 @@ class _DeliveryConfigPageState extends State<DeliveryConfigPage> {
                   const CircularProgressIndicator(color: AppColors.brand),
                   const SizedBox(height: 16),
                   Text(l10n.delivery_config_loading,
-                      style: AppTypography.bodyMedium(color: AppColors.inkMuted)),
+                      style: AppTypography.bodyMedium(
+                          color: AppColors.resolve(
+                              AppColors.inkMuted, AppDarkColors.inkMuted))),
                 ],
               ),
             )
@@ -163,7 +180,9 @@ class _DeliveryConfigPageState extends State<DeliveryConfigPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(l10n.delivery_config_current,
-              style: AppTypography.labelMedium(color: AppColors.inkMuted)),
+              style: AppTypography.labelMedium(
+                  color: AppColors.resolve(
+                      AppColors.inkMuted, AppDarkColors.inkMuted))),
           const SizedBox(height: 16),
           _configRow(
             icon: Icons.monetization_on_outlined,
@@ -190,7 +209,9 @@ class _DeliveryConfigPageState extends State<DeliveryConfigPage> {
           ),
           const SizedBox(height: 16),
           Text(l10n.delivery_config_deliverer_section,
-              style: AppTypography.labelMedium(color: AppColors.inkMuted)),
+              style: AppTypography.labelMedium(
+                  color: AppColors.resolve(
+                      AppColors.inkMuted, AppDarkColors.inkMuted))),
           const SizedBox(height: 12),
           _configRow(
             icon: Icons.pedal_bike_outlined,
@@ -207,12 +228,14 @@ class _DeliveryConfigPageState extends State<DeliveryConfigPage> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppColors.brandSurface,
+              color: AppColors.resolve(
+                  AppColors.brandSurface, AppDarkColors.brandSurface),
               borderRadius: BorderRadius.circular(AppRadius.md),
             ),
             child: Row(
               children: [
-                const Icon(Icons.calculate_outlined, size: 18, color: AppColors.brand),
+                const Icon(Icons.calculate_outlined,
+                    size: 18, color: AppColors.brand),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -239,13 +262,16 @@ class _DeliveryConfigPageState extends State<DeliveryConfigPage> {
           width: 32,
           height: 32,
           decoration: BoxDecoration(
-            color: AppColors.brandSurface,
+            color: AppColors.resolve(
+                AppColors.brandSurface, AppDarkColors.brandSurface),
             borderRadius: BorderRadius.circular(AppRadius.sm),
           ),
           child: Icon(icon, size: 16, color: AppColors.brand),
         ),
         const SizedBox(width: 12),
-        Text(label, style: AppTypography.bodyMedium()),
+        Text(label,
+            style: AppTypography.bodyMedium(
+                color: AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
         const Spacer(),
         Text(value,
             style: AppTypography.labelMedium(
@@ -301,7 +327,9 @@ class _DeliveryConfigPageState extends State<DeliveryConfigPage> {
           ),
           const SizedBox(height: 24),
           Text(l10n.delivery_config_deliverer_section,
-              style: AppTypography.labelMedium(color: AppColors.inkMuted)),
+              style: AppTypography.labelMedium(
+                  color: AppColors.resolve(
+                      AppColors.inkMuted, AppDarkColors.inkMuted))),
           const SizedBox(height: 12),
           TextField(
             controller: _delivererBasePayCtrl,

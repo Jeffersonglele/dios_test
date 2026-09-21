@@ -80,7 +80,9 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard>
           AppColors.resolve(AppColors.surface, AppDarkColors.surface),
       appBar: AppBar(
         title: Text(l10n.superAdminDashboard ?? 'Super Admin Dashboard',
-            style: AppTypography.titleSmall()),
+            style: AppTypography.titleSmall(
+              color: AppColors.resolve(AppColors.ink, AppDarkColors.ink),
+            )),
         backgroundColor:
             AppColors.resolve(AppColors.surface, AppDarkColors.surface),
       ),
@@ -192,7 +194,9 @@ class _StatsCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.resolve(AppColors.card, AppDarkColors.card),
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.border, width: 0.5),
+        border: Border.all(
+            color: AppColors.resolve(AppColors.border, AppDarkColors.border),
+            width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

@@ -177,7 +177,9 @@ class _DeliveryManagementPageState extends State<DeliveryManagementPage>
       decoration: BoxDecoration(
         color: AppColors.resolve(AppColors.card, AppDarkColors.card),
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.border, width: 0.5),
+        border: Border.all(
+            color: AppColors.resolve(AppColors.border, AppDarkColors.border),
+            width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -189,11 +191,16 @@ class _DeliveryManagementPageState extends State<DeliveryManagementPage>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(doc['userName'] ?? '',
-                        style: AppTypography.titleMedium()),
+                        style: AppTypography.titleMedium(
+                          color: AppColors.resolve(
+                              AppColors.ink, AppDarkColors.ink),
+                        )),
                     if ((doc['phone'] as String?)?.isNotEmpty == true)
                       Text(doc['phone'] ?? '',
                           style: AppTypography.bodyMedium(
-                              color: AppColors.inkMuted)),
+                            color: AppColors.resolve(
+                                AppColors.inkMuted, AppDarkColors.inkMuted),
+                          )),
                   ],
                 ),
               ),
@@ -204,17 +211,23 @@ class _DeliveryManagementPageState extends State<DeliveryManagementPage>
           if ((doc['description'] as String?)?.isNotEmpty == true) ...[
             const SizedBox(height: 4),
             Text(l10n.admin_delivery_description,
-                style: AppTypography.labelMedium()),
+                style: AppTypography.labelMedium(
+                  color: AppColors.resolve(AppColors.ink, AppDarkColors.ink),
+                )),
             const SizedBox(height: 2),
             Text(doc['description'] ?? '',
-                style: AppTypography.bodyMedium(color: AppColors.inkMuted),
+                style: AppTypography.bodyMedium(
+                    color: AppColors.resolve(
+                        AppColors.inkMuted, AppDarkColors.inkMuted)),
                 maxLines: 4,
                 overflow: TextOverflow.ellipsis),
           ],
           if (hasDocs) ...[
             const SizedBox(height: 10),
             Text(l10n.admin_delivery_documents,
-                style: AppTypography.labelMedium()),
+                style: AppTypography.labelMedium(
+                  color: AppColors.resolve(AppColors.ink, AppDarkColors.ink),
+                )),
             const SizedBox(height: 4),
             Row(
               children: [
@@ -273,7 +286,9 @@ class _DeliveryManagementPageState extends State<DeliveryManagementPage>
           AppColors.resolve(AppColors.surface, AppDarkColors.surface),
       appBar: AppBar(
         title: Text(l10n.admin_delivery_requests,
-            style: AppTypography.titleSmall()),
+            style: AppTypography.titleSmall(
+              color: AppColors.resolve(AppColors.ink, AppDarkColors.ink),
+            )),
         backgroundColor:
             AppColors.resolve(AppColors.surface, AppDarkColors.surface),
         bottom: TabBar(
@@ -312,7 +327,9 @@ class _DeliveryManagementPageState extends State<DeliveryManagementPage>
           SizedBox(height: MediaQuery.of(context).size.height * 0.3),
           Center(
               child: Text(l10n.admin_delivery_no_requests,
-                  style: AppTypography.bodyLarge(color: AppColors.inkMuted))),
+                  style: AppTypography.bodyLarge(
+                      color: AppColors.resolve(
+                          AppColors.inkMuted, AppDarkColors.inkMuted)))),
         ],
       );
     }
@@ -336,18 +353,20 @@ class _StatusBadge extends StatelessWidget {
     String label;
     switch (status) {
       case 'validated':
-        bg = AppColors.successLight;
-        fg = AppColors.success;
+        bg = AppColors.resolve(
+            AppColors.successLight, AppDarkColors.successLight);
+        fg = AppColors.resolve(AppColors.success, AppDarkColors.success);
         label = l10n.admin_delivery_status_validated;
         break;
       case 'rejected':
-        bg = AppColors.errorLight;
-        fg = AppColors.error;
+        bg = AppColors.resolve(AppColors.errorLight, AppDarkColors.errorLight);
+        fg = AppColors.resolve(AppColors.error, AppDarkColors.error);
         label = l10n.admin_delivery_status_rejected;
         break;
       default:
-        bg = AppColors.accentLight;
-        fg = AppColors.accent;
+        bg =
+            AppColors.resolve(AppColors.accentLight, AppDarkColors.accentLight);
+        fg = AppColors.resolve(AppColors.accent, AppDarkColors.accent);
         label = l10n.admin_delivery_status_pending;
     }
     return Container(
@@ -377,7 +396,8 @@ class _DocLink extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
-            color: AppColors.brandSurface,
+            color: AppColors.resolve(
+                AppColors.brandSurface, AppDarkColors.brandSurface),
             borderRadius: BorderRadius.circular(AppRadius.sm),
             border: Border.all(color: AppColors.brand.withValues(alpha: 0.3)),
           ),

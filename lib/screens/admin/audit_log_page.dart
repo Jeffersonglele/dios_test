@@ -49,9 +49,11 @@ class _AuditLogPageState extends State<AuditLogPage> {
       backgroundColor:
           AppColors.resolve(AppColors.surface, AppDarkColors.surface),
       appBar: AppBar(
-        title: Text(
-            AppLocalizations.of(context)!.audit_log_title(widget.country),
-            style: AppTypography.titleMedium()),
+        title:
+            Text(AppLocalizations.of(context)!.audit_log_title(widget.country),
+                style: AppTypography.titleMedium(
+                  color: AppColors.resolve(AppColors.ink, AppDarkColors.ink),
+                )),
       ),
       body: RefreshIndicator(
         color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
@@ -74,7 +76,10 @@ class _AuditLogPageState extends State<AuditLogPage> {
                               const SizedBox(height: 16),
                               Text(
                                   AppLocalizations.of(context)!.audit_log_empty,
-                                  style: AppTypography.bodyMedium()),
+                                  style: AppTypography.bodyMedium(
+                                    color: AppColors.resolve(
+                                        AppColors.ink, AppDarkColors.ink),
+                                  )),
                             ],
                           ),
                         ),
@@ -153,14 +158,19 @@ class _AuditLogPageState extends State<AuditLogPage> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(action,
-                                      style: AppTypography.bodyLarge()
-                                          .copyWith(fontSize: 14)),
+                                      style: AppTypography.bodyLarge(
+                                        color: AppColors.resolve(
+                                            AppColors.ink, AppDarkColors.ink),
+                                      ).copyWith(fontSize: 14)),
                                   if (details.isNotEmpty)
                                     Padding(
                                       padding: const EdgeInsets.only(top: 2),
                                       child: Text(details,
-                                          style: AppTypography.bodyMedium()
-                                              .copyWith(fontSize: 12)),
+                                          style: AppTypography.bodyMedium(
+                                            color: AppColors.resolve(
+                                                AppColors.ink,
+                                                AppDarkColors.ink),
+                                          ).copyWith(fontSize: 12)),
                                     ),
                                   if (userName.isNotEmpty)
                                     Padding(
@@ -173,8 +183,11 @@ class _AuditLogPageState extends State<AuditLogPage> {
                                                 AppDarkColors.inkSubtle)),
                                         const SizedBox(width: 4),
                                         Text(userName,
-                                            style: AppTypography.bodyMedium()
-                                                .copyWith(fontSize: 11)),
+                                            style: AppTypography.bodyMedium(
+                                              color: AppColors.resolve(
+                                                  AppColors.ink,
+                                                  AppDarkColors.ink),
+                                            ).copyWith(fontSize: 11)),
                                       ]),
                                     ),
                                 ],
@@ -182,7 +195,10 @@ class _AuditLogPageState extends State<AuditLogPage> {
                             ),
                             if (dateStr.isNotEmpty)
                               Text(dateStr,
-                                  style: AppTypography.bodyMedium().copyWith(
+                                  style: AppTypography.bodyMedium(
+                                    color: AppColors.resolve(
+                                        AppColors.ink, AppDarkColors.ink),
+                                  ).copyWith(
                                       fontSize: 10,
                                       color: AppColors.resolve(
                                           AppColors.inkSubtle,

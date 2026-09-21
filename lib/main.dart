@@ -81,6 +81,7 @@ Future<void> main() async {
   Hive.registerAdapter(CommandeAdapter());
   Hive.registerAdapter(MoyenPaiementAdapter());
   Hive.registerAdapter(LigneCommandeAdapter());
+  Hive.registerAdapter(ProDocumentAdapter());
 
   // Initialisation des notifications (messagerie seulement, permissions plus tard)
   try {

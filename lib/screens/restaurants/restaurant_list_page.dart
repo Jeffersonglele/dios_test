@@ -31,7 +31,8 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
 
   final TextEditingController _searchCtrl = TextEditingController();
 
-  Future<bool> _sendEmailToUser(Restaurant restaurant, bool valid, [String? remark]) async {
+  Future<bool> _sendEmailToUser(Restaurant restaurant, bool valid,
+      [String? remark]) async {
     Users? user = Users.getUsersByUserId(users, restaurant.userID);
     final recipientEmail = user?.email ?? 'adigbononrodicaa@gmail.com';
     final subject = valid
@@ -115,9 +116,13 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
         return r.valid != 1 && r.valid != 2;
       }).toList();
     } else if (filterStatus == _RestaurantStatus.validated) {
-      list = list.where((item) => (item["restaurant"] as Restaurant).valid == 1).toList();
+      list = list
+          .where((item) => (item["restaurant"] as Restaurant).valid == 1)
+          .toList();
     } else if (filterStatus == _RestaurantStatus.rejected) {
-      list = list.where((item) => (item["restaurant"] as Restaurant).valid == 2).toList();
+      list = list
+          .where((item) => (item["restaurant"] as Restaurant).valid == 2)
+          .toList();
     }
     if (searchQuery.isNotEmpty) {
       final q = searchQuery.toLowerCase();
@@ -140,12 +145,16 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
       final r = i["restaurant"] as Restaurant;
       return r.valid != 1 && r.valid != 2;
     }).length;
-    final validatedCount = filteredRestaurants.where((i) => (i["restaurant"] as Restaurant).valid == 1).length;
+    final validatedCount = filteredRestaurants
+        .where((i) => (i["restaurant"] as Restaurant).valid == 1)
+        .length;
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor:
+          AppColors.resolve(AppColors.surface, AppDarkColors.surface),
       appBar: AppBar(
-        title: Text(AppLocalizations.of(context)!.restaurant_list_title(widget.country)),
+        title: Text(AppLocalizations.of(context)!
+            .restaurant_list_title(widget.country)),
         centerTitle: true,
       ),
       body: RefreshIndicator(
@@ -159,31 +168,45 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
                   child: Container(
                     height: 44,
                     decoration: BoxDecoration(
-                      color: AppColors.card,
+                      color:
+                          AppColors.resolve(AppColors.card, AppDarkColors.card),
                       borderRadius: BorderRadius.circular(AppRadius.md),
-                      border: Border.all(color: AppColors.border),
+                      border: Border.all(
+                          color: AppColors.resolve(
+                              AppColors.border, AppDarkColors.border)),
                     ),
-                      child: TextField(
-                        controller: _searchCtrl,
-                        onChanged: (v) => setState(() => searchQuery = v),
-                        style: AppTypography.bodyLarge().copyWith(fontSize: 14),
-                        decoration: InputDecoration(
-                          hintText: AppLocalizations.of(context)!.restaurant_list_search_hint,
-                          hintStyle: AppTypography.bodyMedium().copyWith(fontSize: 14),
-                          prefixIcon: Icon(Icons.search_rounded, color: AppColors.inkSubtle, size: 20),
-                          suffixIcon: searchQuery.isNotEmpty
-                              ? IconButton(
-                                  icon: Icon(Icons.close_rounded, size: 18),
-                                  onPressed: () {
-                                    _searchCtrl.clear();
-                                    setState(() => searchQuery = '');
-                                  },
-                                )
-                              : null,
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
+                    child: TextField(
+                      controller: _searchCtrl,
+                      onChanged: (v) => setState(() => searchQuery = v),
+                      style: AppTypography.bodyLarge(
+                              color: AppColors.resolve(
+                                  AppColors.ink, AppDarkColors.ink))
+                          .copyWith(fontSize: 14),
+                      decoration: InputDecoration(
+                        hintText: AppLocalizations.of(context)!
+                            .restaurant_list_search_hint,
+                        hintStyle: AppTypography.bodyMedium(
+                                color: AppColors.resolve(
+                                    AppColors.ink, AppDarkColors.ink))
+                            .copyWith(fontSize: 14),
+                        prefixIcon: Icon(Icons.search_rounded,
+                            color: AppColors.resolve(
+                                AppColors.brand, AppDarkColors.brand),
+                            size: 20),
+                        suffixIcon: searchQuery.isNotEmpty
+                            ? IconButton(
+                                icon: Icon(Icons.close_rounded, size: 18),
+                                onPressed: () {
+                                  _searchCtrl.clear();
+                                  setState(() => searchQuery = '');
+                                },
+                              )
+                            : null,
+                        border: InputBorder.none,
+                        contentPadding:
+                            const EdgeInsets.symmetric(vertical: 12),
                       ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -195,13 +218,25 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 children: [
-                  _buildChip(AppLocalizations.of(context)!.all, _RestaurantStatus.all),
+                  _buildChip(
+                      AppLocalizations.of(context)!.all, _RestaurantStatus.all),
                   const SizedBox(width: 8),
-                  _buildChip(AppLocalizations.of(context)!.restaurant_list_filter_pending, _RestaurantStatus.pending, count: pendingCount),
+                  _buildChip(
+                      AppLocalizations.of(context)!
+                          .restaurant_list_filter_pending,
+                      _RestaurantStatus.pending,
+                      count: pendingCount),
                   const SizedBox(width: 8),
-                  _buildChip(AppLocalizations.of(context)!.restaurant_list_filter_validated, _RestaurantStatus.validated, count: validatedCount),
+                  _buildChip(
+                      AppLocalizations.of(context)!
+                          .restaurant_list_filter_validated,
+                      _RestaurantStatus.validated,
+                      count: validatedCount),
                   const SizedBox(width: 8),
-                  _buildChip(AppLocalizations.of(context)!.restaurant_list_filter_rejected, _RestaurantStatus.rejected),
+                  _buildChip(
+                      AppLocalizations.of(context)!
+                          .restaurant_list_filter_rejected,
+                      _RestaurantStatus.rejected),
                 ],
               ),
             ),
@@ -209,17 +244,23 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: Row(children: [
                 Text('${displayed.length} / $totalInList restaurant(s)',
-                    style: AppTypography.bodyMedium().copyWith(fontSize: 12)),
+                    style: AppTypography.bodyMedium(
+                            color: AppColors.resolve(
+                                AppColors.inkMuted, AppDarkColors.inkMuted))
+                        .copyWith(fontSize: 12)),
                 const Spacer(),
                 if (pendingCount > 0)
                   Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: Text('$pendingCount en attente',
-                        style: AppTypography.labelMedium(color: AppColors.accent).copyWith(fontSize: 11)),
+                        style:
+                            AppTypography.labelMedium(color: AppColors.accent)
+                                .copyWith(fontSize: 11)),
                   ),
                 if (validatedCount > 0)
                   Text('$validatedCount validés',
-                      style: AppTypography.labelMedium(color: AppColors.success).copyWith(fontSize: 11)),
+                      style: AppTypography.labelMedium(color: AppColors.success)
+                          .copyWith(fontSize: 11)),
               ]),
             ),
             const SizedBox(height: 4),
@@ -232,10 +273,16 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(Icons.storefront_outlined,
-                                  size: 64, color: AppColors.inkSubtle),
+                                  size: 64,
+                                  color: AppColors.resolve(AppColors.inkSubtle,
+                                      AppDarkColors.inkSubtle)),
                               const SizedBox(height: 12),
-                              Text(AppLocalizations.of(context)!.restaurant_list_no_results,
-                                  style: AppTypography.bodyLarge(color: AppColors.inkMuted)),
+                              Text(
+                                  AppLocalizations.of(context)!
+                                      .restaurant_list_no_results,
+                                  style: AppTypography.bodyLarge(
+                                      color: AppColors.resolve(AppColors.brand,
+                                          AppDarkColors.inkMuted))),
                             ],
                           ),
                         )
@@ -264,10 +311,15 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
-          color: selected ? AppColors.brandSurface : AppColors.card,
+          color: selected
+              ? AppColors.resolve(AppColors.brand, AppDarkColors.brand)
+                  .withValues(alpha: 0.15)
+              : AppColors.resolve(AppColors.card, AppDarkColors.card),
           borderRadius: BorderRadius.circular(99),
           border: Border.all(
-            color: selected ? AppColors.brand : AppColors.border,
+            color: selected
+                ? AppColors.resolve(AppColors.brand, AppDarkColors.brand)
+                : AppColors.resolve(AppColors.border, AppDarkColors.border),
             width: selected ? 1.5 : 1,
           ),
         ),
@@ -279,7 +331,10 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                color: selected ? AppColors.brand : AppColors.inkMuted,
+                color: selected
+                    ? AppColors.resolve(AppColors.brand, AppDarkColors.brand)
+                    : AppColors.resolve(
+                        AppColors.inkMuted, AppDarkColors.inkMuted),
               ),
             ),
             if (count != null && count > 0) ...[
@@ -287,11 +342,18 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                 decoration: BoxDecoration(
-                  color: selected ? AppColors.brand.withValues(alpha: 0.15) : AppColors.surfaceWarm,
+                  color: selected
+                      ? AppColors.resolve(AppColors.brand, AppDarkColors.brand)
+                          .withValues(alpha: 0.15)
+                      : AppColors.surfaceWarm,
                   borderRadius: BorderRadius.circular(99),
                 ),
                 child: Text('$count',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: selected ? AppColors.brand : AppColors.inkSubtle)),
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color:
+                            selected ? AppColors.brand : AppColors.inkSubtle)),
               ),
             ],
           ],
@@ -306,11 +368,15 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
-          color: AppColors.successLight,
+          color: AppColors.resolve(
+              AppColors.successLight, AppDarkColors.successLight),
           borderRadius: BorderRadius.circular(99),
         ),
         child: Text(AppLocalizations.of(context)!.owner,
-            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.inkMuted)),
+            style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: AppColors.inkMuted)),
       );
     }
     return const SizedBox.shrink();
@@ -323,9 +389,11 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: AppColors.resolve(AppColors.card, AppDarkColors.card),
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.border, width: 0.5),
+        border: Border.all(
+            color: AppColors.resolve(AppColors.border, AppDarkColors.border),
+            width: 0.5),
         boxShadow: AppShadows.cardList,
       ),
       child: Material(
@@ -336,7 +404,8 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => RestaurantDetails(restaurant_id: restaurant.restaurantID),
+              builder: (_) =>
+                  RestaurantDetails(restaurant_id: restaurant.restaurantID),
             ),
           ),
           child: Padding(
@@ -364,21 +433,29 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
                             Flexible(
                               child: Text(
                                 restaurant.name,
-                                style: AppTypography.titleMedium().copyWith(fontSize: 15),
+                                style: AppTypography.titleMedium(
+                                        color: AppColors.resolve(
+                                            AppColors.ink, AppDarkColors.ink))
+                                    .copyWith(fontSize: 15),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
                             if (restaurant.isPro) ...[
                               const SizedBox(width: 6),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
                                   color: AppColors.brand,
                                   borderRadius: BorderRadius.circular(4),
                                 ),
-                                child: Text(AppLocalizations.of(context)!.pro_badge,
-                                    style: AppTypography.labelMedium(color: Colors.white)
-                                        .copyWith(fontSize: 8, fontWeight: FontWeight.w800)),
+                                child: Text(
+                                    AppLocalizations.of(context)!.pro_badge,
+                                    style: AppTypography.labelMedium(
+                                            color: Colors.white)
+                                        .copyWith(
+                                            fontSize: 8,
+                                            fontWeight: FontWeight.w800)),
                               ),
                             ],
                           ],
@@ -386,13 +463,15 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
                         const SizedBox(height: 2),
                         Text(
                           restaurant.categories,
-                          style: AppTypography.bodyMedium().copyWith(fontSize: 12),
+                          style:
+                              AppTypography.bodyMedium().copyWith(fontSize: 12),
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 4),
                         Row(children: [
                           Container(
-                            width: 6, height: 6,
+                            width: 6,
+                            height: 6,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: isValid
@@ -404,7 +483,11 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            isValid ? AppLocalizations.of(context)!.validated : isRejected ? AppLocalizations.of(context)!.rejected : AppLocalizations.of(context)!.pending,
+                            isValid
+                                ? AppLocalizations.of(context)!.validated
+                                : isRejected
+                                    ? AppLocalizations.of(context)!.rejected
+                                    : AppLocalizations.of(context)!.pending,
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
@@ -417,16 +500,19 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
                           ),
                           if (isValid) ...[
                             const SizedBox(width: 12),
-                            Icon(Icons.star_rounded, color: AppColors.accent, size: 14),
+                            Icon(Icons.star_rounded,
+                                color: AppColors.accent, size: 14),
                             const SizedBox(width: 2),
                             Text('${restaurant.note}',
-                                style: AppTypography.bodyMedium().copyWith(fontSize: 11)),
+                                style: AppTypography.bodyMedium()
+                                    .copyWith(fontSize: 11)),
                             const SizedBox(width: 8),
                             Icon(Icons.receipt_long_rounded,
                                 color: AppColors.inkSubtle, size: 12),
                             const SizedBox(width: 2),
                             Text('${restaurant.nb_orders}',
-                                style: AppTypography.bodyMedium().copyWith(fontSize: 11)),
+                                style: AppTypography.bodyMedium()
+                                    .copyWith(fontSize: 11)),
                           ],
                         ]),
                       ],
@@ -434,7 +520,10 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
                   ),
                   _roleBadge(user.roleID),
                   const SizedBox(width: 4),
-                  Icon(Icons.chevron_right_rounded, color: AppColors.inkSubtle, size: 20),
+                  Icon(Icons.chevron_right_rounded,
+                      color: AppColors.resolve(
+                          AppColors.inkSubtle, AppDarkColors.inkSubtle),
+                      size: 20),
                 ]),
                 if (!isValid)
                   Padding(
@@ -442,32 +531,46 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(AppLocalizations.of(context)!.owner_info(user.firstname, user.email),
-                            style: AppTypography.bodyMedium().copyWith(fontSize: 11)),
+                        Text(
+                            AppLocalizations.of(context)!
+                                .owner_info(user.firstname, user.email),
+                            style: AppTypography.bodyMedium(
+                                    color: AppColors.resolve(AppColors.inkMuted,
+                                        AppDarkColors.inkMuted))
+                                .copyWith(fontSize: 11)),
                         const SizedBox(height: 6),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
                             IconButton(
                               icon: Container(
-                                width: 36, height: 36,
+                                width: 36,
+                                height: 36,
                                 decoration: BoxDecoration(
-                                  color: AppColors.successLight,
-                                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                                  color: AppColors.resolve(
+                                      AppColors.successLight,
+                                      AppDarkColors.successLight),
+                                  borderRadius:
+                                      BorderRadius.circular(AppRadius.sm),
                                 ),
-                                child: Icon(Icons.check_rounded, color: AppColors.success, size: 20),
+                                child: Icon(Icons.check_rounded,
+                                    color: AppColors.success, size: 20),
                               ),
                               onPressed: () => _validateRestaurant(restaurant),
                             ),
                             const SizedBox(width: 8),
                             IconButton(
                               icon: Container(
-                                width: 36, height: 36,
+                                width: 36,
+                                height: 36,
                                 decoration: BoxDecoration(
-                                  color: AppColors.errorLight,
-                                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                                  color: AppColors.resolve(AppColors.errorLight,
+                                      AppDarkColors.errorLight),
+                                  borderRadius:
+                                      BorderRadius.circular(AppRadius.sm),
                                 ),
-                                child: Icon(Icons.close_rounded, color: AppColors.error, size: 20),
+                                child: Icon(Icons.close_rounded,
+                                    color: AppColors.error, size: 20),
                               ),
                               onPressed: () => _showRejectDialog(restaurant),
                             ),
@@ -489,22 +592,32 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.lg)),
         title: Row(children: [
           Container(
-            width: 32, height: 32,
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
-              color: AppColors.errorLight,
+              color: AppColors.resolve(
+                  AppColors.errorLight, AppDarkColors.errorLight),
               borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
-            child: const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 18),
+            child: const Icon(Icons.error_outline_rounded,
+                color: AppColors.error, size: 18),
           ),
           const SizedBox(width: 10),
-          Text(AppLocalizations.of(context)!.restaurant_list_reject_title, style: AppTypography.titleMedium()),
+          Text(AppLocalizations.of(context)!.restaurant_list_reject_title,
+              style: AppTypography.titleMedium(
+                  color: AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
         ]),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text(AppLocalizations.of(context)!.restaurant_list_reject_hint(restaurant.name),
-              style: AppTypography.bodyMedium()),
+          Text(
+              AppLocalizations.of(context)!
+                  .restaurant_list_reject_hint(restaurant.name),
+              style: AppTypography.bodyMedium(
+                  color: AppColors.resolve(
+                      AppColors.inkMuted, AppDarkColors.inkMuted))),
           const SizedBox(height: 12),
           TextField(
             controller: remarkCtrl,
@@ -512,7 +625,8 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
             decoration: InputDecoration(
               hintText: 'Saisissez votre remarque...',
               filled: true,
-              fillColor: AppColors.surfaceWarm,
+              fillColor: AppColors.resolve(
+                  AppColors.surfaceWarm, AppDarkColors.surfaceWarm),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(AppRadius.md),
                 borderSide: BorderSide.none,
@@ -524,7 +638,9 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: Text(AppLocalizations.of(context)!.cancel,
-                style: AppTypography.labelMedium(color: AppColors.inkMuted)),
+                style: AppTypography.labelMedium(
+                    color: AppColors.resolve(
+                        AppColors.inkMuted, AppDarkColors.inkMuted))),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
@@ -540,13 +656,17 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
   }
 
   Future<void> _validateRestaurant(Restaurant restaurant) async {
-    final updateResult = await Restaurant.updateRestaurantStatus(restaurant.restaurantID, 1);
+    final updateResult =
+        await Restaurant.updateRestaurantStatus(restaurant.restaurantID, 1);
     if (updateResult == "success") {
       final emailSent = await _sendEmailToUser(restaurant, true);
       if (mounted) {
         setState(() => restaurant.valid = 1);
-        Toast(context,
-            AppLocalizations.of(context)!.restaurant_list_validated_toast(emailSent ? ' et un email a été envoyé.' : '.', restaurant.name),
+        Toast(
+            context,
+            AppLocalizations.of(context)!.restaurant_list_validated_toast(
+                emailSent ? ' et un email a été envoyé.' : '.',
+                restaurant.name),
             emailSent);
       }
     } else {
@@ -555,13 +675,17 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
   }
 
   Future<void> _rejectRestaurant(Restaurant restaurant, String remark) async {
-    final updateResult = await Restaurant.updateRestaurantStatus(restaurant.restaurantID, 2);
+    final updateResult =
+        await Restaurant.updateRestaurantStatus(restaurant.restaurantID, 2);
     if (updateResult == "success") {
       final emailSent = await _sendEmailToUser(restaurant, false, remark);
       if (mounted) {
         setState(() => restaurant.valid = 2);
-        Toast(context,
-            AppLocalizations.of(context)!.restaurant_list_rejected_toast(emailSent ? ' et un email a été envoyé.' : '.', restaurant.name),
+        Toast(
+            context,
+            AppLocalizations.of(context)!.restaurant_list_rejected_toast(
+                emailSent ? ' et un email a été envoyé.' : '.',
+                restaurant.name),
             false);
       }
     } else {

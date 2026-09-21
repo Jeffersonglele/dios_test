@@ -50,7 +50,8 @@ class _MenuState extends State<Menu> {
       if (mounted) {
         setState(() {
           dishes = dishesList;
-          filteredDishes = dishes.where((d) => d.restauID == currentUserRestau).toList();
+          filteredDishes =
+              dishes.where((d) => d.restauID == currentUserRestau).toList();
           _filterDishes(_searchController.text);
           _isLoading = false;
         });
@@ -80,31 +81,46 @@ class _MenuState extends State<Menu> {
     return PopScope(
       canPop: false,
       child: Scaffold(
-        backgroundColor: AppColors.surface,
+        backgroundColor:
+            AppColors.resolve(AppColors.surface, AppDarkColors.surface),
         body: SafeArea(
           child: Column(children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
               child: Row(children: [
                 Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(AppLocalizations.of(context)!.menu, style: AppTypography.headlineLarge()),
-                    Text('${displayedDishes.length} ${AppLocalizations.of(context)!.servings}',
-                        style: AppTypography.bodyMedium()),
-                  ]),
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(AppLocalizations.of(context)!.menu,
+                            style: AppTypography.headlineLarge(
+                                color: AppColors.resolve(
+                                    AppColors.ink, AppDarkColors.ink))),
+                        Text(
+                            '${displayedDishes.length} ${AppLocalizations.of(context)!.servings}',
+                            style: AppTypography.bodyMedium(
+                                color: AppColors.resolve(AppColors.inkMuted,
+                                    AppDarkColors.inkMuted))),
+                      ]),
                 ),
                 GestureDetector(
                   onTap: () => Navigator.push(context,
-                      CupertinoPageRoute(builder: (_) => DishFormPage()))
+                          CupertinoPageRoute(builder: (_) => DishFormPage()))
                       .then((_) => loadData()),
                   child: Container(
-                    width: 48, height: 48,
+                    width: 48,
+                    height: 48,
                     decoration: BoxDecoration(
-                      color: AppColors.brand,
+                      color: AppColors.resolve(
+                          AppColors.brand, AppDarkColors.brand),
                       borderRadius: BorderRadius.circular(AppRadius.md),
                       boxShadow: [
-                        BoxShadow(color: AppColors.brand.withValues(alpha: 0.3),
-                            blurRadius: 10, offset: const Offset(0, 4)),
+                        BoxShadow(
+                            color: AppColors.resolve(
+                                    AppColors.brand, AppDarkColors.brand)
+                                .withValues(alpha: 0.3),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4)),
                       ],
                     ),
                     child: const Icon(Icons.add_rounded, color: Colors.white),
@@ -115,14 +131,25 @@ class _MenuState extends State<Menu> {
             Expanded(
               child: displayedDishes.isEmpty
                   ? Center(
-                      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                        Icon(Icons.restaurant_menu_rounded, size: 56, color: AppColors.border),
-                        const SizedBox(height: 12),
-                        Text(l10n.menu_no_dishes, style: AppTypography.bodyMedium()),
-                        const SizedBox(height: 4),
-                        Text(l10n.menu_add_first_dish,
-                            style: AppTypography.bodyMedium(color: AppColors.inkSubtle)),
-                      ]),
+                      child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.restaurant_menu_rounded,
+                                size: 56,
+                                color: AppColors.resolve(
+                                    AppColors.border, AppDarkColors.border)),
+                            const SizedBox(height: 12),
+                            Text(l10n.menu_no_dishes,
+                                style: AppTypography.bodyMedium(
+                                    color: AppColors.resolve(AppColors.inkMuted,
+                                        AppDarkColors.inkMuted))),
+                            const SizedBox(height: 4),
+                            Text(l10n.menu_add_first_dish,
+                                style: AppTypography.bodyMedium(
+                                    color: AppColors.resolve(
+                                        AppColors.inkSubtle,
+                                        AppDarkColors.inkSubtle))),
+                          ]),
                     )
                   : GridView.builder(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
@@ -137,52 +164,76 @@ class _MenuState extends State<Menu> {
                         final dish = displayedDishes[i];
                         final curr = CurrencyUtil.symbol(country ?? '');
                         return GestureDetector(
-                          onTap: () => Navigator.push(context,
-                              CupertinoPageRoute(builder: (_) =>
-                                  DishDetails(from_page: 2, dish_id: dish.dishID)))
+                          onTap: () => Navigator.push(
+                                  context,
+                                  CupertinoPageRoute(
+                                      builder: (_) => DishDetails(
+                                          from_page: 2, dish_id: dish.dishID)))
                               .then((_) => loadData()),
                           child: Container(
                             decoration: BoxDecoration(
-                              color: AppColors.card,
+                              color: AppColors.resolve(
+                                  AppColors.card, AppDarkColors.card),
                               borderRadius: BorderRadius.circular(AppRadius.xl),
-                              border: Border.all(color: AppColors.border, width: 0.5),
+                              border: Border.all(
+                                  color: AppColors.resolve(
+                                      AppColors.border, AppDarkColors.border),
+                                  width: 0.5),
                             ),
                             clipBehavior: Clip.antiAlias,
-                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Expanded(
-                                child: Stack(children: [
-                                  Positioned.fill(
-                                  child: DiosImage(
-                                    url: dish.image,
-                                    fit: BoxFit.cover,
-                                  ),
-                                  ),
-                                  Positioned(
-                                    bottom: 0, left: 0, right: 0,
-                                    child: Container(
-                                      height: 40,
-                                      decoration: BoxDecoration(
-                                        gradient: LinearGradient(
-                                          begin: Alignment.topCenter,
-                                          end: Alignment.bottomCenter,
-                                          colors: [Colors.transparent, AppColors.ink.withValues(alpha: 0.35)],
+                            child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    child: Stack(children: [
+                                      Positioned.fill(
+                                        child: DiosImage(
+                                          url: dish.image,
+                                          fit: BoxFit.cover,
                                         ),
                                       ),
-                                    ),
+                                      Positioned(
+                                        bottom: 0,
+                                        left: 0,
+                                        right: 0,
+                                        child: Container(
+                                          height: 40,
+                                          decoration: BoxDecoration(
+                                            gradient: LinearGradient(
+                                              begin: Alignment.topCenter,
+                                              end: Alignment.bottomCenter,
+                                              colors: [
+                                                Colors.transparent,
+                                                AppColors.ink
+                                                    .withValues(alpha: 0.35)
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ]),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.all(10),
+                                    child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(dish.name ?? '',
+                                              style:
+                                                  AppTypography.labelMedium(),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                              '${dish.price?.toStringAsFixed(2)} $curr',
+                                              style: AppTypography.bodyLarge(
+                                                  color: AppColors.resolve(
+                                                      AppColors.brand,
+                                                      AppDarkColors.brand))),
+                                        ]),
                                   ),
                                 ]),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.all(10),
-                                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                  Text(dish.name ?? '', style: AppTypography.labelMedium(),
-                                      maxLines: 1, overflow: TextOverflow.ellipsis),
-                                  const SizedBox(height: 2),
-                                  Text('${dish.price?.toStringAsFixed(2)} $curr',
-                                      style: AppTypography.bodyLarge(color: AppColors.brand)),
-                                ]),
-                              ),
-                            ]),
                           ),
                         );
                       },

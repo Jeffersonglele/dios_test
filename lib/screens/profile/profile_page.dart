@@ -271,18 +271,19 @@ class _ProfilePageState extends State<ProfilePage> {
                             : Text(
                                 '${user.firstname.isNotEmpty ? user.firstname[0] : ''}${user.lastname.isNotEmpty ? user.lastname[0] : ''}'
                                     .toUpperCase(),
-                                style: const TextStyle(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.brand,
+                                style: AppTypography.titleMedium(
+                                  color: AppColors.resolve(
+                                      AppColors.ink, AppDarkColors.ink),
                                 ),
                               ),
                       ),
                       const SizedBox(height: 12),
                       Text(
                         '${user.firstname} ${user.lastname}',
-                        style:
-                            AppTypography.titleMedium().copyWith(fontSize: 18),
+                        style: AppTypography.titleMedium(
+                                color: AppColors.resolve(
+                                    AppColors.ink, AppDarkColors.ink))
+                            .copyWith(fontSize: 18),
                       ),
                       const SizedBox(height: 4),
                       Text(

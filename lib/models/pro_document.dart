@@ -146,7 +146,9 @@ class ProDocument extends HiveObject {
         if (response['success'] == false) {
           return "Erreur : ${response['error']}";
         } else {
-          int updatedDocumentID = documentID ?? response['documentID'];
+          int updatedDocumentID =
+              documentID ??
+              (int.tryParse(response['documentID']?.toString() ?? '0') ?? 0);
 
           ProDocument doc = ProDocument(
             documentID: updatedDocumentID,

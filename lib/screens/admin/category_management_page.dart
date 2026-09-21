@@ -42,7 +42,8 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
   Future<void> _add() async {
     final name = _nameCtrl.text.trim();
     if (name.isEmpty) {
-      Toast(context, AppLocalizations.of(context)!.category_name_required, false);
+      Toast(
+          context, AppLocalizations.of(context)!.category_name_required, false);
       return;
     }
     final success = await CategoryService.addCategory(name);
@@ -62,7 +63,8 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(AppLocalizations.of(context)!.category_delete_title),
-        content: Text(AppLocalizations.of(context)!.category_delete_confirm(cat.name)),
+        content: Text(
+            AppLocalizations.of(context)!.category_delete_confirm(cat.name)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
@@ -70,8 +72,8 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-            child:
-                Text(AppLocalizations.of(context)!.delete, style: TextStyle(color: Colors.white)),
+            child: Text(AppLocalizations.of(context)!.delete,
+                style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -83,7 +85,8 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
         Toast(context, AppLocalizations.of(context)!.category_deleted, true);
         _load();
       } else {
-        Toast(context, AppLocalizations.of(context)!.category_delete_error, false);
+        Toast(context, AppLocalizations.of(context)!.category_delete_error,
+            false);
       }
     }
   }
@@ -91,8 +94,10 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
-      appBar: AppBar(title: Text(AppLocalizations.of(context)!.category_manage_title)),
+      backgroundColor:
+          AppColors.resolve(AppColors.surface, AppDarkColors.surface),
+      appBar: AppBar(
+          title: Text(AppLocalizations.of(context)!.category_manage_title)),
       body: Column(
         children: [
           // Ajout
@@ -100,9 +105,12 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
             margin: const EdgeInsets.all(16),
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppColors.card,
+              color: AppColors.resolve(AppColors.card, AppDarkColors.card),
               borderRadius: BorderRadius.circular(AppRadius.lg),
-              border: Border.all(color: AppColors.border, width: 0.5),
+              border: Border.all(
+                  color:
+                      AppColors.resolve(AppColors.border, AppDarkColors.border),
+                  width: 0.5),
             ),
             child: Row(
               children: [
@@ -134,7 +142,9 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _categories.isEmpty
-                    ? Center(child: Text(AppLocalizations.of(context)!.category_empty))
+                    ? Center(
+                        child:
+                            Text(AppLocalizations.of(context)!.category_empty))
                     : RefreshIndicator(
                         onRefresh: _load,
                         child: ListView.builder(
@@ -145,20 +155,28 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
                             return Container(
                               margin: const EdgeInsets.only(bottom: 8),
                               decoration: BoxDecoration(
-                                color: AppColors.card,
+                                color: AppColors.resolve(
+                                    AppColors.card, AppDarkColors.card),
                                 borderRadius:
                                     BorderRadius.circular(AppRadius.md),
                                 border: Border.all(
-                                    color: AppColors.border, width: 0.5),
+                                    color: AppColors.resolve(
+                                        AppColors.border, AppDarkColors.border),
+                                    width: 0.5),
                               ),
                               child: Material(
                                 color: Colors.transparent,
                                 child: ListTile(
                                   title: Text(c.name,
-                                      style: AppTypography.labelMedium()),
+                                      style: AppTypography.labelMedium(
+                                          color: AppColors.resolve(
+                                              AppColors.ink,
+                                              AppDarkColors.ink))),
                                   trailing: IconButton(
-                                    icon: const Icon(Icons.delete_outline_rounded,
-                                        color: AppColors.error, size: 20),
+                                    icon: const Icon(
+                                        Icons.delete_outline_rounded,
+                                        color: AppColors.error,
+                                        size: 20),
                                     onPressed: () => _delete(c),
                                   ),
                                 ),
