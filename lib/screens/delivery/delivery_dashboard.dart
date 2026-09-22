@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/commande_status.dart';
 import '../../models/commande.dart';
 import '../../models/dish.dart';
 import '../../models/ligne_commande.dart';
@@ -133,9 +134,7 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
 
       if (statusFilter != null) {
         list = list.where((c) {
-          final s = c.deliveryStatus == null || c.deliveryStatus!.isEmpty
-              ? 'assigned'
-              : c.deliveryStatus;
+          final s = DeliveryStatus.normalize(c.deliveryStatus);
           return s == statusFilter;
         }).toList();
       }
@@ -147,9 +146,7 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
       var myDeliveries = allC.where((c) => c.livreurID == driverID).toList();
       if (statusFilter != null) {
         myDeliveries = myDeliveries.where((c) {
-          final s = c.deliveryStatus == null || c.deliveryStatus!.isEmpty
-              ? 'assigned'
-              : c.deliveryStatus;
+          final s = DeliveryStatus.normalize(c.deliveryStatus);
           return s == statusFilter;
         }).toList();
       }
@@ -254,19 +251,78 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
     } catch (_) {}
   }
 
-  Future<void> _updateStatus(Commande commande, String newStatus) async {
+  Future<void> _acceptAndUpdateStatus(Commande commande, String newStatus,
+      {String? confirmTitle,
+      String? confirmBody,
+      IconData? confirmIcon}) async {
+    final l10n = AppLocalizations.of(context)!;
+    if (!isOnline) {
+      Toast(context, l10n.delivery_must_be_online, false);
+      return;
+    }
+    if (isLoading) return;
+    if (confirmTitle != null) {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: AppColors.resolve(
+                    AppColors.brandSurface, AppDarkColors.brandSurface),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(confirmIcon ?? Icons.check_circle_rounded,
+                  color:
+                      AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+                  size: 18),
+            ),
+            const SizedBox(width: 10),
+            Expanded(child: Text(confirmTitle)),
+          ]),
+          content: confirmBody != null
+              ? Text(confirmBody,
+                  style: AppTypography.bodyLarge(
+                      color:
+                          AppColors.resolve(AppColors.ink, AppDarkColors.ink)))
+              : null,
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(l10n.cancel,
+                    style: AppTypography.labelMedium(
+                        color: AppColors.resolve(
+                            AppColors.inkMuted, AppDarkColors.inkMuted)))),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor:
+                      AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+                  foregroundColor: Colors.white),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(l10n.validate),
+            ),
+          ],
+        ),
+      );
+      if (ok != true || !mounted) return;
+    }
     setState(() => isLoading = true);
     try {
-      final ok =
-          await LivreurApi.updateDeliveryStatus(commande.commandeID, newStatus);
+      final normalized = DeliveryStatus.normalize(newStatus);
+      final ok = await LivreurApi.updateDeliveryStatus(
+          commande.commandeID, normalized);
       if (ok) {
-        if (newStatus == 'in_transit') {
+        if (normalized == DeliveryStatus.inTransit) {
           _startSharingLocation(commande.commandeID);
         }
-        if (newStatus == 'delivered') _stopSharingLocation();
+        if (normalized == DeliveryStatus.delivered) _stopSharingLocation();
         await _load();
         if (mounted) {
-          final label = _deliveryStatusLabel(newStatus);
+          final label = _deliveryStatusLabel(normalized);
           Toast(context, '✅ $label', true);
         }
       } else {
@@ -333,23 +389,24 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
   // ── Helpers ──────────────────────────────────────────────
   String _deliveryStatusLabel(String? status) {
     final l10n = AppLocalizations.of(context)!;
-    if (status == null || status.isEmpty) return l10n.delivery_status_assigned;
+    final s = DeliveryStatus.normalize(status);
     return {
-          'assigned': l10n.delivery_status_assigned,
-          'picked_up': l10n.delivery_status_picked_up,
-          'in_transit': l10n.delivery_status_in_transit,
-          'delivered': l10n.delivery_status_delivered,
-        }[status] ??
-        status;
+          DeliveryStatus.assigned: l10n.delivery_status_assigned,
+          DeliveryStatus.pickedUp: l10n.delivery_status_picked_up,
+          DeliveryStatus.inTransit: l10n.delivery_status_in_transit,
+          DeliveryStatus.delivered: l10n.delivery_status_delivered,
+        }[s] ??
+        l10n.delivery_status_assigned;
   }
 
-  static Color _deliveryStatusColor(String status) {
+  static Color _deliveryStatusColor(String? status) {
+    final s = DeliveryStatus.normalize(status);
     return {
-          'assigned': Colors.orange,
-          'picked_up': AppColors.accent,
-          'in_transit': AppColors.brand,
-          'delivered': AppColors.success,
-        }[status] ??
+          DeliveryStatus.assigned: Colors.orange,
+          DeliveryStatus.pickedUp: AppColors.accent,
+          DeliveryStatus.inTransit: AppColors.brand,
+          DeliveryStatus.delivered: AppColors.success,
+        }[s] ??
         AppColors.inkSubtle;
   }
 
@@ -484,10 +541,10 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
     final l10n = AppLocalizations.of(context)!;
     final statuses = [
       '__all__',
-      'assigned',
-      'picked_up',
-      'in_transit',
-      'delivered'
+      DeliveryStatus.assigned,
+      DeliveryStatus.pickedUp,
+      DeliveryStatus.inTransit,
+      DeliveryStatus.delivered,
     ];
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -535,7 +592,7 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
 
   // ── Carte de livraison (même modèle que UserOrdersPage) ──
   Widget _buildCard(Commande c) {
-    final status = c.deliveryStatus ?? 'assigned';
+    final status = DeliveryStatus.normalize(c.deliveryStatus);
     final statusColor = _deliveryStatusColor(status);
     final dateStr = c.dateCommande.toLocal().toString().split(' ')[0];
 
@@ -719,44 +776,71 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
                       ),
 
                     // ── Boutons d'action livreur ───────────────
-                    if (status != 'delivered')
+                    if (status != DeliveryStatus.delivered)
                       Padding(
                         padding: const EdgeInsets.fromLTRB(
                             AppSpacing.md, 0, AppSpacing.md, AppSpacing.sm),
                         child: Row(
                           children: [
-                            if (status == 'assigned')
+                            if (status == DeliveryStatus.assigned)
                               Expanded(
                                 child: _PrimaryActionButton(
                                   label: AppLocalizations.of(context)!
                                       .delivery_status_picked_up,
                                   icon: Icons.shopping_bag_rounded,
                                   color: AppColors.accent,
-                                  onTap: () => _updateStatus(c, 'picked_up'),
+                                  onTap: () => _acceptAndUpdateStatus(
+                                    c,
+                                    DeliveryStatus.pickedUp,
+                                    confirmTitle: AppLocalizations.of(context)!
+                                        .delivery_confirm_picked_title,
+                                    confirmBody: AppLocalizations.of(context)!
+                                        .delivery_confirm_picked_body(
+                                            c.commandeID.toString()),
+                                    confirmIcon: Icons.shopping_bag_rounded,
+                                  ),
                                 ),
                               ),
-                            if (status == 'picked_up')
+                            if (status == DeliveryStatus.pickedUp)
                               Expanded(
                                 child: _PrimaryActionButton(
                                   label: AppLocalizations.of(context)!
                                       .delivery_status_in_transit,
                                   icon: Icons.directions_bike_rounded,
                                   color: AppColors.brand,
-                                  onTap: () => _updateStatus(c, 'in_transit'),
+                                  onTap: () => _acceptAndUpdateStatus(
+                                    c,
+                                    DeliveryStatus.inTransit,
+                                    confirmTitle: AppLocalizations.of(context)!
+                                        .delivery_confirm_transit_title,
+                                    confirmBody: AppLocalizations.of(context)!
+                                        .delivery_confirm_transit_body(
+                                            c.commandeID.toString()),
+                                    confirmIcon: Icons.directions_bike_rounded,
+                                  ),
                                 ),
                               ),
-                            if (status == 'in_transit')
+                            if (status == DeliveryStatus.inTransit)
                               Expanded(
                                 child: _PrimaryActionButton(
                                   label: AppLocalizations.of(context)!
                                       .delivery_status_delivered,
                                   icon: Icons.check_circle_rounded,
                                   color: AppColors.success,
-                                  onTap: () => _updateStatus(c, 'delivered'),
+                                  onTap: () => _acceptAndUpdateStatus(
+                                    c,
+                                    DeliveryStatus.delivered,
+                                    confirmTitle: AppLocalizations.of(context)!
+                                        .delivery_confirm_delivered_title,
+                                    confirmBody: AppLocalizations.of(context)!
+                                        .delivery_confirm_delivered_body(
+                                            c.commandeID.toString()),
+                                    confirmIcon: Icons.local_shipping_rounded,
+                                  ),
                                 ),
                               ),
                             const SizedBox(width: AppSpacing.xs),
-                            if (status != 'delivered')
+                            if (status != DeliveryStatus.delivered)
                               _IconActionButton(
                                 icon: Icons.chat_rounded,
                                 color: AppColors.resolve(
@@ -769,10 +853,12 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
                                             withUsername:
                                                 'Client #${c.userID}'))),
                               ),
-                            if (status == 'assigned' || status == 'picked_up')
+                            if (status == DeliveryStatus.assigned ||
+                                status == DeliveryStatus.pickedUp)
                               _IconActionButton(
                                 icon: Icons.cancel_outlined,
-                                color: AppColors.error,
+                                color: AppColors.resolve(
+                                    AppColors.error, AppDarkColors.error),
                                 onTap: () => _dropDelivery(c),
                               ),
                           ],
@@ -865,7 +951,8 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
                                           const SizedBox(width: AppSpacing.sm),
                                           Expanded(
                                             child: Text(
-                                              (l.nomPlat?.trim().isNotEmpty == true
+                                              (l.nomPlat?.trim().isNotEmpty ==
+                                                          true
                                                       ? l.nomPlat!.trim()
                                                       : null) ??
                                                   dishNames[l.platID] ??
@@ -995,13 +1082,14 @@ class _DeliveryStatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final s = DeliveryStatus.normalize(status);
     final label = {
-          'assigned': l10n.delivery_status_assigned,
-          'picked_up': l10n.delivery_status_picked_up,
-          'in_transit': l10n.delivery_status_in_transit,
-          'delivered': l10n.delivery_status_delivered,
-        }[status] ??
-        status;
+          DeliveryStatus.assigned: l10n.delivery_status_assigned,
+          DeliveryStatus.pickedUp: l10n.delivery_status_picked_up,
+          DeliveryStatus.inTransit: l10n.delivery_status_in_transit,
+          DeliveryStatus.delivered: l10n.delivery_status_delivered,
+        }[s] ??
+        l10n.delivery_status_assigned;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(

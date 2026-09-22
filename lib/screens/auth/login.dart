@@ -263,6 +263,11 @@ class _LoginState extends ConsumerState<Login> {
         return;
       }
 
+      if (!await SessionService.hasParseSession()) {
+        _onLoginFailed();
+        return;
+      }
+
       final role = AppRole.fromId(user.roleID);
       await SessionService.saveUserSession(
         userId: user.userID,
@@ -298,11 +303,10 @@ class _LoginState extends ConsumerState<Login> {
   }
 
   Future<Users?> _findUser() async {
-    Users? user =
-        await Users.verifUser(_users, _nameCtrl.text, _passwordCtrl.text);
-    if (user != null) return user;
-
-    user = await Users.loginUser(_nameCtrl.text, _passwordCtrl.text);
+    // Le serveur Parse est la source d'autorité, comme l'API Node/JWT.
+    // Le cache local ne sert qu'à conserver les données d'affichage après une
+    // connexion serveur réussie.
+    Users? user = await Users.loginUser(_nameCtrl.text, _passwordCtrl.text);
     if (user != null) {
       await DatabaseHelper.createUser(user);
       await Users.getAllUsersDetails(adminUserID: user.userID);
@@ -314,6 +318,9 @@ class _LoginState extends ConsumerState<Login> {
       return user;
     }
 
+    // Compatibilité hors-ligne conservée pour les écrans historiques, mais
+    // _performLogin vérifiera qu'une vraie session Parse existe avant de
+    // laisser entrer dans l'application.
     await Users.getAllUsersDetails();
     final fresh = await Users.fetchUsersFromDB();
     if (mounted) setState(() => _users = fresh);

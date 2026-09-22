@@ -3,8 +3,8 @@ import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 class LivreurApi {
   // Récupérer les livraisons assignées à un livreur
   static Future<List<Map<String, dynamic>>> getLivreurDeliveries(int livreurID) async {
-    final cloud = ParseCloudFunction('getLivreurDeliveries');
-    final response = await cloud.execute(parameters: {'livreurID': livreurID});
+    final cloud = ParseCloudFunction('getMyDeliveries');
+    final response = await cloud.execute();
     if (response.success && response.result != null) {
       final list = response.result as List<dynamic>;
       return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
@@ -15,10 +15,7 @@ class LivreurApi {
   // Calculer les gains d'un livreur
   static Future<Map<String, dynamic>> getLivreurEarnings(int livreurID, {String period = 'week'}) async {
     final cloud = ParseCloudFunction('getLivreurEarnings');
-    final response = await cloud.execute(parameters: {
-      'livreurID': livreurID,
-      'period': period,
-    });
+    final response = await cloud.execute(parameters: {'period': period});
     if (response.success && response.result != null) {
       return Map<String, dynamic>.from(response.result as Map);
     }
@@ -29,21 +26,22 @@ class LivreurApi {
   static Future<bool> toggleOnlineStatus(int livreurID, bool isOnline) async {
     final cloud = ParseCloudFunction('toggleOnlineStatus');
     final response = await cloud.execute(parameters: {
-      'livreurID': livreurID,
       'isOnline': isOnline,
     });
-    return response.success;
+    if (!response.success || response.result == null) return false;
+    final result = response.result as Map<dynamic, dynamic>;
+    return result['success'] == true && result['isOnline'] == isOnline;
   }
 
   // Mettre à jour la position GPS du livreur
   static Future<bool> updatePosition(int livreurID, double lat, double lng) async {
     final cloud = ParseCloudFunction('updateLivreurPosition');
     final response = await cloud.execute(parameters: {
-      'livreurID': livreurID,
       'latitude': lat,
       'longitude': lng,
     });
-    return response.success;
+    if (!response.success || response.result == null) return false;
+    return (response.result as Map<dynamic, dynamic>)['success'] == true;
   }
 
   // Mettre à jour le statut de livraison d'une commande
@@ -51,9 +49,10 @@ class LivreurApi {
     final cloud = ParseCloudFunction('updateDeliveryStatus');
     final response = await cloud.execute(parameters: {
       'commandeID': commandeID,
-      'status': status,
+      'deliveryStatus': status,
     });
-    return response.success;
+    if (!response.success || response.result == null) return false;
+    return (response.result as Map<dynamic, dynamic>)['success'] == true;
   }
 
   // Assigner un livreur à une commande
@@ -75,7 +74,6 @@ class LivreurApi {
     final cloud = ParseCloudFunction('dropDelivery');
     final response = await cloud.execute(parameters: {
       'commandeID': commandeID,
-      'livreurID': livreurID,
     });
     if (response.success && response.result != null) {
       final result = response.result as Map<String, dynamic>;
@@ -87,11 +85,10 @@ class LivreurApi {
   // Récupérer la distance max de livraison
   static Future<double> getMaxDeliveryDistance(int livreurID) async {
     try {
-      final query = QueryBuilder<ParseObject>(ParseObject('Users'))
-        ..whereEqualTo('userID', livreurID);
-      final response = await query.query();
-      if (response.success && response.results != null && response.results!.isNotEmpty) {
-        return (response.results!.first.get<num>('maxDeliveryDistance') ?? 10).toDouble();
+      final cloud = ParseCloudFunction('getLivreurSettings');
+      final response = await cloud.execute();
+      if (response.success && response.result != null) {
+        return ((response.result as Map<dynamic, dynamic>)['maxDeliveryDistance'] as num?)?.toDouble() ?? 10;
       }
     } catch (_) {}
     return 10;

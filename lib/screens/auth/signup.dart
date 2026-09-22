@@ -431,6 +431,17 @@ class _SignUpViewState extends State<SignUpView> {
                   ageConfirmed: true,
                 );
                 if (result is int) {
+                  // add1User crée le compte métier ; on ouvre aussi la
+                  // session Parse native pour que le parcours de vérification
+                  // et les Cloud Functions soient déjà authentifiés.
+                  final authenticatedUser = await Users.loginUser(
+                      _usernameCtrl.text, _passwordCtrl.text);
+                  if (authenticatedUser == null) {
+                    if (mounted) {
+                      Toast(context, 'Connexion du compte impossible.', false);
+                    }
+                    return;
+                  }
                   await SessionService.saveUserSession(
                     userId: result,
                     role: AppRole.fromId(_signupRole),
@@ -506,6 +517,12 @@ class _SignUpViewState extends State<SignUpView> {
       if (!mounted) return;
 
       if (result is int) {
+        final authenticatedUser =
+            await Users.loginUser(_usernameCtrl.text, _passwordCtrl.text);
+        if (authenticatedUser == null) {
+          if (mounted) Toast(context, 'Connexion du compte impossible.', false);
+          return;
+        }
         await SessionService.saveUserSession(
           userId: result,
           role: AppRole.fromId(_signupRole),

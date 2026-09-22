@@ -2870,6 +2870,60 @@ abstract class AppLocalizations {
   /// **'Cannot accept: you already have an order in progress'**
   String get livreur_order_already_in_progress;
 
+  /// No description provided for @delivery_must_be_online.
+  ///
+  /// In en, this message translates to:
+  /// **'You must be online to perform this action.'**
+  String get delivery_must_be_online;
+
+  /// No description provided for @livreur_accept_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept this order?'**
+  String get livreur_accept_title;
+
+  /// No description provided for @livreur_accept_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Order #{id}\nAmount to collect: {amount} FCFA'**
+  String livreur_accept_body(Object id, Object amount);
+
+  /// No description provided for @delivery_confirm_picked_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm pickup?'**
+  String get delivery_confirm_picked_title;
+
+  /// No description provided for @delivery_confirm_picked_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Did you successfully pick up order #{id} from the restaurant?'**
+  String delivery_confirm_picked_body(Object id);
+
+  /// No description provided for @delivery_confirm_transit_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Start delivery?'**
+  String get delivery_confirm_transit_title;
+
+  /// No description provided for @delivery_confirm_transit_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Is order #{id} ready to be delivered to the customer?'**
+  String delivery_confirm_transit_body(Object id);
+
+  /// No description provided for @delivery_confirm_delivered_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark as delivered?'**
+  String get delivery_confirm_delivered_title;
+
+  /// No description provided for @delivery_confirm_delivered_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm you have handed order #{id} to the customer?'**
+  String delivery_confirm_delivered_body(Object id);
+
   /// No description provided for @restaurant_form_title_create.
   ///
   /// In en, this message translates to:

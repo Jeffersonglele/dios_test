@@ -579,6 +579,36 @@
     }
   },
   "livreur_order_already_in_progress": "Cannot accept: you already have an order in progress",
+  "delivery_must_be_online": "You must be online to perform this action.",
+  "livreur_accept_title": "Accept this order?",
+  "livreur_accept_body": "Order #{id}\nAmount to collect: {amount} FCFA",
+  "@livreur_accept_body": {
+    "placeholders": {
+      "id": {},
+      "amount": {}
+    }
+  },
+  "delivery_confirm_picked_title": "Confirm pickup?",
+  "delivery_confirm_picked_body": "Did you successfully pick up order #{id} from the restaurant?",
+  "@delivery_confirm_picked_body": {
+    "placeholders": {
+      "id": {}
+    }
+  },
+  "delivery_confirm_transit_title": "Start delivery?",
+  "delivery_confirm_transit_body": "Is order #{id} ready to be delivered to the customer?",
+  "@delivery_confirm_transit_body": {
+    "placeholders": {
+      "id": {}
+    }
+  },
+  "delivery_confirm_delivered_title": "Mark as delivered?",
+  "delivery_confirm_delivered_body": "Confirm you have handed order #{id} to the customer?",
+  "@delivery_confirm_delivered_body": {
+    "placeholders": {
+      "id": {}
+    }
+  },
   "restaurant_form_title_create": "Create my restaurant",
   "restaurant_form_title_edit": "Edit my restaurant",
   "restaurant_form_section_restaurant": "Your restaurant",

@@ -1466,6 +1466,42 @@ class AppLocalizationsEn extends AppLocalizations {
       'Cannot accept: you already have an order in progress';
 
   @override
+  String get delivery_must_be_online =>
+      'You must be online to perform this action.';
+
+  @override
+  String get livreur_accept_title => 'Accept this order?';
+
+  @override
+  String livreur_accept_body(Object id, Object amount) {
+    return 'Order #$id\nAmount to collect: $amount FCFA';
+  }
+
+  @override
+  String get delivery_confirm_picked_title => 'Confirm pickup?';
+
+  @override
+  String delivery_confirm_picked_body(Object id) {
+    return 'Did you successfully pick up order #$id from the restaurant?';
+  }
+
+  @override
+  String get delivery_confirm_transit_title => 'Start delivery?';
+
+  @override
+  String delivery_confirm_transit_body(Object id) {
+    return 'Is order #$id ready to be delivered to the customer?';
+  }
+
+  @override
+  String get delivery_confirm_delivered_title => 'Mark as delivered?';
+
+  @override
+  String delivery_confirm_delivered_body(Object id) {
+    return 'Confirm you have handed order #$id to the customer?';
+  }
+
+  @override
   String get restaurant_form_title_create => 'Create my restaurant';
 
   @override

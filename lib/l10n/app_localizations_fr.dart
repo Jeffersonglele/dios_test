@@ -1474,6 +1474,42 @@ class AppLocalizationsFr extends AppLocalizations {
       'Impossible d\'accepter : vous avez déjà une commande en cours';
 
   @override
+  String get delivery_must_be_online =>
+      'Vous devez être en ligne pour effectuer cette action.';
+
+  @override
+  String get livreur_accept_title => 'Accepter cette commande ?';
+
+  @override
+  String livreur_accept_body(Object id, Object amount) {
+    return 'Commande #$id\nMontant à percevoir : $amount FCFA';
+  }
+
+  @override
+  String get delivery_confirm_picked_title => 'Confirmer le ramassage ?';
+
+  @override
+  String delivery_confirm_picked_body(Object id) {
+    return 'Avez-vous bien récupéré la commande #$id auprès du restaurant ?';
+  }
+
+  @override
+  String get delivery_confirm_transit_title => 'Démarrer la livraison ?';
+
+  @override
+  String delivery_confirm_transit_body(Object id) {
+    return 'La commande #$id est-elle prête à être livrée au client ?';
+  }
+
+  @override
+  String get delivery_confirm_delivered_title => 'Marquer comme livrée ?';
+
+  @override
+  String delivery_confirm_delivered_body(Object id) {
+    return 'Confirmez-vous avoir remis la commande #$id au client ?';
+  }
+
+  @override
   String get restaurant_form_title_create => 'Créer mon restaurant';
 
   @override

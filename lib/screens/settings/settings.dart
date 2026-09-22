@@ -306,7 +306,8 @@ class _SettingsState extends ConsumerState<Settings> {
 
                 final currentEncrypted =
                     await Users.encryptPassword(currentPwd);
-                if (currentEncrypted != currentUser.password &&
+                if (currentUser.password.isNotEmpty &&
+                    currentEncrypted != currentUser.password &&
                     currentPwd != currentUser.password) {
                   ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text(l10n.incorrectCurrentPassword)));
@@ -315,7 +316,8 @@ class _SettingsState extends ConsumerState<Settings> {
 
                 final encrypted = await Users.encryptPassword(newPwd);
                 final result =
-                    await Users.updatePassword(currentUser.userID, encrypted);
+                    await Users.updatePassword(currentUser.userID, encrypted,
+                        plainPassword: newPwd);
                 if (!mounted) return;
                 Navigator.pop(ctx);
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -577,23 +579,36 @@ class _SettingsState extends ConsumerState<Settings> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    ref.watch(themeModeProvider);
+    ref.watch(localeProvider);
+
+    final ink = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
+    final inkMuted =
+        AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
+    final inkSubtle =
+        AppColors.resolve(AppColors.inkSubtle, AppDarkColors.inkSubtle);
+    final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+    final accent = AppColors.resolve(AppColors.accent, AppDarkColors.accent);
+    final error = AppColors.resolve(AppColors.error, AppDarkColors.error);
 
     return Scaffold(
       backgroundColor:
           AppColors.resolve(AppColors.surface, AppDarkColors.surface),
       appBar: AppBar(
-        title: Text(l10n.settings),
+        backgroundColor:
+            AppColors.resolve(AppColors.surface, AppDarkColors.surface),
+        foregroundColor: ink,
+        elevation: 0,
+        title:
+            Text(l10n.settings, style: AppTypography.titleMedium(color: ink)),
         actions: [
           if (_isLoading)
             Padding(
-              padding: EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
               child: SizedBox(
                 width: 20,
                 height: 20,
-                child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: AppColors.resolve(
-                        AppColors.brand, AppDarkColors.brand)),
+                child: CircularProgressIndicator(strokeWidth: 2, color: brand),
               ),
             ),
         ],
@@ -645,21 +660,18 @@ class _SettingsState extends ConsumerState<Settings> {
                   color: Colors.transparent,
                   child: SwitchListTile(
                     title: Text(l10n.notif_orders_title,
-                        style: AppTypography.labelMedium()),
+                        style: AppTypography.labelMedium(color: ink)),
                     subtitle: Text(
                       l10n.notif_orders_desc,
-                      style: AppTypography.bodyMedium(),
+                      style: AppTypography.bodyMedium(color: inkMuted),
                     ),
                     value: _orderNotifications,
-                    activeColor:
-                        AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+                    activeColor: brand,
                     onChanged: (val) {
                       setState(() => _orderNotifications = val);
                       _updateNotificationSetting('notif_orders', val, 'orders');
                     },
-                    secondary: Icon(Icons.shopping_bag_rounded,
-                        color: AppColors.resolve(
-                            AppColors.brand, AppDarkColors.brand)),
+                    secondary: Icon(Icons.shopping_bag_rounded, color: brand),
                   ),
                 ),
                 const Divider(height: 1),
@@ -667,20 +679,18 @@ class _SettingsState extends ConsumerState<Settings> {
                   color: Colors.transparent,
                   child: SwitchListTile(
                     title: Text(l10n.notif_promos_title,
-                        style: AppTypography.labelMedium()),
+                        style: AppTypography.labelMedium(color: ink)),
                     subtitle: Text(
                       l10n.notif_promos_desc,
-                      style: AppTypography.bodyMedium(),
+                      style: AppTypography.bodyMedium(color: inkMuted),
                     ),
                     value: _promoNotifications,
-                    activeColor:
-                        AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+                    activeColor: brand,
                     onChanged: (val) {
                       setState(() => _promoNotifications = val);
                       _updateNotificationSetting('notif_promos', val, 'promos');
                     },
-                    secondary: const Icon(Icons.local_offer_rounded,
-                        color: AppColors.brand),
+                    secondary: Icon(Icons.local_offer_rounded, color: brand),
                   ),
                 ),
                 const Divider(height: 1),
@@ -688,21 +698,19 @@ class _SettingsState extends ConsumerState<Settings> {
                   color: Colors.transparent,
                   child: SwitchListTile(
                     title: Text(l10n.notif_chat_title,
-                        style: AppTypography.labelMedium()),
+                        style: AppTypography.labelMedium(color: ink)),
                     subtitle: Text(
                       l10n.notif_chat_desc,
-                      style: AppTypography.bodyMedium(),
+                      style: AppTypography.bodyMedium(color: inkMuted),
                     ),
                     value: _messageNotifications,
-                    activeColor:
-                        AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+                    activeColor: brand,
                     onChanged: (val) {
                       setState(() => _messageNotifications = val);
                       _updateNotificationSetting(
                           'notif_messages', val, 'messages');
                     },
-                    secondary:
-                        const Icon(Icons.chat_rounded, color: AppColors.brand),
+                    secondary: Icon(Icons.chat_rounded, color: brand),
                   ),
                 ),
               ],
@@ -716,7 +724,7 @@ class _SettingsState extends ConsumerState<Settings> {
                 icon: const Icon(Icons.notifications_active_rounded, size: 18),
                 label: Text(l10n.testNotifications),
                 style: TextButton.styleFrom(
-                  foregroundColor: AppColors.brand,
+                  foregroundColor: brand,
                 ),
               ),
             ),
@@ -763,14 +771,14 @@ class _SettingsState extends ConsumerState<Settings> {
                   Material(
                     color: Colors.transparent,
                     child: ListTile(
-                      leading: Icon(Icons.map_rounded,
-                          color: AppColors.resolve(
-                              AppColors.brand, AppDarkColors.brand)),
+                      leading: Icon(Icons.map_rounded, color: brand),
                       title: Text(l10n.max_delivery_distance,
-                          style: const TextStyle(
-                              fontSize: 15, fontWeight: FontWeight.w600)),
-                      subtitle: Text(l10n.max_delivery_distance_desc(
-                          _maxDeliveryDistance.toStringAsFixed(1))),
+                          style: AppTypography.labelMedium(color: ink)
+                              .copyWith(fontSize: 15)),
+                      subtitle: Text(
+                          l10n.max_delivery_distance_desc(
+                              _maxDeliveryDistance.toStringAsFixed(1)),
+                          style: AppTypography.bodyMedium(color: inkMuted)),
                     ),
                   ),
                   Padding(
@@ -781,8 +789,7 @@ class _SettingsState extends ConsumerState<Settings> {
                       min: 1,
                       max: 10,
                       divisions: 9,
-                      activeColor: AppColors.resolve(
-                          AppColors.brand, AppDarkColors.brand),
+                      activeColor: brand,
                       label:
                           '${_maxDeliveryDistance.clamp(1.0, 10.0).toStringAsFixed(0)} km',
                       onChanged: (val) {
@@ -817,16 +824,16 @@ class _SettingsState extends ConsumerState<Settings> {
               builder: (_, isDark, __) => Material(
                 color: Colors.transparent,
                 child: SwitchListTile(
-                  title:
-                      Text(l10n.darkMode, style: AppTypography.labelMedium()),
+                  title: Text(l10n.darkMode,
+                      style: AppTypography.labelMedium(color: ink)),
                   subtitle: Text(isDark ? l10n.enabled : l10n.disabled,
-                      style: AppTypography.bodyMedium()),
+                      style: AppTypography.bodyMedium(color: ink)),
                   value: isDark,
-                  activeColor: AppColors.brand,
+                  activeColor: brand,
                   onChanged: _toggleDark,
                   secondary: Icon(
                     isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
-                    color: isDark ? AppColors.brand : AppColors.accent,
+                    color: isDark ? brand : accent,
                   ),
                 ),
               ),
@@ -938,28 +945,24 @@ class _SettingsState extends ConsumerState<Settings> {
                     borderRadius: BorderRadius.circular(AppRadius.md),
                   ),
                   child: Icon(Icons.admin_panel_settings_rounded,
-                      color: AppColors.resolve(
-                          AppColors.brand, AppDarkColors.brand),
-                      size: 22),
+                      color: brand, size: 22),
                 ),
                 const SizedBox(width: 12),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(l10n.appTitle,
-                        style:
-                            AppTypography.labelMedium().copyWith(fontSize: 15)),
+                        style: AppTypography.labelMedium(color: ink)
+                            .copyWith(fontSize: 15)),
                     Text(l10n.version_admin,
-                        style:
-                            AppTypography.bodyMedium().copyWith(fontSize: 11)),
+                        style: AppTypography.bodyMedium(color: inkMuted)
+                            .copyWith(fontSize: 11)),
                   ],
                 ),
               ]),
               const SizedBox(height: 12),
               Text(l10n.app_tagline,
-                  style: AppTypography.bodyMedium(
-                          color: AppColors.resolve(
-                              AppColors.inkSubtle, AppDarkColors.inkSubtle))
+                  style: AppTypography.bodyMedium(color: inkSubtle)
                       .copyWith(fontSize: 12)),
             ]),
           ),
@@ -975,8 +978,8 @@ class _SettingsState extends ConsumerState<Settings> {
                 icon: const Icon(Icons.delete_forever_rounded, size: 20),
                 label: Text(l10n.deleteAccount),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.error,
-                  side: const BorderSide(color: AppColors.error),
+                  foregroundColor: error,
+                  side: BorderSide(color: error),
                 ),
               ),
             ),
@@ -989,9 +992,10 @@ class _SettingsState extends ConsumerState<Settings> {
             child: ElevatedButton.icon(
               onPressed: _confirmLogout,
               icon: const Icon(Icons.logout_rounded, size: 20),
-              label: Text(l10n.logout),
+              label: Text(l10n.logout,
+                  style: const TextStyle(color: Colors.white)),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.error,
+                backgroundColor: error,
                 foregroundColor: Colors.white,
               ),
             ),
@@ -1003,23 +1007,22 @@ class _SettingsState extends ConsumerState<Settings> {
   }
 
   Widget _sectionTitle(String title) {
+    final ink = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
     return Text(title,
-        style: AppTypography.titleMedium(
-                color: AppColors.resolve(AppColors.ink, AppDarkColors.ink))
-            .copyWith(fontSize: 17));
+        style: AppTypography.titleMedium(color: ink).copyWith(fontSize: 17));
   }
 
   Widget _langTile(String label, String code, String flag) {
     final isSelected = _currentLang == label;
+    final ink = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
+    final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
     return Material(
       color: Colors.transparent,
       child: ListTile(
         leading: Text(flag, style: const TextStyle(fontSize: 22)),
-        title: Text(label, style: AppTypography.labelMedium()),
+        title: Text(label, style: AppTypography.labelMedium(color: ink)),
         trailing: isSelected
-            ? Icon(Icons.check_circle_rounded,
-                color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
-                size: 22)
+            ? Icon(Icons.check_circle_rounded, color: brand, size: 22)
             : null,
         onTap: isSelected ? null : () => _setLanguage(code, label),
       ),
@@ -1027,13 +1030,16 @@ class _SettingsState extends ConsumerState<Settings> {
   }
 
   Widget _settingRow(IconData icon, String label, VoidCallback onTap) {
+    final ink = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
+    final inkSubtle =
+        AppColors.resolve(AppColors.inkSubtle, AppDarkColors.inkSubtle);
+    final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
     return Material(
       color: Colors.transparent,
       child: ListTile(
-        leading: Icon(icon, color: AppColors.brand),
-        title: Text(label, style: AppTypography.labelMedium()),
-        trailing: const Icon(Icons.chevron_right_rounded,
-            color: AppColors.inkSubtle, size: 20),
+        leading: Icon(icon, color: brand),
+        title: Text(label, style: AppTypography.labelMedium(color: ink)),
+        trailing: Icon(Icons.chevron_right_rounded, color: inkSubtle, size: 20),
         onTap: onTap,
       ),
     );

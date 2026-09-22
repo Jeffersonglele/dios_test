@@ -582,6 +582,36 @@
     }
   },
   "livreur_order_already_in_progress": "Impossible d'accepter : vous avez déjà une commande en cours",
+  "delivery_must_be_online": "Vous devez être en ligne pour effectuer cette action.",
+  "livreur_accept_title": "Accepter cette commande ?",
+  "livreur_accept_body": "Commande #{id}\nMontant à percevoir : {amount} FCFA",
+  "@livreur_accept_body": {
+    "placeholders": {
+      "id": {},
+      "amount": {}
+    }
+  },
+  "delivery_confirm_picked_title": "Confirmer le ramassage ?",
+  "delivery_confirm_picked_body": "Avez-vous bien récupéré la commande #{id} auprès du restaurant ?",
+  "@delivery_confirm_picked_body": {
+    "placeholders": {
+      "id": {}
+    }
+  },
+  "delivery_confirm_transit_title": "Démarrer la livraison ?",
+  "delivery_confirm_transit_body": "La commande #{id} est-elle prête à être livrée au client ?",
+  "@delivery_confirm_transit_body": {
+    "placeholders": {
+      "id": {}
+    }
+  },
+  "delivery_confirm_delivered_title": "Marquer comme livrée ?",
+  "delivery_confirm_delivered_body": "Confirmez-vous avoir remis la commande #{id} au client ?",
+  "@delivery_confirm_delivered_body": {
+    "placeholders": {
+      "id": {}
+    }
+  },
   "restaurant_form_title_create": "Créer mon restaurant",
   "restaurant_form_title_edit": "Modifier mon restaurant",
   "restaurant_form_section_restaurant": "Votre restaurant",

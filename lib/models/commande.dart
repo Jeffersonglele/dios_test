@@ -125,7 +125,9 @@ class Commande extends HiveObject {
       livreurID: map['livreurID'] is int
           ? map['livreurID']
           : int.tryParse(map['livreurID']?.toString() ?? ''),
-      deliveryStatus: map['deliveryStatus']?.toString(),
+      deliveryStatus: map['livreurID'] == null
+          ? null
+          : DeliveryStatus.normalize(map['deliveryStatus']?.toString()),
       livreurLat: double.tryParse(map['livreurLat']?.toString() ?? ''),
       livreurLng: double.tryParse(map['livreurLng']?.toString() ?? ''),
       totalAmount: (map['totalAmount'] ?? 0).toDouble(),

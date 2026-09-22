@@ -10,6 +10,7 @@ import '../screens/navigation/curved_navigation_restau.dart';
 import '../screens/navigation/curved_navigation_user.dart';
 import '../screens/navigation/curved_navigation_livreur.dart';
 import '../db/database_helper.dart';
+import '../services/session_service.dart';
 
 part 'users.g.dart';
 
@@ -419,14 +420,19 @@ class Users extends HiveObject {
   }
 
   static Future<String> updatePassword(int userID, String newPassword,
-      {bool? mustChangePassword}) async {
-    String functionName = 'update1User';
+      {bool? mustChangePassword, String? plainPassword}) async {
+    final hasNativeSession = plainPassword != null &&
+        await SessionService.hasParseSession();
+    String functionName = hasNativeSession ? 'changePassword' : 'update1User';
     var cloudFunction = ParseCloudFunction(functionName);
 
     var params = <String, dynamic>{
-      if (userID != null) 'userID': userID,
-      'password': newPassword,
-      if (mustChangePassword != null) 'mustChangePassword': mustChangePassword,
+      if (!hasNativeSession) 'userID': userID,
+      if (hasNativeSession) 'newPassword': plainPassword,
+      if (hasNativeSession) 'passwordHash': newPassword,
+      if (!hasNativeSession) 'password': newPassword,
+      if (mustChangePassword != null && !hasNativeSession)
+        'mustChangePassword': mustChangePassword,
     };
 
     try {
@@ -596,6 +602,10 @@ class Users extends HiveObject {
         List<dynamic> usersDataList = response.result;
         for (var usersData in usersDataList) {
           Users user = Users.fromMap(usersData);
+          final cached = await DatabaseHelper.getUser(user.userID);
+          if (user.password.isEmpty && cached != null) {
+            user.password = cached.password;
+          }
           await DatabaseHelper.createUser(user);
         }
       } else {
@@ -610,15 +620,28 @@ class Users extends HiveObject {
   static Future<Users?> loginUser(String login, String password) async {
     try {
       final cloudFunction = ParseCloudFunction('loginUser');
+      final passwordHash = await encryptPassword(password);
       final response = await cloudFunction.execute(parameters: {
-        'login': login,
+        'login': login.trim(),
         'password': password,
+        'passwordHash': passwordHash,
       });
 
       if (response.success && response.result != null) {
         final result = response.result as Map<String, dynamic>;
         if (result['success'] == true && result['user'] != null) {
+          final sessionToken = result['sessionToken']?.toString();
+          if (sessionToken == null ||
+              !await SessionService.adoptParseSession(sessionToken)) {
+            return null;
+          }
           final user = Users.fromMap(result['user']);
+          // Ne pas remplacer un hash local déjà présent par une réponse
+          // serveur qui, volontairement, ne contient plus de mot de passe.
+          final cached = await DatabaseHelper.getUser(user.userID);
+          if (user.password.isEmpty && cached != null) {
+            user.password = cached.password;
+          }
           return user;
         }
       }

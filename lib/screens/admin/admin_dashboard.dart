@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:dios_delices/l10n/app_localizations.dart';
 import 'package:dios_delices/screens/delivery/livreur_list_page.dart';
@@ -10,10 +11,12 @@ import 'package:dios_delices/models/commande.dart';
 import 'package:dios_delices/core/commande_status.dart';
 import 'package:dios_delices/providers/data_version_notifier.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../core/app_role.dart';
 import '../../services/session_service.dart';
 import '../../theme/app_theme.dart';
@@ -414,25 +417,37 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                           ? u.firstname[0].toUpperCase()
                                           : '?',
                                       style: AppTypography.labelMedium(
-                                          color: AppColors.brand),
+                                          color: AppColors.resolve(
+                                              AppColors.brand,
+                                              AppDarkColors.brand)),
                                     ),
                                   ),
                                   title: Text('${u.firstname} ${u.lastname}',
-                                      style: AppTypography.bodyLarge()
+                                      style: AppTypography.bodyLarge(
+                                              color: AppColors.resolve(
+                                                  AppColors.ink,
+                                                  AppDarkColors.ink))
                                           .copyWith(fontSize: 14)),
                                   subtitle: Text(u.email,
-                                      style: AppTypography.bodyMedium()
+                                      style: AppTypography.bodyMedium(
+                                              color: AppColors.resolve(
+                                                  AppColors.ink,
+                                                  AppDarkColors.ink))
                                           .copyWith(fontSize: 11)),
                                   trailing: Container(
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 8, vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: AppColors.accentLight,
+                                      color: AppColors.resolve(
+                                          AppColors.accentLight,
+                                          AppDarkColors.accentLight),
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: Text(_roleLabel(u),
                                         style: AppTypography.labelMedium(
-                                                color: AppColors.accent)
+                                                color: AppColors.resolve(
+                                                    AppColors.accent,
+                                                    AppDarkColors.accent))
                                             .copyWith(fontSize: 10)),
                                   ),
                                 ),
@@ -440,11 +455,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         ],
                         if (rr.isNotEmpty) ...[
                           Padding(
-                            padding: const EdgeInsets.only(top: 12, bottom: 6),
-                            child: Text(l10n.restaurants,
-                                style: AppTypography.labelMedium(
-                                    color: AppColors.inkMuted)),
-                          ),
+                              padding:
+                                  const EdgeInsets.only(top: 12, bottom: 6),
+                              child: Text(l10n.restaurants,
+                                  style: AppTypography.labelMedium(
+                                      color: AppColors.resolve(
+                                          AppColors.inkMuted,
+                                          AppDarkColors.inkMuted)))),
                           ...rr.take(4).map((r) => Material(
                                 color: Colors.transparent,
                                 child: ListTile(
@@ -454,18 +471,29 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                     width: 36,
                                     height: 36,
                                     decoration: BoxDecoration(
-                                      color: AppColors.accentLight,
+                                      color: AppColors.resolve(
+                                          AppColors.accentLight,
+                                          AppDarkColors.accentLight),
                                       borderRadius:
                                           BorderRadius.circular(AppRadius.sm),
                                     ),
-                                    child: const Icon(Icons.storefront_rounded,
-                                        size: 18, color: AppColors.accent),
+                                    child: Icon(Icons.storefront_rounded,
+                                        size: 18,
+                                        color: AppColors.resolve(
+                                            AppColors.accent,
+                                            AppDarkColors.accent)),
                                   ),
                                   title: Text(r.name,
-                                      style: AppTypography.bodyLarge()
+                                      style: AppTypography.bodyLarge(
+                                              color: AppColors.resolve(
+                                                  AppColors.ink,
+                                                  AppDarkColors.ink))
                                           .copyWith(fontSize: 14)),
                                   subtitle: Text(r.categories,
-                                      style: AppTypography.bodyMedium()
+                                      style: AppTypography.bodyMedium(
+                                              color: AppColors.resolve(
+                                                  AppColors.inkMuted,
+                                                  AppDarkColors.inkMuted))
                                           .copyWith(fontSize: 11)),
                                 ),
                               )),
@@ -475,7 +503,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                             padding: const EdgeInsets.all(16),
                             child: Text(l10n.noResults,
                                 style: AppTypography.bodyMedium(
-                                    color: AppColors.inkMuted)),
+                                    color: AppColors.resolve(AppColors.inkMuted,
+                                        AppDarkColors.inkMuted))),
                           ),
                       ],
                     ),
@@ -507,8 +536,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   AppColors.brandSurface, AppDarkColors.brandSurface),
               borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
-            child: const Icon(Icons.file_download_rounded,
-                color: AppColors.brand, size: 18),
+            child: Icon(Icons.file_download_rounded,
+                color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+                size: 18),
           ),
           const SizedBox(width: AppSpacing.sm),
           Text(AppLocalizations.of(context)!.admin_export_title,
@@ -553,7 +583,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   Future<void> _doExport(String type) async {
     try {
-      final dir = await getApplicationDocumentsDirectory();
       final ts =
           DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
       String filename, csv;
@@ -613,11 +642,94 @@ class _AdminDashboardState extends State<AdminDashboard> {
         csv = 'Rapport — $_userCountry — $ts\n\n...\n';
       }
 
-      final file = File('${dir.path}/$filename');
-      await file.writeAsString(csv);
-      if (mounted) Toast(context, 'Export : $filename', true);
+      final fileBytes = const Utf8Codec().encode(csv);
+      String? savedPath;
+
+      try {
+        savedPath = await FilePicker.platform.saveFile(
+          dialogTitle: 'Enregistrer le fichier CSV',
+          fileName: filename,
+          bytes: fileBytes,
+          type: FileType.custom,
+          allowedExtensions: ['csv'],
+        );
+      } catch (_) {
+        savedPath = null;
+      }
+
+      if (savedPath != null && savedPath.isNotEmpty) {
+        if (!mounted) return;
+        final display = savedPath.contains(Platform.pathSeparator)
+            ? savedPath.split(Platform.pathSeparator).last
+            : savedPath;
+        Toast(context, 'Fichier enregistré : $display', true);
+        return;
+      }
+
+      if (kIsWeb) {
+        if (!mounted) return;
+        Toast(context,
+            'Téléchargement annulé ou non supporté par le navigateur.', false);
+        return;
+      }
+
+      Directory? targetDir;
+      bool usedPublicDir = false;
+
+      if (Platform.isAndroid) {
+        try {
+          final extDirs = await getExternalStorageDirectories(
+              type: StorageDirectory.downloads);
+          if (extDirs != null && extDirs.isNotEmpty) {
+            final appDownloads = extDirs.first;
+            if (!await appDownloads.exists()) {
+              await appDownloads.create(recursive: true);
+            }
+            targetDir = appDownloads;
+            usedPublicDir = true;
+          }
+        } catch (_) {}
+
+        if (targetDir == null) {
+          try {
+            final extDir = await getExternalStorageDirectory();
+            if (extDir != null) {
+              final diosDir = Directory('${extDir.path}/DiosDelices');
+              if (!await diosDir.exists()) {
+                await diosDir.create(recursive: true);
+              }
+              targetDir = diosDir;
+              usedPublicDir = true;
+            }
+          } catch (_) {}
+        }
+      } else if (Platform.isIOS) {
+        try {
+          final appDocDir = await getApplicationDocumentsDirectory();
+          final diosDir = Directory('${appDocDir.path}/DiosDelices');
+          if (!await diosDir.exists()) {
+            await diosDir.create(recursive: true);
+          }
+          targetDir = diosDir;
+          usedPublicDir = true;
+        } catch (_) {}
+      }
+
+      targetDir ??= await getApplicationDocumentsDirectory();
+
+      final file = File('${targetDir.path}/$filename');
+      await file.writeAsBytes(fileBytes);
+
+      if (mounted) {
+        Toast(
+            context,
+            usedPublicDir
+                ? '✅ Enregistré : ${file.path}'
+                : '⚠️ Stockage interne app : ${file.path}',
+            true);
+      }
     } catch (e) {
-      if (mounted) Toast(context, 'Erreur : $e', false);
+      if (mounted) Toast(context, 'Erreur export : $e', false);
     }
   }
 
@@ -720,14 +832,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
                 child: Row(children: [
-                  const Icon(Icons.info_outline,
-                      color: AppColors.brand, size: 18),
+                  Icon(Icons.info_outline,
+                      color: AppColors.resolve(
+                          AppColors.brand, AppDarkColors.brand),
+                      size: 18),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       AppLocalizations.of(context)!.admin_add_admin_info,
-                      style:
-                          AppTypography.bodySmall(color: AppColors.brandDark),
+                      style: AppTypography.bodySmall(
+                          color: AppColors.resolve(
+                              AppColors.brandDark, AppDarkColors.brandDark)),
                     ),
                   ),
                 ]),
@@ -761,7 +876,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   content: Text(ok
                       ? AppLocalizations.of(context)!.admin_admin_created
                       : result.toString()),
-                  backgroundColor: ok ? AppColors.success : AppColors.error,
+                  backgroundColor: ok
+                      ? AppColors.resolve(
+                          AppColors.success, AppDarkColors.success)
+                      : AppColors.resolve(AppColors.error, AppDarkColors.error),
                   behavior: SnackBarBehavior.floating,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(AppRadius.md)),
@@ -947,7 +1065,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             child: _NavCardResponsive(
               icon: Icons.admin_panel_settings_rounded,
               label: l10n.superAdminDashboard ?? 'Super Admin Dashboard',
-              count: '',
+              count: l10n.see_all ?? 'See all',
               color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
               onTap: () => Navigator.push(
                   context,
@@ -1020,7 +1138,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             color: AppColors.resolve(AppColors.accent, AppDarkColors.accent),
             onTap: () => Navigator.push(context,
                 MaterialPageRoute(builder: (_) => const DeliveryConfigPage())),
-            count: '',
+            count: l10n.see_all ?? 'See all',
           ),
         ),
       ),
@@ -1082,9 +1200,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 ),
 
                 if (_statsLoading)
-                  const SliverFillRemaining(
+                  SliverFillRemaining(
                     child: Center(
-                      child: CircularProgressIndicator(color: AppColors.brand),
+                      child: CircularProgressIndicator(
+                          color: AppColors.resolve(
+                              AppColors.brand, AppDarkColors.brand)),
                     ),
                   )
                 else ...[
@@ -2103,7 +2223,8 @@ class _ValidationRow extends StatelessWidget {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: AppColors.errorLight,
+              color: AppColors.resolve(
+                  AppColors.errorLight, AppDarkColors.errorLight),
               borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
             child: Icon(Icons.close_rounded,
