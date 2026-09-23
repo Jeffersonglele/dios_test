@@ -74,21 +74,12 @@ class _PromotionsPageState extends State<PromotionsPage> {
 
   bool _isActive(Map<String, dynamic> code) {
     final active = code['active'];
-    final isValid = active is bool ? active : (active == 1 || active == true);
-
-    if (!isValid) return false;
-
-    final validUntil = code['validUntil'];
-    if (validUntil != null) {
-      DateTime? until;
-      if (validUntil is Map && validUntil['iso'] != null) {
-        until = DateTime.tryParse(validUntil['iso']);
-      } else if (validUntil is String) {
-        until = DateTime.tryParse(validUntil);
-      }
-      if (until != null && until.isBefore(DateTime.now())) return false;
-    }
-    return true;
+    // Le switch doit représenter uniquement le champ `active` de Parse.
+    // Une date expirée rend le code inutilisable, mais ne doit pas empêcher
+    // l'administrateur de le réactiver/désactiver depuis cette page.
+    return active is bool
+        ? active
+        : (active == 1 || active == true || active?.toString() == 'true');
   }
 
   void _showCreateForm() {
@@ -634,7 +625,7 @@ class _PromotionsPageState extends State<PromotionsPage> {
                                     value: active,
                                     activeColor: AppColors.success,
                                     onChanged: (_) async {
-                                      final codeStr = code['code'] as String;
+                                      final codeStr = code['code']?.toString() ?? '';
                                       // Optimistic update
                                       setState(() {
                                         final idx = _promoCodes.indexOf(code);
@@ -642,9 +633,13 @@ class _PromotionsPageState extends State<PromotionsPage> {
                                           _promoCodes[idx]['active'] = !active;
                                         }
                                       });
-                                      if (!await PromoService.togglePromoActive(codeStr)) {
+                                      final toggled = await PromoService.togglePromoActive(codeStr);
+                                      if (!toggled) {
                                         // Revert on failure
                                         if (mounted) _load();
+                                      } else if (mounted) {
+                                        // Recharger l'état réellement enregistré dans Parse.
+                                        await _load();
                                       }
                                     },
                                   ),

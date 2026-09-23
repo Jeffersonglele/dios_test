@@ -34,9 +34,10 @@ class PromoService {
         final result = response.result as Map<String, dynamic>;
         if (result['success'] == true) {
           return PromoApplication(
-            code: result['code'] as String,
-            description: result['description'] as String,
-            discountAmount: (result['discountAmount'] as num).toDouble(),
+            code: result['code']?.toString() ?? code,
+            description: result['description']?.toString() ?? 'Promotion',
+            discountAmount:
+                (result['discountAmount'] as num?)?.toDouble() ?? 0,
           );
         }
       }
@@ -117,8 +118,11 @@ class PromoService {
       final cloudFunction = ParseCloudFunction('togglePromoCode');
       final response = await cloudFunction.execute(parameters: {'code': code});
       if (response.success && response.result != null) {
-        notifyDataChanged();
-        return true;
+        final result = response.result as Map<dynamic, dynamic>;
+        if (result['success'] == true) {
+          notifyDataChanged();
+          return true;
+        }
       }
       return false;
     } catch (e) {
