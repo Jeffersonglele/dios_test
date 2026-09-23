@@ -19,7 +19,7 @@ class _ParrainagePageState extends State<ParrainagePage> {
   int _activeCodes = 0;
   int _rewardsGiven = 0;
   List<Map<String, dynamic>> _referralCodes = [];
-  String _country = 'France';
+  String _country = 'RDC';
 
   @override
   void initState() {

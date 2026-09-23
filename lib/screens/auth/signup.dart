@@ -13,6 +13,7 @@ import '../../core/app_role.dart';
 import '../../models/users.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/phone_number.dart';
+import '../../utils/country_util.dart';
 import '../../l10n/app_localizations.dart';
 import '../../utils/toast.dart';
 import '../legal/cgv_page.dart';
@@ -50,18 +51,16 @@ class _SignUpViewState extends State<SignUpView> {
   bool _isDetectingCountry = true;
   int _signupRole = 2;
   String _permisType = 'moto';
-  String _selectedCountry = 'Bénin';
+  String _selectedCountry = 'RDC';
 
   // ── Données pays ─────────────────────────────────────────
   static const Map<String, String> _countryCodes = {
-    'France': '+33',
-    'Bénin': '+229',
-    "Côte d'Ivoire": '+225',
+    CountryUtil.rdc: '+243',
+    CountryUtil.benin: '+229',
   };
   static const Map<String, String> _countryFlags = {
-    'France': '🇫🇷',
-    'Bénin': '🇧🇯',
-    "Côte d'Ivoire": '🇨🇮',
+    CountryUtil.rdc: '🇨🇩',
+    CountryUtil.benin: '🇧🇯',
   };
   final _formKey = GlobalKey<FormState>();
   final _simpleUIController = SimpleUIController();
@@ -100,12 +99,13 @@ class _SignUpViewState extends State<SignUpView> {
       if (placemarks.isNotEmpty) {
         final country = (placemarks.first.country ?? '').toLowerCase();
         final detectedCountry =
-            country.contains('benin') || country.contains('bénin')
+            CountryUtil.allowBeninTestMode &&
+                    (country.contains('benin') || country.contains('bénin'))
                 ? 'Bénin'
-                : country.contains('ivoire')
-                    ? "Côte d'Ivoire"
-                    : country.contains('france')
-                        ? 'France'
+                : country.contains('république démocratique') ||
+                            country.contains('democratic republic') ||
+                            country.contains('kinshasa')
+                        ? 'RDC'
                         : null;
         if (detectedCountry != null && mounted) {
           setState(() {
@@ -117,6 +117,34 @@ class _SignUpViewState extends State<SignUpView> {
       }
     } catch (_) {}
     if (mounted) setState(() => _isDetectingCountry = false);
+  }
+
+  Future<void> _chooseCountry() async {
+    if (_isDetectingCountry) return;
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: _countryCodes.keys
+              .where(CountryUtil.selectableCountries.contains)
+              .map((country) => ListTile(
+                    leading: Text(_countryFlags[country] ?? ''),
+                    title: Text(country),
+                    trailing: Text(_countryCodes[country] ?? ''),
+                    selected: country == _selectedCountry,
+                    onTap: () => Navigator.pop(context, country),
+                  ))
+              .toList(),
+        ),
+      ),
+    );
+    if (selected != null && mounted) {
+      setState(() {
+        _selectedCountry = selected;
+        _telephoneCtrl.clear();
+      });
+    }
   }
 
   // ── Build ─────────────────────────────────────────────────
@@ -247,38 +275,43 @@ class _SignUpViewState extends State<SignUpView> {
           const SizedBox(height: AppSpacing.sm),
 
           // Pays (détecté automatiquement)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-            decoration: BoxDecoration(
-              border: Border.all(
-                  color: AppColors.resolve(
-                      AppColors.border, AppDarkColors.border)),
-              borderRadius: BorderRadius.circular(AppRadius.md),
-            ),
-            child: Row(children: [
-              Icon(Icons.location_on_rounded,
-                  color:
-                      AppColors.resolve(AppColors.brand, AppDarkColors.brand),
-                  size: 20),
-              const SizedBox(width: 10),
-              if (_isDetectingCountry)
-                const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2))
-              else ...[
-                Text(
-                    '${_countryFlags[_selectedCountry] ?? ''} $_selectedCountry  ${_countryCodes[_selectedCountry] ?? ''}',
-                    style: AppTypography.bodyLarge(
-                        color: AppColors.resolve(
-                            AppColors.ink, AppDarkColors.ink))),
-                const Spacer(),
-                Icon(Icons.check_circle_rounded,
+          InkWell(
+            onTap: _chooseCountry,
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+              decoration: BoxDecoration(
+                border: Border.all(
                     color: AppColors.resolve(
-                        AppColors.success, AppDarkColors.success),
-                    size: 18),
-              ],
-            ]),
+                        AppColors.border, AppDarkColors.border)),
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
+              child: Row(children: [
+                Icon(Icons.location_on_rounded,
+                    color: AppColors.resolve(
+                        AppColors.brand, AppDarkColors.brand),
+                    size: 20),
+                const SizedBox(width: 10),
+                if (_isDetectingCountry)
+                  const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                else ...[
+                  Expanded(
+                    child: Text(
+                        '${_countryFlags[_selectedCountry] ?? ''} $_selectedCountry  ${_countryCodes[_selectedCountry] ?? ''}',
+                        style: AppTypography.bodyLarge(
+                            color: AppColors.resolve(
+                                AppColors.ink, AppDarkColors.ink))),
+                  ),
+                  Icon(Icons.keyboard_arrow_down_rounded,
+                      color: AppColors.resolve(
+                          AppColors.inkMuted, AppDarkColors.inkMuted),
+                      size: 20),
+                ],
+              ]),
+            ),
           ),
           const SizedBox(height: AppSpacing.sm),
 

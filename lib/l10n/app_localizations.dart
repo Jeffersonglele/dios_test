@@ -1619,7 +1619,7 @@ abstract class AppLocalizations {
   /// No description provided for @cart_payment_fedapay.
   ///
   /// In en, this message translates to:
-  /// **'Mobile Money (CinetPay)'**
+  /// **'Mobile Money (iKeepPay)'**
   String get cart_payment_fedapay;
 
   /// No description provided for @cart_processing.
@@ -2885,7 +2885,7 @@ abstract class AppLocalizations {
   /// No description provided for @livreur_accept_body.
   ///
   /// In en, this message translates to:
-  /// **'Order #{id}\nAmount to collect: {amount} FCFA'**
+  /// **'Order #{id}\nAmount to collect: {amount}'**
   String livreur_accept_body(Object id, Object amount);
 
   /// No description provided for @delivery_confirm_picked_title.
@@ -3683,7 +3683,7 @@ abstract class AppLocalizations {
   /// No description provided for @commande_details_cinetpay.
   ///
   /// In en, this message translates to:
-  /// **'Mobile Money (CinetPay)'**
+  /// **'Mobile Money (iKeepPay)'**
   String get commande_details_cinetpay;
 
   /// No description provided for @commande_details_items.

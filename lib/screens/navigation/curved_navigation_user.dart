@@ -10,7 +10,7 @@ class CurvedNavigationUser extends StatefulWidget {
   final int specified_index;
   final String country;
   const CurvedNavigationUser(
-      {super.key, required this.specified_index, this.country = 'France'});
+      {super.key, required this.specified_index, this.country = 'RDC'});
 
   @override
   State<CurvedNavigationUser> createState() => _CurvedNavigationUserState();

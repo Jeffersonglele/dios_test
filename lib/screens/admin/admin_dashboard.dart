@@ -21,6 +21,7 @@ import '../../core/app_role.dart';
 import '../../services/session_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/currency_util.dart';
+import '../../utils/country_util.dart';
 import '../../utils/toast.dart';
 import 'category_management_page.dart';
 import 'promotions_page.dart';
@@ -46,7 +47,7 @@ class AdminDashboard extends StatefulWidget {
 class _AdminDashboardState extends State<AdminDashboard> {
   // ── Données utilisateur ──────────────────────────────────
   AppRole _userRole = AppRole.unknown;
-  String _userCountry = 'France';
+  String _userCountry = 'RDC';
   String _userName = '';
 
   // ── Statistiques ─────────────────────────────────────────
@@ -1466,14 +1467,11 @@ class _HeroAppBar extends StatelessWidget {
                         SingleChildScrollView(
                           scrollDirection: Axis.horizontal,
                           child: Row(
-                            children:
-                                ['France', 'Bénin', "Côte d'Ivoire"].map((c) {
-                              final active = userCountry == c;
-                              final flag = c == 'France'
-                                  ? '🇫🇷'
-                                  : c == 'Bénin'
-                                      ? '🇧🇯'
-                                      : '🇨🇮';
+                            children: CountryUtil.selectableCountries
+                                .map((c) {
+                              final active = userCountry == c ||
+                                  (c == 'RDC' && userCountry == 'CD');
+                              final flag = c == 'RDC' ? '🇨🇩' : '🇧🇯';
                               return Padding(
                                 padding: EdgeInsets.only(right: AppSpacing.sm),
                                 child: GestureDetector(

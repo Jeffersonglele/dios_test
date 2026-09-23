@@ -30,7 +30,7 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
   Map<int, String> restoNames = {};
   Map<int, String> dishNames = {};
   bool isLoading = true;
-  String _country = 'France';
+  String _country = 'RDC';
   bool isOnline = false;
   int driverID = 0;
   int? activeCommandeID;
@@ -167,71 +167,68 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
 
   Future<void> _loadOnlineStatus() async {
     final prefs = await SharedPreferences.getInstance();
-    final cachedOnline = prefs.getBool('driver_online_$driverID');
-    if (cachedOnline != null && mounted) {
-      setState(() => isOnline = cachedOnline);
-    }
-
     try {
-      final query = QueryBuilder<ParseObject>(ParseObject('Users'))
-        ..whereEqualTo('userID', driverID);
-      final response = await query.query();
-      if (response.success &&
-          response.results != null &&
-          response.results!.isNotEmpty) {
-        final parseUser = response.results!.first as ParseObject;
-        final online = parseUser.get<bool>('isOnline') ?? false;
+      final settings = await LivreurApi.getSettings(driverID);
+      if (settings != null) {
+        final online = settings['isOnline'] == true;
         await prefs.setBool('driver_online_$driverID', online);
         if (mounted) {
           setState(() => isOnline = online);
         }
-      } else {
-        final users = await Users.fetchUsersFromDB();
-        final driver = users.firstWhere(
-          (u) => u.userID == driverID,
-          orElse: () =>
-              users.isNotEmpty ? users.first : Users.fromMap(const {}),
-        );
-        if (mounted) {
-          setState(() => isOnline = driver.isOnline);
+        if (online) {
+          _startSharingLocation(_currentActiveDeliveryId());
+        } else {
+          _stopSharingLocation();
         }
+      } else if (mounted) {
+        // Le cache ne doit jamais reconnecter automatiquement un livreur.
+        await prefs.setBool('driver_online_$driverID', false);
+        setState(() => isOnline = false);
+        _stopSharingLocation();
       }
     } catch (e) {
       debugPrint('❌ Erreur chargement statut: $e');
+      if (mounted) setState(() => isOnline = false);
+      _stopSharingLocation();
     }
   }
 
   // ── Actions ──────────────────────────────────────────────
   Future<void> _toggleOnline() async {
-    setState(() => isOnline = !isOnline);
+    final nextOnline = !isOnline;
+    setState(() => isOnline = nextOnline);
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('driver_online_$driverID', isOnline);
 
     try {
-      final ok = await LivreurApi.toggleOnlineStatus(driverID, isOnline);
+      final ok = await LivreurApi.toggleOnlineStatus(driverID, nextOnline);
       if (!ok && mounted) {
-        setState(() => isOnline = !isOnline);
-        await prefs.setBool('driver_online_$driverID', isOnline);
+        setState(() => isOnline = !nextOnline);
         Toast(context, AppLocalizations.of(context)!.error, false);
       } else if (mounted) {
+        await prefs.setBool('driver_online_$driverID', nextOnline);
+        if (nextOnline) {
+          _startSharingLocation(_currentActiveDeliveryId());
+        } else {
+          _stopSharingLocation();
+        }
         Toast(
             context,
-            isOnline
+            nextOnline
                 ? AppLocalizations.of(context)!.delivery_toggle_online
                 : AppLocalizations.of(context)!.delivery_toggle_offline,
             true);
       }
     } catch (_) {
       if (mounted) {
-        setState(() => isOnline = !isOnline);
-        await prefs.setBool('driver_online_$driverID', isOnline);
+        setState(() => isOnline = !nextOnline);
+        await prefs.setBool('driver_online_$driverID', !nextOnline);
       }
     }
   }
 
-  void _startSharingLocation(int commandeID) {
+  void _startSharingLocation([int? commandeID]) {
     _locationTimer?.cancel();
-    activeCommandeID = commandeID;
+    if (commandeID != null) activeCommandeID = commandeID;
     _sendLocation();
     _locationTimer =
         Timer.periodic(const Duration(seconds: 30), (_) => _sendLocation());
@@ -243,12 +240,26 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
   }
 
   Future<void> _sendLocation() async {
-    if (activeCommandeID == null) return;
+    if (!isOnline) return;
     try {
       final pos = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.high);
-      await LivreurApi.updatePosition(driverID, pos.latitude, pos.longitude);
+      await LivreurApi.updatePosition(driverID, pos.latitude, pos.longitude,
+          commandeID: activeCommandeID);
     } catch (_) {}
+  }
+
+  int? _currentActiveDeliveryId() {
+    for (final delivery in deliveries) {
+      final status = DeliveryStatus.normalize(delivery.deliveryStatus);
+      if (status == DeliveryStatus.assigned ||
+          status == DeliveryStatus.atPickup ||
+          status == DeliveryStatus.pickedUp ||
+          status == DeliveryStatus.inTransit) {
+        return delivery.commandeID;
+      }
+    }
+    return null;
   }
 
   Future<void> _acceptAndUpdateStatus(Commande commande, String newStatus,
@@ -316,7 +327,10 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
       final ok = await LivreurApi.updateDeliveryStatus(
           commande.commandeID, normalized);
       if (ok) {
-        if (normalized == DeliveryStatus.inTransit) {
+        if (normalized == DeliveryStatus.assigned ||
+            normalized == DeliveryStatus.atPickup ||
+            normalized == DeliveryStatus.pickedUp ||
+            normalized == DeliveryStatus.inTransit) {
           _startSharingLocation(commande.commandeID);
         }
         if (normalized == DeliveryStatus.delivered) _stopSharingLocation();
@@ -392,6 +406,7 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
     final s = DeliveryStatus.normalize(status);
     return {
           DeliveryStatus.assigned: l10n.delivery_status_assigned,
+          DeliveryStatus.atPickup: 'Au restaurant',
           DeliveryStatus.pickedUp: l10n.delivery_status_picked_up,
           DeliveryStatus.inTransit: l10n.delivery_status_in_transit,
           DeliveryStatus.delivered: l10n.delivery_status_delivered,
@@ -403,6 +418,7 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
     final s = DeliveryStatus.normalize(status);
     return {
           DeliveryStatus.assigned: Colors.orange,
+          DeliveryStatus.atPickup: AppColors.accent,
           DeliveryStatus.pickedUp: AppColors.accent,
           DeliveryStatus.inTransit: AppColors.brand,
           DeliveryStatus.delivered: AppColors.success,
@@ -542,6 +558,7 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
     final statuses = [
       '__all__',
       DeliveryStatus.assigned,
+      DeliveryStatus.atPickup,
       DeliveryStatus.pickedUp,
       DeliveryStatus.inTransit,
       DeliveryStatus.delivered,
@@ -707,7 +724,7 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
                                   ),
                                 ],
                               ),
-                            // Base delivery fee
+                            // Frais client avant livraison, puis revenus du livreur
                             Row(
                               children: [
                                 Icon(Icons.money_rounded,
@@ -716,8 +733,14 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
                                         AppDarkColors.inkMuted)),
                                 const SizedBox(width: 4),
                                 Text(
-                                  CurrencyUtil.formatPrice(
-                                      c.fraisLivraison, _country),
+                                  c.delivererEarningsStatus == 'recorded'
+                                      ? CurrencyUtil.formatPrice(
+                                          (c.delivererBasePay ?? 0) +
+                                              (c.delivererDistancePay ?? 0) +
+                                              (c.pourboire ?? 0),
+                                          _country)
+                                      : CurrencyUtil.formatPrice(
+                                          c.fraisLivraison, _country),
                                   style: AppTypography.labelMedium(
                                       color: AppColors.resolve(
                                           AppColors.ink, AppDarkColors.ink)),
@@ -783,6 +806,22 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
                         child: Row(
                           children: [
                             if (status == DeliveryStatus.assigned)
+                              Expanded(
+                                child: _PrimaryActionButton(
+                                  label: 'Aller au restaurant',
+                                  icon: Icons.storefront_rounded,
+                                  color: AppColors.accent,
+                                  onTap: () => _acceptAndUpdateStatus(
+                                    c,
+                                    DeliveryStatus.atPickup,
+                                    confirmTitle: 'Se rendre au restaurant ?',
+                                    confirmBody:
+                                        'Confirmez que vous prenez en charge la commande #${c.commandeID}.',
+                                    confirmIcon: Icons.storefront_rounded,
+                                  ),
+                                ),
+                              ),
+                            if (status == DeliveryStatus.atPickup)
                               Expanded(
                                 child: _PrimaryActionButton(
                                   label: AppLocalizations.of(context)!
@@ -854,6 +893,7 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
                                                 'Client #${c.userID}'))),
                               ),
                             if (status == DeliveryStatus.assigned ||
+                                status == DeliveryStatus.atPickup ||
                                 status == DeliveryStatus.pickedUp)
                               _IconActionButton(
                                 icon: Icons.cancel_outlined,

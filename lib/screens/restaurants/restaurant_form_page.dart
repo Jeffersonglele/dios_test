@@ -13,6 +13,7 @@ import '../../services/session_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/hashtag_text_input_formatter.dart';
 import '../../utils/image_picker_helper.dart';
+import '../../utils/country_util.dart';
 import '../../utils/toast.dart';
 import '../../widgets/brand_avatar_logo.dart';
 import '../onboarding/confirmation_page.dart';
@@ -152,8 +153,11 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
       if (placemarks.isEmpty) return false;
       final country = placemarks.first.country;
       if (country == null || country.isEmpty) return false;
-      return country.toLowerCase().contains(session.country.toLowerCase()) ||
-          session.country.toLowerCase().contains(country.toLowerCase());
+      final detectedCountry = CountryUtil.canonical(country);
+      final sessionCountry = CountryUtil.canonical(session.country);
+      return detectedCountry.isNotEmpty &&
+          sessionCountry.isNotEmpty &&
+          detectedCountry == sessionCountry;
     } catch (_) {
       return false;
     }
@@ -607,6 +611,7 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
             final result = await Restaurant.manageRestaurant(
             restaurantID: widget.restaurant?.restaurantID,
             userID: userID,
+            country: userCountry,
             valid: widget.restaurant?.valid ?? 0,
             nb_orders: widget.restaurant?.nb_orders ?? 0,
             note: widget.restaurant?.note ?? 0.0,

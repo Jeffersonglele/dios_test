@@ -400,7 +400,7 @@ class _LoginState extends ConsumerState<Login> {
   }
 
   void _redirectToVerification(Users user) {
-    final country = user.country.trim().isEmpty ? "Bénin" : user.country.trim();
+    final country = user.country.trim().isEmpty ? "RDC" : user.country.trim();
     Navigator.push(
         context,
         MaterialPageRoute(
@@ -432,12 +432,11 @@ class _LoginState extends ConsumerState<Login> {
     switch (c) {
       case 'Bénin':
         return '+229';
-      case "Côte d'Ivoire":
-        return '+225';
-      case 'France':
-        return '+33';
+      case 'RDC':
+      case 'CD':
+        return '+243';
       default:
-        return '+229';
+        return '+243';
     }
   }
 

@@ -71,7 +71,7 @@ class _DishFormPageState extends ConsumerState<DishFormPage> {
       final namePart = parts[0];
       final colonIdx = namePart.indexOf(':');
       final optName = colonIdx >= 0 ? namePart.substring(0, colonIdx).trim() : namePart.trim();
-      final priceMatch = RegExp(r'^(\d+[.,]?\d*)\s*(?:€|FCFA)').firstMatch(parts.last.trim());
+      final priceMatch = RegExp(r'^(\d+[.,]?\d*)\s*(?:€|FCFA|CDF)').firstMatch(parts.last.trim());
       final optPrice = priceMatch != null ? double.tryParse(priceMatch.group(1)!.replaceAll(',', '.')) ?? 0.0 : 0.0;
       final choices = <String>[];
       for (int i = 1; i < parts.length - (priceMatch != null ? 1 : 0); i++) {

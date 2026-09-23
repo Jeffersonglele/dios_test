@@ -630,12 +630,28 @@ class Users extends HiveObject {
       if (response.success && response.result != null) {
         final result = response.result as Map<String, dynamic>;
         if (result['success'] == true && result['user'] != null) {
+          final user = Users.fromMap(result['user']);
           final sessionToken = result['sessionToken']?.toString();
-          if (sessionToken == null ||
-              !await SessionService.adoptParseSession(sessionToken)) {
+          var sessionReady = false;
+
+          // Nouveau Cloud Code : la session Parse est déjà créée côté serveur.
+          if (sessionToken != null && sessionToken.isNotEmpty) {
+            sessionReady = await SessionService.adoptParseSession(sessionToken);
+          }
+
+          // Ancien Cloud Code / données Parse existantes : le profil métier
+          // est validé par `Users`, puis le SDK ouvre la session `_User`.
+          if (!sessionReady) {
+            sessionReady = await SessionService.loginParseUser(
+              user.username,
+              password,
+            );
+          }
+
+          if (!sessionReady) {
             return null;
           }
-          final user = Users.fromMap(result['user']);
+
           // Ne pas remplacer un hash local déjà présent par une réponse
           // serveur qui, volontairement, ne contient plus de mot de passe.
           final cached = await DatabaseHelper.getUser(user.userID);

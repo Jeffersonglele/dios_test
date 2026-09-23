@@ -258,7 +258,7 @@
   "cart_discount": "Discount",
   "cart_payment_section": "Payment method",
   "cart_payment_cod": "Cash on delivery",
-  "cart_payment_fedapay": "Mobile Money (CinetPay)",
+  "cart_payment_fedapay": "Mobile Money (iKeepPay)",
   "cart_processing": "Processing...",
   "cart_order_button": "Order · {amount}",
   "@cart_order_button": {
@@ -581,7 +581,7 @@
   "livreur_order_already_in_progress": "Cannot accept: you already have an order in progress",
   "delivery_must_be_online": "You must be online to perform this action.",
   "livreur_accept_title": "Accept this order?",
-  "livreur_accept_body": "Order #{id}\nAmount to collect: {amount} FCFA",
+  "livreur_accept_body": "Order #{id}\nAmount to collect: {amount}",
   "@livreur_accept_body": {
     "placeholders": {
       "id": {},
@@ -788,7 +788,7 @@
   "commande_details_card": "Credit card",
   "commande_details_om": "Orange Money",
   "commande_details_wave": "Wave",
-  "commande_details_cinetpay": "Mobile Money (CinetPay)",
+  "commande_details_cinetpay": "Mobile Money (iKeepPay)",
   "commande_details_items": "Items",
   "commande_details_no_items": "No items",
   "commande_details_address": "Delivery address",

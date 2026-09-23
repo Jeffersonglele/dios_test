@@ -43,7 +43,7 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage> {
   bool _canAssignLivreur = false;
   bool _isRestaurantView = false;
   Timer? _trackingTimer;
-  String _country = 'France';
+  String _country = 'RDC';
 
   @override
   void initState() {

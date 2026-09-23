@@ -123,7 +123,7 @@ class _DishDetailsState extends ConsumerState<DishDetails> {
       dish.image ?? '',
       number_of_parts,
       dish.nb_servings ?? 99,
-      country ?? 'France',
+      country ?? 'RDC',
       session.userId,
       dish.restauID,
     );

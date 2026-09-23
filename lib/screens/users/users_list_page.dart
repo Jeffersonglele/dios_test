@@ -478,6 +478,8 @@ class _UsersListPageState extends State<UsersListPage> {
                                   color: AppColors.resolve(AppColors.inkMuted,
                                       AppDarkColors.inkMuted))
                               .copyWith(fontSize: 12),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
                         ),
                         const SizedBox(height: 2),
                         Row(children: [
@@ -486,13 +488,17 @@ class _UsersListPageState extends State<UsersListPage> {
                               color: AppColors.resolve(AppColors.inkSubtle,
                                   AppDarkColors.inkSubtle)),
                           const SizedBox(width: 4),
-                          Text('@${user.username}',
-                              style: AppTypography.bodyMedium(
-                                      color: AppColors.resolve(
-                                          AppColors.inkMuted,
-                                          AppDarkColors.inkMuted))
-                                  .copyWith(fontSize: 11)),
-                          const SizedBox(width: 12),
+                          Flexible(
+                            child: Text('@${user.username}',
+                                style: AppTypography.bodyMedium(
+                                        color: AppColors.resolve(
+                                            AppColors.inkMuted,
+                                            AppDarkColors.inkMuted))
+                                    .copyWith(fontSize: 11),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1),
+                          ),
+                          const SizedBox(width: 8),
                           Container(
                             width: 6,
                             height: 6,
@@ -506,20 +512,25 @@ class _UsersListPageState extends State<UsersListPage> {
                             ),
                           ),
                           const SizedBox(width: 4),
-                          Text(
-                            isVerified
-                                ? l10n.profile_validated
-                                : isRejected
-                                    ? l10n.profile_rejected
-                                    : l10n.profile_pending,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: isVerified
-                                  ? AppColors.success
+                          Flexible(
+                            fit: FlexFit.loose,
+                            child: Text(
+                              isVerified
+                                  ? l10n.profile_validated
                                   : isRejected
-                                      ? AppColors.error
-                                      : AppColors.accent,
+                                      ? l10n.profile_rejected
+                                      : l10n.profile_pending,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: isVerified
+                                    ? AppColors.success
+                                    : isRejected
+                                        ? AppColors.error
+                                        : AppColors.accent,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
                             ),
                           ),
                         ]),

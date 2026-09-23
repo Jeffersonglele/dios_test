@@ -73,6 +73,11 @@ class Commande extends HiveObject {
   @HiveField(20)
   DateTime? paymentDate;
 
+  // Earnings calculated by Parse when the delivery is completed.
+  double? delivererBasePay;
+  double? delivererDistancePay;
+  String? delivererEarningsStatus;
+
   double totalAmount;
   String? deliveryMode;
   String? promoCode;
@@ -106,6 +111,9 @@ class Commande extends HiveObject {
     this.pourboire,
     this.paymentStatus,
     this.paymentDate,
+    this.delivererBasePay,
+    this.delivererDistancePay,
+    this.delivererEarningsStatus,
   });
 
   factory Commande.fromMap(Map<String, dynamic> map) {
@@ -125,7 +133,8 @@ class Commande extends HiveObject {
       livreurID: map['livreurID'] is int
           ? map['livreurID']
           : int.tryParse(map['livreurID']?.toString() ?? ''),
-      deliveryStatus: map['livreurID'] == null
+      deliveryStatus: map['deliveryStatus'] == null ||
+              map['deliveryStatus'].toString().trim().isEmpty
           ? null
           : DeliveryStatus.normalize(map['deliveryStatus']?.toString()),
       livreurLat: double.tryParse(map['livreurLat']?.toString() ?? ''),
@@ -143,6 +152,9 @@ class Commande extends HiveObject {
       paymentDate: map['paymentDate'] != null
           ? DateTime.parse(map['paymentDate'])
           : null,
+      delivererBasePay: (map['delivererBasePay'] as num?)?.toDouble(),
+      delivererDistancePay: (map['delivererDistancePay'] as num?)?.toDouble(),
+      delivererEarningsStatus: map['delivererEarningsStatus']?.toString(),
     );
   }
 
@@ -173,6 +185,9 @@ class Commande extends HiveObject {
         'pourboire': pourboire,
         'paymentStatus': paymentStatus,
         'paymentDate': paymentDate?.toIso8601String(),
+        'delivererBasePay': delivererBasePay,
+        'delivererDistancePay': delivererDistancePay,
+        'delivererEarningsStatus': delivererEarningsStatus,
       };
 
   static Future<String> manageCommande({

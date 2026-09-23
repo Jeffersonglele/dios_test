@@ -22,7 +22,7 @@ class _FavoritesState extends State<Favorites> {
   List<Restaurant> favoriteRestaurants = [];
   List<Dish> favoriteDishes = [];
   String _tab = 'restaurants';
-  String _country = 'France';
+  String _country = 'RDC';
 
   @override
   void initState() {

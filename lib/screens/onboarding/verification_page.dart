@@ -106,7 +106,7 @@ class _VerificationPageState extends State<VerificationPage> {
 
   String _countryOrDefault(String country) {
     final cleanCountry = country.trim();
-    return cleanCountry.isEmpty ? "Bénin" : cleanCountry;
+    return cleanCountry.isEmpty ? "RDC" : cleanCountry;
   }
 
   void _startResendCooldown() {

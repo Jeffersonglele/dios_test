@@ -104,7 +104,7 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
             'meal_name': item['meal_name'],
             'price': item['price'],
             'image': item['image'] ?? '',
-            'country': item['country'] ?? 'France',
+            'country': item['country'] ?? 'RDC',
             'number_of_servings': 99,
           },
           'order': <String, dynamic>{'quantity': item['quantity'] ?? 1},

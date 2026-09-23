@@ -3,6 +3,8 @@ import 'package:hive/hive.dart';
 import '../db/database_helper.dart';
 import 'package:dios_delices/providers/data_version_notifier.dart';
 import '../services/restaurant_opening_hours_service.dart';
+import '../services/session_service.dart';
+import '../utils/currency_util.dart';
 
 part 'restaurant.g.dart';
 
@@ -188,8 +190,9 @@ class Restaurant extends HiveObject {
         trainingCompleted: map['trainingCompleted'] == 1 || map['trainingCompleted'] == true,
         isPro: map['isPro'] == true || map['isPro']?.toString() == 'true',
         reviewRemark: map['reviewRemark']?.toString() ?? '',
-        currency: map['currency']?.toString() ?? 'EUR',
         country: map['country']?.toString() ?? '',
+        currency: map['currency']?.toString() ??
+            CurrencyUtil.code(map['country']?.toString() ?? '').toUpperCase(),
         openingDays: map['openingDays']?.toString() ?? 'Lun,Mar,Mer,Jeu,Ven,Sam',
         minOrderAmount: double.tryParse(map['minOrderAmount']?.toString() ?? '0') ?? 0,
         deliveryRadius: double.tryParse(map['deliveryRadius']?.toString() ?? '10') ?? 10,
@@ -294,7 +297,8 @@ class Restaurant extends HiveObject {
     String professionalType = 'amateur',
     bool trainingCompleted = false,
     bool isPro = false,
-    String currency = 'EUR',
+    String currency = '',
+    String country = '',
     String openingDays = 'Lun,Mar,Mer,Jeu,Ven,Sam',
     String recoveryMode = 'delivery',
     int cityID = 1,
@@ -309,6 +313,12 @@ class Restaurant extends HiveObject {
     String closedDates = '',
     String openingHoursByDay = '',
   }) async {
+    final session = await SessionService.readSession();
+    final effectiveCountry = country.trim().isEmpty ? session.country : country;
+    final effectiveCurrency = currency.trim().isEmpty
+        ? CurrencyUtil.code(effectiveCountry).toUpperCase()
+        : currency.toUpperCase();
+
     // Determine cloud function name based on operation
     String functionName = restaurantID == null ? 'add1Restaurant' : 'update1Restaurant';
     var cloudFunction = ParseCloudFunction(functionName);
@@ -351,7 +361,8 @@ class Restaurant extends HiveObject {
       'professionalType': professionalType,
       'trainingCompleted': trainingCompleted,
       'isPro': isPro,
-      'currency': currency,
+      'currency': effectiveCurrency,
+      'country': effectiveCountry,
       'openingDays': openingDays,
       'recoveryMode': recoveryMode,
       'cityID': cityID,
@@ -404,7 +415,8 @@ class Restaurant extends HiveObject {
             professionalType: professionalType,
             trainingCompleted: trainingCompleted,
             isPro: isPro,
-            currency: currency,
+            currency: effectiveCurrency,
+            country: effectiveCountry,
             rccm: rccm,
           );
 

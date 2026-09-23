@@ -2,6 +2,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 
 import '../core/app_role.dart';
+import 'livreur_api.dart';
 
 class UserSession {
   const UserSession({
@@ -57,7 +58,7 @@ class SessionService {
     return UserSession(
       userId: prefs.getInt(_loggedUserIdKey) ?? 0,
       role: AppRole.fromId(prefs.getInt(_currentUserRoleKey)),
-      country: prefs.getString(_currentUserCountryKey) ?? "France",
+      country: prefs.getString(_currentUserCountryKey) ?? 'RDC',
       email: prefs.getString(_currentUserEmailKey),
       restaurantId: prefs.getInt(_currentUserRestaurantKey),
       isLoggedIn: prefLoggedIn && await hasParseSession(),
@@ -110,6 +111,30 @@ class SessionService {
     }
   }
 
+  /// Ouvre une session avec le système d'authentification natif de Parse.
+  ///
+  /// Le backend Parse historique authentifie encore certains profils dans la
+  /// classe métier `Users`. Quand son Cloud Function ne renvoie pas encore de
+  /// sessionToken, on utilise le compte `_User` correspondant s'il existe.
+  /// Cela évite de faire dépendre l'application de la configuration JWT du
+  /// backend Node.js.
+  static Future<bool> loginParseUser(String username, String password) async {
+    final normalizedUsername = username.trim();
+    if (normalizedUsername.isEmpty || password.isEmpty) return false;
+
+    try {
+      final parseUser = ParseUser(normalizedUsername, password, null);
+      final response = await parseUser.login();
+      return response.success &&
+          (parseUser.sessionToken?.isNotEmpty == true ||
+              (response.result is ParseUser &&
+                  (response.result as ParseUser).sessionToken?.isNotEmpty ==
+                      true));
+    } catch (_) {
+      return false;
+    }
+  }
+
   static Future<bool> hasParseSession() async {
     try {
       final parseUser = await ParseUser.currentUser();
@@ -120,7 +145,14 @@ class SessionService {
   }
 
   static Future<void> logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    final role = AppRole.fromId(prefs.getInt(_currentUserRoleKey));
+    final userId = prefs.getInt(_loggedUserIdKey) ?? 0;
     try {
+      if (role.isDelivery && userId > 0) {
+        // Toutes les sorties de session rendent le livreur invisible côté Parse.
+        await LivreurApi.toggleOnlineStatus(userId, false);
+      }
       final parseUser = await ParseUser.currentUser();
       if (parseUser.sessionToken?.isNotEmpty == true) {
         await parseUser.logout();

@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'country_util.dart';
 
 String phoneDigits(String value) => value.replaceAll(RegExp(r'\D'), '');
 
@@ -7,12 +8,17 @@ const _countryDialCodes = <String, String>{
   'France': '33',
   'Bénin': '229',
   "Côte d'Ivoire": '225',
+  'RDC': '243',
+  // Compatibilité avec les anciennes données Parse qui utilisent le code ISO.
+  'CD': '243',
 };
 
 const _countryLengths = <String, int>{
   'France': 10,
   'Bénin': 10,
   "Côte d'Ivoire": 10,
+  'RDC': 10,
+  'CD': 10,
 };
 
 const _mobilePrefixes = <String, List<String>>{
@@ -22,9 +28,12 @@ const _mobilePrefixes = <String, List<String>>{
   "Côte d'Ivoire": ['01', '05', '07'],
   // Pour ce formulaire de compte/paiement, on accepte les mobiles français.
   'France': ['06', '07'],
+  // Les mobiles congolais sont généralement saisis avec 08 ou 09.
+  'RDC': ['08', '09'],
+  'CD': ['08', '09'],
 };
 
-String _canonicalCountry(String country) => country.trim();
+String _canonicalCountry(String country) => CountryUtil.canonical(country);
 
 String localPhoneDigitsForCountry({
   required Object phone,
@@ -42,6 +51,11 @@ String localPhoneDigitsForCountry({
 
   // Les numéros français saisis au format international n'ont pas le 0 local.
   if (canonicalCountry == 'France' &&
+      digits.length == 9 &&
+      !digits.startsWith('0')) {
+    digits = '0$digits';
+  }
+  if ((canonicalCountry == 'RDC' || canonicalCountry == 'CD') &&
       digits.length == 9 &&
       !digits.startsWith('0')) {
     digits = '0$digits';
@@ -74,6 +88,9 @@ String phoneExampleForCountry(String country) {
       return '06 XX XX XX XX';
     case "Côte d'Ivoire":
       return '07 XX XX XX XX';
+    case 'RDC':
+    case 'CD':
+      return '08 XX XX XX XX';
     default:
       return 'XX XX XX XX XX';
   }

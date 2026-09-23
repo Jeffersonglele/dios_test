@@ -9,6 +9,7 @@ import '../../widgets/brand_avatar_logo.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/session_service.dart';
+import '../../utils/country_util.dart';
 
 class LocationPage extends ConsumerStatefulWidget {
   final int objectID;
@@ -202,7 +203,7 @@ class _LocationPageState extends ConsumerState<LocationPage> {
 
   void saveDetectedAddress() async {
     final session = await SessionService.readSession();
-    final userCountry = session.country.trim().toLowerCase();
+    final userCountry = CountryUtil.canonical(session.country);
     final city = _firstNonEmpty([
           _detectedCity,
           _extractCity(),
@@ -213,9 +214,12 @@ class _LocationPageState extends ConsumerState<LocationPage> {
           _detectedCountry,
           _extractState(),
           stateController.text,
-          session.country,
-        ]) ??
+        session.country,
+      ]) ??
         '';
+    final canonicalState = CountryUtil.canonical(state).isNotEmpty
+        ? CountryUtil.canonical(state)
+        : state;
     final fullAddress = locationController.text.isNotEmpty
         ? locationController.text
         : position == null
@@ -228,9 +232,10 @@ class _LocationPageState extends ConsumerState<LocationPage> {
     if (_detectedCountry != null &&
         state.trim().isNotEmpty &&
         userCountry.isNotEmpty) {
-      final stateLower = state.trim().toLowerCase();
-      if (!stateLower.contains(userCountry) &&
-          !userCountry.contains(stateLower)) {
+      final detectedCountry = CountryUtil.canonical(state);
+      if (userCountry.isNotEmpty &&
+          detectedCountry.isNotEmpty &&
+          detectedCountry != userCountry) {
         Toast(
             context,
             AppLocalizations.of(context)!
@@ -245,7 +250,7 @@ class _LocationPageState extends ConsumerState<LocationPage> {
     try {
       dynamic validationResult = await Address.manageAddress(
         city: city,
-        state: state,
+        state: canonicalState,
         fullAddress: fullAddress,
         lat: lat ?? "",
         object: "User",
@@ -279,7 +284,7 @@ class _LocationPageState extends ConsumerState<LocationPage> {
 
   void saveManualAddress() async {
     final session = await SessionService.readSession();
-    final userCountry = session.country.trim();
+    final userCountry = CountryUtil.canonical(session.country);
     final city = cityController.text.trim();
     final quarter = stateController.text.trim();
     final fullAddress = fullAddressController.text.trim();

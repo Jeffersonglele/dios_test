@@ -159,6 +159,7 @@ class _StatusSelectionPageState extends ConsumerState<StatusSelectionPage> {
       try {
         final String createResult = await Restaurant.manageRestaurant(
           userID: _user!.userID,
+          country: widget.country,
           valid: 1,
           nb_orders: 0,
           note: 0.0,

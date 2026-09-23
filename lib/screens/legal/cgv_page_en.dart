@@ -24,7 +24,7 @@ class CGVPageEN extends StatelessWidget {
           _Section('4. ORDERS',
               "The Customer selects dishes, validates their cart, and confirms their order. The order is transmitted to the Restaurateur, who may accept or refuse it. The Customer receives a confirmation. In case of unavailability, the Restaurateur informs the Customer."),
           _Section('5. PRICES AND PAYMENT',
-              "Prices are displayed in Euros (EUR) for France and in CFA Francs (XOF) for Côte d'Ivoire and Benin. Two payment methods are available:\n\n• Cash on delivery: cash or Mobile Money upon receipt of the order.\n• Online payment: via CinetPay, an accredited payment provider, by Mobile Money (Orange Money, Airtel Money, M-Pesa, Africell).\n\nDelivery fees are indicated before order confirmation. Online payment is processed by CinetPay; Dios Délices does not store any banking data."),
+              "Prices are displayed in Euros (EUR) for France, CFA Francs (XOF) for Côte d'Ivoire and Benin, and Congolese Francs (CDF) for the DRC. Two payment methods are available:\n\n• Cash on delivery: cash or Mobile Money upon receipt of the order.\n• Online payment: via CinetPay, an accredited payment provider, by Mobile Money (Orange Money, Airtel Money, M-Pesa, Africell).\n\nDelivery fees are indicated before order confirmation. Online payment is processed by CinetPay; Dios Délices does not store any banking data."),
           _Section('6. DELIVERY',
               "Delivery is carried out by an independent Driver. Timeframes are indicative. The Customer must check the condition of the dishes upon receipt. Any complaint must be made within 24 hours of delivery."),
           _Section('7. RIGHT OF WITHDRAWAL',

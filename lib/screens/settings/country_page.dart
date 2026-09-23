@@ -4,6 +4,7 @@ import 'package:dios_delices/theme/app_theme.dart';
 import 'package:dios_delices/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import '../restaurants/restaurant_list_page.dart';
+import '../../utils/country_util.dart';
 
 class CountryPage extends StatelessWidget {
   final String sectionType;
@@ -14,9 +15,9 @@ class CountryPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final countries = [
-      _CountryData("France", "🇫🇷"),
-      _CountryData("Côte d'Ivoire", "🇨🇮"),
-      _CountryData("Bénin", "🇧🇯"),
+      _CountryData(CountryUtil.rdc, "🇨🇩"),
+      if (CountryUtil.allowBeninTestMode)
+        _CountryData(CountryUtil.benin, "🇧🇯"),
     ];
 
     String title;

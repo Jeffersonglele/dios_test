@@ -788,7 +788,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cart_payment_cod => 'Cash on delivery';
 
   @override
-  String get cart_payment_fedapay => 'Mobile Money (CinetPay)';
+  String get cart_payment_fedapay => 'Mobile Money (iKeepPay)';
 
   @override
   String get cart_processing => 'Processing...';
@@ -1474,7 +1474,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String livreur_accept_body(Object id, Object amount) {
-    return 'Order #$id\nAmount to collect: $amount FCFA';
+    return 'Order #$id\nAmount to collect: $amount';
   }
 
   @override
@@ -1916,7 +1916,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commande_details_wave => 'Wave';
 
   @override
-  String get commande_details_cinetpay => 'Mobile Money (CinetPay)';
+  String get commande_details_cinetpay => 'Mobile Money (iKeepPay)';
 
   @override
   String get commande_details_items => 'Items';

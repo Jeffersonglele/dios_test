@@ -33,13 +33,30 @@ class LivreurApi {
     return result['success'] == true && result['isOnline'] == isOnline;
   }
 
+  // Le statut serveur est la source de vérité au démarrage de l'application.
+  static Future<Map<String, dynamic>?> getSettings(int livreurID) async {
+    try {
+      final cloud = ParseCloudFunction('getLivreurSettings');
+      final response = await cloud.execute();
+      if (response.success && response.result is Map) {
+        return Map<String, dynamic>.from(response.result as Map);
+      }
+    } catch (_) {}
+    return null;
+  }
+
   // Mettre à jour la position GPS du livreur
-  static Future<bool> updatePosition(int livreurID, double lat, double lng) async {
+  static Future<bool> updatePosition(int livreurID, double lat, double lng,
+      {int? commandeID}) async {
     final cloud = ParseCloudFunction('updateLivreurPosition');
-    final response = await cloud.execute(parameters: {
+    final parameters = <String, dynamic>{
       'latitude': lat,
       'longitude': lng,
-    });
+    };
+    if (commandeID != null && commandeID > 0) {
+      parameters['commandeID'] = commandeID;
+    }
+    final response = await cloud.execute(parameters: parameters);
     if (!response.success || response.result == null) return false;
     return (response.result as Map<dynamic, dynamic>)['success'] == true;
   }

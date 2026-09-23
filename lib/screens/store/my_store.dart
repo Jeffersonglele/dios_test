@@ -66,6 +66,7 @@ class _MyStoreState extends State<MyStore> {
 
   List<_StoreSection> sections = [];
   Restaurant? _restaurant;
+  Users? _currentUser;
   int _restoState = 0;
   bool _isVerified = false;
 
@@ -79,8 +80,16 @@ class _MyStoreState extends State<MyStore> {
     final session = await SessionService.readSession();
     final allUsers = await Users.fetchUsersFromDB();
     final currentUser = Users.getUsersByUserId(allUsers, session.userId);
+    _currentUser = currentUser;
     final userRole = AppRole.fromId(currentUser?.roleID);
     _isVerified = currentUser?.identity == 'Verified';
+
+    if (userRole.isDelivery && currentUser != null) {
+      final settings = await LivreurApi.getSettings(session.userId);
+      if (settings != null) {
+        currentUser.isOnline = settings['isOnline'] == true;
+      }
+    }
 
     // Fetch restaurant if user is professional
     if (userRole.isProfessional && session.restaurantId != null) {
@@ -193,6 +202,10 @@ class _MyStoreState extends State<MyStore> {
                           AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
             ),
             const SizedBox(height: 20),
+            if (_currentUser?.roleID == 5) ...[
+              _buildDriverInfoCard(_currentUser!),
+              const SizedBox(height: 16),
+            ],
             Expanded(
               child: ListView.separated(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -260,6 +273,68 @@ class _MyStoreState extends State<MyStore> {
     );
   }
 
+  Widget _buildDriverInfoCard(Users user) {
+    final name = '${user.firstname} ${user.lastname}'.trim();
+    final displayName = name.isEmpty ? user.username : name;
+    final muted = AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.resolve(AppColors.card, AppDarkColors.card),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(
+          color: AppColors.resolve(AppColors.border, AppDarkColors.border),
+          width: 0.5,
+        ),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 28,
+            backgroundColor: AppColors.resolve(
+                AppColors.brandSurface, AppDarkColors.brandSurface),
+            child: Icon(Icons.delivery_dining_rounded,
+                color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+                size: 28),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(displayName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.titleMedium().copyWith(
+                        fontSize: 19,
+                        color: AppColors.resolve(
+                            AppColors.ink, AppDarkColors.ink))),
+                if (user.email.isNotEmpty)
+                  Text(user.email,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.bodySmall(color: muted)),
+                if (user.telephone.isNotEmpty)
+                  Text(user.telephone,
+                      style: AppTypography.bodySmall(color: muted)),
+                const SizedBox(height: 4),
+                Text('Livreur • ${user.isOnline ? 'En ligne' : 'Hors ligne'}',
+                    style: AppTypography.labelMedium(
+                        color: user.isOnline
+                            ? AppColors.success
+                            : AppColors.error)),
+              ],
+            ),
+          ),
+          Icon(Icons.chevron_right_rounded,
+              color: AppColors.resolve(
+                  AppColors.inkSubtle, AppDarkColors.inkSubtle)),
+        ],
+      ),
+    );
+  }
+
   void _openSection(int index) {
     final s = sections[index];
     if (s.isLogout) {
@@ -317,8 +392,9 @@ class _MyStoreState extends State<MyStore> {
           Text(l10n.store_unverified_title,
               style: AppTypography.titleMedium().copyWith(fontSize: 16)),
         ]),
-        content:
-            Text(l10n.store_unverified_body, style: AppTypography.bodyLarge()),
+        content: Text(l10n.store_unverified_body,
+            style: AppTypography.bodyLarge(
+                color: AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
         actions: [
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx),
@@ -458,17 +534,22 @@ class _MyStoreState extends State<MyStore> {
           ),
           const SizedBox(width: 10),
           Text(l10n.store_cancel_request_title,
-              style: AppTypography.titleMedium().copyWith(fontSize: 16)),
+              style: AppTypography.titleMedium().copyWith(
+                  fontSize: 16,
+                  color: AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
         ]),
         content: Text(
           l10n.store_cancel_request_body,
-          style: AppTypography.bodyLarge(),
+          style: AppTypography.bodyLarge(
+              color: AppColors.resolve(AppColors.ink, AppDarkColors.ink)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
             child: Text(l10n.no,
-                style: AppTypography.labelMedium(color: AppColors.inkMuted)),
+                style: AppTypography.labelMedium(
+                    color: AppColors.resolve(
+                        AppColors.inkMuted, AppDarkColors.inkMuted))),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -556,7 +637,9 @@ class _MyStoreState extends State<MyStore> {
               children: [
                 Text(
                   l10n.store_max_distance(distance.toStringAsFixed(0)),
-                  style: AppTypography.bodyLarge()
+                  style: AppTypography.bodyLarge(
+                          color: AppColors.resolve(
+                              AppColors.ink, AppDarkColors.ink))
                       .copyWith(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 16),

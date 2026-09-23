@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:dios_delices/models/commande.dart';
 import 'package:dios_delices/models/restaurant.dart';
@@ -29,9 +30,10 @@ class _LivreurMapPageState extends State<LivreurMapPage> {
   bool _isLoading = true;
   LatLng? _currentPosition;
   int _driverID = 0;
-  String _country = 'France';
+  String _country = 'RDC';
   bool _isDriverOnline = false;
   bool _accepting = false;
+  Timer? _locationTimer;
 
   final MapController _mapController = MapController();
 
@@ -51,17 +53,52 @@ class _LivreurMapPageState extends State<LivreurMapPage> {
 
   Future<void> _loadOnlineStatus() async {
     final prefs = await SharedPreferences.getInstance();
-    final cached = prefs.getBool('driver_online_$_driverID');
-    if (cached != null && mounted) setState(() => _isDriverOnline = cached);
     try {
-      final q = QueryBuilder<ParseObject>(ParseObject('Users'))
-        ..whereEqualTo('userID', _driverID);
-      final r = await q.query();
-      if (r.success && r.results?.isNotEmpty == true) {
-        final online = r.results!.first.get<bool>('isOnline') ?? false;
+      final settings = await LivreurApi.getSettings(_driverID);
+      if (settings != null) {
+        final online = settings['isOnline'] == true;
         await prefs.setBool('driver_online_$_driverID', online);
         if (mounted) setState(() => _isDriverOnline = online);
+        if (online) {
+          _startSharingLocation();
+        } else {
+          _stopSharingLocation();
+        }
+      } else if (mounted) {
+        await prefs.setBool('driver_online_$_driverID', false);
+        setState(() => _isDriverOnline = false);
+        _stopSharingLocation();
       }
+    } catch (_) {
+      if (mounted) setState(() => _isDriverOnline = false);
+      _stopSharingLocation();
+    }
+  }
+
+  @override
+  void dispose() {
+    _locationTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startSharingLocation() {
+    _locationTimer?.cancel();
+    _sendLocation();
+    _locationTimer =
+        Timer.periodic(const Duration(seconds: 30), (_) => _sendLocation());
+  }
+
+  void _stopSharingLocation() {
+    _locationTimer?.cancel();
+    _locationTimer = null;
+  }
+
+  Future<void> _sendLocation() async {
+    if (!_isDriverOnline) return;
+    try {
+      final pos = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high);
+      await LivreurApi.updatePosition(_driverID, pos.latitude, pos.longitude);
     } catch (_) {}
   }
 
@@ -220,7 +257,8 @@ class _LivreurMapPageState extends State<LivreurMapPage> {
           AppColors.resolve(AppColors.surface, AppDarkColors.surface),
       appBar: AppBar(
         title: Text(l10n.livreur_map_title(_availableOrders.length),
-            style: AppTypography.titleMedium()),
+            style: AppTypography.titleMedium(
+                color: AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
@@ -358,7 +396,7 @@ class _LivreurMapPageState extends State<LivreurMapPage> {
                               ]),
                             )
                           : Container(
-                              height: 120,
+                              height: 164,
                               decoration: BoxDecoration(
                                 color: AppColors.resolve(
                                     AppColors.card, AppDarkColors.card),
@@ -382,11 +420,22 @@ class _LivreurMapPageState extends State<LivreurMapPage> {
 
   Future<void> _goOnlineAndRefresh() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() => _isDriverOnline = true);
-    await prefs.setBool('driver_online_$_driverID', true);
     try {
-      await LivreurApi.toggleOnlineStatus(_driverID, true);
-    } catch (_) {}
+      final ok = await LivreurApi.toggleOnlineStatus(_driverID, true);
+      if (!ok) {
+        if (mounted) Toast(context, AppLocalizations.of(context)!.error, false);
+        return;
+      }
+      if (mounted) setState(() => _isDriverOnline = true);
+      await prefs.setBool('driver_online_$_driverID', true);
+      _startSharingLocation();
+      await _sendLocation();
+      await _getPosition();
+      await _loadData();
+    } catch (_) {
+      if (mounted) Toast(context, AppLocalizations.of(context)!.error, false);
+      return;
+    }
     if (mounted) {
       Toast(
           context, AppLocalizations.of(context)!.delivery_toggle_online, true);
@@ -405,9 +454,9 @@ class _LivreurMapPageState extends State<LivreurMapPage> {
         ),
       ),
       child: Container(
-        width: 200,
-        margin: const EdgeInsets.all(4),
-        padding: const EdgeInsets.all(12),
+        width: 210,
+        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
         decoration: BoxDecoration(
           color: AppColors.resolve(
               AppColors.surfaceWarm, AppDarkColors.surfaceWarm),
@@ -419,18 +468,19 @@ class _LivreurMapPageState extends State<LivreurMapPage> {
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Row(children: [
               Container(
-                width: 24,
-                height: 24,
+                width: 20,
+                height: 20,
                 decoration: BoxDecoration(
                   color: AppColors.resolve(
                       AppColors.accentLight, AppDarkColors.accentLight),
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(5),
                 ),
                 child: Icon(Icons.receipt_rounded,
-                    size: 13,
+                    size: 11,
                     color: AppColors.resolve(
                         AppColors.accent, AppDarkColors.accent)),
               ),
@@ -440,7 +490,7 @@ class _LivreurMapPageState extends State<LivreurMapPage> {
                     style: AppTypography.labelMedium(
                             color: AppColors.resolve(
                                 AppColors.accent, AppDarkColors.accent))
-                        .copyWith(fontSize: 12)),
+                        .copyWith(fontSize: 11)),
               ),
             ]),
             const SizedBox(height: 4),
@@ -448,7 +498,7 @@ class _LivreurMapPageState extends State<LivreurMapPage> {
                 style: AppTypography.labelMedium(
                         color:
                             AppColors.resolve(AppColors.ink, AppDarkColors.ink))
-                    .copyWith(fontSize: 11),
+                    .copyWith(fontSize: 10, height: 1.2),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis),
             const SizedBox(height: 2),
@@ -456,8 +506,8 @@ class _LivreurMapPageState extends State<LivreurMapPage> {
                 style: AppTypography.labelMedium(
                         color: AppColors.resolve(
                             AppColors.brand, AppDarkColors.brand))
-                    .copyWith(fontSize: 12)),
-            const Spacer(),
+                    .copyWith(fontSize: 11)),
+            const SizedBox(height: 6),
             SizedBox(
               width: double.infinity,
               child: AbsorbPointer(
@@ -470,10 +520,12 @@ class _LivreurMapPageState extends State<LivreurMapPage> {
                         : AppColors.resolve(
                             AppColors.inkSubtle, AppDarkColors.inkSubtle),
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    padding: const EdgeInsets.symmetric(vertical: 3),
+                    visualDensity: VisualDensity.compact,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(6)),
-                    minimumSize: Size.zero,
+                    minimumSize: const Size(0, 28),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                   onPressed: () => _acceptOrder(cmd),
                   child: Text(
@@ -482,7 +534,7 @@ class _LivreurMapPageState extends State<LivreurMapPage> {
                           : _isDriverOnline
                               ? l10n.livreur_map_accept
                               : l10n.delivery_offline,
-                      style: const TextStyle(fontSize: 11)),
+                      style: const TextStyle(fontSize: 10, height: 1.15)),
                 ),
               ),
             ),

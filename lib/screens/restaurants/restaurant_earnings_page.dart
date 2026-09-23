@@ -19,7 +19,7 @@ class _RestaurantEarningsPageState extends State<RestaurantEarningsPage> {
   String _period = 'week';
   bool _isLoading = true;
   List<_DailyPoint> _dailyData = [];
-  String _country = 'France';
+  String _country = 'RDC';
 
   @override
   void initState() {

@@ -342,6 +342,7 @@ class _RestaurantUpdateFormPageState
                                 await Restaurant.manageRestaurant(
                               restaurantID: widget.restaurant.restaurantID,
                               userID: user.userID,
+                              country: user.country,
                               valid: widget.restaurant.valid,
                               nb_orders: widget.restaurant.nb_orders,
                               note: widget.restaurant.note,

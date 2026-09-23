@@ -55,7 +55,7 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
   Map<int, String> dishNames = {};
   Map<int, String> restoNames = {};
   String? statusFilter;
-  String _country = 'France';
+  String _country = 'RDC';
   final LiveQuery liveQuery = LiveQuery();
   Subscription? sub;
 
@@ -160,8 +160,9 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => _ConfirmDialog(
-        isConfirm: newStatus == CommandeStatus.confirmed,
+        isConfirm: newStatus != CommandeStatus.cancelled,
         commandeId: id,
+        actionStatus: newStatus,
       ),
     );
 
@@ -181,9 +182,7 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(newStatus == CommandeStatus.confirmed
-                  ? AppLocalizations.of(context)!.orderConfirmed
-                  : AppLocalizations.of(context)!.orderCancelled),
+              content: Text(_statusActionMessage(newStatus)),
               backgroundColor: newStatus == CommandeStatus.confirmed
                   ? AppColors.resolve(AppColors.success, AppDarkColors.success)
                   : AppColors.resolve(AppColors.error, AppDarkColors.error),
@@ -208,6 +207,23 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
           setState(() => isLoading = false);
         }
       }
+    }
+  }
+
+  String _statusActionMessage(String status) {
+    switch (CommandeStatus.normalize(status)) {
+      case CommandeStatus.confirmed:
+        return 'Commande confirmée';
+      case CommandeStatus.preparing:
+        return 'Commande mise en préparation';
+      case CommandeStatus.ready:
+        return 'Commande déclarée prête';
+      case CommandeStatus.refused:
+        return 'Commande refusée';
+      case CommandeStatus.cancelled:
+        return AppLocalizations.of(context)!.orderCancelled;
+      default:
+        return 'Statut de commande mis à jour';
     }
   }
 
@@ -257,7 +273,11 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
     final statuses = [
       AppLocalizations.of(context)!.all,
       CommandeStatus.pending,
+      CommandeStatus.paid,
       CommandeStatus.confirmed,
+      CommandeStatus.preparing,
+      CommandeStatus.ready,
+      CommandeStatus.delivered,
       CommandeStatus.cancelled
     ];
     return SingleChildScrollView(
@@ -318,10 +338,30 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
     final isRestaurantView = widget.showRestaurantOrders;
 
     final bool isCancelled = status == CommandeStatus.cancelled;
-    final bool isConfirmed = status == CommandeStatus.confirmed;
     final bool isDelivered = status == CommandeStatus.delivered;
-    final bool canCancel = !isCancelled && !isConfirmed && !isDelivered;
-    final bool canConfirm = !isConfirmed && !isCancelled;
+    final bool canCancel = !isCancelled &&
+        !isDelivered &&
+        (!isRestaurantView ||
+            [
+              CommandeStatus.pending,
+              CommandeStatus.paid,
+              CommandeStatus.confirmed,
+              CommandeStatus.preparing,
+            ].contains(status));
+    String? nextRestaurantStatus;
+    String? nextRestaurantLabel;
+    if (isRestaurantView) {
+      if ([CommandeStatus.pending, CommandeStatus.paid].contains(status)) {
+        nextRestaurantStatus = CommandeStatus.confirmed;
+        nextRestaurantLabel = 'Confirmer';
+      } else if (status == CommandeStatus.confirmed) {
+        nextRestaurantStatus = CommandeStatus.preparing;
+        nextRestaurantLabel = 'Mettre en préparation';
+      } else if (status == CommandeStatus.preparing) {
+        nextRestaurantStatus = CommandeStatus.ready;
+        nextRestaurantLabel = 'Marquer prête';
+      }
+    }
     final dateStr = c.dateCommande.toLocal().toString().split(' ')[0];
 
     return Container(
@@ -413,34 +453,42 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
                             AppSpacing.md, 0, AppSpacing.md, AppSpacing.sm),
                         child: Row(
                           children: [
-                            if (!isConfirmed)
+                            if (nextRestaurantStatus != null)
                               Expanded(
                                 child: _PrimaryActionButton(
-                                  label: AppLocalizations.of(context)!
-                                      .user_orders_confirm,
+                                  label: nextRestaurantLabel!,
                                   icon: Icons.check_rounded,
                                   color: AppColors.success,
                                   onTap: () => updateStatus(
-                                      c.commandeID, CommandeStatus.confirmed),
+                                      c.commandeID, nextRestaurantStatus!),
                                 ),
                               ),
-                            if (!isConfirmed)
+                            if (nextRestaurantStatus != null)
                               const SizedBox(width: AppSpacing.xs),
-                            Expanded(
-                              child: _PrimaryActionButton(
-                                label: AppLocalizations.of(context)!.livreurs,
-                                icon: Icons.delivery_dining_rounded,
-                                color: AppColors.brand,
-                                onTap: () => _showAssignLivreur(c.commandeID),
+                            if (status == CommandeStatus.ready &&
+                                c.deliveryMode?.toUpperCase() != 'PICKUP')
+                              Expanded(
+                                child: Text(
+                                  'En attente d’un livreur',
+                                  style: AppTypography.labelMedium(
+                                      color: AppColors.brand),
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: AppSpacing.xs),
-                            _IconActionButton(
-                              icon: Icons.close_rounded,
-                              color: AppColors.error,
-                              onTap: () => updateStatus(
-                                  c.commandeID, CommandeStatus.cancelled),
-                            ),
+                            if (canCancel) ...[
+                              if (nextRestaurantStatus != null ||
+                                  (status == CommandeStatus.ready &&
+                                      c.deliveryMode?.toUpperCase() != 'PICKUP'))
+                                const SizedBox(width: AppSpacing.xs),
+                              _IconActionButton(
+                                icon: Icons.close_rounded,
+                                color: AppColors.error,
+                                onTap: () => updateStatus(
+                                    c.commandeID,
+                                    isRestaurantView
+                                        ? CommandeStatus.refused
+                                        : CommandeStatus.cancelled),
+                              ),
+                            ],
                             const SizedBox(width: AppSpacing.xs),
                             _IconActionButton(
                               icon: Icons.chat_rounded,
@@ -481,7 +529,7 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
                                         color: AppColors.brand)
                                     .copyWith(fontSize: 12)),
                           ),
-                          if (!isRestaurantView && isConfirmed) ...[
+                          if (!isRestaurantView && isDelivered) ...[
                             ElevatedButton.icon(
                               onPressed: () =>
                                   _showRate(c.commandeID, c.restauID),
@@ -622,14 +670,13 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
                       ),
                     ),
                     // ── Suivi livraison client ───────────────
-                    if (!isRestaurantView &&
-                        c.deliveryStatus != null &&
-                        c.deliveryStatus!.isNotEmpty)
+                    if (!isRestaurantView && !isCancelled)
                       Padding(
                         padding: const EdgeInsets.fromLTRB(
                             AppSpacing.md, 0, AppSpacing.md, AppSpacing.md),
                         child: _DeliveryTracker(
-                          status: c.deliveryStatus!,
+                          orderStatus: status,
+                          status: c.deliveryStatus,
                           lat: c.livreurLat,
                           lng: c.livreurLng,
                         ),
@@ -1048,9 +1095,14 @@ class _EmptyOrders extends StatelessWidget {
 // ═══════════════════════════════════════════════════════════
 
 class _ConfirmDialog extends StatelessWidget {
-  const _ConfirmDialog({required this.isConfirm, required this.commandeId});
+  const _ConfirmDialog({
+    required this.isConfirm,
+    required this.commandeId,
+    this.actionStatus,
+  });
   final bool isConfirm;
   final int commandeId;
+  final String? actionStatus;
 
   @override
   Widget build(BuildContext context) {
@@ -1058,6 +1110,26 @@ class _ConfirmDialog extends StatelessWidget {
     final color = isConfirm
         ? AppColors.resolve(AppColors.success, AppDarkColors.success)
         : AppColors.resolve(AppColors.error, AppDarkColors.error);
+    final action = actionStatus == CommandeStatus.preparing
+        ? 'Mettre en préparation'
+        : actionStatus == CommandeStatus.ready
+            ? 'Marquer prête'
+            : actionStatus == CommandeStatus.refused
+                ? 'Refuser'
+                : isConfirm
+                    ? AppLocalizations.of(context)!.user_orders_yes_confirm
+                    : AppLocalizations.of(context)!.user_orders_yes_cancel;
+    final prompt = actionStatus == CommandeStatus.preparing
+        ? 'Commencer la préparation de la commande #$commandeId ?'
+        : actionStatus == CommandeStatus.ready
+            ? 'La commande #$commandeId est-elle prête à être remise au livreur ?'
+            : actionStatus == CommandeStatus.refused
+                ? 'Refuser la commande #$commandeId ?'
+                : isConfirm
+                    ? AppLocalizations.of(context)!
+                        .user_orders_confirm_prompt(commandeId)
+                    : AppLocalizations.of(context)!
+                        .user_orders_cancel_prompt(commandeId);
     return AlertDialog(
       shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.xl)),
@@ -1070,17 +1142,16 @@ class _ConfirmDialog extends StatelessWidget {
             size: 22),
         const SizedBox(width: AppSpacing.sm),
         Text(
-            isConfirm
-                ? AppLocalizations.of(context)!.confirm
-                : AppLocalizations.of(context)!.cancel,
+            actionStatus == CommandeStatus.preparing ||
+                    actionStatus == CommandeStatus.ready
+                ? action
+                : isConfirm
+                    ? AppLocalizations.of(context)!.confirm
+                    : AppLocalizations.of(context)!.cancel,
             style: AppTypography.titleMedium(color: color)),
       ]),
       content: Text(
-        isConfirm
-            ? AppLocalizations.of(context)!
-                .user_orders_confirm_prompt(commandeId)
-            : AppLocalizations.of(context)!
-                .user_orders_cancel_prompt(commandeId),
+        prompt,
         style: AppTypography.bodyLarge(color: color),
       ),
       actions: [
@@ -1090,9 +1161,7 @@ class _ConfirmDialog extends StatelessWidget {
         ElevatedButton(
           onPressed: () => Navigator.pop(context, true),
           style: ElevatedButton.styleFrom(backgroundColor: color),
-          child: Text(isConfirm
-              ? AppLocalizations.of(context)!.user_orders_yes_confirm
-              : AppLocalizations.of(context)!.user_orders_yes_cancel),
+          child: Text(action),
         ),
       ],
     );
@@ -1210,34 +1279,60 @@ class _AssignLivreurDialog extends StatelessWidget {
 }
 
 class _DeliveryTracker extends StatelessWidget {
-  final String status;
+  final String orderStatus;
+  final String? status;
   final double? lat, lng;
-  const _DeliveryTracker({required this.status, this.lat, this.lng});
+  const _DeliveryTracker({
+    required this.orderStatus,
+    this.status,
+    this.lat,
+    this.lng,
+  });
 
-  static const _steps = ['assigned', 'picked_up', 'in_transit', 'delivered'];
   static List<String> _labels(BuildContext context) => [
         AppLocalizations.of(context)!.delivery_tracking_steps_preparation,
+        'Prête',
         AppLocalizations.of(context)!.delivery_tracking_steps_picked,
         AppLocalizations.of(context)!.delivery_tracking_steps_transit,
         AppLocalizations.of(context)!.delivery_tracking_steps_delivered,
       ];
   static const _icons = [
     Icons.restaurant_rounded,
+    Icons.inventory_2_rounded,
     Icons.shopping_bag_rounded,
     Icons.directions_bike_rounded,
     Icons.check_circle_rounded,
   ];
 
+  int _stepIndex() {
+    final order = CommandeStatus.normalize(orderStatus);
+    final delivery = status == null ? null : DeliveryStatus.normalize(status);
+    if (delivery == DeliveryStatus.delivered || order == CommandeStatus.delivered) {
+      return 4;
+    }
+    if (delivery == DeliveryStatus.inTransit) return 3;
+    if (delivery == DeliveryStatus.pickedUp) return 2;
+    if (delivery == DeliveryStatus.assigned ||
+        delivery == DeliveryStatus.atPickup ||
+        delivery == DeliveryStatus.searching ||
+        order == CommandeStatus.ready) return 1;
+    if (order == CommandeStatus.preparing || order == CommandeStatus.confirmed) {
+      return 0;
+    }
+    return -1;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final idx = _steps.indexOf(status);
-    final hasMap = status == 'in_transit' && lat != null && lng != null;
+    final idx = _stepIndex();
+    final hasMap = DeliveryStatus.normalize(status) == DeliveryStatus.inTransit &&
+        lat != null &&
+        lng != null;
 
     return Column(
       children: [
         Row(
-          children: List.generate(4, (i) {
+          children: List.generate(5, (i) {
             final done = i <= idx;
             return Expanded(
               child: Column(

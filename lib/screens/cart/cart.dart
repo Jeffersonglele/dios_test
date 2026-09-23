@@ -1,14 +1,10 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
-import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:geolocator/geolocator.dart';
 
-import '../../config/app_config.dart';
 import '../../l10n/app_localizations.dart';
 import '../../db/database_helper.dart';
 import '../../models/address.dart' as delivery;
@@ -464,8 +460,8 @@ class _CartState extends ConsumerState<Cart> {
   }
 
   String _countryFromCart(List<Map<String, dynamic>> items) {
-    if (items.isEmpty) return 'France';
-    return items.first['meal']['country']?.toString() ?? 'France';
+    if (items.isEmpty) return 'RDC';
+    return items.first['meal']['country']?.toString() ?? 'RDC';
   }
 
   String _currencyCode(String country) => CurrencyUtil.code(country);
@@ -1115,6 +1111,7 @@ class _CartState extends ConsumerState<Cart> {
         null,
         ref,
         currencyCode: cc,
+        country: country,
         reduction: discount,
         promoCode: _appliedPromo?.code,
         cityID: _userCityId,
@@ -1188,12 +1185,6 @@ class _CartState extends ConsumerState<Cart> {
     final discount = _appliedPromo?.discountAmount ?? 0.0;
     final total =
         (_subtotal(items) + fee - discount).clamp(0.0, double.infinity);
-    final currencyIso = country == 'CD'
-        ? 'CDF'
-        : CurrencyUtil.code(country).toUpperCase() == 'XOF'
-            ? 'XOF'
-            : 'EUR';
-
     setState(() => _isSubmittingPayment = true);
     try {
       final commandeId = await createOrder(
@@ -1203,6 +1194,7 @@ class _CartState extends ConsumerState<Cart> {
         null,
         ref,
         currencyCode: cc,
+        country: country,
         reduction: discount,
         promoCode: _appliedPromo?.code,
         cityID: _userCityId,
@@ -1216,24 +1208,17 @@ class _CartState extends ConsumerState<Cart> {
       final usersList = await Users.fetchUsersFromDB();
       final currentUser = Users.getUsersByUserId(usersList, session.userId);
 
-      final body = {
-        'amount': total,
-        'currency': currencyIso,
+      final response = await ParseCloudFunction('createIkeepayCheckout')
+          .execute(parameters: {
         'commandeID': int.tryParse(commandeId),
         'customerName':
             '${currentUser?.firstname ?? ""} ${currentUser?.lastname ?? ""}',
         'customerEmail': currentUser?.email ?? '',
         'customerPhone': currentUser?.telephone?.toString() ?? '',
-        'channels': 'ALL',
-      };
-      final response = await http.post(
-        Uri.parse('${AppConfig.vercelBackendUrl}/api/cinetpay-initiate'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(body),
-      );
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final paymentUrl = data['paymentUrl'] as String?;
+      });
+      if (response.success && response.result is Map) {
+        final data = Map<String, dynamic>.from(response.result as Map);
+        final paymentUrl = data['paymentUrl']?.toString();
         if (paymentUrl != null && paymentUrl.isNotEmpty) {
           final uri = Uri.parse(paymentUrl);
           if (await canLaunchUrl(uri)) {
@@ -1286,6 +1271,7 @@ class _CartState extends ConsumerState<Cart> {
     String? idPaiement,
     WidgetRef ref, {
     required String currencyCode,
+    required String country,
     required double reduction,
     required String deliveryMode,
     String? promoCode,
@@ -1328,6 +1314,7 @@ class _CartState extends ConsumerState<Cart> {
       "restaurantId": restaurantId,
       "id_restaurateur": currentRestaurant?.userID,
       "currency": currencyCode,
+      "country": country,
       "fraisLivraison": deliveryFee,
       "deliveryMode": deliveryMode,
       "reduction": reduction,

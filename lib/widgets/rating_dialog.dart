@@ -34,7 +34,7 @@ class _RatingDialogState extends State<RatingDialog> {
   int _note = 5;
   final _commentCtrl = TextEditingController();
   Set<String> _selectedTags = {};
-  String _country = 'France';
+  String _country = 'RDC';
 
   List<RatingTag> get _tags => tagsForTargetType(widget.targetType);
 

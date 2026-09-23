@@ -17,7 +17,7 @@ class PromotionsPage extends StatefulWidget {
 class _PromotionsPageState extends State<PromotionsPage> {
   List<Map<String, dynamic>> _promoCodes = [];
   bool _isLoading = true;
-  String _country = 'France';
+  String _country = 'RDC';
 
   @override
   void initState() {
