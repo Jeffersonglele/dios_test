@@ -40,6 +40,7 @@ class _PromotionsPageState extends State<PromotionsPage> {
 
   String _fmtDate(dynamic date) {
     if (date == null) return '—';
+    if (date is DateTime) return _fmtPickerDate(date.toLocal());
     if (date is Map && date['iso'] != null) {
       final dt = DateTime.tryParse(date['iso'])?.toLocal();
       if (dt != null) {
@@ -58,6 +59,14 @@ class _PromotionsPageState extends State<PromotionsPage> {
     }
     return date.toString();
   }
+
+  String _fmtPickerDate(DateTime date) =>
+      '${date.day.toString().padLeft(2, '0')}/'
+      '${date.month.toString().padLeft(2, '0')}/'
+      '${date.year}';
+
+  String _currencyAwareLabel(String label) =>
+      label.replaceAll('€', CurrencyUtil.symbol(_country));
 
   String _fmtDiscount(Map<String, dynamic> code) {
     final discountPercent = (code['discountPercent'] ?? 0).toDouble();
@@ -88,12 +97,14 @@ class _PromotionsPageState extends State<PromotionsPage> {
     final minOrderCtrl = TextEditingController(text: '0');
     final maxUsesCtrl = TextEditingController(text: '0');
     final descCtrl = TextEditingController();
+    final validFromCtrl = TextEditingController();
+    final validUntilCtrl = TextEditingController();
     String discountType = 'percentage';
     DateTime? validFrom;
     DateTime? validUntil;
     final formKey = GlobalKey<FormState>();
 
-    showModalBottomSheet(
+    final modalFuture = showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
@@ -185,7 +196,8 @@ class _PromotionsPageState extends State<PromotionsPage> {
                     decoration: InputDecoration(
                       labelText: discountType == 'percentage'
                           ? AppLocalizations.of(context)!.promo_value_percent
-                          : AppLocalizations.of(context)!.promo_value_fixed,
+                          : _currencyAwareLabel(
+                              AppLocalizations.of(context)!.promo_value_fixed),
                       prefixIcon:
                           const Icon(Icons.monetization_on_outlined, size: 20),
                     ),
@@ -213,7 +225,8 @@ class _PromotionsPageState extends State<PromotionsPage> {
                   TextFormField(
                     controller: minOrderCtrl,
                     decoration: InputDecoration(
-                      labelText: AppLocalizations.of(context)!.promo_min_order,
+                      labelText: _currencyAwareLabel(
+                          AppLocalizations.of(context)!.promo_min_order),
                       prefixIcon:
                           const Icon(Icons.shopping_cart_outlined, size: 20),
                       helperText: '0 = pas de minimum',
@@ -232,9 +245,10 @@ class _PromotionsPageState extends State<PromotionsPage> {
                   TextFormField(
                     controller: maxUsesCtrl,
                     decoration: InputDecoration(
-                      labelText: AppLocalizations.of(context)!.promo_max_uses,
+                      labelText:
+                          '${AppLocalizations.of(context)!.promo_max_uses} / utilisateur',
                       prefixIcon: const Icon(Icons.repeat_rounded, size: 20),
-                      helperText: '0 = illimité',
+                      helperText: '0 = illimité par utilisateur',
                     ),
                     keyboardType: TextInputType.number,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
@@ -261,22 +275,24 @@ class _PromotionsPageState extends State<PromotionsPage> {
                                   .add(const Duration(days: 365 * 5)),
                             );
                             if (picked != null) {
-                              setSheetState(() => validFrom = picked);
+                              setSheetState(() {
+                                validFrom = picked;
+                                validFromCtrl.text = _fmtPickerDate(picked);
+                              });
                             }
                           },
                           child: AbsorbPointer(
                             child: TextFormField(
+                              controller: validFromCtrl,
                               decoration: InputDecoration(
                                 labelText: AppLocalizations.of(context)!
                                     .promo_valid_from,
                                 prefixIcon: const Icon(Icons.date_range_rounded,
                                     size: 20),
-                                hintText: validFrom != null
-                                    ? '${validFrom!.day.toString().padLeft(2, '0')}/'
-                                        '${validFrom!.month.toString().padLeft(2, '0')}/'
-                                        '${validFrom!.year}'
-                                    : AppLocalizations.of(context)!
-                                        .promo_select_date,
+                                hintText: validFrom == null
+                                    ? AppLocalizations.of(context)!
+                                        .promo_select_date
+                                    : null,
                               ),
                             ),
                           ),
@@ -295,22 +311,24 @@ class _PromotionsPageState extends State<PromotionsPage> {
                                   .add(const Duration(days: 365 * 5)),
                             );
                             if (picked != null) {
-                              setSheetState(() => validUntil = picked);
+                              setSheetState(() {
+                                validUntil = picked;
+                                validUntilCtrl.text = _fmtPickerDate(picked);
+                              });
                             }
                           },
                           child: AbsorbPointer(
                             child: TextFormField(
+                              controller: validUntilCtrl,
                               decoration: InputDecoration(
                                 labelText: AppLocalizations.of(context)!
                                     .promo_valid_until,
                                 prefixIcon:
                                     const Icon(Icons.event_rounded, size: 20),
-                                hintText: validUntil != null
-                                    ? '${validUntil!.day.toString().padLeft(2, '0')}/'
-                                        '${validUntil!.month.toString().padLeft(2, '0')}/'
-                                        '${validUntil!.year}'
-                                    : AppLocalizations.of(context)!
-                                        .promo_select_date,
+                                hintText: validUntil == null
+                                    ? AppLocalizations.of(context)!
+                                        .promo_select_date
+                                    : null,
                               ),
                             ),
                           ),
@@ -395,6 +413,10 @@ class _PromotionsPageState extends State<PromotionsPage> {
         ),
       ),
     );
+    modalFuture.whenComplete(() {
+      validFromCtrl.dispose();
+      validUntilCtrl.dispose();
+    });
   }
 
   void _confirmDelete(String code) async {
@@ -461,7 +483,7 @@ class _PromotionsPageState extends State<PromotionsPage> {
                 const SizedBox(height: AppSpacing.md),
                 TextFormField(
                   controller: discountValueCtrl,
-                  decoration: InputDecoration(labelText: discountType == 'percentage' ? l10n.promo_value_percent : l10n.promo_value_fixed, prefixIcon: const Icon(Icons.monetization_on_outlined, size: 20)),
+                  decoration: InputDecoration(labelText: discountType == 'percentage' ? l10n.promo_value_percent : _currencyAwareLabel(l10n.promo_value_fixed), prefixIcon: const Icon(Icons.monetization_on_outlined, size: 20)),
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d.]'))],
                   validator: (v) {
@@ -473,11 +495,11 @@ class _PromotionsPageState extends State<PromotionsPage> {
                   },
                 ),
                 const SizedBox(height: AppSpacing.md),
-                TextFormField(controller: minOrderCtrl, decoration: InputDecoration(labelText: l10n.promo_min_order, prefixIcon: const Icon(Icons.shopping_cart_outlined, size: 20)), keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly], validator: (v) {
+                TextFormField(controller: minOrderCtrl, decoration: InputDecoration(labelText: _currencyAwareLabel(l10n.promo_min_order), prefixIcon: const Icon(Icons.shopping_cart_outlined, size: 20)), keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly], validator: (v) {
                   if (v != null && v.trim().isNotEmpty) { final n = int.tryParse(v.trim()); if (n == null || n < 0) return 'Nombre (≥ 0)'; } return null;
                 }),
                 const SizedBox(height: AppSpacing.md),
-                TextFormField(controller: maxUsesCtrl, decoration: InputDecoration(labelText: l10n.promo_max_uses, prefixIcon: const Icon(Icons.repeat_rounded, size: 20)), keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly], validator: (v) {
+                TextFormField(controller: maxUsesCtrl, decoration: InputDecoration(labelText: '${l10n.promo_max_uses} / utilisateur', prefixIcon: const Icon(Icons.repeat_rounded, size: 20)), keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly], validator: (v) {
                   if (v != null && v.trim().isNotEmpty) { final n = int.tryParse(v.trim()); if (n == null || n < 0) return 'Nombre (≥ 0)'; } return null;
                 }),
                 const SizedBox(height: AppSpacing.md),
@@ -722,7 +744,7 @@ class _PromotionsPageState extends State<PromotionsPage> {
                                             AppDarkColors.inkSubtle)),
                                     const SizedBox(width: 4),
                                     Text(
-                                      'Utilisations max: ${code['maxUses']}',
+                                      'Utilisations max par utilisateur: ${code['maxUses']}',
                                       style: AppTypography.bodySmall(
                                           color: AppColors.resolve(
                                               AppColors.inkMuted,

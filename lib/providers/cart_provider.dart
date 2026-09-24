@@ -8,6 +8,7 @@ import '../models/users.dart';
 import '../models/address.dart' as addr;
 import '../services/session_service.dart';
 import '../services/delivery_availability_service.dart';
+import '../services/cart_sync_service.dart';
 
 class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
   CartNotifier() : super([]) {
@@ -40,9 +41,9 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
     await activateUser(session.userId);
   }
 
-  /// Charge uniquement le panier du compte actif sur cet appareil.
-  /// Les paniers restent privés même après déconnexion / reconnexion.
-  Future<void> activateUser(int userId) async {
+  /// Charge le panier du compte actif. Parse est la source partagée entre les
+  /// appareils et SharedPreferences reste un cache de secours hors connexion.
+  Future<void> activateUser(int userId, {bool refreshRemote = false}) async {
     final version = ++_activationVersion;
     if (userId <= 0) {
       _activeUserId = null;
@@ -51,7 +52,17 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
       state = [];
       return;
     }
-    if (_activeUserId == userId && _loadedUserId == userId) return;
+    if (_activeUserId == userId && _loadedUserId == userId) {
+      if (!refreshRemote) return;
+      final remote = await CartSyncService.loadCart();
+      if (version != _activationVersion) return;
+      if (remote?.exists == true) {
+        state = List<Map<String, dynamic>>.from(remote!.items);
+        total = _calculateTotal(state);
+        await _saveCart(syncRemote: false);
+      }
+      return;
+    }
 
     await _saveCart();
     if (version != _activationVersion) return;
@@ -87,6 +98,19 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
     total = _calculateTotal(restored);
     _loadedUserId = userId;
     state = restored;
+
+    // Un panier déjà enregistré sur Parse doit être visible sur un nouvel
+    // appareil. Si aucune copie serveur n'existe encore, on migre la copie
+    // locale pour ne pas perdre un panier créé avant cette synchronisation.
+    final remote = await CartSyncService.loadCart();
+    if (version != _activationVersion) return;
+    if (remote?.exists == true) {
+      state = List<Map<String, dynamic>>.from(remote!.items);
+      total = _calculateTotal(state);
+      await _saveCart(syncRemote: false);
+    } else if (remote != null && restored.isNotEmpty) {
+      await _saveCart();
+    }
   }
 
   List<Map<String, dynamic>> _deserializeCart(String? saved, int userId) {
@@ -293,12 +317,15 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
     _saveCart();
   }
 
-  Future<void> _saveCart() async {
+  Future<void> _saveCart({bool syncRemote = true}) async {
     final userId = _activeUserId;
     if (userId == null || userId <= 0) return;
     final snapshot = List<Map<String, dynamic>>.from(state);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_storageKey(userId), jsonEncode(snapshot));
+    if (syncRemote) {
+      await CartSyncService.saveCart(snapshot);
+    }
   }
 
   Future<void> clearCart() async {

@@ -27,17 +27,28 @@ class PromoService {
       final response = await cloudFunction.execute(parameters: {
         'code': code,
         'subtotal': subtotal,
+        'orderAmount': subtotal,
         'deliveryFee': deliveryFee,
       });
 
       if (response.success && response.result != null) {
         final result = response.result as Map<String, dynamic>;
         if (result['success'] == true) {
+          final serverDiscount =
+              (result['discountAmount'] ?? result['discount']) as num?;
+          final percent =
+              (result['discountPercent'] as num?)?.toDouble() ?? 0.0;
+          final fixed =
+              (result['discountFixed'] as num?)?.toDouble() ?? 0.0;
+          final discountAmount = (serverDiscount?.toDouble() ??
+                  (percent > 0 ? subtotal * percent / 100 : fixed)
+                      .clamp(0.0, subtotal))
+              .toDouble();
+          if (discountAmount <= 0) return null;
           return PromoApplication(
             code: result['code']?.toString() ?? code,
             description: result['description']?.toString() ?? 'Promotion',
-            discountAmount:
-                (result['discountAmount'] as num?)?.toDouble() ?? 0,
+            discountAmount: discountAmount,
           );
         }
       }

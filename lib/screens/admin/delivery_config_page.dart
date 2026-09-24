@@ -25,8 +25,8 @@ class _DeliveryConfigPageState extends State<DeliveryConfigPage> {
   int _currentBaseFee = 1500;
   int _currentPerKm = 300;
   int _currentCommissionRate = 15;
-  int _currentDelivererBasePay = 500;
-  int _currentDelivererPerKm = 200;
+  int _currentDelivererBasePay = 1500;
+  int _currentDelivererPerKm = 300;
   String _currency = 'CDF';
 
   @override
@@ -58,9 +58,9 @@ class _DeliveryConfigPageState extends State<DeliveryConfigPage> {
           final commissionRate =
               (data['commissionRate'] as num?)?.toInt() ?? 15;
           final delivererBasePay =
-              (data['delivererBasePay'] as num?)?.toInt() ?? 500;
+          (data['delivererBasePay'] as num?)?.toInt() ?? 1500;
           final delivererPerKm =
-              (data['delivererPerKm'] as num?)?.toInt() ?? 200;
+          (data['delivererPerKm'] as num?)?.toInt() ?? 300;
           _currentBaseFee = baseFee;
           _currentPerKm = perKmRate;
           _currentCommissionRate = commissionRate;

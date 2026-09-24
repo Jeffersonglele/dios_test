@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:math' as math;
+
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
@@ -48,6 +50,9 @@ class _CartState extends ConsumerState<Cart> {
   bool _isUsingCurrentLocation = false;
   DeliveryAvailability? _cartDeliveryAvailability;
   RestaurantOpeningStatus? _cartOpeningStatus;
+  double? _calculatedDeliveryFee;
+  String? _deliveryFeeKey;
+  int _deliveryFeeRequestId = 0;
 
   delivery.Address? selectedAddress;
   List<delivery.Address> addresses = [];
@@ -93,7 +98,9 @@ class _CartState extends ConsumerState<Cart> {
 
   Future<void> loadData() async {
     final session = await SessionService.readSession();
-    await ref.read(cartStateProvider.notifier).activateUser(session.userId);
+    await ref
+        .read(cartStateProvider.notifier)
+        .activateUser(session.userId, refreshRemote: true);
     final addressesList = await delivery.Address.fetchAddressesFromDB();
     if (!mounted) return;
     setState(() {
@@ -420,25 +427,57 @@ class _CartState extends ConsumerState<Cart> {
     if (cartItems.isEmpty) return 0.0;
     final restaurant = cartItems.first['restaurant'] as Map<String, dynamic>?;
     final fee = restaurant?['delivery_fee'];
-    if (fee is num) return fee.toDouble();
-    return double.tryParse(fee?.toString() ?? '0') ?? 0.0;
+    if (fee is num && fee > 0) return fee.toDouble();
+    final parsed = double.tryParse(fee?.toString() ?? '') ?? 0.0;
+    return parsed > 0 ? parsed : 2000.0;
+  }
+
+  Future<double> _configuredDeliveryFeeFallback(
+      List<Map<String, dynamic>> cartItems) async {
+    final restaurantFee = _staticDeliveryFee(cartItems);
+    try {
+      final response = await ParseCloudFunction('getDeliveryConfig').execute();
+      if (response.success && response.result is Map) {
+        final data = Map<String, dynamic>.from(response.result as Map);
+        final baseFee = (data['baseFee'] as num?)?.toDouble() ?? 2000;
+        final increment =
+            (data['roundingIncrement'] as num?)?.toDouble() ?? 50;
+        final minFee = (data['minFee'] as num?)?.toDouble() ?? 0;
+        final roundedBase = (baseFee / math.max(1, increment)).ceil() *
+            math.max(1, increment);
+        return math.max(
+          roundedBase,
+          minFee > 0 ? minFee : baseFee,
+        ).toDouble();
+      }
+    } catch (_) {}
+
+    // Compatibilité avec les anciens restaurants qui possèdent encore un
+    // tarif local. Si ce tarif est absent, le défaut Parse est 2 000 FCFA.
+    return restaurantFee > 0 ? restaurantFee : 2000.0;
   }
 
   Future<double> calculateDeliveryFee(
       List<Map<String, dynamic>> cartItems) async {
     if (cartItems.isEmpty) return _staticDeliveryFee(cartItems);
-    if (selectedAddress == null) return _staticDeliveryFee(cartItems);
+    if (selectedAddress == null) {
+      return _configuredDeliveryFeeFallback(cartItems);
+    }
 
     final dlvLat = double.tryParse(selectedAddress!.lat ?? '');
     final dlvLng = double.tryParse(selectedAddress!.long ?? '');
-    if (dlvLat == null || dlvLng == null) return _staticDeliveryFee(cartItems);
+    if (dlvLat == null || dlvLng == null) {
+      return _configuredDeliveryFeeFallback(cartItems);
+    }
 
     final resto = cartItems.first['restaurant'] as Map<String, dynamic>?;
-    if (resto == null) return _staticDeliveryFee(cartItems);
+    if (resto == null) return _configuredDeliveryFeeFallback(cartItems);
 
-    final rstLat = (resto['restau_lat'] as num?)?.toDouble();
-    final rstLng = (resto['restau_lng'] as num?)?.toDouble();
-    if (rstLat == null || rstLng == null) return _staticDeliveryFee(cartItems);
+    final rstLat = double.tryParse(resto['restau_lat']?.toString() ?? '');
+    final rstLng = double.tryParse(resto['restau_lng']?.toString() ?? '');
+    if (rstLat == null || rstLng == null) {
+      return _configuredDeliveryFeeFallback(cartItems);
+    }
 
     try {
       final fn = ParseCloudFunction('calculateDeliveryFee');
@@ -456,7 +495,41 @@ class _CartState extends ConsumerState<Cart> {
       }
     } catch (_) {}
 
-    return _staticDeliveryFee(cartItems);
+    return _configuredDeliveryFeeFallback(cartItems);
+  }
+
+  String _deliveryFeeCacheKey(List<Map<String, dynamic>> cartItems) {
+    final restaurant = cartItems.first['restaurant'] as Map<String, dynamic>?;
+    return [
+      restaurant?['restau_id'],
+      selectedAddress?.addressID,
+      selectedAddress?.lat,
+      selectedAddress?.long,
+      _subtotal(cartItems),
+    ].join('|');
+  }
+
+  void _ensureDisplayedDeliveryFee(List<Map<String, dynamic>> cartItems,
+      String deliveryMode) {
+    if (deliveryMode != kDeliveryOptionLivraison || cartItems.isEmpty) {
+      _deliveryFeeKey = null;
+      _calculatedDeliveryFee = null;
+      return;
+    }
+
+    final key = _deliveryFeeCacheKey(cartItems);
+    if (_deliveryFeeKey == key && _calculatedDeliveryFee != null) return;
+
+    _deliveryFeeKey = key;
+    _calculatedDeliveryFee = null;
+    final requestId = ++_deliveryFeeRequestId;
+    calculateDeliveryFee(cartItems).then((fee) {
+      if (!mounted || requestId != _deliveryFeeRequestId ||
+          _deliveryFeeKey != key) {
+        return;
+      }
+      setState(() => _calculatedDeliveryFee = fee);
+    });
   }
 
   String _countryFromCart(List<Map<String, dynamic>> items) {
@@ -542,8 +615,9 @@ class _CartState extends ConsumerState<Cart> {
     final country = _countryFromCart(cartItems);
     final cc = _currencyCode(country);
     final cs = _currencySymbol(country);
+    _ensureDisplayedDeliveryFee(cartItems, safeOption);
     final deliveryFee = safeOption == kDeliveryOptionLivraison
-        ? _staticDeliveryFee(cartItems)
+        ? (_calculatedDeliveryFee ?? _staticDeliveryFee(cartItems))
         : 0.0;
     final cartTotal = _subtotal(cartItems);
     final reduction = _appliedPromo?.discountAmount ?? 0.0;

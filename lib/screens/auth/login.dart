@@ -259,7 +259,7 @@ class _LoginState extends ConsumerState<Login> {
     try {
       final user = await _findUser();
       if (user == null) {
-        _onLoginFailed();
+        _onLoginFailed(Users.lastLoginError);
         return;
       }
 
@@ -419,13 +419,19 @@ class _LoginState extends ConsumerState<Login> {
                 )));
   }
 
-  void _onLoginFailed() {
+  void _onLoginFailed([String? reason]) {
     if (!mounted) return;
     setState(() {
       _isLoading = false;
       _loginFailed = true;
     });
-    Toast(context, AppLocalizations.of(context)!.login_failed, false);
+    Toast(
+      context,
+      reason?.trim().isNotEmpty == true
+          ? reason!.trim()
+          : AppLocalizations.of(context)!.login_failed,
+      false,
+    );
   }
 
   String _indicatif(String c) {

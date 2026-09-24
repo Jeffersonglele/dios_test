@@ -16,6 +16,10 @@ part 'users.g.dart';
 
 @HiveType(typeId: 0)
 class Users extends HiveObject {
+  /// Dernière erreur d'authentification serveur, utilisée uniquement pour
+  /// afficher un diagnostic utile à l'écran de connexion.
+  static String? lastLoginError;
+
   @HiveField(0)
   final int userID;
 
@@ -618,6 +622,7 @@ class Users extends HiveObject {
   }
 
   static Future<Users?> loginUser(String login, String password) async {
+    lastLoginError = null;
     try {
       final cloudFunction = ParseCloudFunction('loginUser');
       final passwordHash = await encryptPassword(password);
@@ -627,7 +632,12 @@ class Users extends HiveObject {
         'passwordHash': passwordHash,
       });
 
-      if (response.success && response.result != null) {
+      if (!response.success) {
+        lastLoginError = response.error?.message;
+        return null;
+      }
+
+      if (response.result != null) {
         final result = response.result as Map<String, dynamic>;
         if (result['success'] == true && result['user'] != null) {
           final user = Users.fromMap(result['user']);
@@ -649,6 +659,7 @@ class Users extends HiveObject {
           }
 
           if (!sessionReady) {
+            lastLoginError = 'Session Parse impossible à ouvrir.';
             return null;
           }
 
@@ -660,9 +671,14 @@ class Users extends HiveObject {
           }
           return user;
         }
+        lastLoginError = result['error']?.toString() ??
+            'Identifiant ou mot de passe incorrect.';
+      } else {
+        lastLoginError = 'Réponse vide du serveur.';
       }
       return null;
     } catch (e) {
+      lastLoginError = e.toString().replaceFirst('Exception: ', '');
       return null;
     }
   }
