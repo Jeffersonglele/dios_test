@@ -43,7 +43,7 @@ dependencies:
   geolocator: ^9.0.2
   geocoding: ^2.2.2
   twilio_flutter: ^0.9.0
-  file_picker: ^8.0.6  # Version réactivée et mise à jour
+  file_picker: ^8.0.6 
   cached_network_image: ^3.3.1
   syncfusion_flutter_pdfviewer: ^33.2.4
   fl_chart: ^0.69.2
@@ -73,7 +73,7 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/images/app_icon_plain.png"
+  image_path: "assets/images/logo_app.png"
   adaptive_icon_background: "#C84C2F"
   remove_alpha_ios: true
 
@@ -104,6 +104,8 @@ flutter:
     - assets/images/onboarding/slide1.png
     - assets/images/onboarding/slide2.png
     - assets/images/onboarding/slide3.png
+    - assets/images/onboarding/slideX_accent.png
+    - assets/images/logo_app.png
     - assets/images/meals/pancakes.png
     - assets/images/meals/soda.png
     - assets/images/meals/beef_steak.jpeg
