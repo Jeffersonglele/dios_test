@@ -76,20 +76,28 @@ class _LivreurFichePageState extends State<LivreurFichePage> {
 
   IconData _vehicleIcon(String? type) {
     switch (type?.toLowerCase()) {
-      case 'moto': return Icons.motorcycle_rounded;
-      case 'velo': return Icons.pedal_bike_rounded;
-      case 'voiture': return Icons.directions_car_rounded;
-      default: return Icons.delivery_dining_rounded;
+      case 'moto':
+        return Icons.motorcycle_rounded;
+      case 'velo':
+        return Icons.pedal_bike_rounded;
+      case 'voiture':
+        return Icons.directions_car_rounded;
+      default:
+        return Icons.delivery_dining_rounded;
     }
   }
 
   String _vehicleLabel(String? type) {
     final l10n = AppLocalizations.of(context)!;
     switch (type?.toLowerCase()) {
-      case 'moto': return l10n.livreur_vehicle_moto;
-      case 'velo': return l10n.livreur_vehicle_bike;
-      case 'voiture': return l10n.livreur_vehicle_car;
-      default: return l10n.livreur_vehicle_unspecified;
+      case 'moto':
+        return l10n.livreur_vehicle_moto;
+      case 'velo':
+        return l10n.livreur_vehicle_bike;
+      case 'voiture':
+        return l10n.livreur_vehicle_car;
+      default:
+        return l10n.livreur_vehicle_unspecified;
     }
   }
 
@@ -102,7 +110,8 @@ class _LivreurFichePageState extends State<LivreurFichePage> {
     } else {
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => _FullScreenImageViewer(imageUrl: fileUrl)),
+        MaterialPageRoute(
+            builder: (_) => _FullScreenImageViewer(imageUrl: fileUrl)),
       );
     }
   }
@@ -123,11 +132,16 @@ class _LivreurFichePageState extends State<LivreurFichePage> {
             _livreur?.identity = 'Verified';
           }
         });
-        Toast(context, AppLocalizations.of(context)!.livreur_document_validated, true);
+        Toast(context, AppLocalizations.of(context)!.livreur_document_validated,
+            true);
         _load();
       }
     } catch (_) {
-      if (mounted) Toast(context, AppLocalizations.of(context)!.livreur_document_validate_error, false);
+      if (mounted)
+        Toast(
+            context,
+            AppLocalizations.of(context)!.livreur_document_validate_error,
+            false);
     }
   }
 
@@ -141,9 +155,11 @@ class _LivreurFichePageState extends State<LivreurFichePage> {
         ),
         title: Row(children: [
           Container(
-            width: 32, height: 32,
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
-              color: AppColors.errorLight,
+              color: AppColors.resolve(
+                  AppColors.errorLight, AppDarkColors.errorLight),
               borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
             child: const Icon(Icons.error_rounded,
@@ -151,23 +167,29 @@ class _LivreurFichePageState extends State<LivreurFichePage> {
           ),
           const SizedBox(width: 10),
           Text(AppLocalizations.of(context)!.livreur_document_reject_title,
-              style: AppTypography.titleMedium()),
+              style: AppTypography.titleMedium(
+                  color: AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
         ]),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(AppLocalizations.of(context)!.livreur_document_reject_hint,
-                style: AppTypography.bodyLarge()),
+                style: AppTypography.bodyLarge(
+                    color:
+                        AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
             const SizedBox(height: 12),
             TextField(
               controller: remarkCtrl,
               maxLines: 3,
               decoration: InputDecoration(
-                hintText: AppLocalizations.of(context)!.livreur_document_reject_hint,
+                hintText:
+                    AppLocalizations.of(context)!.livreur_document_reject_hint,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppRadius.md),
-                  borderSide: const BorderSide(color: AppColors.border),
+                  borderSide: BorderSide(
+                      color: AppColors.resolve(
+                          AppColors.border, AppDarkColors.border)),
                 ),
               ),
             ),
@@ -177,7 +199,9 @@ class _LivreurFichePageState extends State<LivreurFichePage> {
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: Text(AppLocalizations.of(context)!.cancel,
-                style: AppTypography.labelMedium(color: AppColors.inkMuted)),
+                style: AppTypography.labelMedium(
+                    color: AppColors.resolve(
+                        AppColors.inkMuted, AppDarkColors.inkMuted))),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -188,7 +212,8 @@ class _LivreurFichePageState extends State<LivreurFichePage> {
               Navigator.pop(ctx);
               _rejectDocument(type, remarkCtrl.text);
             },
-            child: Text('${AppLocalizations.of(context)!.confirm} ${AppLocalizations.of(context)!.reject}'),
+            child: Text(
+                '${AppLocalizations.of(context)!.confirm} ${AppLocalizations.of(context)!.reject}'),
           ),
         ],
       ),
@@ -212,11 +237,14 @@ class _LivreurFichePageState extends State<LivreurFichePage> {
             _livreur?.identity = 'Rejected';
           }
         });
-        Toast(context, AppLocalizations.of(context)!.livreur_document_rejected, false);
+        Toast(context, AppLocalizations.of(context)!.livreur_document_rejected,
+            false);
         _load();
       }
     } catch (_) {
-      if (mounted) Toast(context, AppLocalizations.of(context)!.livreur_document_reject_error, false);
+      if (mounted)
+        Toast(context,
+            AppLocalizations.of(context)!.livreur_document_reject_error, false);
     }
   }
 
@@ -230,9 +258,11 @@ class _LivreurFichePageState extends State<LivreurFichePage> {
         ),
         title: Row(children: [
           Container(
-            width: 32, height: 32,
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
-              color: AppColors.successLight,
+              color: AppColors.resolve(
+                  AppColors.successLight, AppDarkColors.successLight),
               borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
             child: const Icon(Icons.verified_rounded,
@@ -240,17 +270,21 @@ class _LivreurFichePageState extends State<LivreurFichePage> {
           ),
           const SizedBox(width: 10),
           Text('${l10n.validate} $label',
-              style: AppTypography.titleMedium()),
+              style: AppTypography.titleMedium(
+                  color: AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
         ]),
         content: Text(
           '${l10n.confirm} ${l10n.livreur_document_validated.toLowerCase()} $label ${_livreur?.firstname} ${_livreur?.lastname} ?',
-          style: AppTypography.bodyLarge(),
+          style: AppTypography.bodyLarge(
+              color: AppColors.resolve(AppColors.ink, AppDarkColors.ink)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: Text(AppLocalizations.of(ctx)!.cancel,
-                style: AppTypography.labelMedium(color: AppColors.inkMuted)),
+                style: AppTypography.labelMedium(
+                    color: AppColors.resolve(
+                        AppColors.inkMuted, AppDarkColors.inkMuted))),
           ),
           ElevatedButton(
             onPressed: () {
@@ -269,24 +303,30 @@ class _LivreurFichePageState extends State<LivreurFichePage> {
     final l10n = AppLocalizations.of(context)!;
     if (_isLoading) {
       return Scaffold(
-        backgroundColor: AppColors.surface,
+        backgroundColor:
+            AppColors.resolve(AppColors.surface, AppDarkColors.surface),
         appBar: AppBar(title: Text(l10n.livreur_fiche_title)),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
     if (_livreur == null) {
       return Scaffold(
-        backgroundColor: AppColors.surface,
+        backgroundColor:
+            AppColors.resolve(AppColors.surface, AppDarkColors.surface),
         appBar: AppBar(title: Text(l10n.livreur_fiche_title)),
         body: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(Icons.person_off_rounded,
-                  size: 64, color: AppColors.inkSubtle),
+                  size: 64,
+                  color: AppColors.resolve(
+                      AppColors.inkSubtle, AppDarkColors.inkSubtle)),
               const SizedBox(height: 12),
               Text(l10n.livreur_not_found,
-                  style: AppTypography.bodyLarge(color: AppColors.inkMuted)),
+                  style: AppTypography.bodyLarge(
+                      color: AppColors.resolve(
+                          AppColors.inkMuted, AppDarkColors.inkMuted))),
             ],
           ),
         ),
@@ -300,7 +340,8 @@ class _LivreurFichePageState extends State<LivreurFichePage> {
     final identityPending = !identityOk && livreur.identity != 'Rejected';
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor:
+          AppColors.resolve(AppColors.surface, AppDarkColors.surface),
       appBar: AppBar(
         title: Text(AppLocalizations.of(context)!.livreur_fiche_title),
         actions: [
@@ -341,22 +382,27 @@ class _LivreurFichePageState extends State<LivreurFichePage> {
         child: Column(
           children: [
             Container(
-              width: 80, height: 80,
+              width: 80,
+              height: 80,
               decoration: BoxDecoration(
-                color: AppColors.brandSurface,
+                color: AppColors.resolve(
+                    AppColors.brandSurface, AppDarkColors.brandSurface),
                 shape: BoxShape.circle,
               ),
               child: Center(
                 child: Icon(
                   _vehicleIcon(livreur.permisType),
-                  color: AppColors.brand, size: 40,
+                  color:
+                      AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+                  size: 40,
                 ),
               ),
             ),
             const SizedBox(height: 12),
             Text(
               '${livreur.firstname} ${livreur.lastname}',
-              style: AppTypography.titleLarge(),
+              style: AppTypography.titleLarge(
+                  color: AppColors.resolve(AppColors.ink, AppDarkColors.ink)),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 4),
@@ -365,10 +411,15 @@ class _LivreurFichePageState extends State<LivreurFichePage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(Icons.email_outlined,
-                    size: 14, color: AppColors.inkMuted),
+                    size: 14,
+                    color: AppColors.resolve(
+                        AppColors.inkMuted, AppDarkColors.inkMuted)),
                 const SizedBox(width: 4),
                 Text(livreur.email,
-                    style: AppTypography.bodyMedium().copyWith(fontSize: 13)),
+                    style: AppTypography.bodyMedium(
+                            color: AppColors.resolve(
+                                AppColors.ink, AppDarkColors.ink))
+                        .copyWith(fontSize: 13)),
               ],
             ),
             const SizedBox(height: 2),
@@ -377,10 +428,15 @@ class _LivreurFichePageState extends State<LivreurFichePage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(Icons.phone_outlined,
-                    size: 14, color: AppColors.inkMuted),
+                    size: 14,
+                    color: AppColors.resolve(
+                        AppColors.inkMuted, AppDarkColors.inkMuted)),
                 const SizedBox(width: 4),
                 Text(livreur.telephone,
-                    style: AppTypography.bodyMedium().copyWith(fontSize: 13)),
+                    style: AppTypography.bodyMedium(
+                            color: AppColors.resolve(
+                                AppColors.ink, AppDarkColors.ink))
+                        .copyWith(fontSize: 13)),
               ],
             ),
             const SizedBox(height: 2),
@@ -389,10 +445,15 @@ class _LivreurFichePageState extends State<LivreurFichePage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(Icons.public_outlined,
-                    size: 14, color: AppColors.inkMuted),
+                    size: 14,
+                    color: AppColors.resolve(
+                        AppColors.inkMuted, AppDarkColors.inkMuted)),
                 const SizedBox(width: 4),
                 Text(livreur.country,
-                    style: AppTypography.bodyMedium().copyWith(fontSize: 13)),
+                    style: AppTypography.bodyMedium(
+                            color: AppColors.resolve(
+                                AppColors.ink, AppDarkColors.ink))
+                        .copyWith(fontSize: 13)),
               ],
             ),
           ],
@@ -414,7 +475,10 @@ class _LivreurFichePageState extends State<LivreurFichePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(l10n.livreur_stats, style: AppTypography.titleMedium()),
+            Text(l10n.livreur_stats,
+                style: AppTypography.titleMedium(
+                    color:
+                        AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
             const SizedBox(height: 12),
             Wrap(
               spacing: 8,
@@ -422,21 +486,51 @@ class _LivreurFichePageState extends State<LivreurFichePage> {
               children: [
                 _statusChip(
                   icon: isOnline ? Icons.circle : Icons.circle_outlined,
-                  label: isOnline ? l10n.delivery_online : l10n.delivery_offline,
-                  color: isOnline ? AppColors.success : AppColors.inkSubtle,
-                  bgColor: isOnline ? AppColors.successLight : AppColors.surfaceWarm,
+                  label:
+                      isOnline ? l10n.delivery_online : l10n.delivery_offline,
+                  color: isOnline
+                      ? AppColors.resolve(
+                          AppColors.success, AppDarkColors.success)
+                      : AppColors.resolve(
+                          AppColors.inkSubtle, AppDarkColors.inkSubtle),
+                  bgColor: isOnline
+                      ? AppColors.resolve(
+                          AppColors.successLight, AppDarkColors.successLight)
+                      : AppColors.resolve(
+                          AppColors.surfaceWarm, AppDarkColors.surfaceWarm),
                 ),
                 _statusChip(
-                  icon: permisOk ? Icons.check_circle_rounded : Icons.schedule_rounded,
-                  label: '${l10n.livreur_license} ${permisOk ? l10n.livreur_validated : l10n.livreur_pending}',
-                  color: permisOk ? AppColors.success : AppColors.accent,
-                  bgColor: permisOk ? AppColors.successLight : AppColors.accentLight,
+                  icon: permisOk
+                      ? Icons.check_circle_rounded
+                      : Icons.schedule_rounded,
+                  label:
+                      '${l10n.livreur_license} ${permisOk ? l10n.livreur_validated : l10n.livreur_pending}',
+                  color: permisOk
+                      ? AppColors.resolve(
+                          AppColors.success, AppDarkColors.success)
+                      : AppColors.accent,
+                  bgColor: permisOk
+                      ? AppColors.resolve(
+                          AppColors.successLight, AppDarkColors.successLight)
+                      : AppColors.resolve(
+                          AppColors.accentLight, AppDarkColors.accentLight),
                 ),
                 _statusChip(
-                  icon: identityOk ? Icons.check_circle_rounded : Icons.schedule_rounded,
-                  label: '${l10n.livreur_id_card} ${identityOk ? l10n.livreur_validated : l10n.livreur_pending}',
-                  color: identityOk ? AppColors.success : AppColors.accent,
-                  bgColor: identityOk ? AppColors.successLight : AppColors.accentLight,
+                  icon: identityOk
+                      ? Icons.check_circle_rounded
+                      : Icons.schedule_rounded,
+                  label:
+                      '${l10n.livreur_id_card} ${identityOk ? l10n.livreur_validated : l10n.livreur_pending}',
+                  color: identityOk
+                      ? AppColors.resolve(
+                          AppColors.success, AppDarkColors.success)
+                      : AppColors.resolve(
+                          AppColors.accent, AppDarkColors.accent),
+                  bgColor: identityOk
+                      ? AppColors.resolve(
+                          AppColors.successLight, AppDarkColors.successLight)
+                      : AppColors.resolve(
+                          AppColors.accentLight, AppDarkColors.accentLight),
                 ),
               ],
             ),
@@ -465,7 +559,8 @@ class _LivreurFichePageState extends State<LivreurFichePage> {
           const SizedBox(width: 6),
           Text(label,
               style: TextStyle(
-                fontSize: 12, fontWeight: FontWeight.w600,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
                 color: color,
               )),
         ],
@@ -483,7 +578,9 @@ class _LivreurFichePageState extends State<LivreurFichePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(l10n.livreur_stats,
-                style: AppTypography.titleMedium()),
+                style: AppTypography.titleMedium(
+                    color:
+                        AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
             const SizedBox(height: 16),
             Row(
               children: [
@@ -491,7 +588,8 @@ class _LivreurFichePageState extends State<LivreurFichePage> {
                   child: Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: AppColors.brandSurface,
+                      color: AppColors.resolve(
+                          AppColors.brandSurface, AppDarkColors.brandSurface),
                       borderRadius: BorderRadius.circular(AppRadius.md),
                     ),
                     child: Column(
@@ -500,11 +598,15 @@ class _LivreurFichePageState extends State<LivreurFichePage> {
                             color: AppColors.brand, size: 32),
                         const SizedBox(height: 8),
                         Text('$_totalLivraisons',
-                            style: AppTypography.titleLarge()
+                            style: AppTypography.titleLarge(
+                                    color: AppColors.resolve(
+                                        AppColors.ink, AppDarkColors.ink))
                                 .copyWith(color: AppColors.brand)),
                         const SizedBox(height: 2),
                         Text(l10n.myDeliveries,
-                            style: AppTypography.bodyMedium()
+                            style: AppTypography.bodyMedium(
+                                    color: AppColors.resolve(
+                                        AppColors.ink, AppDarkColors.ink))
                                 .copyWith(fontSize: 12)),
                       ],
                     ),
@@ -515,7 +617,8 @@ class _LivreurFichePageState extends State<LivreurFichePage> {
                   child: Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: AppColors.successLight,
+                      color: AppColors.resolve(
+                          AppColors.successLight, AppDarkColors.successLight),
                       borderRadius: BorderRadius.circular(AppRadius.md),
                     ),
                     child: Column(
@@ -523,13 +626,16 @@ class _LivreurFichePageState extends State<LivreurFichePage> {
                         Icon(Icons.monetization_on_rounded,
                             color: AppColors.success, size: 32),
                         const SizedBox(height: 8),
-                        Text(
-                            '${_totalGains.toStringAsFixed(0)} CFA',
-                            style: AppTypography.titleLarge()
+                        Text('${_totalGains.toStringAsFixed(0)} CFA',
+                            style: AppTypography.titleLarge(
+                                    color: AppColors.resolve(
+                                        AppColors.ink, AppDarkColors.ink))
                                 .copyWith(color: AppColors.success)),
                         const SizedBox(height: 2),
                         Text(l10n.store_my_earnings,
-                            style: AppTypography.bodyMedium()
+                            style: AppTypography.bodyMedium(
+                                    color: AppColors.resolve(
+                                        AppColors.ink, AppDarkColors.ink))
                                 .copyWith(fontSize: 12)),
                       ],
                     ),
@@ -555,7 +661,10 @@ class _LivreurFichePageState extends State<LivreurFichePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(l10n.livreur_documents, style: AppTypography.titleMedium()),
+            Text(l10n.livreur_documents,
+                style: AppTypography.titleMedium(
+                    color:
+                        AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
             const SizedBox(height: 16),
             _buildDocumentTile(
               title: l10n.livreur_license,
@@ -587,19 +696,24 @@ class _LivreurFichePageState extends State<LivreurFichePage> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.surfaceWarm,
+        color:
+            AppColors.resolve(AppColors.surfaceWarm, AppDarkColors.surfaceWarm),
         borderRadius: BorderRadius.circular(AppRadius.md),
       ),
       child: Row(
         children: [
           Container(
-            width: 48, height: 48,
+            width: 48,
+            height: 48,
             decoration: BoxDecoration(
               color: verified
-                  ? AppColors.successLight
+                  ? AppColors.resolve(
+                      AppColors.successLight, AppDarkColors.successLight)
                   : hasUrl
-                      ? AppColors.brandSurface
-                      : AppColors.surfaceWarm,
+                      ? AppColors.resolve(
+                          AppColors.brandSurface, AppDarkColors.brandSurface)
+                      : AppColors.resolve(
+                          AppColors.surfaceWarm, AppDarkColors.surfaceWarm),
               borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
             child: Center(
@@ -623,11 +737,21 @@ class _LivreurFichePageState extends State<LivreurFichePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: AppTypography.labelLarge()),
+                Text(title,
+                    style: AppTypography.labelLarge(
+                        color: AppColors.resolve(
+                            AppColors.ink, AppDarkColors.ink))),
                 const SizedBox(height: 2),
                 Text(
-                  verified ? AppLocalizations.of(context)!.livreur_validated : hasUrl ? AppLocalizations.of(context)!.livreur_pending : AppLocalizations.of(context)!.livreur_not_provided,
-                  style: AppTypography.bodyMedium().copyWith(
+                  verified
+                      ? AppLocalizations.of(context)!.livreur_validated
+                      : hasUrl
+                          ? AppLocalizations.of(context)!.livreur_pending
+                          : AppLocalizations.of(context)!.livreur_not_provided,
+                  style: AppTypography.bodyMedium(
+                          color: AppColors.resolve(
+                              AppColors.ink, AppDarkColors.ink))
+                      .copyWith(
                     fontSize: 12,
                     color: verified
                         ? AppColors.success
@@ -664,11 +788,15 @@ class _LivreurFichePageState extends State<LivreurFichePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(l10n.livreur_validation_actions,
-                style: AppTypography.titleMedium()),
+                style: AppTypography.titleMedium(
+                    color:
+                        AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
             const SizedBox(height: 16),
             if (!permisOk) ...[
               Text(l10n.livreur_license,
-                  style: AppTypography.labelLarge()),
+                  style: AppTypography.labelLarge(
+                      color:
+                          AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -710,7 +838,9 @@ class _LivreurFichePageState extends State<LivreurFichePage> {
             ],
             if (identityPending) ...[
               Text(l10n.livreur_id_card,
-                  style: AppTypography.labelLarge()),
+                  style: AppTypography.labelLarge(
+                      color:
+                          AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -753,7 +883,8 @@ class _LivreurFichePageState extends State<LivreurFichePage> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppColors.successLight,
+                  color: AppColors.resolve(
+                      AppColors.successLight, AppDarkColors.successLight),
                   borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
                 child: Row(children: [
@@ -761,8 +892,8 @@ class _LivreurFichePageState extends State<LivreurFichePage> {
                       color: AppColors.success, size: 20),
                   const SizedBox(width: 8),
                   Text('${l10n.livreur_id_card} ${l10n.livreur_validated}',
-                      style: AppTypography.labelMedium(
-                          color: AppColors.success)),
+                      style:
+                          AppTypography.labelMedium(color: AppColors.success)),
                 ]),
               ),
           ],
@@ -779,7 +910,8 @@ class _PDFViewerScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(AppLocalizations.of(context)!.livreur_documents)),
+      appBar:
+          AppBar(title: Text(AppLocalizations.of(context)!.livreur_documents)),
       body: SfPdfViewer.network(fileUrl),
     );
   }
@@ -792,7 +924,8 @@ class _FullScreenImageViewer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(AppLocalizations.of(context)!.livreur_documents)),
+      appBar:
+          AppBar(title: Text(AppLocalizations.of(context)!.livreur_documents)),
       body: Center(
         child: CachedNetworkImage(
           imageUrl: imageUrl,

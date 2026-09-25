@@ -713,6 +713,35 @@ class AppLocalizationsFr extends AppLocalizations {
   String get cart_title => 'Votre Panier';
 
   @override
+  String get cart_baskets_title => 'Mes paniers';
+
+  @override
+  String get cart_baskets_hint =>
+      'Sélectionnez un vendeur pour voir les détails de son panier.';
+
+  @override
+  String cart_basket_articles(Object count) {
+    return '$count article(s)';
+  }
+
+  @override
+  String get cart_basket_details => 'Voir les détails';
+
+  @override
+  String get cart_leave_restaurant_title => 'Quitter la page du marchand';
+
+  @override
+  String cart_leave_restaurant_message(Object restaurant) {
+    return 'Vous avez des produits du marchand $restaurant dans votre panier. Voulez-vous vider votre panier ? Sinon, vous pourrez le retrouver en retournant chez ce marchand.';
+  }
+
+  @override
+  String get cart_keep_cart => 'Garder mon panier';
+
+  @override
+  String get cart_empty_cart => 'Vider le panier';
+
+  @override
   String get cart_empty => 'Votre panier est vide';
 
   @override
@@ -763,7 +792,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get cart_payment_cod => 'À la livraison';
 
   @override
-  String get cart_payment_fedapay => 'Mobile Money (CinetPay)';
+  String get cart_payment_fedapay => 'Mobile Money (iKeepPay)';
 
   @override
   String get cart_processing => 'Traitement...';
@@ -870,7 +899,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get home_welcome => 'Bienvenue !';
 
   @override
-  String get home_tagline => 'La cuisine du quartier, enfin livrée.';
+  String get home_tagline => 'La cuisine du quartier, livrée.';
 
   @override
   String get home_subtagline => 'Plats maison · Chefs locaux · Frais du jour';
@@ -1142,7 +1171,89 @@ class AppLocalizationsFr extends AppLocalizations {
   String get admin_pro_no_description => 'Aucune description fournie.';
 
   @override
+  String get admin_delivery_requests => 'Demandes Livreurs';
+
+  @override
+  String get admin_delivery_requests_pending => 'En attente';
+
+  @override
+  String get admin_delivery_requests_validated => 'Validées';
+
+  @override
+  String get admin_delivery_requests_rejected => 'Refusées';
+
+  @override
+  String get admin_delivery_validate => 'Valider';
+
+  @override
+  String get admin_delivery_reject => 'Refuser';
+
+  @override
+  String get admin_delivery_no_requests => 'Aucune demande livreur.';
+
+  @override
+  String get admin_delivery_status_pending => 'En attente de validation';
+
+  @override
+  String get admin_delivery_status_validated => 'Validé';
+
+  @override
+  String get admin_delivery_status_rejected => 'Refusé';
+
+  @override
+  String get admin_delivery_remark_hint => 'Motif du refus…';
+
+  @override
+  String get admin_delivery_documents => 'Documents';
+
+  @override
+  String get admin_delivery_view_document => 'Voir';
+
+  @override
+  String get admin_delivery_description => 'Description de la demande';
+
+  @override
+  String get admin_delivery_id_card => 'Carte d\'identité';
+
+  @override
+  String get admin_delivery_license => 'Permis de conduire';
+
+  @override
+  String get superAdminDashboard => 'Tableau de bord Super Admin';
+
+  @override
+  String get superAdminWeeklyCommissions => 'Commissions hebdomadaires';
+
+  @override
+  String get superAdminPaymentsCompleted => 'Versements effectués';
+
+  @override
+  String get superAdminPaymentsPending => 'Versements en attente';
+
+  @override
+  String get superAdminDisputesOpen => 'Litiges ouverts';
+
+  @override
+  String get superAdminDisputesInProgress => 'Litiges en cours';
+
+  @override
+  String get superAdminDisputesResolved => 'Litiges résolus';
+
+  @override
+  String get superAdminDisputeRate => 'Taux de litige';
+
+  @override
   String get optional => 'optionnel';
+
+  @override
+  String admin_delivery_validated(Object name) {
+    return '$name validé ✓';
+  }
+
+  @override
+  String admin_delivery_rejected(Object name) {
+    return '$name refusé';
+  }
 
   @override
   String get delivery_status_assigned => 'Assigné';
@@ -1196,7 +1307,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get delivery_this_week => 'cette semaine';
 
   @override
-  String get delivery_this_month => 'ce mois';
+  String get delivery_this_month => 'ce mois-ci';
 
   @override
   String get delivery_period_7days => '7 jours';
@@ -1363,6 +1474,42 @@ class AppLocalizationsFr extends AppLocalizations {
       'Impossible d\'accepter : vous avez déjà une commande en cours';
 
   @override
+  String get delivery_must_be_online =>
+      'Vous devez être en ligne pour effectuer cette action.';
+
+  @override
+  String get livreur_accept_title => 'Accepter cette commande ?';
+
+  @override
+  String livreur_accept_body(Object id, Object amount) {
+    return 'Commande #$id\nMontant à percevoir : $amount';
+  }
+
+  @override
+  String get delivery_confirm_picked_title => 'Confirmer le ramassage ?';
+
+  @override
+  String delivery_confirm_picked_body(Object id) {
+    return 'Avez-vous bien récupéré la commande #$id auprès du restaurant ?';
+  }
+
+  @override
+  String get delivery_confirm_transit_title => 'Démarrer la livraison ?';
+
+  @override
+  String delivery_confirm_transit_body(Object id) {
+    return 'La commande #$id est-elle prête à être livrée au client ?';
+  }
+
+  @override
+  String get delivery_confirm_delivered_title => 'Marquer comme livrée ?';
+
+  @override
+  String delivery_confirm_delivered_body(Object id) {
+    return 'Confirmez-vous avoir remis la commande #$id au client ?';
+  }
+
+  @override
   String get restaurant_form_title_create => 'Créer mon restaurant';
 
   @override
@@ -1441,6 +1588,33 @@ class AppLocalizationsFr extends AppLocalizations {
       'Horaires d\'ouverture (ex: 09:00 - 20:00)';
 
   @override
+  String get restaurant_form_day_required =>
+      'Sélectionnez au moins un jour d\'ouverture.';
+
+  @override
+  String restaurant_opens_at(Object time) {
+    return 'Ouvert à partir de $time';
+  }
+
+  @override
+  String restaurant_opens_on(Object day, Object time) {
+    return 'Ouvert $day à $time';
+  }
+
+  @override
+  String get restaurant_closed_today => 'Fermé aujourd\'hui';
+
+  @override
+  String get restaurant_closed_manually => 'Fermé temporairement';
+
+  @override
+  String get restaurant_closed_detail =>
+      'Ce vendeur est actuellement fermé. Réessayez pendant ses heures d\'ouverture.';
+
+  @override
+  String get restaurant_closed_short => 'Restaurant fermé';
+
+  @override
   String get restaurant_form_open_now => 'Restaurant actuellement ouvert';
 
   @override
@@ -1492,12 +1666,12 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
-  String restaurant_list_validated_toast(Object emailSent, Object name) {
+  String restaurant_list_validated_toast(Object name, Object emailSent) {
     return 'Le restaurant $name a été validé$emailSent';
   }
 
   @override
-  String restaurant_list_rejected_toast(Object emailSent, Object name) {
+  String restaurant_list_rejected_toast(Object name, Object emailSent) {
     return 'Le restaurant $name a été rejeté$emailSent';
   }
 
@@ -1760,7 +1934,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get commande_details_wave => 'Wave';
 
   @override
-  String get commande_details_cinetpay => 'Mobile Money (CinetPay)';
+  String get commande_details_cinetpay => 'Mobile Money (iKeepPay)';
 
   @override
   String get commande_details_items => 'Articles';
@@ -2810,7 +2984,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get no_reviews_yet => 'Aucun avis pour le moment.';
 
   @override
-  String reviews_count(Object count) {
+  String reviews_count(int count) {
     return '$count avis';
   }
 
@@ -3121,8 +3295,38 @@ class AppLocalizationsFr extends AppLocalizations {
       'Cette adresse se trouve en dehors de notre zone de livraison. Nous livrons uniquement dans les zones de livraison actives.';
 
   @override
+  String get delivery_unavailable_title =>
+      'La livraison n\'est pas disponible à cette adresse';
+
+  @override
+  String get delivery_unavailable_detail =>
+      'Ce vendeur est en dehors de votre zone de livraison. Vous pouvez consulter son menu, mais vous ne pouvez pas ajouter de plats au panier.';
+
+  @override
+  String get delivery_unavailable_short => 'Livraison indisponible';
+
+  @override
+  String get delivery_unavailable_close => 'Fermer';
+
+  @override
   String get cart_address_zone_checking =>
       'Vérification de la zone de livraison...';
+
+  @override
+  String get cart_delivery_to => 'Livraison à';
+
+  @override
+  String get cart_choose_current_location =>
+      'Choisissez une adresse ou votre position actuelle.';
+
+  @override
+  String get cart_current_location => 'Ma position actuelle';
+
+  @override
+  String get cart_location_in_progress => 'Localisation en cours...';
+
+  @override
+  String get cart_location_saved => 'Position enregistrée pour cette commande';
 
   @override
   String get restaurant_form_payment_method => 'Moyen de versement';

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:dios_delices/providers/theme_provider.dart';
 import 'package:dios_delices/screens/auth/signup.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -49,18 +50,22 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
     _OnboardingStep(
       imagePath: 'assets/images/onboarding/slide1.png',
       accentColor: Color(0xFFFFF0E4),
+      accentColorDark: Color(0xFF2A1812),
       titleKey: 'onboarding_step_1_title',
       bodyKey: 'onboarding_step_1_body',
     ),
     _OnboardingStep(
       imagePath: 'assets/images/onboarding/slide2.png',
       accentColor: Color(0xFFF0F7ED),
+      accentColorDark: Color(0xFF14221A),
       titleKey: 'onboarding_step_2_title',
       bodyKey: 'onboarding_step_2_body',
     ),
     _OnboardingStep(
-      imagePath: 'assets/images/onboarding/slide3.png',
-      accentColor: Color(0xFFFFF4DC),
+      // Visuel plus gourmand et plus dynamique pour conclure l'onboarding.
+      imagePath: 'assets/images/onboarding/slideX_accent.png',
+      accentColor: Color(0xFFFFF0E4),
+      accentColorDark: Color(0xFF2A1812),
       titleKey: 'onboarding_step_3_title',
       bodyKey: 'onboarding_step_3_body',
     ),
@@ -205,18 +210,26 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.xl)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.xl)),
         title: Row(children: [
           Container(
-            width: 40, height: 40,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
-              color: AppColors.brand.withValues(alpha: 0.12),
+              color: AppColors.resolve(AppColors.brand, AppDarkColors.brand)
+                  .withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.notifications_active_rounded, color: AppColors.brand, size: 22),
+            child: Icon(Icons.notifications_active_rounded,
+                color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+                size: 22),
           ),
           const SizedBox(width: 12),
-          Expanded(child: Text(l10n.enable_notifications_title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600))),
+          Expanded(
+              child: Text(l10n.enable_notifications_title,
+                  style: const TextStyle(
+                      fontSize: 17, fontWeight: FontWeight.w600))),
         ]),
         content: Text(
           l10n.enable_notifications_body,
@@ -225,14 +238,20 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text(l10n.later, style: const TextStyle(color: AppColors.inkMuted)),
+            child: Text(l10n.later,
+                style: TextStyle(
+                    color: AppColors.resolve(
+                        AppColors.inkMuted, AppDarkColors.inkMuted))),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.brand,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+              backgroundColor:
+                  AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+              foregroundColor:
+                  AppColors.resolve(AppColors.card, AppDarkColors.card),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.md)),
             ),
             child: Text(l10n.enable_button),
           ),
@@ -284,34 +303,39 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 500),
-      switchInCurve: AppMotion.standard,
-      switchOutCurve: AppMotion.accelerate,
-      transitionBuilder: (child, animation) => FadeTransition(
-        opacity: animation,
-        child: child,
-      ),
-      child: _showOnboarding
-          ? _OnboardingView(
-              key: const ValueKey('onboarding'),
-              steps: _steps,
-              pageController: _pageController,
-              currentPage: _currentPage,
-              onNext: _onNextStep,
-              onSkip: _completeOnboarding,
-            )
-          : _SplashView(
-              key: const ValueKey('splash'),
-              splashController: _splashController,
-              pulseController: _pulseController,
-              logoScale: _logoScale,
-              logoOpacity: _logoOpacity,
-              textOpacity: _textOpacity,
-              textSlide: _textSlide,
-              pulse: _pulse,
-              isLoading: _isLoading,
-            ),
+    return AnimatedBuilder(
+      animation: darkModeNotifier,
+      builder: (context, _) {
+        return AnimatedSwitcher(
+          duration: const Duration(milliseconds: 500),
+          switchInCurve: AppMotion.standard,
+          switchOutCurve: AppMotion.accelerate,
+          transitionBuilder: (child, animation) => FadeTransition(
+            opacity: animation,
+            child: child,
+          ),
+          child: _showOnboarding
+              ? _OnboardingView(
+                  key: const ValueKey('onboarding'),
+                  steps: _steps,
+                  pageController: _pageController,
+                  currentPage: _currentPage,
+                  onNext: _onNextStep,
+                  onSkip: _completeOnboarding,
+                )
+              : _SplashView(
+                  key: const ValueKey('splash'),
+                  splashController: _splashController,
+                  pulseController: _pulseController,
+                  logoScale: _logoScale,
+                  logoOpacity: _logoOpacity,
+                  textOpacity: _textOpacity,
+                  textSlide: _textSlide,
+                  pulse: _pulse,
+                  isLoading: _isLoading,
+                ),
+        );
+      },
     );
   }
 }
@@ -344,65 +368,108 @@ class _SplashView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          const DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  AppColors.brandLight,
-                  AppColors.brand,
-                ],
-              ),
-            ),
-            child: SizedBox.expand(),
-          ),
-          SafeArea(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Spacer(flex: 3),
-
-                Center(
-                  child: AnimatedBuilder(
-                    animation: Listenable.merge([splashController, pulseController]),
-                    builder: (context, child) {
-                      final introFinished = splashController.value >= 0.55;
-                      final scale = introFinished ? pulse.value : logoScale.value;
-                      final opacity = introFinished
-                          ? 1.0
-                          : logoOpacity.value.clamp(0.0, 1.0);
-                      return Transform.scale(
-                        scale: scale,
-                        child: Opacity(opacity: opacity, child: child),
-                      );
-                    },
-                    child: const _SplashLogo(),
+    return AnimatedBuilder(
+      animation: darkModeNotifier,
+      builder: (context, _) {
+        final gradStart =
+            AppColors.resolve(AppColors.brandLight, AppDarkColors.brandDark);
+        final gradEnd = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+        return Scaffold(
+          body: Stack(
+            fit: StackFit.expand,
+            children: [
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      gradStart,
+                      gradEnd,
+                    ],
                   ),
                 ),
-
-                const Spacer(flex: 3),
-
-                Center(
-                  child: FadeTransition(
-                    opacity: textOpacity,
-                    child: SlideTransition(
-                      position: textSlide,
-                      child: _SplashTagline(isLoading: isLoading),
+                child: const SizedBox.expand(),
+              ),
+              // Texture food très discrète : elle donne une signature au
+              // splash sans concurrencer le logo ni le message d'accueil.
+              Positioned(
+                right: -96,
+                bottom: -120,
+                child: IgnorePointer(
+                  child: Opacity(
+                    opacity: 0.10,
+                    child: Transform.rotate(
+                      angle: -0.08,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(48),
+                        child: Image.asset(
+                          'assets/images/onboarding/slideX_accent.png',
+                          width: 360,
+                          height: 360,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
                     ),
                   ),
                 ),
-
-                const Spacer(flex: 2),
-              ],
-            ),
+              ),
+              Positioned(
+                left: -110,
+                top: -130,
+                child: IgnorePointer(
+                  child: Container(
+                    width: 300,
+                    height: 300,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white.withValues(alpha: 0.07),
+                    ),
+                  ),
+                ),
+              ),
+              SafeArea(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Spacer(flex: 3),
+                    Center(
+                      child: AnimatedBuilder(
+                        animation: Listenable.merge(
+                            [splashController, pulseController]),
+                        builder: (context, child) {
+                          final introFinished = splashController.value >= 0.55;
+                          final scale =
+                              introFinished ? pulse.value : logoScale.value;
+                          final opacity = introFinished
+                              ? 1.0
+                              : logoOpacity.value.clamp(0.0, 1.0);
+                          return Transform.scale(
+                            scale: scale,
+                            child: Opacity(opacity: opacity, child: child),
+                          );
+                        },
+                        child: const _SplashLogo(),
+                      ),
+                    ),
+                    const Spacer(flex: 3),
+                    Center(
+                      child: FadeTransition(
+                        opacity: textOpacity,
+                        child: SlideTransition(
+                          position: textSlide,
+                          child: _SplashTagline(isLoading: isLoading),
+                        ),
+                      ),
+                    ),
+                    const Spacer(flex: 2),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -463,7 +530,10 @@ class _SplashTagline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final parts = AppLocalizations.of(context)!.onboarding_splash_subtitle.split('\n');
+    final parts =
+        AppLocalizations.of(context)!.onboarding_splash_subtitle.split('\n');
+    final resolvedAccent =
+        AppColors.resolve(AppColors.accent, AppDarkColors.accent);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -484,7 +554,7 @@ class _SplashTagline extends StatelessWidget {
                 style: AppTypography.displayMedium().copyWith(
                   fontSize: 30,
                   height: 1.18,
-                  color: AppColors.accent,
+                  color: resolvedAccent,
                 ),
               ),
             ],
@@ -495,7 +565,8 @@ class _SplashTagline extends StatelessWidget {
           AppLocalizations.of(context)!.splash_subtitle,
           textAlign: TextAlign.center,
           style: AppTypography.bodyLarge(
-            color: Colors.white.withValues(alpha: 0.78),
+            color: AppColors.resolve(AppColors.card, AppDarkColors.card)
+                .withValues(alpha: 0.78),
           ),
         ),
         const SizedBox(height: AppSpacing.xl),
@@ -531,7 +602,8 @@ class _LoadingIndicator extends StatelessWidget {
         Text(
           AppLocalizations.of(context)!.splash_loading,
           style: AppTypography.bodyMedium(
-            color: Colors.white.withValues(alpha: 0.78),
+            color: AppColors.resolve(AppColors.card, AppDarkColors.card)
+                .withValues(alpha: 0.78),
           ),
         ),
       ],
@@ -540,7 +612,9 @@ class _LoadingIndicator extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════
-// ONBOARDING VIEW
+// ONBOARDING VIEW — style "Burt" : fond dégradé plein écran,
+// collage photo agrandi, typo large, barre flottante dots +
+// bouton rond discret. Carrousel à 3 étapes conservé (swipe + dots).
 // ═══════════════════════════════════════════════════════════
 
 class _OnboardingView extends StatefulWidget {
@@ -595,116 +669,197 @@ class _OnboardingViewState extends State<_OnboardingView>
 
   @override
   Widget build(BuildContext context) {
-    final isLast = widget.currentPage.round() == widget.steps.length - 1;
-    final screenH = MediaQuery.of(context).size.height;
-    final Color bgColor =
-        _interpolateStepColor(widget.currentPage, widget.steps);
+    return AnimatedBuilder(
+      animation: Listenable.merge([_entryController, darkModeNotifier]),
+      builder: (context, _) {
+        final isLast = widget.currentPage.round() == widget.steps.length - 1;
 
-    return Scaffold(
-      backgroundColor: bgColor,
-      body: FadeTransition(
-        opacity: _entryOpacity,
-        child: SlideTransition(
-          position: _entrySlide,
-          child: Column(
-            children: [
-              // ── Zone image — 55% de l'écran ──────────────
-              _OnboardingImageZone(
-                steps: widget.steps,
-                pageController: widget.pageController,
-                currentPage: widget.currentPage,
-                bgColor: bgColor,
-                height: screenH * 0.55,
-                onSkip: widget.onSkip,
+        return Scaffold(
+          body: FadeTransition(
+            opacity: _entryOpacity,
+            child: SlideTransition(
+              position: _entrySlide,
+              child: Stack(
+                children: [
+                  PageView.builder(
+                    controller: widget.pageController,
+                    itemCount: widget.steps.length,
+                    itemBuilder: (_, index) => _OnboardingPage(
+                      step: widget.steps[index],
+                      onSkip: widget.onSkip,
+                    ),
+                  ),
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: _OnboardingBottomBar(
+                      steps: widget.steps,
+                      currentPage: widget.currentPage,
+                      isLast: isLast,
+                      onNext: widget.onNext,
+                    ),
+                  ),
+                ],
               ),
-              // ── Zone texte basse ─────────────────────────
-              Expanded(
-                child: _OnboardingBottomSheet(
-                  steps: widget.steps,
-                  currentPage: widget.currentPage,
-                  isLast: isLast,
-                  onNext: widget.onNext,
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
-  }
-
-  static Color _interpolateStepColor(
-      double currentPage, List<_OnboardingStep> steps) {
-    final int idx = currentPage.floor().clamp(0, steps.length - 1);
-    final int nextIdx = (idx + 1).clamp(0, steps.length - 1);
-    final double t = (currentPage - idx).clamp(0.0, 1.0);
-    return Color.lerp(steps[idx].accentColor, steps[nextIdx].accentColor, t)!;
   }
 }
 
 // ═══════════════════════════════════════════════════════════
-// Zone image
-// — Badge marque supprimé
-// — Skip seul, fond opaque, en haut à droite
+// Une page d'onboarding complète : fond dégradé plein écran
+// (tokens AppColors existants, pas de nouvelles couleurs),
+// skip en haut, collage photo, titre + texte plus bas.
 // ═══════════════════════════════════════════════════════════
-class _OnboardingImageZone extends StatelessWidget {
-  const _OnboardingImageZone({
-    required this.steps,
-    required this.pageController,
-    required this.currentPage,
-    required this.bgColor,
-    required this.height,
+class _OnboardingPage extends StatelessWidget {
+  const _OnboardingPage({
+    required this.step,
     required this.onSkip,
   });
 
-  final List<_OnboardingStep> steps;
-  final PageController pageController;
-  final double currentPage;
-  final Color bgColor;
-  final double height;
+  final _OnboardingStep step;
   final VoidCallback onSkip;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: height,
-      child: Stack(
-        children: [
-          PageView.builder(
-            controller: pageController,
-            itemCount: steps.length,
-            itemBuilder: (_, index) => Image.asset(
-              steps[index].imagePath,
-              fit: BoxFit.cover,
-              width: double.infinity,
-              height: double.infinity,
-            ),
-          ),
+    final isDark = darkModeNotifier.value;
+    final baseColor = isDark ? step.accentColorDark : step.accentColor;
+    final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
 
-          // ── Fondu bas pour raccorder avec la feuille ────
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: 100,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Colors.transparent, bgColor],
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: baseColor,
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            baseColor,
+            baseColor,
+            brand.withValues(alpha: isDark ? 0.30 : 0.16),
+          ],
+          stops: const [0.0, 0.45, 1.0],
+        ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: CustomScrollView(
+          physics: const ClampingScrollPhysics(),
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.md,
+                AppSpacing.lg,
+                112,
+              ),
+              sliver: SliverFillRemaining(
+                hasScrollBody: false,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: _SolidSkipButton(onSkip: onSkip),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Expanded(
+                      flex: 11,
+                      child: Center(child: _OnboardingPhotoCollage(step: step)),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    Expanded(
+                      flex: 7,
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: _OnboardingTextBlock(
+                          title: AppLocalizations.of(context)!
+                              .localized(step.titleKey),
+                          body: AppLocalizations.of(context)!
+                              .localized(step.bodyKey),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-          ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
-          // ── Bouton Skip seul — haut droite, fond opaque ─
-          Positioned(
-            top: MediaQuery.of(context).padding.top + AppSpacing.md,
-            right: AppSpacing.lg,
-            child: _SolidSkipButton(onSkip: onSkip),
-          ),
-        ],
+// ── Visuel principal ───────────────────────────────────────
+// Une seule vraie image par étape. Les assets sont déjà composés avec
+// leur propre fond : aucune carte décorative supplémentaire ne vient
+// créer un faux doublon ou une bordure inutile.
+class _OnboardingPhotoCollage extends StatelessWidget {
+  const _OnboardingPhotoCollage({required this.step});
+  final _OnboardingStep step;
+
+  @override
+  Widget build(BuildContext context) {
+    final screenW = MediaQuery.sizeOf(context).width;
+
+    // Les visuels d'onboarding sont carrés. Garder le même ratio évite que
+    // BoxFit.cover ne rogne les côtés de la photo sur les écrans étroits.
+    final imageSize = screenW * 0.70;
+
+    return SizedBox(
+      width: imageSize,
+      height: imageSize,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(30),
+        child: Image.asset(
+          step.imagePath,
+          width: imageSize,
+          height: imageSize,
+          fit: BoxFit.cover,
+          filterQuality: FilterQuality.high,
+        ),
+      ),
+    );
+  }
+}
+
+// ── Contrôles flottants : dots + bouton rond (sans bannière) ─
+class _OnboardingBottomBar extends StatelessWidget {
+  const _OnboardingBottomBar({
+    required this.steps,
+    required this.currentPage,
+    required this.isLast,
+    required this.onNext,
+  });
+
+  final List<_OnboardingStep> steps;
+  final double currentPage;
+  final bool isLast;
+  final VoidCallback onNext;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          AppSpacing.md,
+          AppSpacing.lg,
+          AppSpacing.lg,
+        ),
+        child: Row(
+          children: [
+            _ElasticDots(
+                totalSteps: steps.length, currentPage: currentPage),
+            const Spacer(),
+            _NextArrowButton(isLast: isLast, onNext: onNext),
+          ],
+        ),
       ),
     );
   }
@@ -722,115 +877,22 @@ class _SolidSkipButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
-          color: AppColors.card.withValues(alpha: 0.96),
+          color: AppColors.resolve(AppColors.card, AppDarkColors.card)
+              .withValues(alpha: 0.96),
           borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(color: AppColors.border, width: 0.8),
+          border: Border.all(
+              color: AppColors.resolve(AppColors.border, AppDarkColors.border),
+              width: 0.8),
           boxShadow: [AppShadows.subtle],
         ),
         child: Text(
           AppLocalizations.of(context)!.skip,
-          style: AppTypography.labelMedium().copyWith(
-            color: AppColors.inkMuted,
+          style: AppTypography.labelMedium(
+                  color: AppColors.resolve(
+                      AppColors.inkMuted, AppDarkColors.inkMuted))
+              .copyWith(
             fontSize: 13,
           ),
-        ),
-      ),
-    );
-  }
-}
-
-// ═══════════════════════════════════════════════════════════
-// Feuille basse : texte + dots + bouton
-// ═══════════════════════════════════════════════════════════
-class _OnboardingBottomSheet extends StatelessWidget {
-  const _OnboardingBottomSheet({
-    required this.steps,
-    required this.currentPage,
-    required this.isLast,
-    required this.onNext,
-  });
-
-  final List<_OnboardingStep> steps;
-  final double currentPage;
-  final bool isLast;
-  final VoidCallback onNext;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(36)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.lg,
-          AppSpacing.lg,
-          AppSpacing.lg,
-          AppSpacing.xl,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Poignée ───────────────────────────────────
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.border,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-
-            // ── Bloc texte animé (scrollable) ─────────────
-            Flexible(
-              child: SingleChildScrollView(
-                child: Stack(
-                  children: List.generate(steps.length, (index) {
-                    final delta = (index - currentPage).abs();
-                    final opacity = (1.0 - delta * 1.5).clamp(0.0, 1.0);
-                    final slideOffset = (currentPage - index) * 0.04;
-                    return Opacity(
-                      opacity: opacity,
-                      child: Transform.translate(
-                        offset: Offset(slideOffset * 30, 0),
-                        child: IgnorePointer(
-                          ignoring: index != currentPage.round(),
-                          child: _OnboardingTextBlock(
-                            title: AppLocalizations.of(context)!
-                                .localized(steps[index].titleKey),
-                            body: AppLocalizations.of(context)!
-                                .localized(steps[index].bodyKey),
-                          ),
-                        ),
-                      ),
-                    );
-                  }),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: AppSpacing.md),
-
-            // ── [Dots] ──────── [Bouton Suivant/Commencer] ─
-            Row(
-              children: [
-                _ElasticDots(
-                  totalSteps: steps.length,
-                  currentPage: currentPage,
-                ),
-                const Spacer(),
-                _NextButton(
-                  isLast: isLast,
-                  onNext: onNext,
-                ),
-              ],
-            ),
-          ],
         ),
       ),
     );
@@ -856,6 +918,7 @@ class _ElasticDots extends StatelessWidget {
         final widthFactor = (1.0 - delta).clamp(0.0, 1.0);
         final dotWidth = 8.0 + 20.0 * widthFactor;
         final isActive = currentPage.round() == i;
+        final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
         return AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           curve: AppMotion.standard,
@@ -863,7 +926,7 @@ class _ElasticDots extends StatelessWidget {
           height: 8,
           margin: const EdgeInsets.only(right: 6),
           decoration: BoxDecoration(
-            color: isActive ? AppColors.brand : AppColors.border,
+            color: isActive ? brand : brand.withValues(alpha: 0.18),
             borderRadius: BorderRadius.circular(999),
           ),
         );
@@ -872,37 +935,31 @@ class _ElasticDots extends StatelessWidget {
   }
 }
 
-// ── Bouton Suivant / Commencer ────────────────────────────
-// Utilise minWidth au lieu d'une largeur fixe : le bouton
-// s'élargit automatiquement si le texte traduit est plus long.
-class _NextButton extends StatelessWidget {
-  const _NextButton({required this.isLast, required this.onNext});
+// ── Bouton Suivant — icône flèche, cohérent avec le collage ─
+// Flèche vers la droite en temps normal, coche sur la dernière
+// étape pour signaler l'action différente (démarrer l'app).
+class _NextArrowButton extends StatelessWidget {
+  const _NextArrowButton({required this.isLast, required this.onNext});
   final bool isLast;
   final VoidCallback onNext;
 
   @override
   Widget build(BuildContext context) {
-    return ElevatedButton(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.brand,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        minimumSize: const Size(148, 52),
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.lg),
+    return Material(
+      color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+      shape: const CircleBorder(),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onNext,
+        child: SizedBox(
+          width: 56,
+          height: 56,
+          child: Icon(
+            isLast ? Icons.check_rounded : Icons.arrow_forward_rounded,
+            color: AppColors.resolve(AppColors.card, AppDarkColors.card),
+            size: 24,
+          ),
         ),
-        textStyle: AppTypography.labelLarge().copyWith(
-          fontSize: 15,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-      onPressed: onNext,
-      child: Text(
-        isLast ? AppLocalizations.of(context)!.start : AppLocalizations.of(context)!.next,
-        maxLines: 1,
-        overflow: TextOverflow.visible,
-        softWrap: false,
       ),
     );
   }
@@ -948,16 +1005,21 @@ class _OnboardingTextBlock extends StatelessWidget {
       children: [
         Text(
           title,
-          style:
-              AppTypography.headlineMedium(color: AppColors.ink).copyWith(
-            height: 1.15,
-            letterSpacing: -0.4,
+          style: AppTypography.headlineMedium(
+                  color: AppColors.resolve(AppColors.ink, AppDarkColors.ink))
+              .copyWith(
+            fontSize: 28,
+            fontWeight: FontWeight.w900,
+            height: 1.12,
+            letterSpacing: -0.6,
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
         Text(
           body,
-          style: AppTypography.bodyMedium(color: AppColors.inkMuted),
+          style: AppTypography.bodyMedium(
+              color: AppColors.resolve(
+                  AppColors.inkMuted, AppDarkColors.inkMuted)),
         ),
       ],
     );
@@ -971,12 +1033,14 @@ class _OnboardingStep {
   const _OnboardingStep({
     required this.imagePath,
     required this.accentColor,
+    required this.accentColorDark,
     required this.titleKey,
     required this.bodyKey,
   });
 
   final String imagePath;
   final Color accentColor;
+  final Color accentColorDark;
   final String titleKey;
   final String bodyKey;
 }

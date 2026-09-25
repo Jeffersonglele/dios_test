@@ -63,8 +63,10 @@ class _MyStoreState extends State<MyStore> {
     };
     return getters[key]!();
   }
+
   List<_StoreSection> sections = [];
   Restaurant? _restaurant;
+  Users? _currentUser;
   int _restoState = 0;
   bool _isVerified = false;
 
@@ -78,8 +80,16 @@ class _MyStoreState extends State<MyStore> {
     final session = await SessionService.readSession();
     final allUsers = await Users.fetchUsersFromDB();
     final currentUser = Users.getUsersByUserId(allUsers, session.userId);
+    _currentUser = currentUser;
     final userRole = AppRole.fromId(currentUser?.roleID);
     _isVerified = currentUser?.identity == 'Verified';
+
+    if (userRole.isDelivery && currentUser != null) {
+      final settings = await LivreurApi.getSettings(session.userId);
+      if (settings != null) {
+        currentUser.isOnline = settings['isOnline'] == true;
+      }
+    }
 
     // Fetch restaurant if user is professional
     if (userRole.isProfessional && session.restaurantId != null) {
@@ -95,20 +105,18 @@ class _MyStoreState extends State<MyStore> {
     if (userRole.isProfessional) {
       _buildVendreSection(newSections, session);
     } else if (userRole.isDelivery) {
-      newSections.add(_StoreSection(
-          Icons.delivery_dining_rounded, 'Mes livraisons',
-          const DeliveryDashboard()));
-      newSections.add(_StoreSection(
-          Icons.monetization_on_rounded, 'Mes revenus',
-          const LivreurEarningsPage()));
+      newSections.add(_StoreSection(Icons.delivery_dining_rounded,
+          'Mes livraisons', const DeliveryDashboard()));
+      newSections.add(_StoreSection(Icons.monetization_on_rounded,
+          'Mes revenus', const LivreurEarningsPage()));
       newSections.add(_StoreSection(
           Icons.map_rounded, 'Rayon de livraison', null,
           action: () => _showDistanceConfig(currentUser)));
     } else {
       newSections.add(_StoreSection(
-          Icons.storefront_rounded, 'Devenir vendeur', null, isSellerRequest: true));
-      newSections.add(_StoreSection(Icons.receipt_long_rounded,
-          'Mes commandes',
+          Icons.storefront_rounded, 'Devenir vendeur', null,
+          isSellerRequest: true));
+      newSections.add(_StoreSection(Icons.receipt_long_rounded, 'Mes commandes',
           const UserOrdersPage(showRestaurantOrders: false)));
     }
 
@@ -129,16 +137,23 @@ class _MyStoreState extends State<MyStore> {
       case 0: // pending validation
         newSections.add(_StoreSection(
             Icons.hourglass_bottom_rounded, 'Mon restaurant', null,
-            action: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => RestaurantFormPage(restaurant: _restaurant)))));
+            action: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) =>
+                        RestaurantFormPage(restaurant: _restaurant)))));
         newSections.add(_StoreSection(
             Icons.arrow_forward_rounded, 'Continuer ma demande', null,
-            action: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => RestaurantFormPage(restaurant: _restaurant)))));
+            action: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) =>
+                        RestaurantFormPage(restaurant: _restaurant)))));
         newSections.add(_StoreSection(
             Icons.cancel_rounded, 'Annuler la demande', null,
             action: _cancelDemande));
-        newSections.add(_StoreSection(Icons.receipt_long_rounded,
+        newSections.add(_StoreSection(
+            Icons.receipt_long_rounded,
             'Mes commandes',
             const UserOrdersPage(showRestaurantOrders: false)));
         break;
@@ -148,16 +163,15 @@ class _MyStoreState extends State<MyStore> {
             'Mon restaurant',
             RestaurantDetails(restaurant_id: session.restaurantId!)));
         newSections.add(_StoreSection(
-            Icons.edit_rounded, 'Modifier mon restaurant',
+            Icons.edit_rounded,
+            'Modifier mon restaurant',
             RestaurantFormPage(restaurant: _restaurant)));
-        newSections.add(_StoreSection(
-            Icons.monetization_on_rounded, 'Mes revenus',
-            const RestaurantEarningsPage()));
+        newSections.add(_StoreSection(Icons.monetization_on_rounded,
+            'Mes revenus', const RestaurantEarningsPage()));
         newSections.add(_StoreSection(Icons.receipt_long_rounded,
-            'Mes commandes',
-            const UserOrdersPage(showRestaurantOrders: true)));
-        newSections.add(_StoreSection(Icons.workspace_premium_rounded,
-            'Devenir Pro', null,
+            'Mes commandes', const UserOrdersPage(showRestaurantOrders: true)));
+        newSections.add(_StoreSection(
+            Icons.workspace_premium_rounded, 'Devenir Pro', null,
             action: () => Navigator.push(context,
                 MaterialPageRoute(builder: (_) => const ProRequestPage()))));
         break;
@@ -165,8 +179,7 @@ class _MyStoreState extends State<MyStore> {
         newSections.add(
             _StoreSection(Icons.storefront_rounded, 'Mon restaurant', null));
         newSections.add(_StoreSection(Icons.receipt_long_rounded,
-            'Mes commandes',
-            const UserOrdersPage(showRestaurantOrders: true)));
+            'Mes commandes', const UserOrdersPage(showRestaurantOrders: true)));
     }
   }
 
@@ -176,15 +189,23 @@ class _MyStoreState extends State<MyStore> {
     return PopScope(
       canPop: false,
       child: Scaffold(
-        backgroundColor: AppColors.surface,
+        backgroundColor:
+            AppColors.resolve(AppColors.surface, AppDarkColors.surface),
         body: SafeArea(
           child: Column(children: [
             const SizedBox(height: 20),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text(l10n.mySpace, style: AppTypography.headlineLarge()),
+              child: Text(l10n.mySpace,
+                  style: AppTypography.headlineLarge(
+                      color:
+                          AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
             ),
             const SizedBox(height: 20),
+            if (_currentUser?.roleID == 5) ...[
+              _buildDriverInfoCard(_currentUser!),
+              const SizedBox(height: 16),
+            ],
             Expanded(
               child: ListView.separated(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -197,10 +218,16 @@ class _MyStoreState extends State<MyStore> {
                     child: Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color:
-                            s.isLogout ? AppColors.errorLight : AppColors.card,
+                        color: s.isLogout
+                            ? AppColors.resolve(
+                                AppColors.errorLight, AppDarkColors.errorLight)
+                            : AppColors.resolve(
+                                AppColors.card, AppDarkColors.card),
                         borderRadius: BorderRadius.circular(AppRadius.lg),
-                        border: Border.all(color: AppColors.border, width: 0.5),
+                        border: Border.all(
+                            color: AppColors.resolve(
+                                AppColors.border, AppDarkColors.border),
+                            width: 0.5),
                       ),
                       child: Row(children: [
                         Container(
@@ -208,8 +235,11 @@ class _MyStoreState extends State<MyStore> {
                           height: 48,
                           decoration: BoxDecoration(
                             color: s.isLogout
-                                ? AppColors.error.withValues(alpha: 0.12)
-                                : AppColors.brandSurface,
+                                ? AppColors.resolve(
+                                    AppColors.error.withValues(alpha: 0.12),
+                                    AppDarkColors.error.withValues(alpha: 0.12))
+                                : AppColors.resolve(AppColors.brandSurface,
+                                    AppDarkColors.brandSurface),
                             borderRadius: BorderRadius.circular(AppRadius.md),
                           ),
                           child: Icon(s.icon,
@@ -225,10 +255,12 @@ class _MyStoreState extends State<MyStore> {
                                   fontSize: 19,
                                   color: s.isLogout
                                       ? AppColors.error
-                                      : AppColors.ink)),
+                                      : AppColors.resolve(
+                                          AppColors.ink, AppDarkColors.ink))),
                         ),
-                        const Icon(Icons.chevron_right_rounded,
-                            color: AppColors.inkSubtle),
+                        Icon(Icons.chevron_right_rounded,
+                            color: AppColors.resolve(
+                                AppColors.inkSubtle, AppDarkColors.inkSubtle)),
                       ]),
                     ),
                   );
@@ -237,6 +269,68 @@ class _MyStoreState extends State<MyStore> {
             ),
           ]),
         ),
+      ),
+    );
+  }
+
+  Widget _buildDriverInfoCard(Users user) {
+    final name = '${user.firstname} ${user.lastname}'.trim();
+    final displayName = name.isEmpty ? user.username : name;
+    final muted = AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.resolve(AppColors.card, AppDarkColors.card),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(
+          color: AppColors.resolve(AppColors.border, AppDarkColors.border),
+          width: 0.5,
+        ),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 28,
+            backgroundColor: AppColors.resolve(
+                AppColors.brandSurface, AppDarkColors.brandSurface),
+            child: Icon(Icons.delivery_dining_rounded,
+                color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+                size: 28),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(displayName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.titleMedium().copyWith(
+                        fontSize: 19,
+                        color: AppColors.resolve(
+                            AppColors.ink, AppDarkColors.ink))),
+                if (user.email.isNotEmpty)
+                  Text(user.email,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.bodySmall(color: muted)),
+                if (user.telephone.isNotEmpty)
+                  Text(user.telephone,
+                      style: AppTypography.bodySmall(color: muted)),
+                const SizedBox(height: 4),
+                Text('Livreur • ${user.isOnline ? 'En ligne' : 'Hors ligne'}',
+                    style: AppTypography.labelMedium(
+                        color: user.isOnline
+                            ? AppColors.success
+                            : AppColors.error)),
+              ],
+            ),
+          ),
+          Icon(Icons.chevron_right_rounded,
+              color: AppColors.resolve(
+                  AppColors.inkSubtle, AppDarkColors.inkSubtle)),
+        ],
       ),
     );
   }
@@ -264,38 +358,51 @@ class _MyStoreState extends State<MyStore> {
     }
     if (s.page == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.store_no_restaurant_data)),
+        SnackBar(
+            content:
+                Text(AppLocalizations.of(context)!.store_no_restaurant_data)),
       );
       return;
     }
     Navigator.push(context, MaterialPageRoute(builder: (_) => s.page!));
   }
+
   Future<void> _showUnverifiedDialog() async {
     final l10n = AppLocalizations.of(context)!;
     await showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.lg)),
         title: Row(children: [
           Container(
-            width: 32, height: 32,
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
-              color: AppColors.accentLight,
+              color: AppColors.resolve(
+                  AppColors.accentLight, AppDarkColors.accentLight),
               borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
-            child: const Icon(Icons.hourglass_bottom_rounded, color: AppColors.accent, size: 18),
+            child: Icon(Icons.hourglass_bottom_rounded,
+                color:
+                    AppColors.resolve(AppColors.accent, AppDarkColors.accent),
+                size: 18),
           ),
           const SizedBox(width: 10),
-          Text(l10n.store_unverified_title, style: AppTypography.titleMedium().copyWith(fontSize: 16)),
+          Text(l10n.store_unverified_title,
+              style: AppTypography.titleMedium().copyWith(fontSize: 16)),
         ]),
-        content: Text(l10n.store_unverified_body, style: AppTypography.bodyLarge()),
+        content: Text(l10n.store_unverified_body,
+            style: AppTypography.bodyLarge(
+                color: AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
         actions: [
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.brand,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.md)),
             ),
             child: Text(l10n.ok),
           ),
@@ -314,13 +421,16 @@ class _MyStoreState extends State<MyStore> {
         ),
         title: Row(children: [
           Container(
-            width: 32, height: 32,
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
-              color: AppColors.brandSurface,
+              color: AppColors.resolve(
+                  AppColors.brandSurface, AppDarkColors.brandSurface),
               borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
-            child: const Icon(Icons.restaurant_menu_outlined,
-                color: AppColors.brand, size: 18),
+            child: Icon(Icons.restaurant_menu_outlined,
+                color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+                size: 18),
           ),
           const SizedBox(width: 10),
           Text(l10n.store_become_restaurateur_title,
@@ -328,18 +438,23 @@ class _MyStoreState extends State<MyStore> {
         ]),
         content: Text(
           l10n.store_become_restaurateur_body,
-          style: AppTypography.bodyLarge(),
+          style: AppTypography.bodyLarge(
+              color: AppColors.resolve(AppColors.ink, AppDarkColors.ink)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
             child: Text(l10n.cancel,
-                style: AppTypography.labelMedium(color: AppColors.inkMuted)),
+                style: AppTypography.labelMedium(
+                    color: AppColors.resolve(
+                        AppColors.inkMuted, AppDarkColors.inkMuted))),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.brand,
-              foregroundColor: Colors.white,
+              backgroundColor:
+                  AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+              foregroundColor:
+                  AppColors.resolve(AppColors.surface, AppDarkColors.surface),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(AppRadius.md),
               ),
@@ -363,7 +478,8 @@ class _MyStoreState extends State<MyStore> {
       if (mounted && response.success) {
         final result = response.result as Map<String, dynamic>?;
         if (result?['success'] == true) {
-          final updatedSession = session.copyWith(role: AppRole.microRestaurant);
+          final updatedSession =
+              session.copyWith(role: AppRole.microRestaurant);
           await SessionService.saveUserSession(
             userId: updatedSession.userId,
             role: updatedSession.role,
@@ -380,7 +496,8 @@ class _MyStoreState extends State<MyStore> {
         } else {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text('${l10n.error} : ${result?['error'] ?? 'inconnue'}'),
+              content:
+                  Text('${l10n.error} : ${result?['error'] ?? 'inconnue'}'),
               backgroundColor: AppColors.error,
             ));
           }
@@ -406,7 +523,8 @@ class _MyStoreState extends State<MyStore> {
         ),
         title: Row(children: [
           Container(
-            width: 32, height: 32,
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
               color: AppColors.errorLight,
               borderRadius: BorderRadius.circular(AppRadius.sm),
@@ -416,17 +534,22 @@ class _MyStoreState extends State<MyStore> {
           ),
           const SizedBox(width: 10),
           Text(l10n.store_cancel_request_title,
-              style: AppTypography.titleMedium().copyWith(fontSize: 16)),
+              style: AppTypography.titleMedium().copyWith(
+                  fontSize: 16,
+                  color: AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
         ]),
         content: Text(
           l10n.store_cancel_request_body,
-          style: AppTypography.bodyLarge(),
+          style: AppTypography.bodyLarge(
+              color: AppColors.resolve(AppColors.ink, AppDarkColors.ink)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
             child: Text(l10n.no,
-                style: AppTypography.labelMedium(color: AppColors.inkMuted)),
+                style: AppTypography.labelMedium(
+                    color: AppColors.resolve(
+                        AppColors.inkMuted, AppDarkColors.inkMuted))),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -467,7 +590,8 @@ class _MyStoreState extends State<MyStore> {
           }
         } else {
           if (mounted) {
-            Toast(context, '${l10n.error} : ${result?['error'] ?? 'inconnue'}', false);
+            Toast(context, '${l10n.error} : ${result?['error'] ?? 'inconnue'}',
+                false);
           }
         }
       } else {
@@ -480,20 +604,27 @@ class _MyStoreState extends State<MyStore> {
 
   void _showDistanceConfig(Users? currentUser) {
     final l10n = AppLocalizations.of(context)!;
-    double distance = currentUser?.maxDeliveryDistance?.toDouble() ?? 10;
+    double distance =
+        (currentUser?.maxDeliveryDistance?.toDouble() ?? 10).clamp(1.0, 10.0);
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setInnerState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Row(children: [
             Container(
-              width: 32, height: 32,
+              width: 32,
+              height: 32,
               decoration: BoxDecoration(
-                color: AppColors.brandSurface,
+                color: AppColors.resolve(
+                    AppColors.brandSurface, AppDarkColors.brandSurface),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.map_rounded, color: AppColors.brand, size: 18),
+              child: Icon(Icons.map_rounded,
+                  color:
+                      AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+                  size: 18),
             ),
             const SizedBox(width: 10),
             Text(l10n.store_delivery_radius,
@@ -506,7 +637,10 @@ class _MyStoreState extends State<MyStore> {
               children: [
                 Text(
                   l10n.store_max_distance(distance.toStringAsFixed(0)),
-                  style: AppTypography.bodyLarge().copyWith(fontWeight: FontWeight.w700),
+                  style: AppTypography.bodyLarge(
+                          color: AppColors.resolve(
+                              AppColors.ink, AppDarkColors.ink))
+                      .copyWith(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 16),
                 Slider(
@@ -514,13 +648,16 @@ class _MyStoreState extends State<MyStore> {
                   min: 1,
                   max: 10,
                   divisions: 18,
-                  activeColor: AppColors.brand,
+                  activeColor:
+                      AppColors.resolve(AppColors.brand, AppDarkColors.brand),
                   label: '${distance.toStringAsFixed(0)} km',
                   onChanged: (v) => setInnerState(() => distance = v),
                 ),
                 const SizedBox(height: 8),
                 Text(l10n.store_max_distance_limit,
-                    style: AppTypography.bodyMedium(color: AppColors.inkMuted)),
+                    style: AppTypography.bodyMedium(
+                        color: AppColors.resolve(
+                            AppColors.inkMuted, AppDarkColors.inkMuted))),
               ],
             ),
           ),
@@ -528,21 +665,29 @@ class _MyStoreState extends State<MyStore> {
             TextButton(
               onPressed: () => Navigator.pop(ctx),
               child: Text(l10n.cancel,
-                  style: AppTypography.labelMedium(color: AppColors.inkMuted)),
+                  style: AppTypography.labelMedium(
+                      color: AppColors.resolve(
+                          AppColors.inkMuted, AppDarkColors.inkMuted))),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.brand,
+                backgroundColor:
+                    AppColors.resolve(AppColors.brand, AppDarkColors.brand),
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
               onPressed: () async {
                 final s = await SessionService.readSession();
-                final ok = await LivreurApi.updateMaxDeliveryDistance(s.userId, distance);
+                final ok = await LivreurApi.updateMaxDeliveryDistance(
+                    s.userId, distance);
                 if (ctx.mounted) Navigator.pop(ctx);
                 if (mounted) {
                   if (ok) {
-                    Toast(context, l10n.store_radius_updated(distance.toStringAsFixed(0)), true);
+                    Toast(
+                        context,
+                        l10n.store_radius_updated(distance.toStringAsFixed(0)),
+                        true);
                     _load();
                   } else {
                     Toast(context, l10n.store_update_error, false);

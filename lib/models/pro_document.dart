@@ -78,20 +78,26 @@ class ProDocument extends HiveObject {
     int? documentID,
     required int userID,
     required int restaurantID,
-    ParseFile? siret,
-    ParseFile? kbis,
-    ParseFile? pieceIdentite,
+    ParseFileBase? siret,
+    ParseFileBase? kbis,
+    ParseFileBase? pieceIdentite,
     String? description,
   }) async {
     String functionName = documentID == null
         ? 'submitRestaurantProDocuments'
         : 'updateRestaurantProDocuments';
     var cloudFunction = ParseCloudFunction(functionName);
+    String? uploadError;
 
-    Future<String?> uploadFile(ParseFile file) async {
-      final response = await file.save();
-      if (response.success && response.result != null) {
-        return (response.result as ParseFile).url ?? '';
+    Future<String?> uploadFile(ParseFileBase file) async {
+      try {
+        final response = await file.save();
+        if (response.success && response.result != null) {
+          return (response.result as ParseFileBase).url ?? '';
+        }
+        uploadError = response.error?.message;
+      } catch (e) {
+        uploadError = e.toString();
       }
       return null;
     }
@@ -108,7 +114,8 @@ class ProDocument extends HiveObject {
     if (kbis != null) {
       kbisUrl = await uploadFile(kbis);
       if (kbisUrl == null) {
-        return "Erreur : l'upload du KBIS a échoué.";
+        final detail = uploadError == null ? '' : ' ($uploadError)';
+        return "Erreur : l'upload du KBIS a échoué$detail";
       }
     }
 
@@ -139,7 +146,9 @@ class ProDocument extends HiveObject {
         if (response['success'] == false) {
           return "Erreur : ${response['error']}";
         } else {
-          int updatedDocumentID = documentID ?? response['documentID'];
+          int updatedDocumentID =
+              documentID ??
+              (int.tryParse(response['documentID']?.toString() ?? '0') ?? 0);
 
           ProDocument doc = ProDocument(
             documentID: updatedDocumentID,

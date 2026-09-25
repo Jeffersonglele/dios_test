@@ -1,12 +1,14 @@
-import 'dart:io';
 import 'package:dios_delices/l10n/app_localizations.dart';
 import 'package:dios_delices/models/pro_document.dart';
+import 'package:dios_delices/providers/theme_provider.dart';
 import 'package:dios_delices/services/session_service.dart';
 import 'package:dios_delices/theme/app_theme.dart';
 import 'package:dios_delices/utils/toast.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
+import 'package:path/path.dart' as p;
 
 class ProRequestPage extends StatefulWidget {
   const ProRequestPage({super.key});
@@ -19,9 +21,34 @@ class _ProRequestPageState extends State<ProRequestPage> {
   final _formKey = GlobalKey<FormState>();
   final _descriptionController = TextEditingController();
 
-  File? _identityFile;
-  File? _proDocFile;
+  XFile? _identityFile;
+  XFile? _proDocFile;
   bool _isSubmitting = false;
+
+  String _mimeType(String? extension) {
+    switch (extension?.toLowerCase()) {
+      case 'pdf':
+        return 'application/pdf';
+      case 'png':
+        return 'image/png';
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      default:
+        return 'application/octet-stream';
+    }
+  }
+
+  String _documentExtension(String fileName) {
+    final extension = p.extension(fileName).toLowerCase();
+    const allowed = {'.pdf', '.jpg', '.jpeg', '.png'};
+    return allowed.contains(extension) ? extension : '.bin';
+  }
+
+  String _safeDocumentName(
+      String prefix, int userId, int timestamp, XFile file) {
+    return '${prefix}_${userId}_$timestamp${_documentExtension(file.name)}';
+  }
 
   @override
   void dispose() {
@@ -33,9 +60,15 @@ class _ProRequestPageState extends State<ProRequestPage> {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+      withData: true,
     );
-    if (result != null && result.files.single.path != null) {
-      setState(() => _identityFile = File(result.files.single.path!));
+    final file = result?.files.single;
+    if (file?.bytes != null) {
+      setState(() => _identityFile = XFile.fromData(
+            file!.bytes!,
+            name: file.name,
+            mimeType: _mimeType(file.extension),
+          ));
     }
   }
 
@@ -43,9 +76,15 @@ class _ProRequestPageState extends State<ProRequestPage> {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+      withData: true,
     );
-    if (result != null && result.files.single.path != null) {
-      setState(() => _proDocFile = File(result.files.single.path!));
+    final file = result?.files.single;
+    if (file?.bytes != null) {
+      setState(() => _proDocFile = XFile.fromData(
+            file!.bytes!,
+            name: file.name,
+            mimeType: _mimeType(file.extension),
+          ));
     }
   }
 
@@ -67,10 +106,17 @@ class _ProRequestPageState extends State<ProRequestPage> {
     try {
       final session = await SessionService.readSession();
 
-      final identityFile = ParseFile(_identityFile!,
-          name: 'identity_${session.userId}_${DateTime.now().millisecondsSinceEpoch}.pdf');
-      final proDocFile = ParseFile(_proDocFile!,
-          name: 'prodoc_${session.userId}_${DateTime.now().millisecondsSinceEpoch}.pdf');
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final identityFile = ParseXFile(
+        _identityFile!,
+        name: _safeDocumentName(
+            'identity', session.userId, timestamp, _identityFile!),
+      );
+      final proDocFile = ParseXFile(
+        _proDocFile!,
+        name: _safeDocumentName(
+            'prodoc', session.userId, timestamp, _proDocFile!),
+      );
 
       final result = await ProDocument.submitDocuments(
         userID: session.userId,
@@ -101,120 +147,163 @@ class _ProRequestPageState extends State<ProRequestPage> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
 
-    return Scaffold(
-      backgroundColor:
-          AppColors.resolve(AppColors.surface, AppDarkColors.surface),
-      appBar: AppBar(
-        title: Text(l10n.pro_request_title,
-            style: AppTypography.titleSmall()),
-        backgroundColor:
-            AppColors.resolve(AppColors.surface, AppDarkColors.surface),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(l10n.pro_request_subtitle,
-                  style: AppTypography.bodyLarge()),
-              const SizedBox(height: 24),
+    return AnimatedBuilder(
+      animation: darkModeNotifier,
+      builder: (context, _) {
+        final surface =
+            AppColors.resolve(AppColors.surface, AppDarkColors.surface);
+        final ink = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
+        final inkMuted =
+            AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
+        final inkSubtle =
+            AppColors.resolve(AppColors.inkSubtle, AppDarkColors.inkSubtle);
+        final card = AppColors.resolve(AppColors.card, AppDarkColors.card);
+        final border =
+            AppColors.resolve(AppColors.border, AppDarkColors.border);
+        final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+        final success =
+            AppColors.resolve(AppColors.success, AppDarkColors.success);
 
-              // ── Identity document ──────────────────────────
-              _DocumentPicker(
-                label: l10n.pro_request_identity_doc,
-                file: _identityFile,
-                onPick: _pickIdentityFile,
-                l10n: l10n,
-              ),
-              const SizedBox(height: 20),
-
-              // ── Professional document ──────────────────────
-              _DocumentPicker(
-                label: l10n.pro_request_pro_doc,
-                file: _proDocFile,
-                onPick: _pickProDocFile,
-                l10n: l10n,
-              ),
-              const SizedBox(height: 24),
-
-              // ── Description ────────────────────────────────
-              Text(l10n.pro_request_description_label,
-                  style: AppTypography.labelMedium()),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _descriptionController,
-                maxLines: 6,
-                maxLength: 1000,
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? l10n.pro_request_error_description : null,
-                decoration: InputDecoration(
-                  hintText: l10n.pro_request_description_hint,
-                  hintStyle: AppTypography.bodyMedium(color: AppColors.inkSubtle),
-                  filled: true,
-                  fillColor: AppColors.resolve(AppColors.card, AppDarkColors.card),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                    borderSide: const BorderSide(color: AppColors.border),
+        return Scaffold(
+          backgroundColor: surface,
+          appBar: AppBar(
+            title: Text(l10n.pro_request_title,
+                style: AppTypography.titleSmall(color: ink)),
+            backgroundColor: surface,
+          ),
+          body: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(l10n.pro_request_subtitle,
+                      style: AppTypography.bodyLarge(color: ink)),
+                  const SizedBox(height: 24),
+                  _DocumentPicker(
+                    label: l10n.pro_request_identity_doc,
+                    file: _identityFile,
+                    onPick: _pickIdentityFile,
+                    l10n: l10n,
+                    ink: ink,
+                    inkMuted: inkMuted,
+                    inkSubtle: inkSubtle,
+                    card: card,
+                    border: border,
+                    brand: brand,
+                    success: success,
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                    borderSide: const BorderSide(color: AppColors.border),
+                  const SizedBox(height: 20),
+                  _DocumentPicker(
+                    label: l10n.pro_request_pro_doc,
+                    file: _proDocFile,
+                    onPick: _pickProDocFile,
+                    l10n: l10n,
+                    ink: ink,
+                    inkMuted: inkMuted,
+                    inkSubtle: inkSubtle,
+                    card: card,
+                    border: border,
+                    brand: brand,
+                    success: success,
                   ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                    borderSide: const BorderSide(color: AppColors.brand, width: 1.5),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 32),
-
-              // ── Submit ─────────────────────────────────────
-              SizedBox(
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: _isSubmitting ? null : _submit,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.brand,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.md),
+                  const SizedBox(height: 24),
+                  Text(l10n.pro_request_description_label,
+                      style: AppTypography.labelMedium(color: inkMuted)),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _descriptionController,
+                    maxLines: 6,
+                    maxLength: 1000,
+                    style: AppTypography.bodyLarge(color: ink),
+                    validator: (v) => (v == null || v.trim().isEmpty)
+                        ? l10n.pro_request_error_description
+                        : null,
+                    decoration: InputDecoration(
+                      hintText: l10n.pro_request_description_hint,
+                      hintStyle: AppTypography.bodyMedium(color: inkSubtle),
+                      counterStyle: AppTypography.bodySmall(color: inkMuted),
+                      filled: true,
+                      fillColor: card,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        borderSide: BorderSide(color: border),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        borderSide: BorderSide(color: border),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        borderSide: BorderSide(color: brand, width: 1.5),
+                      ),
                     ),
                   ),
-                  child: _isSubmitting
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : Text(l10n.pro_request_submit,
-                          style: AppTypography.labelLarge()),
-                ),
+                  const SizedBox(height: 32),
+                  SizedBox(
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: _isSubmitting ? null : _submit,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: brand,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        surfaceTintColor: Colors.transparent,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                        ),
+                      ),
+                      child: _isSubmitting
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Text(l10n.pro_request_submit,
+                              style: AppTypography.labelLarge(
+                                  color: Colors.white)),
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+                ],
               ),
-              const SizedBox(height: 40),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
 
 class _DocumentPicker extends StatelessWidget {
   final String label;
-  final File? file;
+  final XFile? file;
   final VoidCallback onPick;
   final AppLocalizations l10n;
+  final Color ink;
+  final Color inkMuted;
+  final Color inkSubtle;
+  final Color card;
+  final Color border;
+  final Color brand;
+  final Color success;
 
   const _DocumentPicker({
     required this.label,
     required this.file,
     required this.onPick,
     required this.l10n,
+    required this.ink,
+    required this.inkMuted,
+    required this.inkSubtle,
+    required this.card,
+    required this.border,
+    required this.brand,
+    required this.success,
   });
 
   @override
@@ -222,7 +311,7 @@ class _DocumentPicker extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: AppTypography.labelMedium()),
+        Text(label, style: AppTypography.labelMedium(color: inkMuted)),
         const SizedBox(height: 8),
         GestureDetector(
           onTap: onPick,
@@ -230,10 +319,10 @@ class _DocumentPicker extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.resolve(AppColors.card, AppDarkColors.card),
+              color: card,
               borderRadius: BorderRadius.circular(AppRadius.md),
               border: Border.all(
-                color: file != null ? AppColors.brand : AppColors.border,
+                color: file != null ? brand : border,
                 width: file != null ? 1.5 : 1,
               ),
             ),
@@ -243,17 +332,17 @@ class _DocumentPicker extends StatelessWidget {
                   file != null
                       ? Icons.check_circle_rounded
                       : Icons.upload_file_rounded,
-                  color: file != null ? AppColors.success : AppColors.inkMuted,
+                  color: file != null ? success : inkMuted,
                   size: 22,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     file != null
-                        ? '${l10n.pro_request_file_selected} (${file!.path.split('/').last})'
+                        ? '${l10n.pro_request_file_selected} (${file!.name})'
                         : l10n.pro_request_no_file,
                     style: AppTypography.bodyMedium(
-                      color: file != null ? AppColors.ink : AppColors.inkSubtle,
+                      color: file != null ? ink : inkSubtle,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -261,7 +350,7 @@ class _DocumentPicker extends StatelessWidget {
                 const SizedBox(width: 8),
                 Text(
                   l10n.pro_request_pick_file,
-                  style: AppTypography.labelMedium(color: AppColors.brand),
+                  style: AppTypography.labelMedium(color: brand),
                 ),
               ],
             ),

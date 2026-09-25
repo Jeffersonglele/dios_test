@@ -33,7 +33,7 @@ class _HomeMicroRestauState extends State<HomeMicroRestau> {
   Restaurant? _restaurant;
   List<Dish> _dishes = [];
   List<Commande> _commandes = [];
-  String _country = 'France';
+  String _country = 'RDC';
 
   int _pendingOrders = 0;
   int _confirmedOrders = 0;
@@ -317,7 +317,7 @@ class _HeroHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isOpen = restaurant?.isOpen == 1;
+    final isOpen = restaurant?.isCurrentlyOpen ?? false;
 
     return Container(
       // ── Marge top plus généreuse pour descendre le header ──

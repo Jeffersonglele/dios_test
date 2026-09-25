@@ -34,6 +34,10 @@
 	<string>Dios Délices utilise votre galerie pour sélectionner des images de restaurant, de plat ou de pièce d'identité.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Dios Délices peut enregistrer des images générées ou modifiées dans votre galerie si nécessaire.</string>
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

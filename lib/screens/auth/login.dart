@@ -277,6 +277,11 @@ class _LoginState extends ConsumerState<Login> with SingleTickerProviderStateMix
     try {
       final user = await _findUser();
       if (user == null) {
+        _onLoginFailed(Users.lastLoginError);
+        return;
+      }
+
+      if (!await SessionService.hasParseSession()) {
         _onLoginFailed();
         return;
       }
@@ -316,11 +321,10 @@ class _LoginState extends ConsumerState<Login> with SingleTickerProviderStateMix
   }
 
   Future<Users?> _findUser() async {
-    Users? user =
-        await Users.verifUser(_users, _nameCtrl.text, _passwordCtrl.text);
-    if (user != null) return user;
-
-    user = await Users.loginUser(_nameCtrl.text, _passwordCtrl.text);
+    // Le serveur Parse est la source d'autorité, comme l'API Node/JWT.
+    // Le cache local ne sert qu'à conserver les données d'affichage après une
+    // connexion serveur réussie.
+    Users? user = await Users.loginUser(_nameCtrl.text, _passwordCtrl.text);
     if (user != null) {
       await DatabaseHelper.createUser(user);
       await Users.getAllUsersDetails(adminUserID: user.userID);
@@ -332,6 +336,9 @@ class _LoginState extends ConsumerState<Login> with SingleTickerProviderStateMix
       return user;
     }
 
+    // Compatibilité hors-ligne conservée pour les écrans historiques, mais
+    // _performLogin vérifiera qu'une vraie session Parse existe avant de
+    // laisser entrer dans l'application.
     await Users.getAllUsersDetails();
     final fresh = await Users.fetchUsersFromDB();
     if (mounted) setState(() => _users = fresh);
@@ -411,7 +418,7 @@ class _LoginState extends ConsumerState<Login> with SingleTickerProviderStateMix
   }
 
   void _redirectToVerification(Users user) {
-    final country = user.country.trim().isEmpty ? "Bénin" : user.country.trim();
+    final country = user.country.trim().isEmpty ? "RDC" : user.country.trim();
     Navigator.push(
         context,
         MaterialPageRoute(
@@ -430,25 +437,30 @@ class _LoginState extends ConsumerState<Login> with SingleTickerProviderStateMix
                 )));
   }
 
-  void _onLoginFailed() {
+  void _onLoginFailed([String? reason]) {
     if (!mounted) return;
     setState(() {
       _isLoading = false;
       _loginFailed = true;
     });
-    Toast(context, AppLocalizations.of(context)!.login_failed, false);
+    Toast(
+      context,
+      reason?.trim().isNotEmpty == true
+          ? reason!.trim()
+          : AppLocalizations.of(context)!.login_failed,
+      false,
+    );
   }
 
   String _indicatif(String c) {
     switch (c) {
       case 'Bénin':
         return '+229';
-      case "Côte d'Ivoire":
-        return '+225';
-      case 'France':
-        return '+33';
+      case 'RDC':
+      case 'CD':
+        return '+243';
       default:
-        return '+229';
+        return '+243';
     }
   }
 

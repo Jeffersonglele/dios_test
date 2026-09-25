@@ -29,16 +29,19 @@ class _CurvedNavigationLivreurState extends State<CurvedNavigationLivreur> {
       icon: Icon(Icons.map_outlined),
       activeIcon: Icon(Icons.map),
       label: 'Carte',
+      iosSystemName: 'map.fill',
     ),
     DiosNavItem(
       icon: Icon(Icons.delivery_dining_outlined),
       activeIcon: Icon(Icons.delivery_dining),
       label: 'Livraisons',
+      iosSystemName: 'shippingbox.fill',
     ),
     DiosNavItem(
       icon: Icon(Icons.person_outline),
       activeIcon: Icon(Icons.person),
       label: 'Profil',
+      iosSystemName: 'person.fill',
     ),
   ];
 
@@ -58,7 +61,8 @@ class _CurvedNavigationLivreurState extends State<CurvedNavigationLivreur> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor:
+          AppColors.resolve(AppColors.surface, AppDarkColors.surface),
       body: SafeArea(
         child: PageView(
           controller: _pageController,

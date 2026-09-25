@@ -13,6 +13,7 @@ import '../../core/app_role.dart';
 import '../../models/users.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/phone_number.dart';
+import '../../utils/country_util.dart';
 import '../../l10n/app_localizations.dart';
 import '../../utils/toast.dart';
 import '../legal/cgv_page.dart';
@@ -50,25 +51,17 @@ class _SignUpViewState extends State<SignUpView> {
   bool _isDetectingCountry = true;
   int _signupRole = 2;
   String _permisType = 'moto';
-  String _selectedCountry = 'Bénin';
+  String _selectedCountry = 'RDC';
 
   // ── Données pays ─────────────────────────────────────────
   static const Map<String, String> _countryCodes = {
-    'France': '+33',
-    'Bénin': '+229',
-    "Côte d'Ivoire": '+225',
+    CountryUtil.rdc: '+243',
+    CountryUtil.benin: '+229',
   };
   static const Map<String, String> _countryFlags = {
-    'France': '🇫🇷',
-    'Bénin': '🇧🇯',
-    "Côte d'Ivoire": '🇨🇮',
+    CountryUtil.rdc: '🇨🇩',
+    CountryUtil.benin: '🇧🇯',
   };
-  static const Map<String, int> _phoneLengths = {
-    'France': 10,
-    'Bénin': 10,
-    "Côte d'Ivoire": 8,
-  };
-
   final _formKey = GlobalKey<FormState>();
   final _simpleUIController = SimpleUIController();
 
@@ -93,29 +86,70 @@ class _SignUpViewState extends State<SignUpView> {
   Future<void> _detectCountry() async {
     try {
       final permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
         if (mounted) setState(() => _isDetectingCountry = false);
         return;
       }
-      final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.low, timeLimit: const Duration(seconds: 5));
-      final placemarks = await placemarkFromCoordinates(pos.latitude, pos.longitude);
+      final pos = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.low,
+          timeLimit: const Duration(seconds: 5));
+      final placemarks =
+          await placemarkFromCoordinates(pos.latitude, pos.longitude);
       if (placemarks.isNotEmpty) {
-        final country = placemarks.first.country ?? '';
-        for (final c in _countryCodes.keys) {
-          if (country.toLowerCase().contains(c.toLowerCase()) || c.toLowerCase().contains(country.toLowerCase())) {
-            if (mounted) setState(() { _selectedCountry = c; _isDetectingCountry = false; });
-            return;
-          }
+        final country = (placemarks.first.country ?? '').toLowerCase();
+        final detectedCountry =
+            CountryUtil.allowBeninTestMode &&
+                    (country.contains('benin') || country.contains('bénin'))
+                ? 'Bénin'
+                : country.contains('république démocratique') ||
+                            country.contains('democratic republic') ||
+                            country.contains('kinshasa')
+                        ? 'RDC'
+                        : null;
+        if (detectedCountry != null && mounted) {
+          setState(() {
+            _selectedCountry = detectedCountry;
+            _isDetectingCountry = false;
+          });
+          return;
         }
       }
     } catch (_) {}
     if (mounted) setState(() => _isDetectingCountry = false);
   }
 
+  Future<void> _chooseCountry() async {
+    if (_isDetectingCountry) return;
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: _countryCodes.keys
+              .where(CountryUtil.selectableCountries.contains)
+              .map((country) => ListTile(
+                    leading: Text(_countryFlags[country] ?? ''),
+                    title: Text(country),
+                    trailing: Text(_countryCodes[country] ?? ''),
+                    selected: country == _selectedCountry,
+                    onTap: () => Navigator.pop(context, country),
+                  ))
+              .toList(),
+        ),
+      ),
+    );
+    if (selected != null && mounted) {
+      setState(() {
+        _selectedCountry = selected;
+        _telephoneCtrl.clear();
+      });
+    }
+  }
+
   // ── Build ─────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-
     return GestureDetector(
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
       child: AuthShell(
@@ -142,11 +176,16 @@ class _SignUpViewState extends State<SignUpView> {
       child: RichText(
         text: TextSpan(
           text: AppLocalizations.of(context)!.already_have_account,
-          style: AppTypography.bodyLarge(color: AppColors.inkMuted),
+          style: AppTypography.bodyLarge(
+              color: AppColors.resolve(
+                  AppColors.inkMuted, AppDarkColors.inkMuted)),
           children: [
             TextSpan(
               text: '  ${AppLocalizations.of(context)!.login}',
-              style: AppTypography.bodyLarge(color: AppColors.brand).copyWith(
+              style: AppTypography.bodyLarge(
+                      color: AppColors.resolve(
+                          AppColors.brand, AppDarkColors.brand))
+                  .copyWith(
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -192,8 +231,8 @@ class _SignUpViewState extends State<SignUpView> {
                 child: _FormField(
                   controller: _firstnameCtrl,
                   hint: AppLocalizations.of(context)!.firstname,
-                  validator:
-                      _minLengthValidator(4, AppLocalizations.of(context)!.enter_firstname),
+                  validator: _minLengthValidator(
+                      4, AppLocalizations.of(context)!.enter_firstname),
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
@@ -201,8 +240,8 @@ class _SignUpViewState extends State<SignUpView> {
                 child: _FormField(
                   controller: _lastnameCtrl,
                   hint: AppLocalizations.of(context)!.lastname,
-                  validator:
-                      _minLengthValidator(4, AppLocalizations.of(context)!.enter_lastname),
+                  validator: _minLengthValidator(
+                      4, AppLocalizations.of(context)!.enter_lastname),
                 ),
               ),
             ],
@@ -212,7 +251,8 @@ class _SignUpViewState extends State<SignUpView> {
             controller: _usernameCtrl,
             hint: AppLocalizations.of(context)!.username,
             prefixIcon: Icons.alternate_email_rounded,
-            validator: _minLengthValidator(4, AppLocalizations.of(context)!.enter_username),
+            validator: _minLengthValidator(
+                4, AppLocalizations.of(context)!.enter_username),
           ),
 
           const SizedBox(height: AppSpacing.xl),
@@ -235,24 +275,43 @@ class _SignUpViewState extends State<SignUpView> {
           const SizedBox(height: AppSpacing.sm),
 
           // Pays (détecté automatiquement)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-            decoration: BoxDecoration(
-              border: Border.all(color: AppColors.border),
-              borderRadius: BorderRadius.circular(AppRadius.md),
+          InkWell(
+            onTap: _chooseCountry,
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+              decoration: BoxDecoration(
+                border: Border.all(
+                    color: AppColors.resolve(
+                        AppColors.border, AppDarkColors.border)),
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
+              child: Row(children: [
+                Icon(Icons.location_on_rounded,
+                    color: AppColors.resolve(
+                        AppColors.brand, AppDarkColors.brand),
+                    size: 20),
+                const SizedBox(width: 10),
+                if (_isDetectingCountry)
+                  const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                else ...[
+                  Expanded(
+                    child: Text(
+                        '${_countryFlags[_selectedCountry] ?? ''} $_selectedCountry  ${_countryCodes[_selectedCountry] ?? ''}',
+                        style: AppTypography.bodyLarge(
+                            color: AppColors.resolve(
+                                AppColors.ink, AppDarkColors.ink))),
+                  ),
+                  Icon(Icons.keyboard_arrow_down_rounded,
+                      color: AppColors.resolve(
+                          AppColors.inkMuted, AppDarkColors.inkMuted),
+                      size: 20),
+                ],
+              ]),
             ),
-            child: Row(children: [
-              const Icon(Icons.location_on_rounded, color: AppColors.brand, size: 20),
-              const SizedBox(width: 10),
-              if (_isDetectingCountry)
-                const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-              else ...[
-                Text('${_countryFlags[_selectedCountry] ?? ''} $_selectedCountry  ${_countryCodes[_selectedCountry] ?? ''}',
-                    style: AppTypography.bodyLarge()),
-                const Spacer(),
-                const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 18),
-              ],
-            ]),
           ),
           const SizedBox(height: AppSpacing.sm),
 
@@ -264,21 +323,22 @@ class _SignUpViewState extends State<SignUpView> {
                 controller: _telephoneCtrl,
                 keyboardType: TextInputType.number,
                 style: AppTypography.bodyLarge(color: colorScheme.onSurface),
-                inputFormatters: _selectedCountry == 'Bénin'
-                    ? [BeninPhoneInputFormatter()]
-                    : [FilteringTextInputFormatter.digitsOnly],
+                inputFormatters: [
+                  CountryPhoneInputFormatter(_selectedCountry),
+                ],
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.phone_outlined),
-                  hintText: _selectedCountry == 'Bénin'
-                      ? '01 xx xx xx xx'
-                      : AppLocalizations.of(context)!.phone_number,
+                  hintText: phoneExampleForCountry(_selectedCountry),
                 ),
                 validator: (v) {
-                  if (v == null || v.isEmpty) return AppLocalizations.of(context)!.enter_phone;
-                  if (_selectedCountry == 'Bénin' && !isValidBeninLocalPhone(v))
-                    return AppLocalizations.of(context)!.benin_phone_format;
-                  if (phoneDigits(v).length != _phoneLengths[_selectedCountry]!)
-                    return '${_phoneLengths[_selectedCountry]} ${AppLocalizations.of(context)!.benin_phone_format}';
+                  if (v == null || v.isEmpty)
+                    return AppLocalizations.of(context)!.enter_phone;
+                  if (!isValidLocalPhoneForCountry(
+                    phone: v,
+                    country: _selectedCountry,
+                  )) {
+                    return 'Format : ${phoneExampleForCountry(_selectedCountry)}';
+                  }
                   return null;
                 },
               );
@@ -340,7 +400,8 @@ class _SignUpViewState extends State<SignUpView> {
                 ),
                 validator: (v) {
                   if (v == null || v.isEmpty)
-                    return AppLocalizations.of(context)!.confirm_password_required;
+                    return AppLocalizations.of(context)!
+                        .confirm_password_required;
                   if (v != _passwordCtrl.text)
                     return AppLocalizations.of(context)!.passwords_do_not_match;
                   return null;
@@ -371,11 +432,15 @@ class _SignUpViewState extends State<SignUpView> {
               onPressed: () async {
                 if (!_formKey.currentState!.validate()) return;
                 if (!_termsAccepted) {
-                  Toast(context, AppLocalizations.of(context)!.accept_terms_warning, false);
+                  Toast(
+                      context,
+                      AppLocalizations.of(context)!.accept_terms_warning,
+                      false);
                   return;
                 }
                 if (!_ageConfirmed) {
-                  Toast(context, AppLocalizations.of(context)!.age_confirm_warning, false);
+                  Toast(context,
+                      AppLocalizations.of(context)!.age_confirm_warning, false);
                   return;
                 }
                 final encrypted =
@@ -388,7 +453,10 @@ class _SignUpViewState extends State<SignUpView> {
                   lastname: _lastnameCtrl.text,
                   username: _usernameCtrl.text,
                   email: _emailCtrl.text,
-                  telephone: phoneDigits(_telephoneCtrl.text),
+                  telephone: phoneStorageFormatForCountry(
+                    phone: _telephoneCtrl.text,
+                    country: _selectedCountry,
+                  ),
                   country: _selectedCountry,
                   status: '',
                   identity: '',
@@ -396,6 +464,17 @@ class _SignUpViewState extends State<SignUpView> {
                   ageConfirmed: true,
                 );
                 if (result is int) {
+                  // add1User crée le compte métier ; on ouvre aussi la
+                  // session Parse native pour que le parcours de vérification
+                  // et les Cloud Functions soient déjà authentifiés.
+                  final authenticatedUser = await Users.loginUser(
+                      _usernameCtrl.text, _passwordCtrl.text);
+                  if (authenticatedUser == null) {
+                    if (mounted) {
+                      Toast(context, 'Connexion du compte impossible.', false);
+                    }
+                    return;
+                  }
                   await SessionService.saveUserSession(
                     userId: result,
                     role: AppRole.fromId(_signupRole),
@@ -411,7 +490,10 @@ class _SignUpViewState extends State<SignUpView> {
                           username: _usernameCtrl.text,
                           userID: result,
                           roleID: _signupRole,
-                          telephone: phoneDigits(_telephoneCtrl.text),
+                          telephone: phoneStorageFormatForCountry(
+                            phone: _telephoneCtrl.text,
+                            country: _selectedCountry,
+                          ),
                           password_crypte: encrypted,
                           password: _passwordCtrl.text,
                           firstname: _firstnameCtrl.text,
@@ -454,7 +536,10 @@ class _SignUpViewState extends State<SignUpView> {
         lastname: _lastnameCtrl.text,
         username: _usernameCtrl.text,
         email: _emailCtrl.text,
-        telephone: phoneDigits(_telephoneCtrl.text),
+        telephone: phoneStorageFormatForCountry(
+          phone: _telephoneCtrl.text,
+          country: _selectedCountry,
+        ),
         country: _selectedCountry,
         status: '',
         identity: '',
@@ -465,6 +550,12 @@ class _SignUpViewState extends State<SignUpView> {
       if (!mounted) return;
 
       if (result is int) {
+        final authenticatedUser =
+            await Users.loginUser(_usernameCtrl.text, _passwordCtrl.text);
+        if (authenticatedUser == null) {
+          if (mounted) Toast(context, 'Connexion du compte impossible.', false);
+          return;
+        }
         await SessionService.saveUserSession(
           userId: result,
           role: AppRole.fromId(_signupRole),
@@ -515,16 +606,14 @@ class _RoleSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: AppColors.resolve(
-            AppColors.surfaceWarm, AppDarkColors.surfaceWarm),
+        color:
+            AppColors.resolve(AppColors.surfaceWarm, AppDarkColors.surfaceWarm),
         borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(
-            color: AppColors.resolve(
-                    AppColors.border, AppDarkColors.border)
+            color: AppColors.resolve(AppColors.border, AppDarkColors.border)
                 .withValues(alpha: 0.5)),
       ),
       child: Row(
@@ -562,7 +651,6 @@ class _RoleTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
@@ -571,12 +659,15 @@ class _RoleTab extends StatelessWidget {
           curve: AppMotion.standard,
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            color: selected ? AppColors.card : Colors.transparent,
+            color: selected
+                ? AppColors.resolve(AppColors.card, AppDarkColors.card)
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(AppRadius.md),
             boxShadow: selected
                 ? [
                     BoxShadow(
-                      color: AppColors.ink.withValues(alpha: 0.06),
+                      color: AppColors.resolve(AppColors.ink, AppDarkColors.ink)
+                          .withValues(alpha: 0.06),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     )
@@ -589,13 +680,19 @@ class _RoleTab extends StatelessWidget {
               Icon(
                 icon,
                 size: 16,
-                color: selected ? AppColors.brand : AppColors.inkMuted,
+                color: selected
+                    ? AppColors.resolve(AppColors.brand, AppDarkColors.brand)
+                    : AppColors.resolve(
+                        AppColors.inkMuted, AppDarkColors.inkMuted),
               ),
               const SizedBox(width: 6),
               Text(
                 label,
                 style: AppTypography.labelMedium(
-                  color: selected ? AppColors.brand : AppColors.inkMuted,
+                  color: selected
+                      ? AppColors.resolve(AppColors.brand, AppDarkColors.brand)
+                      : AppColors.resolve(
+                          AppColors.inkMuted, AppDarkColors.inkMuted),
                 ).copyWith(
                     fontWeight: selected ? FontWeight.w700 : FontWeight.w500),
               ),
@@ -628,13 +725,15 @@ class _VehicleSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Type de véhicule',
-          style: AppTypography.labelMedium(color: AppColors.inkMuted),
+          style: AppTypography.labelMedium(
+            color:
+                AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted),
+          ),
         ),
         const SizedBox(height: AppSpacing.sm),
         Row(
@@ -651,13 +750,14 @@ class _VehicleSelector extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   decoration: BoxDecoration(
                     color: selected
-                        ? AppColors.resolve(AppColors.brandSurface, AppDarkColors.brandSurface)
-                        : AppColors.resolve(
-                            AppColors.card, AppDarkColors.card),
+                        ? AppColors.resolve(
+                            AppColors.brandSurface, AppDarkColors.brandSurface)
+                        : AppColors.resolve(AppColors.card, AppDarkColors.card),
                     borderRadius: BorderRadius.circular(AppRadius.md),
                     border: Border.all(
                       color: selected
-                          ? AppColors.resolve(AppColors.brand, AppDarkColors.brand)
+                          ? AppColors.resolve(
+                                  AppColors.brand, AppDarkColors.brand)
                               .withValues(alpha: 0.4)
                           : AppColors.resolve(
                               AppColors.border, AppDarkColors.border),
@@ -668,14 +768,21 @@ class _VehicleSelector extends StatelessWidget {
                       Icon(
                         v.icon,
                         size: 22,
-                        color: selected ? AppColors.brand : AppColors.inkMuted,
+                        color: selected
+                            ? AppColors.resolve(
+                                AppColors.brand, AppDarkColors.brand)
+                            : AppColors.resolve(
+                                AppColors.inkMuted, AppDarkColors.inkMuted),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         v.label,
                         style: AppTypography.labelMedium(
-                          color:
-                              selected ? AppColors.brand : AppColors.inkMuted,
+                          color: selected
+                              ? AppColors.resolve(
+                                  AppColors.brand, AppDarkColors.brand)
+                              : AppColors.resolve(
+                                  AppColors.inkMuted, AppDarkColors.inkMuted),
                         ),
                       ),
                     ],
@@ -712,7 +819,6 @@ class _SectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
     return Row(
       children: [
         Container(
@@ -723,21 +829,21 @@ class _SectionLabel extends StatelessWidget {
                 AppColors.brandSurface, AppDarkColors.brandSurface),
             borderRadius: BorderRadius.circular(AppRadius.sm),
           ),
-          child: Icon(icon, size: 15, color: AppColors.brand),
+          child: Icon(icon,
+              size: 15,
+              color: AppColors.resolve(AppColors.brand, AppDarkColors.brand)),
         ),
         const SizedBox(width: AppSpacing.sm),
         Text(
           label,
           style: AppTypography.labelLarge(
-              color:
-                  AppColors.resolve(AppColors.ink, AppDarkColors.ink)),
+              color: AppColors.resolve(AppColors.ink, AppDarkColors.ink)),
         ),
         const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: Container(
             height: 1,
-            color: AppColors.resolve(
-                AppColors.border, AppDarkColors.border),
+            color: AppColors.resolve(AppColors.border, AppDarkColors.border),
           ),
         ),
       ],
@@ -763,7 +869,6 @@ class _FormField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
     final colorScheme = Theme.of(context).colorScheme;
     return TextFormField(
       controller: controller,
@@ -801,8 +906,6 @@ class _PasswordStrengthIndicatorState
     _check();
   }
 
-
-
   @override
   void dispose() {
     widget.controller.removeListener(_check);
@@ -828,28 +931,27 @@ class _PasswordStrengthIndicatorState
   Color get _strengthColor {
     switch (_score) {
       case 4:
-        return AppColors.success;
+        return AppColors.resolve(AppColors.success, AppDarkColors.success);
       case 3:
-        return AppColors.accent;
+        return AppColors.resolve(AppColors.accent, AppDarkColors.accent);
       case 2:
-        return const Color(0xFFF59E0B);
+        return AppColors.resolve(
+            const Color(0xFFF59E0B), const Color(0xFFF59E0B));
       default:
-        return AppColors.error;
+        return AppColors.resolve(AppColors.error, AppDarkColors.error);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: AppColors.resolve(
-            AppColors.surfaceWarm, AppDarkColors.surfaceWarm),
+        color:
+            AppColors.resolve(AppColors.surfaceWarm, AppDarkColors.surfaceWarm),
         borderRadius: BorderRadius.circular(AppRadius.md),
         border: Border.all(
-            color: AppColors.resolve(
-                    AppColors.border, AppDarkColors.border)
+            color: AppColors.resolve(AppColors.border, AppDarkColors.border)
                 .withValues(alpha: 0.5)),
       ),
       child: Column(
@@ -900,7 +1002,6 @@ class _Criterion extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -912,14 +1013,20 @@ class _Criterion extends StatelessWidget {
                 : Icons.radio_button_unchecked_rounded,
             key: ValueKey(ok),
             size: 14,
-            color: ok ? AppColors.success : AppColors.inkSubtle,
+            color: ok
+                ? AppColors.resolve(AppColors.success, AppDarkColors.success)
+                : AppColors.resolve(
+                    AppColors.inkSubtle, AppDarkColors.inkSubtle),
           ),
         ),
         const SizedBox(width: 4),
         Text(
           label,
           style: AppTypography.labelMedium(
-            color: ok ? AppColors.success : AppColors.inkSubtle,
+            color: ok
+                ? AppColors.resolve(AppColors.success, AppDarkColors.success)
+                : AppColors.resolve(
+                    AppColors.inkSubtle, AppDarkColors.inkSubtle),
           ).copyWith(fontSize: 11),
         ),
       ],
@@ -941,7 +1048,6 @@ class _TermsCheckbox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
     return GestureDetector(
       onTap: () => onChanged(!accepted),
       child: Row(
@@ -953,10 +1059,15 @@ class _TermsCheckbox extends StatelessWidget {
             width: 22,
             height: 22,
             decoration: BoxDecoration(
-              color: accepted ? AppColors.brand : Colors.transparent,
+              color: accepted
+                  ? AppColors.resolve(AppColors.brand, AppDarkColors.brand)
+                  : Colors.transparent,
               borderRadius: BorderRadius.circular(6),
               border: Border.all(
-                color: accepted ? AppColors.brand : AppColors.border,
+                color: accepted
+                    ? AppColors.resolve(AppColors.brand, AppDarkColors.brand)
+                    : AppColors.resolve(AppColors.border, AppDarkColors.border)
+                        .withValues(alpha: 0.8),
                 width: 1.5,
               ),
             ),
@@ -967,13 +1078,25 @@ class _TermsCheckbox extends StatelessWidget {
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: GestureDetector(
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CGVPage())),
+              onTap: () => Navigator.push(
+                  context, MaterialPageRoute(builder: (_) => const CGVPage())),
               child: RichText(
                 text: TextSpan(
-                  style: AppTypography.bodyMedium(color: accepted ? AppColors.ink : AppColors.inkMuted),
+                  style: AppTypography.bodyMedium(
+                      color: accepted
+                          ? AppColors.resolve(
+                              AppColors.inkMuted, AppDarkColors.inkMuted)
+                          : AppColors.resolve(
+                                  AppColors.inkSubtle, AppDarkColors.inkSubtle)
+                              .withValues(alpha: 0.8)),
                   children: [
                     TextSpan(text: "J'accepte les "),
-                    TextSpan(text: "conditions d'utilisation", style: TextStyle(color: AppColors.brand, decoration: TextDecoration.underline)),
+                    TextSpan(
+                        text: "conditions d'utilisation",
+                        style: TextStyle(
+                            color: AppColors.resolve(
+                                AppColors.brand, AppDarkColors.brand),
+                            decoration: TextDecoration.underline)),
                   ],
                 ),
               ),
@@ -1010,10 +1133,15 @@ class _AgeCheckbox extends StatelessWidget {
             width: 22,
             height: 22,
             decoration: BoxDecoration(
-              color: accepted ? AppColors.brand : Colors.transparent,
+              color: accepted
+                  ? AppColors.resolve(AppColors.brand, AppDarkColors.brand)
+                  : Colors.transparent,
               borderRadius: BorderRadius.circular(6),
               border: Border.all(
-                color: accepted ? AppColors.brand : AppColors.border,
+                color: accepted
+                    ? AppColors.resolve(AppColors.brand, AppDarkColors.brand)
+                    : AppColors.resolve(AppColors.border, AppDarkColors.border)
+                        .withValues(alpha: 0.8),
                 width: 1.5,
               ),
             ),
@@ -1025,7 +1153,13 @@ class _AgeCheckbox extends StatelessWidget {
           Expanded(
             child: Text(
               l10n.age_confirm_label,
-              style: AppTypography.bodyMedium(color: accepted ? AppColors.ink : AppColors.inkMuted),
+              style: AppTypography.bodyMedium(
+                  color: accepted
+                      ? AppColors.resolve(
+                          AppColors.inkMuted, AppDarkColors.inkMuted)
+                      : AppColors.resolve(
+                              AppColors.inkSubtle, AppDarkColors.inkSubtle)
+                          .withValues(alpha: 0.8)),
             ),
           ),
         ],

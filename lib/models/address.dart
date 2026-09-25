@@ -210,7 +210,10 @@ class Address extends HiveObject {
 
   static Address? getAddressByObject(List<Address> listAddresses, String object, int objectID) {
     try {
-      return listAddresses.firstWhere((address) => address.object == object && address.objectID == objectID);
+      final normalized = object.trim().toLowerCase();
+      return listAddresses.firstWhere((address) =>
+          (address.object ?? '').trim().toLowerCase() == normalized &&
+          address.objectID == objectID);
     } catch (e) {
       return null;
     }

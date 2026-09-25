@@ -32,3 +32,6 @@ Runner/GeneratedPluginRegistrant.*
 !default.mode2v3
 !default.pbxuser
 !default.perspectivev3
+# Commit a minimal Generated.xcconfig placeholder so pod install on CI doesn't fail.
+# (will be regenerated/overwritten by `flutter pub get`).
+!Flutter/Generated.xcconfig

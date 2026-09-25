@@ -11,10 +11,12 @@ class NearbyRestaurantResult {
   const NearbyRestaurantResult({
     required this.restaurant,
     required this.distanceKm,
+    this.isOutOfRange = false,
   });
 
   final Restaurant restaurant;
   final double distanceKm;
+  final bool isOutOfRange;
 }
 
 class NearbyDishResult {
@@ -41,17 +43,20 @@ class NearbyService {
     final addresses = await Address.fetchAddressesFromDB();
 
     final userAddress =
-        Address.getAddressByObject(addresses, "User", session.userId);
+        Address.getAddressByObject(addresses, "User", session.userId) ??
+            Address.getAddressByObject(addresses, "Livraison", session.userId);
     final userLat = double.tryParse(userAddress?.lat ?? '');
     final userLon = double.tryParse(userAddress?.long ?? '');
 
-    final results = <NearbyRestaurantResult>[];
+    final inRange = <NearbyRestaurantResult>[];
+    final outOfRange = <NearbyRestaurantResult>[];
 
     for (final restaurant in restaurants) {
       final associatedUser = Users.getUsersByUserId(users, restaurant.userID);
       final associatedRole = AppRole.fromId(associatedUser?.roleID);
       final restaurantAddress =
-          Address.getAddressByObject(addresses, "User", restaurant.userID);
+          Address.getAddressByObject(addresses, "Restaurant", restaurant.userID) ??
+              Address.getAddressByObject(addresses, "User", restaurant.userID);
 
       if (restaurant.valid != 1 ||
           associatedUser == null ||
@@ -65,6 +70,7 @@ class NearbyService {
       }
 
       double distanceKm = 0;
+      bool isOutOfRange = false;
 
       if (!ignoreDistance &&
           userAddress != null &&
@@ -81,23 +87,29 @@ class NearbyService {
             restaurantLat,
             restaurantLon,
           );
-        }
-
-        if (distanceKm > maxDistanceKm) {
-          continue;
+          final restaurantRadius = restaurant.deliveryRadius > 0
+              ? restaurant.deliveryRadius
+              : maxDistanceKm;
+          isOutOfRange = distanceKm > maxDistanceKm ||
+              distanceKm > restaurantRadius;
         }
       }
 
-      results.add(
-        NearbyRestaurantResult(
-          restaurant: restaurant,
-          distanceKm: distanceKm,
-        ),
+      final result = NearbyRestaurantResult(
+        restaurant: restaurant,
+        distanceKm: distanceKm,
+        isOutOfRange: isOutOfRange,
       );
+      if (isOutOfRange) {
+        outOfRange.add(result);
+      } else {
+        inRange.add(result);
+      }
     }
 
-    results.sort((a, b) => a.distanceKm.compareTo(b.distanceKm));
-    return results;
+    inRange.sort((a, b) => a.distanceKm.compareTo(b.distanceKm));
+    outOfRange.sort((a, b) => a.distanceKm.compareTo(b.distanceKm));
+    return [...inRange, ...outOfRange];
   }
 
   static Future<List<NearbyDishResult>> getNearbyDishes({

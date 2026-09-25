@@ -74,6 +74,10 @@ class AppDarkColors {
 
   static const card = Color(0xFF241C16);
   static const border = Color(0xFF3D3229);
+
+  // Dégradé signature (équivalent sombre)
+  static const gradientStart = Color(0xFF1A1410);
+  static const gradientEnd = Color(0xFF241710);
 }
 
 // ── TYPOGRAPHIE ────────────────────────────────────────────

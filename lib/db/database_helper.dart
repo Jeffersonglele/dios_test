@@ -78,7 +78,7 @@ class DatabaseHelper {
   }
 
   static Future<Users?> updateUserProfile(int userID, String firstname,
-      String lastname, String email, String telephone) async {
+      String lastname, String email, String telephone, {String? image}) async {
     final Box<Users> usersBox = await Hive.openBox<Users>('users');
     final Users? user = usersBox.get(userID);
 
@@ -88,6 +88,7 @@ class DatabaseHelper {
         lastname: lastname,
         email: email,
         telephone: telephone,
+        image: image ?? user.image,
       );
       await usersBox.put(userID, updated);
       return updated;

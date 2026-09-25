@@ -709,6 +709,35 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cart_title => 'Your Cart';
 
   @override
+  String get cart_baskets_title => 'My baskets';
+
+  @override
+  String get cart_baskets_hint =>
+      'Select a seller to see the details of their basket.';
+
+  @override
+  String cart_basket_articles(Object count) {
+    return '$count item(s)';
+  }
+
+  @override
+  String get cart_basket_details => 'View details';
+
+  @override
+  String get cart_leave_restaurant_title => 'Leave the seller\'s page';
+
+  @override
+  String cart_leave_restaurant_message(Object restaurant) {
+    return 'You have products from $restaurant in your basket. Do you want to empty your basket? Otherwise, you can find it again by returning to this seller.';
+  }
+
+  @override
+  String get cart_keep_cart => 'Keep my basket';
+
+  @override
+  String get cart_empty_cart => 'Empty the basket';
+
+  @override
   String get cart_empty => 'Your cart is empty';
 
   @override
@@ -759,7 +788,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cart_payment_cod => 'Cash on delivery';
 
   @override
-  String get cart_payment_fedapay => 'Mobile Money (CinetPay)';
+  String get cart_payment_fedapay => 'Mobile Money (iKeepPay)';
 
   @override
   String get cart_processing => 'Processing...';
@@ -1136,7 +1165,89 @@ class AppLocalizationsEn extends AppLocalizations {
   String get admin_pro_no_description => 'No description provided.';
 
   @override
+  String get admin_delivery_requests => 'Driver Requests';
+
+  @override
+  String get admin_delivery_requests_pending => 'Pending';
+
+  @override
+  String get admin_delivery_requests_validated => 'Validated';
+
+  @override
+  String get admin_delivery_requests_rejected => 'Rejected';
+
+  @override
+  String get admin_delivery_validate => 'Approve';
+
+  @override
+  String get admin_delivery_reject => 'Reject';
+
+  @override
+  String get admin_delivery_no_requests => 'No driver requests.';
+
+  @override
+  String get admin_delivery_status_pending => 'Pending review';
+
+  @override
+  String get admin_delivery_status_validated => 'Approved';
+
+  @override
+  String get admin_delivery_status_rejected => 'Rejected';
+
+  @override
+  String get admin_delivery_remark_hint => 'Reason for rejection…';
+
+  @override
+  String get admin_delivery_documents => 'Documents';
+
+  @override
+  String get admin_delivery_view_document => 'View';
+
+  @override
+  String get admin_delivery_description => 'Request description';
+
+  @override
+  String get admin_delivery_id_card => 'ID card';
+
+  @override
+  String get admin_delivery_license => 'Driver\'s license';
+
+  @override
+  String get superAdminDashboard => 'Super Admin Dashboard';
+
+  @override
+  String get superAdminWeeklyCommissions => 'Weekly Commissions';
+
+  @override
+  String get superAdminPaymentsCompleted => 'Completed Payments';
+
+  @override
+  String get superAdminPaymentsPending => 'Pending Payments';
+
+  @override
+  String get superAdminDisputesOpen => 'Open Disputes';
+
+  @override
+  String get superAdminDisputesInProgress => 'In Progress Disputes';
+
+  @override
+  String get superAdminDisputesResolved => 'Resolved Disputes';
+
+  @override
+  String get superAdminDisputeRate => 'Dispute Rate';
+
+  @override
   String get optional => 'optional';
+
+  @override
+  String admin_delivery_validated(Object name) {
+    return '$name approved ✓';
+  }
+
+  @override
+  String admin_delivery_rejected(Object name) {
+    return '$name rejected';
+  }
 
   @override
   String get delivery_status_assigned => 'Assigned';
@@ -1355,6 +1466,42 @@ class AppLocalizationsEn extends AppLocalizations {
       'Cannot accept: you already have an order in progress';
 
   @override
+  String get delivery_must_be_online =>
+      'You must be online to perform this action.';
+
+  @override
+  String get livreur_accept_title => 'Accept this order?';
+
+  @override
+  String livreur_accept_body(Object id, Object amount) {
+    return 'Order #$id\nAmount to collect: $amount';
+  }
+
+  @override
+  String get delivery_confirm_picked_title => 'Confirm pickup?';
+
+  @override
+  String delivery_confirm_picked_body(Object id) {
+    return 'Did you successfully pick up order #$id from the restaurant?';
+  }
+
+  @override
+  String get delivery_confirm_transit_title => 'Start delivery?';
+
+  @override
+  String delivery_confirm_transit_body(Object id) {
+    return 'Is order #$id ready to be delivered to the customer?';
+  }
+
+  @override
+  String get delivery_confirm_delivered_title => 'Mark as delivered?';
+
+  @override
+  String delivery_confirm_delivered_body(Object id) {
+    return 'Confirm you have handed order #$id to the customer?';
+  }
+
+  @override
   String get restaurant_form_title_create => 'Create my restaurant';
 
   @override
@@ -1432,6 +1579,32 @@ class AppLocalizationsEn extends AppLocalizations {
       'Opening hours (e.g. 09:00 - 20:00)';
 
   @override
+  String get restaurant_form_day_required => 'Select at least one opening day.';
+
+  @override
+  String restaurant_opens_at(Object time) {
+    return 'Open from $time';
+  }
+
+  @override
+  String restaurant_opens_on(Object day, Object time) {
+    return 'Open $day at $time';
+  }
+
+  @override
+  String get restaurant_closed_today => 'Closed today';
+
+  @override
+  String get restaurant_closed_manually => 'Temporarily closed';
+
+  @override
+  String get restaurant_closed_detail =>
+      'This seller is currently closed. Please try again during opening hours.';
+
+  @override
+  String get restaurant_closed_short => 'Restaurant closed';
+
+  @override
   String get restaurant_form_open_now => 'Restaurant currently open';
 
   @override
@@ -1483,12 +1656,12 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String restaurant_list_validated_toast(Object emailSent, Object name) {
+  String restaurant_list_validated_toast(Object name, Object emailSent) {
     return 'Restaurant $name has been validated$emailSent';
   }
 
   @override
-  String restaurant_list_rejected_toast(Object emailSent, Object name) {
+  String restaurant_list_rejected_toast(Object name, Object emailSent) {
     return 'Restaurant $name has been rejected$emailSent';
   }
 
@@ -1743,7 +1916,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commande_details_wave => 'Wave';
 
   @override
-  String get commande_details_cinetpay => 'Mobile Money (CinetPay)';
+  String get commande_details_cinetpay => 'Mobile Money (iKeepPay)';
 
   @override
   String get commande_details_items => 'Items';
@@ -2785,7 +2958,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get no_reviews_yet => 'No reviews yet.';
 
   @override
-  String reviews_count(Object count) {
+  String reviews_count(int count) {
     return '$count reviews';
   }
 
@@ -3095,7 +3268,37 @@ class AppLocalizationsEn extends AppLocalizations {
       'This address is outside our delivery zone. We currently deliver only in active delivery zones.';
 
   @override
+  String get delivery_unavailable_title =>
+      'Delivery is not available at this address';
+
+  @override
+  String get delivery_unavailable_detail =>
+      'This seller is outside your delivery area. You can view the menu, but you cannot add dishes to your cart.';
+
+  @override
+  String get delivery_unavailable_short => 'Delivery unavailable';
+
+  @override
+  String get delivery_unavailable_close => 'Close';
+
+  @override
   String get cart_address_zone_checking => 'Checking delivery zone...';
+
+  @override
+  String get cart_delivery_to => 'Deliver to';
+
+  @override
+  String get cart_choose_current_location =>
+      'Choose an address or use your current location.';
+
+  @override
+  String get cart_current_location => 'My current location';
+
+  @override
+  String get cart_location_in_progress => 'Finding your location...';
+
+  @override
+  String get cart_location_saved => 'Location saved for this order';
 
   @override
   String get restaurant_form_payment_method => 'Payment method';

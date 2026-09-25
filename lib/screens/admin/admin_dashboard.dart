@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:dios_delices/l10n/app_localizations.dart';
 import 'package:dios_delices/screens/delivery/livreur_list_page.dart';
@@ -10,14 +11,17 @@ import 'package:dios_delices/models/commande.dart';
 import 'package:dios_delices/core/commande_status.dart';
 import 'package:dios_delices/providers/data_version_notifier.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../core/app_role.dart';
 import '../../services/session_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/currency_util.dart';
+import '../../utils/country_util.dart';
 import '../../utils/toast.dart';
 import 'category_management_page.dart';
 import 'promotions_page.dart';
@@ -26,6 +30,8 @@ import 'scheduled_deletions_page.dart';
 import 'audit_log_page.dart';
 import 'pro_management_page.dart';
 import 'delivery_config_page.dart';
+import 'delivery_management_page.dart';
+import 'super_admin_dashboard.dart';
 import '../users/user_details.dart';
 
 // ═══════════════════════════════════════════════════════════
@@ -41,7 +47,7 @@ class AdminDashboard extends StatefulWidget {
 class _AdminDashboardState extends State<AdminDashboard> {
   // ── Données utilisateur ──────────────────────────────────
   AppRole _userRole = AppRole.unknown;
-  String _userCountry = 'France';
+  String _userCountry = 'RDC';
   String _userName = '';
 
   // ── Statistiques ─────────────────────────────────────────
@@ -59,6 +65,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
   int _categoryCount = 0;
   int _promoCount = 0;
   int _proPendingCount = 0;
+  int _deliveryPendingCount = 0;
   int _adminCount = 0;
   int _referralCount = 0;
   int _auditLogCount = 0;
@@ -137,7 +144,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
       }
     } catch (_) {}
     try {
-      final resPro = await ParseCloudFunction('getAllProDocuments').execute(parameters: {'country': target});
+      final resPro = await ParseCloudFunction('getAllProDocuments')
+          .execute(parameters: {'country': target});
       if (resPro.success && resPro.result is List) {
         _proPendingCount = (resPro.result as List)
             .where((d) => d['status'] == 'pending')
@@ -145,19 +153,31 @@ class _AdminDashboardState extends State<AdminDashboard> {
       }
     } catch (_) {}
     try {
-      final resRef = await ParseCloudFunction('getReferralCount').execute(parameters: {'country': target});
+      final resDelivery = await ParseCloudFunction('getAllDeliveryDocuments')
+          .execute(parameters: {'country': target});
+      if (resDelivery.success && resDelivery.result is List) {
+        _deliveryPendingCount = (resDelivery.result as List)
+            .where((d) => d['status'] == 'pending')
+            .length;
+      }
+    } catch (_) {}
+    try {
+      final resRef = await ParseCloudFunction('getReferralCount')
+          .execute(parameters: {'country': target});
       if (resRef.success && resRef.result is Map) {
         _referralCount = (resRef.result as Map)['count'] ?? 0;
       }
     } catch (_) {}
     try {
-      final resAudit = await ParseCloudFunction('getAuditLogCount').execute(parameters: {'country': target});
+      final resAudit = await ParseCloudFunction('getAuditLogCount')
+          .execute(parameters: {'country': target});
       if (resAudit.success && resAudit.result is Map) {
         _auditLogCount = (resAudit.result as Map)['count'] ?? 0;
       }
     } catch (_) {}
     try {
-      final resDel = await ParseCloudFunction('getScheduledDeletionsCount').execute(parameters: {'country': target});
+      final resDel = await ParseCloudFunction('getScheduledDeletionsCount')
+          .execute(parameters: {'country': target});
       if (resDel.success && resDel.result is Map) {
         _scheduledDeletionCount = (resDel.result as Map)['count'] ?? 0;
       }
@@ -183,7 +203,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
     final targetRestauIds = cr.map((r) => r.restaurantID).toSet();
     final targetCommandes =
         commandes.where((c) => targetRestauIds.contains(c.restauID)).toList();
-    final confirmedCount = targetCommandes.where((c) => CommandeStatus.isConfirmed(c.status)).length;
+    final confirmedCount = targetCommandes
+        .where((c) => CommandeStatus.isConfirmed(c.status))
+        .length;
 
     int _s(String key, int fallback) =>
         stats != null ? (stats[key] as num?)?.toInt() ?? fallback : fallback;
@@ -193,11 +215,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
     _totalRestaurants = _s('totalRestaurants', cr.length);
     _totalOrders = _s('totalOrders', confirmedCount);
     _totalRevenue = stats != null
-        ? (stats['totalRevenue'] as num?)?.toDouble() ?? _computeRevenueLocal(targetCommandes)
+        ? (stats['totalRevenue'] as num?)?.toDouble() ??
+            _computeRevenueLocal(targetCommandes)
         : _computeRevenueLocal(targetCommandes);
-    _pendingOrders = targetCommandes.where((c) => CommandeStatus.isPending(c.status)).length;
+    _pendingOrders =
+        targetCommandes.where((c) => CommandeStatus.isPending(c.status)).length;
     _confirmedOrders = confirmedCount;
-    _cancelledOrders = targetCommandes.where((c) => CommandeStatus.isCancelled(c.status)).length;
+    _cancelledOrders = targetCommandes
+        .where((c) => CommandeStatus.isCancelled(c.status))
+        .length;
     _newUsersMonth = (stats != null
             ? (stats['newUsersThisMonth'] as num?)?.toInt()
             : null) ??
@@ -222,7 +248,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 
   double _computeRevenueLocal(List<Commande> commandes) {
-    final confirmed = commandes.where((c) => CommandeStatus.isConfirmed(c.status));
+    final confirmed =
+        commandes.where((c) => CommandeStatus.isConfirmed(c.status));
     double total = 0;
     for (final c in confirmed) {
       total += c.totalAmount > 0 ? c.totalAmount : c.fraisLivraison;
@@ -334,15 +361,19 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
           void _openUser(Users u) {
             Navigator.pop(ctx);
-            Navigator.push(context,
-                MaterialPageRoute(builder: (_) => UserDetails(user_id: u.userID)));
+            Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => UserDetails(user_id: u.userID)));
           }
 
           void _openRestaurant(Restaurant r) {
             Navigator.pop(ctx);
-            Navigator.push(context,
+            Navigator.push(
+                context,
                 MaterialPageRoute(
-                    builder: (_) => RestaurantDetails(restaurant_id: r.restaurantID)));
+                    builder: (_) =>
+                        RestaurantDetails(restaurant_id: r.restaurantID)));
           }
 
           return AlertDialog(
@@ -373,67 +404,99 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                 style: AppTypography.labelMedium(
                                     color: AppColors.inkMuted)),
                           ),
-                          ...ur.take(6).map((u) => ListTile(
-                                dense: true,
-                                onTap: () => _openUser(u),
-                                leading: CircleAvatar(
-                                  backgroundColor: AppColors.resolve(
-                                      AppColors.brandSurface,
-                                      AppDarkColors.brandSurface),
-                                  child: Text(
-                                    u.firstname.isNotEmpty
-                                        ? u.firstname[0].toUpperCase()
-                                        : '?',
-                                    style: AppTypography.labelMedium(
-                                        color: AppColors.brand),
-                                  ),
-                                ),
-                                title: Text('${u.firstname} ${u.lastname}',
-                                    style: AppTypography.bodyLarge()
-                                        .copyWith(fontSize: 14)),
-                                subtitle: Text(u.email,
-                                    style: AppTypography.bodyMedium()
-                                        .copyWith(fontSize: 11)),
-                                trailing: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.accentLight,
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(_roleLabel(u),
+                          ...ur.take(6).map((u) => Material(
+                                color: Colors.transparent,
+                                child: ListTile(
+                                  dense: true,
+                                  onTap: () => _openUser(u),
+                                  leading: CircleAvatar(
+                                    backgroundColor: AppColors.resolve(
+                                        AppColors.brandSurface,
+                                        AppDarkColors.brandSurface),
+                                    child: Text(
+                                      u.firstname.isNotEmpty
+                                          ? u.firstname[0].toUpperCase()
+                                          : '?',
                                       style: AppTypography.labelMedium(
-                                          color: AppColors.accent).copyWith(fontSize: 10)),
+                                          color: AppColors.resolve(
+                                              AppColors.brand,
+                                              AppDarkColors.brand)),
+                                    ),
+                                  ),
+                                  title: Text('${u.firstname} ${u.lastname}',
+                                      style: AppTypography.bodyLarge(
+                                              color: AppColors.resolve(
+                                                  AppColors.ink,
+                                                  AppDarkColors.ink))
+                                          .copyWith(fontSize: 14)),
+                                  subtitle: Text(u.email,
+                                      style: AppTypography.bodyMedium(
+                                              color: AppColors.resolve(
+                                                  AppColors.ink,
+                                                  AppDarkColors.ink))
+                                          .copyWith(fontSize: 11)),
+                                  trailing: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.resolve(
+                                          AppColors.accentLight,
+                                          AppDarkColors.accentLight),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(_roleLabel(u),
+                                        style: AppTypography.labelMedium(
+                                                color: AppColors.resolve(
+                                                    AppColors.accent,
+                                                    AppDarkColors.accent))
+                                            .copyWith(fontSize: 10)),
+                                  ),
                                 ),
                               )),
                         ],
                         if (rr.isNotEmpty) ...[
                           Padding(
-                            padding: const EdgeInsets.only(top: 12, bottom: 6),
-                            child: Text(l10n.restaurants,
-                                style: AppTypography.labelMedium(
-                                    color: AppColors.inkMuted)),
-                          ),
-                          ...rr.take(4).map((r) => ListTile(
-                                dense: true,
-                                onTap: () => _openRestaurant(r),
-                                leading: Container(
-                                  width: 36,
-                                  height: 36,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.accentLight,
-                                    borderRadius:
-                                        BorderRadius.circular(AppRadius.sm),
+                              padding:
+                                  const EdgeInsets.only(top: 12, bottom: 6),
+                              child: Text(l10n.restaurants,
+                                  style: AppTypography.labelMedium(
+                                      color: AppColors.resolve(
+                                          AppColors.inkMuted,
+                                          AppDarkColors.inkMuted)))),
+                          ...rr.take(4).map((r) => Material(
+                                color: Colors.transparent,
+                                child: ListTile(
+                                  dense: true,
+                                  onTap: () => _openRestaurant(r),
+                                  leading: Container(
+                                    width: 36,
+                                    height: 36,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.resolve(
+                                          AppColors.accentLight,
+                                          AppDarkColors.accentLight),
+                                      borderRadius:
+                                          BorderRadius.circular(AppRadius.sm),
+                                    ),
+                                    child: Icon(Icons.storefront_rounded,
+                                        size: 18,
+                                        color: AppColors.resolve(
+                                            AppColors.accent,
+                                            AppDarkColors.accent)),
                                   ),
-                                  child: const Icon(Icons.storefront_rounded,
-                                      size: 18, color: AppColors.accent),
+                                  title: Text(r.name,
+                                      style: AppTypography.bodyLarge(
+                                              color: AppColors.resolve(
+                                                  AppColors.ink,
+                                                  AppDarkColors.ink))
+                                          .copyWith(fontSize: 14)),
+                                  subtitle: Text(r.categories,
+                                      style: AppTypography.bodyMedium(
+                                              color: AppColors.resolve(
+                                                  AppColors.inkMuted,
+                                                  AppDarkColors.inkMuted))
+                                          .copyWith(fontSize: 11)),
                                 ),
-                                title: Text(r.name,
-                                    style: AppTypography.bodyLarge()
-                                        .copyWith(fontSize: 14)),
-                                subtitle: Text(r.categories,
-                                    style: AppTypography.bodyMedium()
-                                        .copyWith(fontSize: 11)),
                               )),
                         ],
                         if (ur.isEmpty && rr.isEmpty)
@@ -441,7 +504,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                             padding: const EdgeInsets.all(16),
                             child: Text(l10n.noResults,
                                 style: AppTypography.bodyMedium(
-                                    color: AppColors.inkMuted)),
+                                    color: AppColors.resolve(AppColors.inkMuted,
+                                        AppDarkColors.inkMuted))),
                           ),
                       ],
                     ),
@@ -449,8 +513,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 : null,
             actions: [
               TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: Text(l10n.close)),
+                  onPressed: () => Navigator.pop(ctx), child: Text(l10n.close)),
             ],
           );
         },
@@ -474,8 +537,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   AppColors.brandSurface, AppDarkColors.brandSurface),
               borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
-            child: const Icon(Icons.file_download_rounded,
-                color: AppColors.brand, size: 18),
+            child: Icon(Icons.file_download_rounded,
+                color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+                size: 18),
           ),
           const SizedBox(width: AppSpacing.sm),
           Text(AppLocalizations.of(context)!.admin_export_title,
@@ -520,7 +584,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   Future<void> _doExport(String type) async {
     try {
-      final dir = await getApplicationDocumentsDirectory();
       final ts =
           DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
       String filename, csv;
@@ -580,11 +643,94 @@ class _AdminDashboardState extends State<AdminDashboard> {
         csv = 'Rapport — $_userCountry — $ts\n\n...\n';
       }
 
-      final file = File('${dir.path}/$filename');
-      await file.writeAsString(csv);
-      if (mounted) Toast(context, 'Export : $filename', true);
+      final fileBytes = const Utf8Codec().encode(csv);
+      String? savedPath;
+
+      try {
+        savedPath = await FilePicker.platform.saveFile(
+          dialogTitle: 'Enregistrer le fichier CSV',
+          fileName: filename,
+          bytes: fileBytes,
+          type: FileType.custom,
+          allowedExtensions: ['csv'],
+        );
+      } catch (_) {
+        savedPath = null;
+      }
+
+      if (savedPath != null && savedPath.isNotEmpty) {
+        if (!mounted) return;
+        final display = savedPath.contains(Platform.pathSeparator)
+            ? savedPath.split(Platform.pathSeparator).last
+            : savedPath;
+        Toast(context, 'Fichier enregistré : $display', true);
+        return;
+      }
+
+      if (kIsWeb) {
+        if (!mounted) return;
+        Toast(context,
+            'Téléchargement annulé ou non supporté par le navigateur.', false);
+        return;
+      }
+
+      Directory? targetDir;
+      bool usedPublicDir = false;
+
+      if (Platform.isAndroid) {
+        try {
+          final extDirs = await getExternalStorageDirectories(
+              type: StorageDirectory.downloads);
+          if (extDirs != null && extDirs.isNotEmpty) {
+            final appDownloads = extDirs.first;
+            if (!await appDownloads.exists()) {
+              await appDownloads.create(recursive: true);
+            }
+            targetDir = appDownloads;
+            usedPublicDir = true;
+          }
+        } catch (_) {}
+
+        if (targetDir == null) {
+          try {
+            final extDir = await getExternalStorageDirectory();
+            if (extDir != null) {
+              final diosDir = Directory('${extDir.path}/DiosDelices');
+              if (!await diosDir.exists()) {
+                await diosDir.create(recursive: true);
+              }
+              targetDir = diosDir;
+              usedPublicDir = true;
+            }
+          } catch (_) {}
+        }
+      } else if (Platform.isIOS) {
+        try {
+          final appDocDir = await getApplicationDocumentsDirectory();
+          final diosDir = Directory('${appDocDir.path}/DiosDelices');
+          if (!await diosDir.exists()) {
+            await diosDir.create(recursive: true);
+          }
+          targetDir = diosDir;
+          usedPublicDir = true;
+        } catch (_) {}
+      }
+
+      targetDir ??= await getApplicationDocumentsDirectory();
+
+      final file = File('${targetDir.path}/$filename');
+      await file.writeAsBytes(fileBytes);
+
+      if (mounted) {
+        Toast(
+            context,
+            usedPublicDir
+                ? '✅ Enregistré : ${file.path}'
+                : '⚠️ Stockage interne app : ${file.path}',
+            true);
+      }
     } catch (e) {
-      if (mounted) Toast(context, 'Erreur : $e', false);
+      if (mounted) Toast(context, 'Erreur export : $e', false);
     }
   }
 
@@ -687,14 +833,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
                 child: Row(children: [
-                  const Icon(Icons.info_outline,
-                      color: AppColors.brand, size: 18),
+                  Icon(Icons.info_outline,
+                      color: AppColors.resolve(
+                          AppColors.brand, AppDarkColors.brand),
+                      size: 18),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       AppLocalizations.of(context)!.admin_add_admin_info,
-                      style:
-                          AppTypography.bodySmall(color: AppColors.brandDark),
+                      style: AppTypography.bodySmall(
+                          color: AppColors.resolve(
+                              AppColors.brandDark, AppDarkColors.brandDark)),
                     ),
                   ),
                 ]),
@@ -728,7 +877,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   content: Text(ok
                       ? AppLocalizations.of(context)!.admin_admin_created
                       : result.toString()),
-                  backgroundColor: ok ? AppColors.success : AppColors.error,
+                  backgroundColor: ok
+                      ? AppColors.resolve(
+                          AppColors.success, AppDarkColors.success)
+                      : AppColors.resolve(AppColors.error, AppDarkColors.error),
                   behavior: SnackBarBehavior.floating,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(AppRadius.md)),
@@ -768,15 +920,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
             const SizedBox(width: AppSpacing.sm),
             Text(l10n.admin_management,
                 style: AppTypography.titleMedium(
-                    color: AppColors.resolve(
-                        AppColors.ink, AppDarkColors.ink))),
+                    color:
+                        AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
           ]),
         ),
       ),
       const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
+          padding:
+              const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
           child: _NavCardResponsive(
             icon: Icons.people_rounded,
             label: l10n.users,
@@ -784,10 +937,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
             sublabel: _newUsersMonth > 0 ? '+$_newUsersMonth ce mois' : null,
             color: Colors.blue,
             onTap: () {
-              Navigator.push(context,
+              Navigator.push(
+                  context,
                   MaterialPageRoute(
                       builder: (_) => UsersListPage(
-                          country: _userCountry, roleFilter: _userRole == AppRole.superAdmin ? null : const [2, 3])));
+                          country: _userCountry,
+                          roleFilter: _userRole == AppRole.superAdmin
+                              ? null
+                              : const [2, 3])));
             },
           ),
         ),
@@ -795,15 +952,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
       const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.sm)),
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
+          padding:
+              const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
           child: _NavCardResponsive(
             icon: Icons.storefront_rounded,
             label: l10n.restaurants,
             count: '$_totalRestaurants',
-            badge: _pendingRestaurantCount > 0 ? '$_pendingRestaurantCount' : null,
+            badge:
+                _pendingRestaurantCount > 0 ? '$_pendingRestaurantCount' : null,
             color: AppColors.resolve(AppColors.accent, AppDarkColors.accent),
             onTap: () {
-              Navigator.push(context,
+              Navigator.push(
+                  context,
                   MaterialPageRoute(
                       builder: (_) =>
                           RestaurantListPage(country: _userCountry)));
@@ -814,14 +974,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
       const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.sm)),
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
+          padding:
+              const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
           child: _NavCardResponsive(
             icon: Icons.delivery_dining_rounded,
             label: l10n.livreurs,
             count: '$_totalLivreurs',
             color: AppColors.resolve(AppColors.success, AppDarkColors.success),
             onTap: () {
-              Navigator.push(context,
+              Navigator.push(
+                  context,
                   CupertinoPageRoute(
                       builder: (_) => LivreurListPage(country: _userCountry)));
             },
@@ -831,13 +993,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
       const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.sm)),
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
+          padding:
+              const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
           child: _NavCardResponsive(
             icon: Icons.label_outline_rounded,
             label: l10n.admin_categories,
             count: '$_categoryCount',
             color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
-            onTap: () => Navigator.push(context,
+            onTap: () => Navigator.push(
+                context,
                 MaterialPageRoute(
                     builder: (_) => const CategoryManagementPage())),
           ),
@@ -846,28 +1010,30 @@ class _AdminDashboardState extends State<AdminDashboard> {
       const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.sm)),
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
+          padding:
+              const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
           child: _NavCardResponsive(
             icon: Icons.discount_rounded,
             label: l10n.admin_promotions,
             count: '$_promoCount',
             color: AppColors.resolve(AppColors.accent, AppDarkColors.accent),
             onTap: () => Navigator.push(context,
-                MaterialPageRoute(
-                    builder: (_) => const PromotionsPage())),
+                MaterialPageRoute(builder: (_) => const PromotionsPage())),
           ),
         ),
       ),
       const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.sm)),
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
+          padding:
+              const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
           child: _NavCardResponsive(
             icon: Icons.verified_user_rounded,
             label: l10n.admin_pro_requests,
             count: '$_proPendingCount',
             color: AppColors.resolve(AppColors.accent, AppDarkColors.accent),
-            onTap: () => Navigator.push(context,
+            onTap: () => Navigator.push(
+                context,
                 CupertinoPageRoute(
                     builder: (_) => ProManagementPage(country: _userCountry))),
           ),
@@ -876,45 +1042,86 @@ class _AdminDashboardState extends State<AdminDashboard> {
       const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.sm)),
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
+          padding:
+              const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
+          child: _NavCardResponsive(
+            icon: Icons.motorcycle_rounded,
+            label: l10n.admin_delivery_requests,
+            count: '$_deliveryPendingCount',
+            color: AppColors.resolve(AppColors.accent, AppDarkColors.accent),
+            onTap: () => Navigator.push(
+                context,
+                CupertinoPageRoute(
+                    builder: (_) =>
+                        DeliveryManagementPage(country: _userCountry))),
+          ),
+        ),
+      ),
+      const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.sm)),
+      if (_userRole == AppRole.superAdmin) ...[
+        SliverToBoxAdapter(
+          child: Padding(
+            padding:
+                const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
+            child: _NavCardResponsive(
+              icon: Icons.admin_panel_settings_rounded,
+              label: l10n.superAdminDashboard ?? 'Super Admin Dashboard',
+              count: l10n.see_all ?? 'See all',
+              color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+              onTap: () => Navigator.push(
+                  context,
+                  CupertinoPageRoute(
+                      builder: (_) =>
+                          SuperAdminDashboard(country: _userCountry))),
+            ),
+          ),
+        ),
+        const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.sm)),
+      ],
+      SliverToBoxAdapter(
+        child: Padding(
+          padding:
+              const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
           child: _NavCardResponsive(
             icon: Icons.people_alt_rounded,
             label: l10n.admin_referral,
             count: '$_referralCount',
             color: Colors.teal,
             onTap: () => Navigator.push(context,
-                MaterialPageRoute(
-                    builder: (_) => const ParrainagePage())),
+                MaterialPageRoute(builder: (_) => const ParrainagePage())),
           ),
         ),
       ),
       const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.sm)),
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
+          padding:
+              const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
           child: _NavCardResponsive(
             icon: Icons.history_rounded,
             label: l10n.auditLog,
             count: '$_auditLogCount',
-            color: AppColors.resolve(
-                AppColors.inkMuted, AppDarkColors.inkMuted),
-            onTap: () => Navigator.push(context,
+            color:
+                AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted),
+            onTap: () => Navigator.push(
+                context,
                 MaterialPageRoute(
-                    builder: (_) =>
-                        AuditLogPage(country: _userCountry))),
+                    builder: (_) => AuditLogPage(country: _userCountry))),
           ),
         ),
       ),
       const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.sm)),
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
+          padding:
+              const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
           child: _NavCardResponsive(
             icon: Icons.delete_sweep_rounded,
             label: l10n.admin_scheduled_deletions,
             count: '$_scheduledDeletionCount',
             color: AppColors.resolve(AppColors.error, AppDarkColors.error),
-            onTap: () => Navigator.push(context,
+            onTap: () => Navigator.push(
+                context,
                 MaterialPageRoute(
                     builder: (_) =>
                         ScheduledDeletionsPage(country: _userCountry))),
@@ -924,15 +1131,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
       const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.sm)),
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
+          padding:
+              const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
           child: _NavCardResponsive(
             icon: Icons.local_shipping_rounded,
             label: l10n.delivery_config_admin_nav,
             count: '',
             color: AppColors.resolve(AppColors.accent, AppDarkColors.accent),
             onTap: () => Navigator.push(context,
-                MaterialPageRoute(
-                    builder: (_) => const DeliveryConfigPage())),
+                MaterialPageRoute(builder: (_) => const DeliveryConfigPage())),
+            count: l10n.see_all ?? 'See all',
           ),
         ),
       ),
@@ -940,16 +1148,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
         const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.sm)),
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
+            padding:
+                const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 0),
             child: _NavCardResponsive(
               icon: Icons.admin_panel_settings_rounded,
               label: l10n.administrators,
               count: '$_adminCount',
               color: AppColors.resolve(AppColors.error, AppDarkColors.error),
-              onTap: () => Navigator.push(context,
+              onTap: () => Navigator.push(
+                  context,
                   CupertinoPageRoute(
-                      builder: (_) =>
-                          UsersListPage(country: _userCountry, roleFilter: const [1, 4]))),
+                      builder: (_) => UsersListPage(
+                          country: _userCountry, roleFilter: const [1, 4]))),
               onAdd: () => _showAddUser(roleID: 1),
             ),
           ),
@@ -992,9 +1202,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 ),
 
                 if (_statsLoading)
-                  const SliverFillRemaining(
+                  SliverFillRemaining(
                     child: Center(
-                      child: CircularProgressIndicator(color: AppColors.brand),
+                      child: CircularProgressIndicator(
+                          color: AppColors.resolve(
+                              AppColors.brand, AppDarkColors.brand)),
                     ),
                   )
                 else ...[
@@ -1256,13 +1468,11 @@ class _HeroAppBar extends StatelessWidget {
                         SingleChildScrollView(
                           scrollDirection: Axis.horizontal,
                           child: Row(
-                            children: ['France', 'Bénin', "Côte d'Ivoire"].map((c) {
-                              final active = userCountry == c;
-                              final flag = c == 'France'
-                                  ? '🇫🇷'
-                                  : c == 'Bénin'
-                                      ? '🇧🇯'
-                                      : '🇨🇮';
+                            children: CountryUtil.selectableCountries
+                                .map((c) {
+                              final active = userCountry == c ||
+                                  (c == 'RDC' && userCountry == 'CD');
+                              final flag = c == 'RDC' ? '🇨🇩' : '🇧🇯';
                               return Padding(
                                 padding: EdgeInsets.only(right: AppSpacing.sm),
                                 child: GestureDetector(
@@ -1274,19 +1484,22 @@ class _HeroAppBar extends StatelessWidget {
                                     decoration: BoxDecoration(
                                       color: active
                                           ? Colors.white
-                                          : Colors.white.withValues(alpha: 0.16),
+                                          : Colors.white
+                                              .withValues(alpha: 0.16),
                                       borderRadius: BorderRadius.circular(999),
                                       border: Border.all(
                                         color: active
                                             ? Colors.white
-                                            : Colors.white.withValues(alpha: 0.25),
+                                            : Colors.white
+                                                .withValues(alpha: 0.25),
                                       ),
                                     ),
                                     child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
                                           Text(flag,
-                                              style: const TextStyle(fontSize: 14)),
+                                              style: const TextStyle(
+                                                  fontSize: 14)),
                                           const SizedBox(width: 6),
                                           Text(
                                             c,
@@ -1643,8 +1856,6 @@ class _KpiTile extends StatelessWidget {
   }
 }
 
-
-
 // Version responsive du NavCard pour petits écrans
 class _NavCardResponsive extends StatelessWidget {
   const _NavCardResponsive({
@@ -1773,7 +1984,6 @@ class _NavCardResponsive extends StatelessWidget {
     );
   }
 }
-
 
 // ═══════════════════════════════════════════════════════════
 // _ValidationAlert — Bannière d'alerte en attente
@@ -2012,7 +2222,8 @@ class _ValidationRow extends StatelessWidget {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: AppColors.errorLight,
+              color: AppColors.resolve(
+                  AppColors.errorLight, AppDarkColors.errorLight),
               borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
             child: Icon(Icons.close_rounded,

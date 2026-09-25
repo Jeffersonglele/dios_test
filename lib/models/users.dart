@@ -10,11 +10,16 @@ import '../screens/navigation/curved_navigation_restau.dart';
 import '../screens/navigation/curved_navigation_user.dart';
 import '../screens/navigation/curved_navigation_livreur.dart';
 import '../db/database_helper.dart';
+import '../services/session_service.dart';
 
 part 'users.g.dart';
 
 @HiveType(typeId: 0)
 class Users extends HiveObject {
+  /// Dernière erreur d'authentification serveur, utilisée uniquement pour
+  /// afficher un diagnostic utile à l'écran de connexion.
+  static String? lastLoginError;
+
   @HiveField(0)
   final int userID;
 
@@ -285,7 +290,7 @@ class Users extends HiveObject {
     int cityID = 1,
     String country = "",
     DateTime? last_login,
-    ParseFile? image,
+    ParseFileBase? image,
     String? birthDate,
     bool consentRGPD = false,
     String? consentDate,
@@ -301,7 +306,7 @@ class Users extends HiveObject {
     if (image != null) {
       final response = await image.save();
       if (response.success && response.result != null) {
-        imageUrl = (response.result as ParseFile).url ?? "";
+        imageUrl = (response.result as ParseFileBase).url ?? "";
       } else {
         return "Erreur lors de l'upload de l'image: ${response.error?.message}";
       }
@@ -455,14 +460,19 @@ class Users extends HiveObject {
   }
 
   static Future<String> updatePassword(int userID, String newPassword,
-      {bool? mustChangePassword}) async {
-    String functionName = 'update1User';
+      {bool? mustChangePassword, String? plainPassword}) async {
+    final hasNativeSession = plainPassword != null &&
+        await SessionService.hasParseSession();
+    String functionName = hasNativeSession ? 'changePassword' : 'update1User';
     var cloudFunction = ParseCloudFunction(functionName);
 
     var params = <String, dynamic>{
-      if (userID != null) 'userID': userID,
-      'password': newPassword,
-      if (mustChangePassword != null) 'mustChangePassword': mustChangePassword,
+      if (!hasNativeSession) 'userID': userID,
+      if (hasNativeSession) 'newPassword': plainPassword,
+      if (hasNativeSession) 'passwordHash': newPassword,
+      if (!hasNativeSession) 'password': newPassword,
+      if (mustChangePassword != null && !hasNativeSession)
+        'mustChangePassword': mustChangePassword,
     };
 
     try {
@@ -517,7 +527,8 @@ class Users extends HiveObject {
           return "Erreur : ${response['error']}";
         } else {
           await DatabaseHelper.updateUserProfile(
-              userID, firstname, lastname, email, telephone);
+              userID, firstname, lastname, email, telephone,
+              image: image);
           notifyDataChanged();
           return "success";
         }
@@ -631,6 +642,10 @@ class Users extends HiveObject {
         List<dynamic> usersDataList = response.result;
         for (var usersData in usersDataList) {
           Users user = Users.fromMap(usersData);
+          final cached = await DatabaseHelper.getUser(user.userID);
+          if (user.password.isEmpty && cached != null) {
+            user.password = cached.password;
+          }
           await DatabaseHelper.createUser(user);
         }
       } else {
@@ -643,22 +658,63 @@ class Users extends HiveObject {
   }
 
   static Future<Users?> loginUser(String login, String password) async {
+    lastLoginError = null;
     try {
       final cloudFunction = ParseCloudFunction('loginUser');
+      final passwordHash = await encryptPassword(password);
       final response = await cloudFunction.execute(parameters: {
-        'login': login,
+        'login': login.trim(),
         'password': password,
+        'passwordHash': passwordHash,
       });
 
-      if (response.success && response.result != null) {
+      if (!response.success) {
+        lastLoginError = response.error?.message;
+        return null;
+      }
+
+      if (response.result != null) {
         final result = response.result as Map<String, dynamic>;
         if (result['success'] == true && result['user'] != null) {
           final user = Users.fromMap(result['user']);
+          final sessionToken = result['sessionToken']?.toString();
+          var sessionReady = false;
+
+          // Nouveau Cloud Code : la session Parse est déjà créée côté serveur.
+          if (sessionToken != null && sessionToken.isNotEmpty) {
+            sessionReady = await SessionService.adoptParseSession(sessionToken);
+          }
+
+          // Ancien Cloud Code / données Parse existantes : le profil métier
+          // est validé par `Users`, puis le SDK ouvre la session `_User`.
+          if (!sessionReady) {
+            sessionReady = await SessionService.loginParseUser(
+              user.username,
+              password,
+            );
+          }
+
+          if (!sessionReady) {
+            lastLoginError = 'Session Parse impossible à ouvrir.';
+            return null;
+          }
+
+          // Ne pas remplacer un hash local déjà présent par une réponse
+          // serveur qui, volontairement, ne contient plus de mot de passe.
+          final cached = await DatabaseHelper.getUser(user.userID);
+          if (user.password.isEmpty && cached != null) {
+            user.password = cached.password;
+          }
           return user;
         }
+        lastLoginError = result['error']?.toString() ??
+            'Identifiant ou mot de passe incorrect.';
+      } else {
+        lastLoginError = 'Réponse vide du serveur.';
       }
       return null;
     } catch (e) {
+      lastLoginError = e.toString().replaceFirst('Exception: ', '');
       return null;
     }
   }

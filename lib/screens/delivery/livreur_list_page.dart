@@ -113,7 +113,8 @@ class _LivreurListPageState extends State<LivreurListPage> {
     final isSmallScreen = width < 400;
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor:
+          AppColors.resolve(AppColors.surface, AppDarkColors.surface),
       appBar: AppBar(
         title: Text(l10n.livreur_management_title),
         centerTitle: true,
@@ -136,20 +137,30 @@ class _LivreurListPageState extends State<LivreurListPage> {
                   child: Container(
                     height: 44,
                     decoration: BoxDecoration(
-                      color: AppColors.card,
+                      color:
+                          AppColors.resolve(AppColors.card, AppDarkColors.card),
                       borderRadius: BorderRadius.circular(AppRadius.md),
-                      border: Border.all(color: AppColors.border),
+                      border: Border.all(
+                          color: AppColors.resolve(
+                              AppColors.border, AppDarkColors.border)),
                     ),
                     child: TextField(
                       controller: _searchCtrl,
                       onChanged: (v) => setState(() => _searchQuery = v),
-                      style: AppTypography.bodyLarge().copyWith(fontSize: 14),
+                      style: AppTypography.bodyLarge(
+                              color: AppColors.resolve(
+                                  AppColors.ink, AppDarkColors.ink))
+                          .copyWith(fontSize: 14),
                       decoration: InputDecoration(
                         hintText: l10n.livreur_search_hint,
-                        hintStyle:
-                            AppTypography.bodyMedium().copyWith(fontSize: 14),
+                        hintStyle: AppTypography.bodyMedium(
+                                color: AppColors.resolve(
+                                    AppColors.ink, AppDarkColors.ink))
+                            .copyWith(fontSize: 14),
                         prefixIcon: Icon(Icons.search_rounded,
-                            color: AppColors.inkSubtle, size: 20),
+                            color: AppColors.resolve(
+                                AppColors.inkSubtle, AppDarkColors.inkSubtle),
+                            size: 20),
                         border: InputBorder.none,
                         contentPadding:
                             const EdgeInsets.symmetric(vertical: 12),
@@ -162,9 +173,12 @@ class _LivreurListPageState extends State<LivreurListPage> {
                   height: 44,
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   decoration: BoxDecoration(
-                    color: AppColors.card,
+                    color:
+                        AppColors.resolve(AppColors.card, AppDarkColors.card),
                     borderRadius: BorderRadius.circular(AppRadius.md),
-                    border: Border.all(color: AppColors.border),
+                    border: Border.all(
+                        color: AppColors.resolve(
+                            AppColors.border, AppDarkColors.border)),
                   ),
                   child: PopupMenuButton<String>(
                     onSelected: (v) => setState(() => _filterStatus = v),
@@ -174,7 +188,9 @@ class _LivreurListPageState extends State<LivreurListPage> {
                     ),
                     child: Row(mainAxisSize: MainAxisSize.min, children: [
                       Icon(Icons.filter_list_rounded,
-                          color: AppColors.inkMuted, size: 20),
+                          color: AppColors.resolve(
+                              AppColors.inkMuted, AppDarkColors.inkMuted),
+                          size: 20),
                       const SizedBox(width: 4),
                       Text(
                         _filterStatus == 'tous'
@@ -212,26 +228,35 @@ class _LivreurListPageState extends State<LivreurListPage> {
             // Stats header
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 4,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('${filtered.length} ${l10n.livreurs}',
-                      style: AppTypography.bodyMedium().copyWith(fontSize: 12)),
+                      style: AppTypography.bodyMedium(
+                              color: AppColors.resolve(
+                                  AppColors.ink, AppDarkColors.ink))
+                          .copyWith(fontSize: 12)),
                   const Spacer(),
-                  Text(
-                      '${_livreurs.where((u) => u.isOnline == true).length} ${l10n.livreur_filter_online}',
-                      style: AppTypography.labelMedium(color: AppColors.success)
-                          .copyWith(fontSize: 11)),
-                  if (_livreurs
-                      .where((u) => u.permisVerified != true)
-                      .isNotEmpty) ...[
-                    Text(
-                        '${_livreurs.where((u) => u.permisVerified != true).length} ${l10n.livreur_filter_license_waiting}',
-                        style:
-                            AppTypography.labelMedium(color: AppColors.accent)
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    alignment: WrapAlignment.end,
+                    children: [
+                      Text(
+                          '${_livreurs.where((u) => u.isOnline == true).length} ${l10n.livreur_filter_online}',
+                          style: AppTypography.labelMedium(
+                                  color: AppColors.success)
+                              .copyWith(fontSize: 11)),
+                      if (_livreurs
+                          .where((u) => u.permisVerified != true)
+                          .isNotEmpty)
+                        Text(
+                            '${_livreurs.where((u) => u.permisVerified != true).length} ${l10n.livreur_filter_license_waiting}',
+                            style: AppTypography.labelMedium(
+                                    color: AppColors.accent)
                                 .copyWith(fontSize: 11)),
-                  ],
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -246,11 +271,15 @@ class _LivreurListPageState extends State<LivreurListPage> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(Icons.delivery_dining_outlined,
-                                  size: 64, color: AppColors.inkSubtle),
+                                  size: 64,
+                                  color: AppColors.resolve(AppColors.inkSubtle,
+                                      AppDarkColors.inkSubtle)),
                               const SizedBox(height: 12),
                               Text(l10n.livreur_no_results,
                                   style: AppTypography.bodyLarge(
-                                      color: AppColors.inkMuted)),
+                                    color: AppColors.resolve(AppColors.inkMuted,
+                                        AppDarkColors.inkMuted),
+                                  )),
                             ],
                           ),
                         )
@@ -281,9 +310,11 @@ class _LivreurListPageState extends State<LivreurListPage> {
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
-          color: AppColors.card,
+          color: AppColors.resolve(AppColors.card, AppDarkColors.card),
           borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(color: AppColors.border, width: 0.5),
+          border: Border.all(
+              color: AppColors.resolve(AppColors.border, AppDarkColors.border),
+              width: 0.5),
           boxShadow: AppShadows.cardList,
         ),
         child: Padding(
@@ -296,7 +327,8 @@ class _LivreurListPageState extends State<LivreurListPage> {
                 width: isSmallScreen ? 44 : 52,
                 height: isSmallScreen ? 44 : 52,
                 decoration: BoxDecoration(
-                  color: AppColors.brandSurface,
+                  color: AppColors.resolve(
+                      AppColors.brandSurface, AppDarkColors.brandSurface),
                   shape: BoxShape.circle,
                 ),
                 child: Center(
@@ -311,12 +343,16 @@ class _LivreurListPageState extends State<LivreurListPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('${livreur.firstname} ${livreur.lastname}',
-                        style: AppTypography.titleMedium()
+                        style: AppTypography.titleMedium(
+                                color: AppColors.resolve(
+                                    AppColors.ink, AppDarkColors.ink))
                             .copyWith(fontSize: isSmallScreen ? 13 : 15),
                         overflow: TextOverflow.ellipsis),
                     const SizedBox(height: 2),
                     Text(livreur.email,
-                        style: AppTypography.bodyMedium()
+                        style: AppTypography.bodyMedium(
+                                color: AppColors.resolve(
+                                    AppColors.inkMuted, AppDarkColors.inkMuted))
                             .copyWith(fontSize: isSmallScreen ? 10 : 12),
                         overflow: TextOverflow.ellipsis),
                     const SizedBox(height: 6),
@@ -357,7 +393,8 @@ class _LivreurListPageState extends State<LivreurListPage> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
-                            color: AppColors.surfaceWarm,
+                            color: AppColors.resolve(AppColors.surfaceWarm,
+                                AppDarkColors.surfaceWarm),
                             borderRadius: BorderRadius.circular(99),
                           ),
                           child: Row(
@@ -365,13 +402,15 @@ class _LivreurListPageState extends State<LivreurListPage> {
                             children: [
                               Icon(_vehicleIcon(livreur.permisType),
                                   size: isSmallScreen ? 10 : 12,
-                                  color: AppColors.inkMuted),
+                                  color: AppColors.resolve(AppColors.inkMuted,
+                                      AppDarkColors.inkMuted)),
                               const SizedBox(width: 3),
                               Text(_vehicleLabel(livreur.permisType),
                                   style: TextStyle(
                                     fontSize: isSmallScreen ? 8 : 10,
                                     fontWeight: FontWeight.w600,
-                                    color: AppColors.inkMuted,
+                                    color: AppColors.resolve(AppColors.inkMuted,
+                                        AppDarkColors.inkMuted),
                                   )),
                             ],
                           ),

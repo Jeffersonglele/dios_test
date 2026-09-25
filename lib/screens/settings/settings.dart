@@ -12,7 +12,8 @@ import 'package:dios_delices/models/address.dart';
 import 'package:dios_delices/providers/theme_provider.dart';
 import 'package:dios_delices/services/session_service.dart';
 import 'package:dios_delices/theme/app_theme.dart';
-import 'package:dios_delices/theme/theme_provider.dart' show localeProvider, themeModeProvider;
+import 'package:dios_delices/theme/theme_provider.dart'
+    show localeProvider, themeModeProvider;
 import 'package:dios_delices/core/app_role.dart';
 import 'package:flutter/material.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
@@ -67,20 +68,27 @@ class _SettingsState extends ConsumerState<Settings> {
     if (mounted) setState(() => _darkMode = darkMode);
 
     if (session.role.id == 5) {
-      final cachedDist = prefs.getDouble('driver_max_distance_${session.userId}');
+      final cachedDist =
+          prefs.getDouble('driver_max_distance_${session.userId}');
       if (cachedDist != null) {
-        setState(() => _maxDeliveryDistance = cachedDist);
+        setState(() => _maxDeliveryDistance = cachedDist.clamp(1.0, 10.0));
       }
       try {
         final query = QueryBuilder<ParseObject>(ParseObject('Users'))
           ..whereEqualTo('userID', session.userId);
         final response = await query.query();
-        if (response.success && response.results != null && response.results!.isNotEmpty) {
+        if (response.success &&
+            response.results != null &&
+            response.results!.isNotEmpty) {
           final parseUser = response.results!.first as ParseObject;
-          final dist = parseUser.get<num>('maxDeliveryDistance')?.toDouble() ?? 10.0;
-          await prefs.setDouble('driver_max_distance_${session.userId}', dist);
+          final dist =
+              parseUser.get<num>('maxDeliveryDistance')?.toDouble() ?? 10.0;
+          // Clamp to valid range (1-10)
+          final clampedDist = dist.clamp(1.0, 10.0);
+          await prefs.setDouble(
+              'driver_max_distance_${session.userId}', clampedDist);
           if (mounted) {
-            setState(() => _maxDeliveryDistance = dist);
+            setState(() => _maxDeliveryDistance = clampedDist);
           }
         }
       } catch (_) {}
@@ -95,7 +103,9 @@ class _SettingsState extends ConsumerState<Settings> {
       final query = QueryBuilder<ParseObject>(ParseObject('Users'))
         ..whereEqualTo('userID', _userId);
       final response = await query.query();
-      if (response.success && response.results != null && response.results!.isNotEmpty) {
+      if (response.success &&
+          response.results != null &&
+          response.results!.isNotEmpty) {
         final parseUser = response.results!.first as ParseObject;
         parseUser.set('maxDeliveryDistance', distance);
         await parseUser.save();
@@ -126,13 +136,13 @@ class _SettingsState extends ConsumerState<Settings> {
     try {
       await NotificationService.sendTestNotification();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(l10n.test_notification_sent)));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(l10n.test_notification_sent)));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(l10n.error_with_message(e.toString()))));
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l10n.error_with_message(e.toString()))));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -189,15 +199,21 @@ class _SettingsState extends ConsumerState<Settings> {
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: AppColors.brandSurface,
+                color: AppColors.resolve(
+                    AppColors.brandSurface, AppDarkColors.brandSurface),
                 borderRadius: BorderRadius.circular(AppRadius.sm),
               ),
-              child: const Icon(Icons.lock_outline_rounded,
-                  color: AppColors.brand, size: 18),
+              child: Icon(Icons.lock_outline_rounded,
+                  color:
+                      AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+                  size: 18),
             ),
             const SizedBox(width: 10),
             Text(l10n.change_password_title_dialog,
-                style: AppTypography.titleMedium().copyWith(fontSize: 16)),
+                style: AppTypography.titleMedium(
+                        color:
+                            AppColors.resolve(AppColors.ink, AppDarkColors.ink))
+                    .copyWith(fontSize: 16)),
           ]),
           content: Form(
             key: formKey,
@@ -260,7 +276,9 @@ class _SettingsState extends ConsumerState<Settings> {
             TextButton(
               onPressed: () => Navigator.pop(ctx),
               child: Text(l10n.cancel,
-                  style: AppTypography.labelMedium(color: AppColors.inkMuted)),
+                  style: AppTypography.labelMedium(
+                      color: AppColors.resolve(
+                          AppColors.inkMuted, AppDarkColors.inkMuted))),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -271,33 +289,35 @@ class _SettingsState extends ConsumerState<Settings> {
                 if (currentPwd.isEmpty ||
                     newPwd.isEmpty ||
                     confirmPwd.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text(l10n.allFieldsRequired)));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(l10n.allFieldsRequired)));
                   return;
                 }
                 if (newPwd.length < 6) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text(l10n.passwordMinLength)));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(l10n.passwordMinLength)));
                   return;
                 }
                 if (newPwd != confirmPwd) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text(l10n.passwordsNotMatch)));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(l10n.passwordsNotMatch)));
                   return;
                 }
 
                 final currentEncrypted =
                     await Users.encryptPassword(currentPwd);
-                if (currentEncrypted != currentUser.password &&
+                if (currentUser.password.isNotEmpty &&
+                    currentEncrypted != currentUser.password &&
                     currentPwd != currentUser.password) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text(l10n.incorrectCurrentPassword)));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(l10n.incorrectCurrentPassword)));
                   return;
                 }
 
                 final encrypted = await Users.encryptPassword(newPwd);
                 final result =
-                    await Users.updatePassword(currentUser.userID, encrypted);
+                    await Users.updatePassword(currentUser.userID, encrypted,
+                        plainPassword: newPwd);
                 if (!mounted) return;
                 Navigator.pop(ctx);
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -330,29 +350,38 @@ class _SettingsState extends ConsumerState<Settings> {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: AppColors.brandSurface,
+              color: AppColors.resolve(
+                  AppColors.brandSurface, AppDarkColors.brandSurface),
               borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
-            child: const Icon(Icons.restaurant_menu_outlined,
-                color: AppColors.brand, size: 18),
+            child: Icon(Icons.restaurant_menu_outlined,
+                color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+                size: 18),
           ),
           const SizedBox(width: 10),
           Text(l10n.become_restaurateur_dialog_title,
-              style: AppTypography.titleMedium().copyWith(fontSize: 16)),
+              style: AppTypography.titleMedium(
+                      color:
+                          AppColors.resolve(AppColors.ink, AppDarkColors.ink))
+                  .copyWith(fontSize: 16)),
         ]),
         content: Text(
           l10n.become_restaurateur_dialog_body,
-          style: AppTypography.bodyLarge(),
+          style: AppTypography.bodyLarge(
+              color: AppColors.resolve(AppColors.ink, AppDarkColors.ink)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
             child: Text(l10n.cancel,
-                style: AppTypography.labelMedium(color: AppColors.inkMuted)),
+                style: AppTypography.labelMedium(
+                    color: AppColors.resolve(
+                        AppColors.inkMuted, AppDarkColors.inkMuted))),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.brand,
+              backgroundColor:
+                  AppColors.resolve(AppColors.brand, AppDarkColors.brand),
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(AppRadius.md),
@@ -424,15 +453,21 @@ class _SettingsState extends ConsumerState<Settings> {
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: AppColors.errorLight,
+                color: AppColors.resolve(
+                    AppColors.errorLight, AppDarkColors.errorLight),
                 borderRadius: BorderRadius.circular(AppRadius.sm),
               ),
-              child: const Icon(Icons.warning_rounded,
-                  color: AppColors.error, size: 18),
+              child: Icon(Icons.warning_rounded,
+                  color:
+                      AppColors.resolve(AppColors.error, AppDarkColors.error),
+                  size: 18),
             ),
             const SizedBox(width: 10),
             Text(l10n.delete_account_dialog_title,
-                style: AppTypography.titleMedium().copyWith(fontSize: 16)),
+                style: AppTypography.titleMedium(
+                        color:
+                            AppColors.resolve(AppColors.ink, AppDarkColors.ink))
+                    .copyWith(fontSize: 16)),
           ]),
           content: SizedBox(
             width: double.maxFinite,
@@ -441,12 +476,16 @@ class _SettingsState extends ConsumerState<Settings> {
               children: [
                 Text(
                   l10n.delete_account_dialog_warning,
-                  style: AppTypography.bodyLarge(),
+                  style: AppTypography.bodyLarge(
+                      color:
+                          AppColors.resolve(AppColors.ink, AppDarkColors.ink)),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   l10n.delete_account_recovery_hint,
-                  style: AppTypography.bodyMedium(color: AppColors.inkMuted),
+                  style: AppTypography.bodyMedium(
+                      color: AppColors.resolve(
+                          AppColors.inkMuted, AppDarkColors.inkMuted)),
                 ),
                 const SizedBox(height: 20),
                 TextField(
@@ -467,7 +506,8 @@ class _SettingsState extends ConsumerState<Settings> {
                       height: 24,
                       child: Checkbox(
                         value: understood,
-                        onChanged: (v) => setDialogState(() => understood = v ?? false),
+                        onChanged: (v) =>
+                            setDialogState(() => understood = v ?? false),
                         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
                     ),
@@ -475,7 +515,9 @@ class _SettingsState extends ConsumerState<Settings> {
                     Expanded(
                       child: Text(
                         l10n.delete_account_understand_hint,
-                        style: AppTypography.bodySmall(color: AppColors.inkMuted),
+                        style: AppTypography.bodySmall(
+                            color: AppColors.resolve(
+                                AppColors.inkMuted, AppDarkColors.inkMuted)),
                       ),
                     ),
                   ],
@@ -487,21 +529,25 @@ class _SettingsState extends ConsumerState<Settings> {
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
               child: Text(l10n.cancel,
-                  style: AppTypography.labelMedium(color: AppColors.inkMuted)),
+                  style: AppTypography.labelMedium(
+                      color: AppColors.resolve(
+                          AppColors.inkMuted, AppDarkColors.inkMuted))),
             ),
             ElevatedButton(
               onPressed: enteredEmail == userEmail && understood
                   ? () => Navigator.pop(ctx, true)
                   : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.error,
+                backgroundColor:
+                    AppColors.resolve(AppColors.error, AppDarkColors.error),
                 disabledBackgroundColor: AppColors.error.withValues(alpha: 0.4),
               ),
-              child: Text(l10n.delete, style: TextStyle(
-                color: enteredEmail == userEmail && understood
-                    ? Colors.white
-                    : Colors.white.withValues(alpha: 0.6),
-              )),
+              child: Text(l10n.delete,
+                  style: TextStyle(
+                    color: enteredEmail == userEmail && understood
+                        ? Colors.white
+                        : Colors.white.withValues(alpha: 0.6),
+                  )),
             ),
           ],
         ),
@@ -516,8 +562,7 @@ class _SettingsState extends ConsumerState<Settings> {
     if (result == 'success') {
       await SessionService.clearAll();
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (_) => const AnimatedSplashScreen()),
+        MaterialPageRoute(builder: (_) => const AnimatedSplashScreen()),
         (route) => false,
       );
       if (mounted) _confirmLogout();
@@ -534,18 +579,36 @@ class _SettingsState extends ConsumerState<Settings> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    ref.watch(themeModeProvider);
+    ref.watch(localeProvider);
+
+    final ink = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
+    final inkMuted =
+        AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
+    final inkSubtle =
+        AppColors.resolve(AppColors.inkSubtle, AppDarkColors.inkSubtle);
+    final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+    final accent = AppColors.resolve(AppColors.accent, AppDarkColors.accent);
+    final error = AppColors.resolve(AppColors.error, AppDarkColors.error);
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor:
+          AppColors.resolve(AppColors.surface, AppDarkColors.surface),
       appBar: AppBar(
-        title: Text(l10n.settings),
+        backgroundColor:
+            AppColors.resolve(AppColors.surface, AppDarkColors.surface),
+        foregroundColor: ink,
+        elevation: 0,
+        title:
+            Text(l10n.settings, style: AppTypography.titleMedium(color: ink)),
         actions: [
           if (_isLoading)
-            const Padding(
-              padding: EdgeInsets.all(16),
+            Padding(
+              padding: const EdgeInsets.all(16),
               child: SizedBox(
-                width: 20, height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.brand),
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2, color: brand),
               ),
             ),
         ],
@@ -558,9 +621,12 @@ class _SettingsState extends ConsumerState<Settings> {
           const SizedBox(height: 8),
           Container(
             decoration: BoxDecoration(
-              color: AppColors.card,
+              color: AppColors.resolve(AppColors.card, AppDarkColors.card),
               borderRadius: BorderRadius.circular(AppRadius.lg),
-              border: Border.all(color: AppColors.border, width: 0.5),
+              border: Border.all(
+                  color:
+                      AppColors.resolve(AppColors.border, AppDarkColors.border),
+                  width: 0.5),
             ),
             child: Column(children: [
               _settingRow(
@@ -590,52 +656,62 @@ class _SettingsState extends ConsumerState<Settings> {
               ),
               if (!_isAdmin) ...[
                 const Divider(height: 1),
-                SwitchListTile(
-                  title: Text(l10n.notif_orders_title, style: AppTypography.labelMedium()),
-                  subtitle: Text(
-                    l10n.notif_orders_desc,
-                    style: AppTypography.bodyMedium(),
+                Material(
+                  color: Colors.transparent,
+                  child: SwitchListTile(
+                    title: Text(l10n.notif_orders_title,
+                        style: AppTypography.labelMedium(color: ink)),
+                    subtitle: Text(
+                      l10n.notif_orders_desc,
+                      style: AppTypography.bodyMedium(color: inkMuted),
+                    ),
+                    value: _orderNotifications,
+                    activeColor: brand,
+                    onChanged: (val) {
+                      setState(() => _orderNotifications = val);
+                      _updateNotificationSetting('notif_orders', val, 'orders');
+                    },
+                    secondary: Icon(Icons.shopping_bag_rounded, color: brand),
                   ),
-                  value: _orderNotifications,
-                  activeColor: AppColors.brand,
-                  onChanged: (val) {
-                    setState(() => _orderNotifications = val);
-                    _updateNotificationSetting('notif_orders', val, 'orders');
-                  },
-                  secondary: const Icon(Icons.shopping_bag_rounded,
-                      color: AppColors.brand),
                 ),
                 const Divider(height: 1),
-                SwitchListTile(
-                  title: Text(l10n.notif_promos_title, style: AppTypography.labelMedium()),
-                  subtitle: Text(
-                    l10n.notif_promos_desc,
-                    style: AppTypography.bodyMedium(),
+                Material(
+                  color: Colors.transparent,
+                  child: SwitchListTile(
+                    title: Text(l10n.notif_promos_title,
+                        style: AppTypography.labelMedium(color: ink)),
+                    subtitle: Text(
+                      l10n.notif_promos_desc,
+                      style: AppTypography.bodyMedium(color: inkMuted),
+                    ),
+                    value: _promoNotifications,
+                    activeColor: brand,
+                    onChanged: (val) {
+                      setState(() => _promoNotifications = val);
+                      _updateNotificationSetting('notif_promos', val, 'promos');
+                    },
+                    secondary: Icon(Icons.local_offer_rounded, color: brand),
                   ),
-                  value: _promoNotifications,
-                  activeColor: AppColors.brand,
-                  onChanged: (val) {
-                    setState(() => _promoNotifications = val);
-                    _updateNotificationSetting('notif_promos', val, 'promos');
-                  },
-                  secondary: const Icon(Icons.local_offer_rounded,
-                      color: AppColors.brand),
                 ),
                 const Divider(height: 1),
-                SwitchListTile(
-                  title: Text(l10n.notif_chat_title, style: AppTypography.labelMedium()),
-                  subtitle: Text(
-                    l10n.notif_chat_desc,
-                    style: AppTypography.bodyMedium(),
+                Material(
+                  color: Colors.transparent,
+                  child: SwitchListTile(
+                    title: Text(l10n.notif_chat_title,
+                        style: AppTypography.labelMedium(color: ink)),
+                    subtitle: Text(
+                      l10n.notif_chat_desc,
+                      style: AppTypography.bodyMedium(color: inkMuted),
+                    ),
+                    value: _messageNotifications,
+                    activeColor: brand,
+                    onChanged: (val) {
+                      setState(() => _messageNotifications = val);
+                      _updateNotificationSetting(
+                          'notif_messages', val, 'messages');
+                    },
+                    secondary: Icon(Icons.chat_rounded, color: brand),
                   ),
-                  value: _messageNotifications,
-                  activeColor: AppColors.brand,
-                  onChanged: (val) {
-                    setState(() => _messageNotifications = val);
-                    _updateNotificationSetting('notif_messages', val, 'messages');
-                  },
-                  secondary:
-                      const Icon(Icons.chat_rounded, color: AppColors.brand),
                 ),
               ],
             ]),
@@ -648,7 +724,7 @@ class _SettingsState extends ConsumerState<Settings> {
                 icon: const Icon(Icons.notifications_active_rounded, size: 18),
                 label: Text(l10n.testNotifications),
                 style: TextButton.styleFrom(
-                  foregroundColor: AppColors.brand,
+                  foregroundColor: brand,
                 ),
               ),
             ),
@@ -660,9 +736,12 @@ class _SettingsState extends ConsumerState<Settings> {
           const SizedBox(height: 8),
           Container(
             decoration: BoxDecoration(
-              color: AppColors.card,
+              color: AppColors.resolve(AppColors.card, AppDarkColors.card),
               borderRadius: BorderRadius.circular(AppRadius.lg),
-              border: Border.all(color: AppColors.border, width: 0.5),
+              border: Border.all(
+                  color:
+                      AppColors.resolve(AppColors.border, AppDarkColors.border),
+                  width: 0.5),
             ),
             child: Column(children: [
               _settingRow(
@@ -680,31 +759,45 @@ class _SettingsState extends ConsumerState<Settings> {
             const SizedBox(height: 8),
             Container(
               decoration: BoxDecoration(
-                color: AppColors.card,
+                color: AppColors.resolve(AppColors.card, AppDarkColors.card),
                 borderRadius: BorderRadius.circular(AppRadius.lg),
-                border: Border.all(color: AppColors.border, width: 0.5),
+                border: Border.all(
+                    color: AppColors.resolve(
+                        AppColors.border, AppDarkColors.border),
+                    width: 0.5),
               ),
               child: Column(
                 children: [
-                  ListTile(
-                    leading: const Icon(Icons.map_rounded, color: AppColors.brand),
-                    title: Text(l10n.max_delivery_distance, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                    subtitle: Text(l10n.max_delivery_distance_desc(_maxDeliveryDistance.toStringAsFixed(1))),
+                  Material(
+                    color: Colors.transparent,
+                    child: ListTile(
+                      leading: Icon(Icons.map_rounded, color: brand),
+                      title: Text(l10n.max_delivery_distance,
+                          style: AppTypography.labelMedium(color: ink)
+                              .copyWith(fontSize: 15)),
+                      subtitle: Text(
+                          l10n.max_delivery_distance_desc(
+                              _maxDeliveryDistance.toStringAsFixed(1)),
+                          style: AppTypography.bodyMedium(color: inkMuted)),
+                    ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     child: Slider(
-                      value: _maxDeliveryDistance,
+                      value: _maxDeliveryDistance.clamp(1.0, 10.0),
                       min: 1,
                       max: 10,
                       divisions: 9,
-                      activeColor: AppColors.brand,
-                      label: '${_maxDeliveryDistance.toStringAsFixed(0)} km',
+                      activeColor: brand,
+                      label:
+                          '${_maxDeliveryDistance.clamp(1.0, 10.0).toStringAsFixed(0)} km',
                       onChanged: (val) {
-                        setState(() => _maxDeliveryDistance = val);
+                        setState(
+                            () => _maxDeliveryDistance = val.clamp(1.0, 10.0));
                       },
                       onChangeEnd: (val) {
-                        _saveMaxDeliveryDistance(val);
+                        _saveMaxDeliveryDistance(val.clamp(1.0, 10.0));
                       },
                     ),
                   ),
@@ -719,25 +812,28 @@ class _SettingsState extends ConsumerState<Settings> {
           const SizedBox(height: 8),
           Container(
             decoration: BoxDecoration(
-              color: AppColors.card,
+              color: AppColors.resolve(AppColors.card, AppDarkColors.card),
               borderRadius: BorderRadius.circular(AppRadius.lg),
-              border: Border.all(color: AppColors.border, width: 0.5),
+              border: Border.all(
+                  color:
+                      AppColors.resolve(AppColors.border, AppDarkColors.border),
+                  width: 0.5),
             ),
             child: ValueListenableBuilder<bool>(
               valueListenable: darkModeNotifier,
               builder: (_, isDark, __) => Material(
                 color: Colors.transparent,
                 child: SwitchListTile(
-                  title:
-                      Text(l10n.darkMode, style: AppTypography.labelMedium()),
+                  title: Text(l10n.darkMode,
+                      style: AppTypography.labelMedium(color: ink)),
                   subtitle: Text(isDark ? l10n.enabled : l10n.disabled,
-                      style: AppTypography.bodyMedium()),
+                      style: AppTypography.bodyMedium(color: ink)),
                   value: isDark,
-                  activeColor: AppColors.brand,
+                  activeColor: brand,
                   onChanged: _toggleDark,
                   secondary: Icon(
                     isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
-                    color: isDark ? AppColors.brand : AppColors.accent,
+                    color: isDark ? brand : accent,
                   ),
                 ),
               ),
@@ -750,9 +846,12 @@ class _SettingsState extends ConsumerState<Settings> {
           const SizedBox(height: 8),
           Container(
             decoration: BoxDecoration(
-              color: AppColors.card,
+              color: AppColors.resolve(AppColors.card, AppDarkColors.card),
               borderRadius: BorderRadius.circular(AppRadius.lg),
-              border: Border.all(color: AppColors.border, width: 0.5),
+              border: Border.all(
+                  color:
+                      AppColors.resolve(AppColors.border, AppDarkColors.border),
+                  width: 0.5),
             ),
             child: Column(children: [
               _langTile('Français', 'fr', '🇫🇷'),
@@ -767,9 +866,12 @@ class _SettingsState extends ConsumerState<Settings> {
           const SizedBox(height: 8),
           Container(
             decoration: BoxDecoration(
-              color: AppColors.card,
+              color: AppColors.resolve(AppColors.card, AppDarkColors.card),
               borderRadius: BorderRadius.circular(AppRadius.lg),
-              border: Border.all(color: AppColors.border, width: 0.5),
+              border: Border.all(
+                  color:
+                      AppColors.resolve(AppColors.border, AppDarkColors.border),
+                  width: 0.5),
             ),
             child: Column(children: [
               _settingRow(
@@ -805,9 +907,12 @@ class _SettingsState extends ConsumerState<Settings> {
               const SizedBox(height: 8),
               Container(
                 decoration: BoxDecoration(
-                  color: AppColors.card,
+                  color: AppColors.resolve(AppColors.card, AppDarkColors.card),
                   borderRadius: BorderRadius.circular(AppRadius.lg),
-                  border: Border.all(color: AppColors.border, width: 0.5),
+                  border: Border.all(
+                      color: AppColors.resolve(
+                          AppColors.border, AppDarkColors.border),
+                      width: 0.5),
                 ),
                 child: _settingRow(
                   Icons.restaurant_menu_outlined,
@@ -822,9 +927,12 @@ class _SettingsState extends ConsumerState<Settings> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.card,
+              color: AppColors.resolve(AppColors.card, AppDarkColors.card),
               borderRadius: BorderRadius.circular(AppRadius.lg),
-              border: Border.all(color: AppColors.border, width: 0.5),
+              border: Border.all(
+                  color:
+                      AppColors.resolve(AppColors.border, AppDarkColors.border),
+                  width: 0.5),
             ),
             child: Column(children: [
               Row(children: [
@@ -832,28 +940,29 @@ class _SettingsState extends ConsumerState<Settings> {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: AppColors.brandSurface,
+                    color: AppColors.resolve(
+                        AppColors.brandSurface, AppDarkColors.brandSurface),
                     borderRadius: BorderRadius.circular(AppRadius.md),
                   ),
                   child: Icon(Icons.admin_panel_settings_rounded,
-                      color: AppColors.brand, size: 22),
+                      color: brand, size: 22),
                 ),
                 const SizedBox(width: 12),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(l10n.appTitle,
-                        style:
-                            AppTypography.labelMedium().copyWith(fontSize: 15)),
+                        style: AppTypography.labelMedium(color: ink)
+                            .copyWith(fontSize: 15)),
                     Text(l10n.version_admin,
-                        style:
-                            AppTypography.bodyMedium().copyWith(fontSize: 11)),
+                        style: AppTypography.bodyMedium(color: inkMuted)
+                            .copyWith(fontSize: 11)),
                   ],
                 ),
               ]),
               const SizedBox(height: 12),
               Text(l10n.app_tagline,
-                  style: AppTypography.bodyMedium(color: AppColors.inkSubtle)
+                  style: AppTypography.bodyMedium(color: inkSubtle)
                       .copyWith(fontSize: 12)),
             ]),
           ),
@@ -869,8 +978,8 @@ class _SettingsState extends ConsumerState<Settings> {
                 icon: const Icon(Icons.delete_forever_rounded, size: 20),
                 label: Text(l10n.deleteAccount),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.error,
-                  side: const BorderSide(color: AppColors.error),
+                  foregroundColor: error,
+                  side: BorderSide(color: error),
                 ),
               ),
             ),
@@ -883,9 +992,10 @@ class _SettingsState extends ConsumerState<Settings> {
             child: ElevatedButton.icon(
               onPressed: _confirmLogout,
               icon: const Icon(Icons.logout_rounded, size: 20),
-              label: Text(l10n.logout),
+              label: Text(l10n.logout,
+                  style: const TextStyle(color: Colors.white)),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.error,
+                backgroundColor: error,
                 foregroundColor: Colors.white,
               ),
             ),
@@ -897,20 +1007,22 @@ class _SettingsState extends ConsumerState<Settings> {
   }
 
   Widget _sectionTitle(String title) {
+    final ink = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
     return Text(title,
-        style: AppTypography.titleMedium().copyWith(fontSize: 17));
+        style: AppTypography.titleMedium(color: ink).copyWith(fontSize: 17));
   }
 
   Widget _langTile(String label, String code, String flag) {
     final isSelected = _currentLang == label;
+    final ink = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
+    final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
     return Material(
       color: Colors.transparent,
       child: ListTile(
         leading: Text(flag, style: const TextStyle(fontSize: 22)),
-        title: Text(label, style: AppTypography.labelMedium()),
+        title: Text(label, style: AppTypography.labelMedium(color: ink)),
         trailing: isSelected
-            ? const Icon(Icons.check_circle_rounded,
-                color: AppColors.brand, size: 22)
+            ? Icon(Icons.check_circle_rounded, color: brand, size: 22)
             : null,
         onTap: isSelected ? null : () => _setLanguage(code, label),
       ),
@@ -918,13 +1030,16 @@ class _SettingsState extends ConsumerState<Settings> {
   }
 
   Widget _settingRow(IconData icon, String label, VoidCallback onTap) {
+    final ink = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
+    final inkSubtle =
+        AppColors.resolve(AppColors.inkSubtle, AppDarkColors.inkSubtle);
+    final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
     return Material(
       color: Colors.transparent,
       child: ListTile(
-        leading: Icon(icon, color: AppColors.brand),
-        title: Text(label, style: AppTypography.labelMedium()),
-        trailing: const Icon(Icons.chevron_right_rounded,
-            color: AppColors.inkSubtle, size: 20),
+        leading: Icon(icon, color: brand),
+        title: Text(label, style: AppTypography.labelMedium(color: ink)),
+        trailing: Icon(Icons.chevron_right_rounded, color: inkSubtle, size: 20),
         onTap: onTap,
       ),
     );

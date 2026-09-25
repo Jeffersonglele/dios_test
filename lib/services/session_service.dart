@@ -1,6 +1,8 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 
 import '../core/app_role.dart';
+import 'livreur_api.dart';
 
 class UserSession {
   const UserSession({
@@ -52,13 +54,14 @@ class SessionService {
 
   static Future<UserSession> readSession() async {
     final prefs = await SharedPreferences.getInstance();
+    final prefLoggedIn = prefs.getBool(_isLoggedInKey) ?? false;
     return UserSession(
       userId: prefs.getInt(_loggedUserIdKey) ?? 0,
       role: AppRole.fromId(prefs.getInt(_currentUserRoleKey)),
-      country: prefs.getString(_currentUserCountryKey) ?? "France",
+      country: prefs.getString(_currentUserCountryKey) ?? 'RDC',
       email: prefs.getString(_currentUserEmailKey),
       restaurantId: prefs.getInt(_currentUserRestaurantKey),
-      isLoggedIn: prefs.getBool(_isLoggedInKey) ?? false,
+      isLoggedIn: prefLoggedIn && await hasParseSession(),
     );
   }
 
@@ -76,12 +79,88 @@ class SessionService {
     await prefs.setString(_currentUserCountryKey, country);
     if (email != null) {
       await prefs.setString(_currentUserEmailKey, email);
+    } else {
+      await prefs.remove(_currentUserEmailKey);
     }
 
     if (restaurantId != null) {
       await prefs.setInt(_currentUserRestaurantKey, restaurantId);
     } else {
       await prefs.remove(_currentUserRestaurantKey);
+    }
+  }
+
+  /// Adopte la session Parse créée par `loginUser` côté Cloud Code.
+  ///
+  /// Les préférences gardent uniquement les informations d'affichage et de
+  /// navigation ; l'autorisation réelle est portée par le sessionToken Parse.
+  static Future<bool> adoptParseSession(String sessionToken) async {
+    if (sessionToken.trim().isEmpty) return false;
+    try {
+      final response = await ParseUser.getCurrentUserFromServer(sessionToken);
+      if (!(response?.success ?? false) || response?.result == null) {
+        return false;
+      }
+
+      final parseUser = response!.result as ParseUser;
+      parseUser.sessionToken = sessionToken;
+      await parseUser.saveInStorage(keyParseStoreUser);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Ouvre une session avec le système d'authentification natif de Parse.
+  ///
+  /// Le backend Parse historique authentifie encore certains profils dans la
+  /// classe métier `Users`. Quand son Cloud Function ne renvoie pas encore de
+  /// sessionToken, on utilise le compte `_User` correspondant s'il existe.
+  /// Cela évite de faire dépendre l'application de la configuration JWT du
+  /// backend Node.js.
+  static Future<bool> loginParseUser(String username, String password) async {
+    final normalizedUsername = username.trim();
+    if (normalizedUsername.isEmpty || password.isEmpty) return false;
+
+    try {
+      final parseUser = ParseUser(normalizedUsername, password, null);
+      final response = await parseUser.login();
+      return response.success &&
+          (parseUser.sessionToken?.isNotEmpty == true ||
+              (response.result is ParseUser &&
+                  (response.result as ParseUser).sessionToken?.isNotEmpty ==
+                      true));
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<bool> hasParseSession() async {
+    try {
+      final parseUser = await ParseUser.currentUser();
+      return parseUser.sessionToken?.isNotEmpty == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<void> logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    final role = AppRole.fromId(prefs.getInt(_currentUserRoleKey));
+    final userId = prefs.getInt(_loggedUserIdKey) ?? 0;
+    try {
+      if (role.isDelivery && userId > 0) {
+        // Toutes les sorties de session rendent le livreur invisible côté Parse.
+        await LivreurApi.toggleOnlineStatus(userId, false);
+      }
+      final parseUser = await ParseUser.currentUser();
+      if (parseUser.sessionToken?.isNotEmpty == true) {
+        await parseUser.logout();
+      }
+    } catch (_) {
+      // La session locale doit être supprimée même si le réseau est absent.
+    } finally {
+      await markLoggedOut();
     }
   }
 
@@ -96,10 +175,12 @@ class SessionService {
     await prefs.remove(_loggedUserIdKey);
     await prefs.remove(_currentUserRoleKey);
     await prefs.remove(_currentUserCountryKey);
+    await prefs.remove(_currentUserEmailKey);
     await prefs.remove(_currentUserRestaurantKey);
   }
 
   static Future<void> clearAll() async {
+    await logout();
     final prefs = await SharedPreferences.getInstance();
     final welcomeKeys = prefs.getKeys().where((k) => k.startsWith('has_seen_welcome_'));
     final welcomeValues = <String, bool>{};

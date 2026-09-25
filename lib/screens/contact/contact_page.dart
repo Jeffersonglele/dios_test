@@ -11,10 +11,12 @@ class ContactPage extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor:
+          AppColors.resolve(AppColors.surface, AppDarkColors.surface),
       appBar: AppBar(
         title: Text(l10n.contact),
-        backgroundColor: AppColors.brand,
+        backgroundColor:
+            AppColors.resolve(AppColors.brand, AppDarkColors.brand),
         foregroundColor: Colors.white,
       ),
       body: ListView(
@@ -43,7 +45,7 @@ class ContactPage extends StatelessWidget {
             icon: Icons.email,
             title: l10n.email,
             subtitle: 'contact@diosdelices.com',
-            color: AppColors.brand,
+            color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
             onTap: () async {
               final uri = Uri(
                 scheme: 'mailto',
@@ -62,7 +64,7 @@ class ContactPage extends StatelessWidget {
             icon: Icons.phone,
             title: l10n.phone,
             subtitle: '+229 01 23 45 67 89',
-            color: AppColors.brand,
+            color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
             onTap: () async {
               final uri = Uri(scheme: 'tel', path: '+2290123456789');
               if (await canLaunchUrl(uri)) {
@@ -75,12 +77,13 @@ class ContactPage extends StatelessWidget {
             icon: Icons.chat,
             title: l10n.chat,
             subtitle: l10n.contact_chat_hours,
-            color: AppColors.brand,
+            color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
             onTap: () {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(l10n.contact_chat_soon),
-                  backgroundColor: AppColors.brand,
+                  backgroundColor:
+                      AppColors.resolve(AppColors.brand, AppDarkColors.brand),
                 ),
               );
             },
@@ -110,15 +113,18 @@ class _ContactTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Card(
-      color: AppColors.card,
+      color: AppColors.resolve(AppColors.card, AppDarkColors.card),
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        side: BorderSide(color: AppColors.border, width: 0.5),
+        side: BorderSide(
+            color: AppColors.resolve(AppColors.border, AppDarkColors.border),
+            width: 0.5),
       ),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: AppColors.resolve(AppColors.brandSurface, AppDarkColors.brandSurface),
+          backgroundColor: AppColors.resolve(
+              AppColors.brandSurface, AppDarkColors.brandSurface),
           child: Icon(icon,
               color: AppColors.resolve(AppColors.brand, AppDarkColors.brand)),
         ),

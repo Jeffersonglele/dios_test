@@ -19,7 +19,7 @@ class MealsOfACategory extends StatefulWidget {
 class _MealsOfACategoryState extends State<MealsOfACategory> {
   List<Dish> _dishes = [];
   bool _isLoading = true;
-  String _country = 'France';
+  String _country = 'RDC';
 
   @override
   void initState() {

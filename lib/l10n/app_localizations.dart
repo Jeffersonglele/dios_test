@@ -1472,6 +1472,54 @@ abstract class AppLocalizations {
   /// **'Your Cart'**
   String get cart_title;
 
+  /// No description provided for @cart_baskets_title.
+  ///
+  /// In en, this message translates to:
+  /// **'My baskets'**
+  String get cart_baskets_title;
+
+  /// No description provided for @cart_baskets_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a seller to see the details of their basket.'**
+  String get cart_baskets_hint;
+
+  /// No description provided for @cart_basket_articles.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} item(s)'**
+  String cart_basket_articles(Object count);
+
+  /// No description provided for @cart_basket_details.
+  ///
+  /// In en, this message translates to:
+  /// **'View details'**
+  String get cart_basket_details;
+
+  /// No description provided for @cart_leave_restaurant_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave the seller\'s page'**
+  String get cart_leave_restaurant_title;
+
+  /// No description provided for @cart_leave_restaurant_message.
+  ///
+  /// In en, this message translates to:
+  /// **'You have products from {restaurant} in your basket. Do you want to empty your basket? Otherwise, you can find it again by returning to this seller.'**
+  String cart_leave_restaurant_message(Object restaurant);
+
+  /// No description provided for @cart_keep_cart.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep my basket'**
+  String get cart_keep_cart;
+
+  /// No description provided for @cart_empty_cart.
+  ///
+  /// In en, this message translates to:
+  /// **'Empty the basket'**
+  String get cart_empty_cart;
+
   /// No description provided for @cart_empty.
   ///
   /// In en, this message translates to:
@@ -1571,7 +1619,7 @@ abstract class AppLocalizations {
   /// No description provided for @cart_payment_fedapay.
   ///
   /// In en, this message translates to:
-  /// **'Mobile Money (CinetPay)'**
+  /// **'Mobile Money (iKeepPay)'**
   String get cart_payment_fedapay;
 
   /// No description provided for @cart_processing.
@@ -2252,11 +2300,167 @@ abstract class AppLocalizations {
   /// **'No description provided.'**
   String get admin_pro_no_description;
 
-  /// No description provided for @optional.
+  /// No description provided for @admin_delivery_requests.
+  ///
+  /// In en, this message translates to:
+  /// **'Driver Requests'**
+  String get admin_delivery_requests;
+
+  /// No description provided for @admin_delivery_requests_pending.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending'**
+  String get admin_delivery_requests_pending;
+
+  /// No description provided for @admin_delivery_requests_validated.
+  ///
+  /// In en, this message translates to:
+  /// **'Validated'**
+  String get admin_delivery_requests_validated;
+
+  /// No description provided for @admin_delivery_requests_rejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected'**
+  String get admin_delivery_requests_rejected;
+
+  /// No description provided for @admin_delivery_validate.
+  ///
+  /// In en, this message translates to:
+  /// **'Approve'**
+  String get admin_delivery_validate;
+
+  /// No description provided for @admin_delivery_reject.
+  ///
+  /// In en, this message translates to:
+  /// **'Reject'**
+  String get admin_delivery_reject;
+
+  /// No description provided for @admin_delivery_no_requests.
+  ///
+  /// In en, this message translates to:
+  /// **'No driver requests.'**
+  String get admin_delivery_no_requests;
+
+  /// No description provided for @admin_delivery_status_pending.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending review'**
+  String get admin_delivery_status_pending;
+
+  /// No description provided for @admin_delivery_status_validated.
+  ///
+  /// In en, this message translates to:
+  /// **'Approved'**
+  String get admin_delivery_status_validated;
+
+  /// No description provided for @admin_delivery_status_rejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected'**
+  String get admin_delivery_status_rejected;
+
+  /// No description provided for @admin_delivery_remark_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason for rejection…'**
+  String get admin_delivery_remark_hint;
+
+  /// No description provided for @admin_delivery_documents.
+  ///
+  /// In en, this message translates to:
+  /// **'Documents'**
+  String get admin_delivery_documents;
+
+  /// No description provided for @admin_delivery_view_document.
+  ///
+  /// In en, this message translates to:
+  /// **'View'**
+  String get admin_delivery_view_document;
+
+  /// No description provided for @admin_delivery_description.
+  ///
+  /// In en, this message translates to:
+  /// **'Request description'**
+  String get admin_delivery_description;
+
+  /// No description provided for @admin_delivery_id_card.
+  ///
+  /// In en, this message translates to:
+  /// **'ID card'**
+  String get admin_delivery_id_card;
+
+  /// No description provided for @admin_delivery_license.
+  ///
+  /// In en, this message translates to:
+  /// **'Driver\'s license'**
+  String get admin_delivery_license;
+
+  /// No description provided for @superAdminDashboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Super Admin Dashboard'**
+  String get superAdminDashboard;
+
+  /// No description provided for @superAdminWeeklyCommissions.
+  ///
+  /// In en, this message translates to:
+  /// **'Weekly Commissions'**
+  String get superAdminWeeklyCommissions;
+
+  /// No description provided for @superAdminPaymentsCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed Payments'**
+  String get superAdminPaymentsCompleted;
+
+  /// No description provided for @superAdminPaymentsPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending Payments'**
+  String get superAdminPaymentsPending;
+
+  /// No description provided for @superAdminDisputesOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Disputes'**
+  String get superAdminDisputesOpen;
+
+  /// No description provided for @superAdminDisputesInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'In Progress Disputes'**
+  String get superAdminDisputesInProgress;
+
+  /// No description provided for @superAdminDisputesResolved.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolved Disputes'**
+  String get superAdminDisputesResolved;
+
+  /// No description provided for @superAdminDisputeRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Dispute Rate'**
+  String get superAdminDisputeRate;
+
+  /// Indicates a field is optional
   ///
   /// In en, this message translates to:
   /// **'optional'**
   String get optional;
+
+  /// No description provided for @admin_delivery_validated.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} approved ✓'**
+  String admin_delivery_validated(Object name);
+
+  /// No description provided for @admin_delivery_rejected.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} rejected'**
+  String admin_delivery_rejected(Object name);
 
   /// No description provided for @delivery_status_assigned.
   ///
@@ -2666,6 +2870,60 @@ abstract class AppLocalizations {
   /// **'Cannot accept: you already have an order in progress'**
   String get livreur_order_already_in_progress;
 
+  /// No description provided for @delivery_must_be_online.
+  ///
+  /// In en, this message translates to:
+  /// **'You must be online to perform this action.'**
+  String get delivery_must_be_online;
+
+  /// No description provided for @livreur_accept_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept this order?'**
+  String get livreur_accept_title;
+
+  /// No description provided for @livreur_accept_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Order #{id}\nAmount to collect: {amount}'**
+  String livreur_accept_body(Object id, Object amount);
+
+  /// No description provided for @delivery_confirm_picked_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm pickup?'**
+  String get delivery_confirm_picked_title;
+
+  /// No description provided for @delivery_confirm_picked_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Did you successfully pick up order #{id} from the restaurant?'**
+  String delivery_confirm_picked_body(Object id);
+
+  /// No description provided for @delivery_confirm_transit_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Start delivery?'**
+  String get delivery_confirm_transit_title;
+
+  /// No description provided for @delivery_confirm_transit_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Is order #{id} ready to be delivered to the customer?'**
+  String delivery_confirm_transit_body(Object id);
+
+  /// No description provided for @delivery_confirm_delivered_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark as delivered?'**
+  String get delivery_confirm_delivered_title;
+
+  /// No description provided for @delivery_confirm_delivered_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm you have handed order #{id} to the customer?'**
+  String delivery_confirm_delivered_body(Object id);
+
   /// No description provided for @restaurant_form_title_create.
   ///
   /// In en, this message translates to:
@@ -2816,6 +3074,48 @@ abstract class AppLocalizations {
   /// **'Opening hours (e.g. 09:00 - 20:00)'**
   String get restaurant_form_opening_hours_hint;
 
+  /// No description provided for @restaurant_form_day_required.
+  ///
+  /// In en, this message translates to:
+  /// **'Select at least one opening day.'**
+  String get restaurant_form_day_required;
+
+  /// No description provided for @restaurant_opens_at.
+  ///
+  /// In en, this message translates to:
+  /// **'Open from {time}'**
+  String restaurant_opens_at(Object time);
+
+  /// No description provided for @restaurant_opens_on.
+  ///
+  /// In en, this message translates to:
+  /// **'Open {day} at {time}'**
+  String restaurant_opens_on(Object day, Object time);
+
+  /// No description provided for @restaurant_closed_today.
+  ///
+  /// In en, this message translates to:
+  /// **'Closed today'**
+  String get restaurant_closed_today;
+
+  /// No description provided for @restaurant_closed_manually.
+  ///
+  /// In en, this message translates to:
+  /// **'Temporarily closed'**
+  String get restaurant_closed_manually;
+
+  /// No description provided for @restaurant_closed_detail.
+  ///
+  /// In en, this message translates to:
+  /// **'This seller is currently closed. Please try again during opening hours.'**
+  String get restaurant_closed_detail;
+
+  /// No description provided for @restaurant_closed_short.
+  ///
+  /// In en, this message translates to:
+  /// **'Restaurant closed'**
+  String get restaurant_closed_short;
+
   /// No description provided for @restaurant_form_open_now.
   ///
   /// In en, this message translates to:
@@ -2910,13 +3210,13 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'Restaurant {name} has been validated{emailSent}'**
-  String restaurant_list_validated_toast(Object emailSent, Object name);
+  String restaurant_list_validated_toast(Object name, Object emailSent);
 
   /// No description provided for @restaurant_list_rejected_toast.
   ///
   /// In en, this message translates to:
   /// **'Restaurant {name} has been rejected{emailSent}'**
-  String restaurant_list_rejected_toast(Object emailSent, Object name);
+  String restaurant_list_rejected_toast(Object name, Object emailSent);
 
   /// No description provided for @near_restaurants_title.
   ///
@@ -3383,7 +3683,7 @@ abstract class AppLocalizations {
   /// No description provided for @commande_details_cinetpay.
   ///
   /// In en, this message translates to:
-  /// **'Mobile Money (CinetPay)'**
+  /// **'Mobile Money (iKeepPay)'**
   String get commande_details_cinetpay;
 
   /// No description provided for @commande_details_items.
@@ -5263,7 +5563,7 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'{count} reviews'**
-  String reviews_count(Object count);
+  String reviews_count(int count);
 
   /// No description provided for @previous.
   ///
@@ -5829,11 +6129,65 @@ abstract class AppLocalizations {
   /// **'This address is outside our delivery zone. We currently deliver only in active delivery zones.'**
   String get cart_address_out_of_zone_detail;
 
+  /// No description provided for @delivery_unavailable_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery is not available at this address'**
+  String get delivery_unavailable_title;
+
+  /// No description provided for @delivery_unavailable_detail.
+  ///
+  /// In en, this message translates to:
+  /// **'This seller is outside your delivery area. You can view the menu, but you cannot add dishes to your cart.'**
+  String get delivery_unavailable_detail;
+
+  /// No description provided for @delivery_unavailable_short.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery unavailable'**
+  String get delivery_unavailable_short;
+
+  /// No description provided for @delivery_unavailable_close.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get delivery_unavailable_close;
+
   /// No description provided for @cart_address_zone_checking.
   ///
   /// In en, this message translates to:
   /// **'Checking delivery zone...'**
   String get cart_address_zone_checking;
+
+  /// No description provided for @cart_delivery_to.
+  ///
+  /// In en, this message translates to:
+  /// **'Deliver to'**
+  String get cart_delivery_to;
+
+  /// No description provided for @cart_choose_current_location.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose an address or use your current location.'**
+  String get cart_choose_current_location;
+
+  /// No description provided for @cart_current_location.
+  ///
+  /// In en, this message translates to:
+  /// **'My current location'**
+  String get cart_current_location;
+
+  /// No description provided for @cart_location_in_progress.
+  ///
+  /// In en, this message translates to:
+  /// **'Finding your location...'**
+  String get cart_location_in_progress;
+
+  /// No description provided for @cart_location_saved.
+  ///
+  /// In en, this message translates to:
+  /// **'Location saved for this order'**
+  String get cart_location_saved;
 
   /// No description provided for @restaurant_form_payment_method.
   ///

@@ -136,7 +136,7 @@ class CustomSearchDelegate extends SearchDelegate<void> {
 }
 
 class _SearchData {
-  const _SearchData({required this.restaurants, required this.dishes, this.country = 'France'});
+  const _SearchData({required this.restaurants, required this.dishes, this.country = 'RDC'});
   final List<Restaurant> restaurants;
   final List<Dish> dishes;
   final String country;

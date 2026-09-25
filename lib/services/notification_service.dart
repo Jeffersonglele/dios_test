@@ -30,7 +30,8 @@ class NotificationService {
     if (defaultTargetPlatform == TargetPlatform.android) {
       try {
         await _localNotifications
-            .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+            .resolvePlatformSpecificImplementation<
+                AndroidFlutterLocalNotificationsPlugin>()
             ?.requestNotificationsPermission();
       } catch (_) {}
     }
@@ -38,8 +39,9 @@ class NotificationService {
     // iOS : demande explicite via flutter_local_notifications
     if (defaultTargetPlatform == TargetPlatform.iOS) {
       try {
-        final iOSPlugin = _localNotifications
-            .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
+        final iOSPlugin =
+            _localNotifications.resolvePlatformSpecificImplementation<
+                IOSFlutterLocalNotificationsPlugin>();
         await iOSPlugin?.requestPermissions(
           alert: true,
           badge: true,
@@ -69,7 +71,8 @@ class NotificationService {
       requestSoundPermission: true,
     );
 
-    const InitializationSettings initializationSettings = InitializationSettings(
+    const InitializationSettings initializationSettings =
+        InitializationSettings(
       android: initializationSettingsAndroid,
       iOS: initializationSettingsIOS,
     );
@@ -211,6 +214,201 @@ class NotificationService {
         inst.set('channels', ['restaurateurs', 'user_$userId']);
         await inst.save();
       });
+    } catch (_) {}
+  }
+
+  static Future<void> subscribeToDeliveryNotifications() async {
+    try {
+      final session = await SessionService.readSession();
+      final userId = session.userId;
+      final userRole = session.role;
+
+      if (userId <= 0) return;
+
+      final messaging = FirebaseMessaging.instance;
+      final fcmToken = await messaging.getToken();
+
+      final installation = await ParseInstallation.currentInstallation();
+      installation.set('userID', userId);
+      installation.set('channels', ['livreurs', 'user_$userId']);
+      if (fcmToken != null) {
+        installation.deviceToken = fcmToken;
+      }
+      await installation.save();
+
+      messaging.onTokenRefresh.listen((newToken) async {
+        final inst = await ParseInstallation.currentInstallation();
+        inst.deviceToken = newToken;
+        inst.set('userID', userId);
+        inst.set('channels', ['livreurs', 'user_$userId']);
+        await inst.save();
+      });
+    } catch (_) {}
+  }
+
+  static Future<void> sendNewDeliveryNotificationToLivreur({
+    required int livreurId,
+    required String restaurantName,
+    required String destinationNeighborhood,
+    required double estimatedAmount,
+    int? orderId,
+    String currencySymbol = '€',
+  }) async {
+    try {
+      final cloudFunction = ParseCloudFunction('sendPushNotification');
+      await cloudFunction.execute(parameters: {
+        'userId': livreurId,
+        'title': 'Nouvelle course disponible !',
+        'body':
+            'Course depuis $restaurantName vers $destinationNeighborhood - $estimatedAmount $currencySymbol',
+        'data': {
+          'type': 'new_delivery',
+          'restaurant_name': restaurantName,
+          'destination_neighborhood': destinationNeighborhood,
+          'estimated_amount': estimatedAmount,
+          'livreur_id': livreurId,
+          'order_id': orderId,
+        },
+      });
+
+      await _showLocalNotification(
+        title: 'Nouvelle course disponible !',
+        body:
+            'Course depuis $restaurantName vers $destinationNeighborhood - $estimatedAmount $currencySymbol',
+        payload: 'new_delivery',
+      );
+    } catch (_) {}
+  }
+
+  static Future<void> sendOrderCancelledNotificationToRestaurateur({
+    required int restaurateurId,
+    required String restaurantName,
+    required String reason,
+    int? orderId,
+  }) async {
+    try {
+      final cloudFunction = ParseCloudFunction('sendPushNotification');
+      await cloudFunction.execute(parameters: {
+        'userId': restaurateurId,
+        'title': 'Commande annulée',
+        'body':
+            'Une commande chez $restaurantName a été annulée${reason.isNotEmpty ? ' : $reason' : ''}',
+        'data': {
+          'type': 'order_cancelled',
+          'restaurant_name': restaurantName,
+          'reason': reason,
+          'restaurateur_id': restaurateurId,
+          'order_id': orderId,
+        },
+      });
+
+      await _showLocalNotification(
+        title: 'Commande annulée',
+        body:
+            'Une commande chez $restaurantName a été annulée${reason.isNotEmpty ? ' : $reason' : ''}',
+        payload: 'order_cancelled',
+      );
+    } catch (_) {}
+  }
+
+  static Future<void> sendPayoutNotificationToRestaurateur({
+    required int restaurateurId,
+    required double amount,
+    String currencySymbol = '€',
+  }) async {
+    try {
+      final cloudFunction = ParseCloudFunction('sendPushNotification');
+      await cloudFunction.execute(parameters: {
+        'userId': restaurateurId,
+        'title': 'Versement effectué !',
+        'body':
+            'Votre versement hebdomadaire de $amount $currencySymbol a été effectué',
+        'data': {
+          'type': 'payout',
+          'amount': amount,
+          'restaurateur_id': restaurateurId,
+        },
+      });
+
+      await _showLocalNotification(
+        title: 'Versement effectué !',
+        body:
+            'Votre versement hebdomadaire de $amount $currencySymbol a été effectué',
+        payload: 'payout',
+      );
+    } catch (_) {}
+  }
+
+  static Future<void> sendDisputeWarningNotificationToRestaurateur({
+    required int restaurateurId,
+    required int disputeCount,
+  }) async {
+    try {
+      final cloudFunction = ParseCloudFunction('sendPushNotification');
+      await cloudFunction.execute(parameters: {
+        'userId': restaurateurId,
+        'title': 'Avertissement litiges',
+        'body':
+            'Vous avez $disputeCount litiges en attente - veuillez les traiter',
+        'data': {
+          'type': 'dispute_warning',
+          'dispute_count': disputeCount,
+          'restaurateur_id': restaurateurId,
+        },
+      });
+
+      await _showLocalNotification(
+        title: 'Avertissement litiges',
+        body:
+            'Vous avez $disputeCount litiges en attente - veuillez les traiter',
+        payload: 'dispute_warning',
+      );
+    } catch (_) {}
+  }
+
+  static Future<void> sendIdentityRecheckNotificationToRestaurateur({
+    required int restaurateurId,
+  }) async {
+    try {
+      final cloudFunction = ParseCloudFunction('sendPushNotification');
+      await cloudFunction.execute(parameters: {
+        'userId': restaurateurId,
+        'title': 'Re-vérification d\'identité',
+        'body': 'Une re-vérification de votre identité est nécessaire',
+        'data': {
+          'type': 'identity_recheck',
+          'restaurateur_id': restaurateurId,
+        },
+      });
+
+      await _showLocalNotification(
+        title: 'Re-vérification d\'identité',
+        body: 'Une re-vérification de votre identité est nécessaire',
+        payload: 'identity_recheck',
+      );
+    } catch (_) {}
+  }
+
+  static Future<void> sendIdentityRecheckNotificationToLivreur({
+    required int livreurId,
+  }) async {
+    try {
+      final cloudFunction = ParseCloudFunction('sendPushNotification');
+      await cloudFunction.execute(parameters: {
+        'userId': livreurId,
+        'title': 'Re-vérification d\'identité',
+        'body': 'Une re-vérification de votre identité est nécessaire',
+        'data': {
+          'type': 'identity_recheck',
+          'livreur_id': livreurId,
+        },
+      });
+
+      await _showLocalNotification(
+        title: 'Re-vérification d\'identité',
+        body: 'Une re-vérification de votre identité est nécessaire',
+        payload: 'identity_recheck',
+      );
     } catch (_) {}
   }
 }

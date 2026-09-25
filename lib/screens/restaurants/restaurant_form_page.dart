@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:dios_delices/l10n/app_localizations.dart';
 import 'package:dios_delices/models/restaurant.dart';
 import 'package:dios_delices/models/users.dart';
@@ -9,12 +8,12 @@ import 'package:geocoding/geocoding.dart' as geo;
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
-import 'package:path/path.dart' as p;
 import '../../constants/constant.dart';
 import '../../services/session_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/hashtag_text_input_formatter.dart';
 import '../../utils/image_picker_helper.dart';
+import '../../utils/country_util.dart';
 import '../../utils/toast.dart';
 import '../../widgets/brand_avatar_logo.dart';
 import '../onboarding/confirmation_page.dart';
@@ -39,7 +38,7 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
   final TextEditingController _bankNameController = TextEditingController();
   final TextEditingController _accountHolderController = TextEditingController();
 
-  File? _imageFile;
+  XFile? _imageFile;
   List<String> _selectedHashtags = [];
   List<String> _selectedDays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
   TimeOfDay _openingTime = const TimeOfDay(hour: 9, minute: 0);
@@ -154,8 +153,11 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
       if (placemarks.isEmpty) return false;
       final country = placemarks.first.country;
       if (country == null || country.isEmpty) return false;
-      return country.toLowerCase().contains(session.country.toLowerCase()) ||
-          session.country.toLowerCase().contains(country.toLowerCase());
+      final detectedCountry = CountryUtil.canonical(country);
+      final sessionCountry = CountryUtil.canonical(session.country);
+      return detectedCountry.isNotEmpty &&
+          sessionCountry.isNotEmpty &&
+          detectedCountry == sessionCountry;
     } catch (_) {
       return false;
     }
@@ -476,7 +478,8 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.file(displayFile, width: 120, height: 80, fit: BoxFit.cover),
+                child: pickedImagePreview(displayFile,
+                    width: 120, height: 80, fit: BoxFit.cover),
               ),
               Positioned(
                 top: -8, right: -8,
@@ -542,6 +545,14 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
             if (context.mounted) Toast(context, AppLocalizations.of(context)!.restaurant_form_fix_errors, false);
             return;
           }
+          if (_selectedDays.isEmpty) {
+            if (context.mounted) {
+              Toast(context,
+                  AppLocalizations.of(context)!.restaurant_form_day_required,
+                  false);
+            }
+            return;
+          }
           setState(() => _isSaving = true);
           try {
             final addressText = _addressController.text.trim();
@@ -562,12 +573,14 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
             final userCountry = session.country;
             final userRoleID = session.role.id;
 
-            ParseFile? parseFile;
+            ParseFileBase? parseFile;
             final img = _imageFile;
             if (img != null && _nameController.text.isNotEmpty) {
-              final ext = p.extension(img.path);
-              final name = '${_nameController.text}_$userID$ext';
-              parseFile = ParseFile(File(img.path), name: name);
+              final name = safeUploadFileName(
+                prefix: 'restaurant_${userID}',
+                file: img,
+              );
+              parseFile = ParseXFile(img, name: name);
             }
 
             int? addressID;
@@ -598,6 +611,7 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
             final result = await Restaurant.manageRestaurant(
             restaurantID: widget.restaurant?.restaurantID,
             userID: userID,
+            country: userCountry,
             valid: widget.restaurant?.valid ?? 0,
             nb_orders: widget.restaurant?.nb_orders ?? 0,
             note: widget.restaurant?.note ?? 0.0,

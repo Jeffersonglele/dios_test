@@ -82,7 +82,10 @@ class _AnimatedLikeButtonState extends State<AnimatedLikeButton>
       TweenSequenceItem(tween: Tween(begin: 0.7, end: 1.35), weight: 35),
       TweenSequenceItem(tween: Tween(begin: 1.35, end: 0.9), weight: 25),
       TweenSequenceItem(tween: Tween(begin: 0.9, end: 1.0), weight: 25),
-    ]).animate(CurvedAnimation(parent: _ctrl, curve: Curves.elasticOut));
+    // TweenSequence exige une progression comprise entre 0 et 1. Les courbes
+    // élastiques peuvent dépasser 1, ce qui faisait planter le rendu Web.
+    // Le rebond visuel est déjà porté par les valeurs de la séquence.
+    ]).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
     _ctrl.addStatusListener((s) {
       if (s == AnimationStatus.completed) widget.onTap();
     });

@@ -44,6 +44,7 @@ class _FirstLoginPasswordChangeState extends State<FirstLoginPasswordChange> {
       widget.user.userID,
       encrypted,
       mustChangePassword: false,
+      plainPassword: newPwdCtrl.text,
     );
     setState(() => isLoading = false);
     if (result == "success") {

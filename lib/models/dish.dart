@@ -191,8 +191,8 @@ class Dish extends HiveObject {
     required int nb_servings,
     required int restauID,
     required int status,
-    ParseFile? image,
-    List<ParseFile>? extraImages,
+    ParseFileBase? image,
+    List<ParseFileBase>? extraImages,
     String? img_url,
     String? images,
     String currency = 'EUR',
@@ -207,7 +207,7 @@ class Dish extends HiveObject {
       try {
         final response = await image.save();
         if (response.success && response.result != null) {
-          imageUrl = (response.result as ParseFile).url ?? img_url;
+          imageUrl = (response.result as ParseFileBase).url ?? img_url;
           try { final g = ParseObject('Gallery')..set('file', image); await g.save(); } catch (_) {}
         }
       } catch (_) { imageUrl = img_url ?? ""; }
@@ -221,7 +221,7 @@ class Dish extends HiveObject {
         try {
           final resp = await img.save();
           if (resp.success && resp.result != null) {
-            final url = (resp.result as ParseFile).url;
+            final url = (resp.result as ParseFileBase).url;
             if (url != null && url.isNotEmpty) allUrls.add(url);
           }
         } catch (_) {}

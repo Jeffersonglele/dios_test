@@ -59,6 +59,25 @@ class Commande extends HiveObject {
   @HiveField(16)
   int cityID;
 
+  // New fields for delivery history
+  @HiveField(17)
+  double? distance; // in km
+
+  @HiveField(18)
+  double? pourboire; // tip
+
+  // Payment/transfer fields
+  @HiveField(19)
+  String? paymentStatus; // pending, paid, etc.
+
+  @HiveField(20)
+  DateTime? paymentDate;
+
+  // Earnings calculated by Parse when the delivery is completed.
+  double? delivererBasePay;
+  double? delivererDistancePay;
+  String? delivererEarningsStatus;
+
   double totalAmount;
   String? deliveryMode;
   String? promoCode;
@@ -88,6 +107,13 @@ class Commande extends HiveObject {
     this.subtotalAmount,
     this.cityID = 1,
     this.country,
+    this.distance,
+    this.pourboire,
+    this.paymentStatus,
+    this.paymentDate,
+    this.delivererBasePay,
+    this.delivererDistancePay,
+    this.delivererEarningsStatus,
   });
 
   factory Commande.fromMap(Map<String, dynamic> map) {
@@ -104,44 +130,65 @@ class Commande extends HiveObject {
       addressID: map['addressID'],
       note: map['note']?.toDouble(),
       status: CommandeStatus.normalize(map['status']?.toString()),
-      livreurID: map['livreurID'] is int ? map['livreurID'] : int.tryParse(map['livreurID']?.toString() ?? ''),
-      deliveryStatus: map['deliveryStatus']?.toString(),
+      livreurID: map['livreurID'] is int
+          ? map['livreurID']
+          : int.tryParse(map['livreurID']?.toString() ?? ''),
+      deliveryStatus: map['deliveryStatus'] == null ||
+              map['deliveryStatus'].toString().trim().isEmpty
+          ? null
+          : DeliveryStatus.normalize(map['deliveryStatus']?.toString()),
       livreurLat: double.tryParse(map['livreurLat']?.toString() ?? ''),
       livreurLng: double.tryParse(map['livreurLng']?.toString() ?? ''),
       totalAmount: (map['totalAmount'] ?? 0).toDouble(),
       deliveryMode: map['deliveryMode']?.toString(),
       promoCode: map['promoCode']?.toString(),
-      subtotalAmount: (map['subtotalAmount'] ?? map['totalAmount'] ?? 0)?.toDouble(),
+      subtotalAmount:
+          (map['subtotalAmount'] ?? map['totalAmount'] ?? 0)?.toDouble(),
       country: map['country']?.toString(),
       cityID: int.tryParse(map['cityID']?.toString() ?? '1') ?? 1,
+      distance: (map['distance'] as num?)?.toDouble(),
+      pourboire: (map['pourboire'] as num?)?.toDouble(),
+      paymentStatus: map['paymentStatus']?.toString(),
+      paymentDate: map['paymentDate'] != null
+          ? DateTime.parse(map['paymentDate'])
+          : null,
+      delivererBasePay: (map['delivererBasePay'] as num?)?.toDouble(),
+      delivererDistancePay: (map['delivererDistancePay'] as num?)?.toDouble(),
+      delivererEarningsStatus: map['delivererEarningsStatus']?.toString(),
     );
   }
 
   Map<String, dynamic> toJson() => {
-    'commandeID': commandeID,
-    'userID': userID,
-    'restauID': restauID,
-    'restaurateurID': restaurateurID,
-    'moyenPaiementID': moyenPaiementID,
-    'fraisLivraison': fraisLivraison,
-    'reduction': reduction,
-    'dateCommande': dateCommande.toIso8601String(),
-    'heure': heure,
-    'addressID': addressID,
-    'note': note,
-    'status': status,
-    'livreurID': livreurID,
-    'deliveryStatus': deliveryStatus,
-    'livreurLat': livreurLat,
-    'livreurLng': livreurLng,
-    'totalAmount': totalAmount,
-    'deliveryMode': deliveryMode,
-    'promoCode': promoCode,
-    'subtotalAmount': subtotalAmount,
-    'country': country,
-    'cityID': cityID,
-  };
-
+        'commandeID': commandeID,
+        'userID': userID,
+        'restauID': restauID,
+        'restaurateurID': restaurateurID,
+        'moyenPaiementID': moyenPaiementID,
+        'fraisLivraison': fraisLivraison,
+        'reduction': reduction,
+        'dateCommande': dateCommande.toIso8601String(),
+        'heure': heure,
+        'addressID': addressID,
+        'note': note,
+        'status': status,
+        'livreurID': livreurID,
+        'deliveryStatus': deliveryStatus,
+        'livreurLat': livreurLat,
+        'livreurLng': livreurLng,
+        'totalAmount': totalAmount,
+        'deliveryMode': deliveryMode,
+        'promoCode': promoCode,
+        'subtotalAmount': subtotalAmount,
+        'country': country,
+        'cityID': cityID,
+        'distance': distance,
+        'pourboire': pourboire,
+        'paymentStatus': paymentStatus,
+        'paymentDate': paymentDate?.toIso8601String(),
+        'delivererBasePay': delivererBasePay,
+        'delivererDistancePay': delivererDistancePay,
+        'delivererEarningsStatus': delivererEarningsStatus,
+      };
 
   static Future<String> manageCommande({
     int? commandeID,
@@ -217,9 +264,8 @@ class Commande extends HiveObject {
 
       if (response.success) {
         List<dynamic> dataList = response.result;
-        List<Commande> commandes = dataList
-            .map((map) => Commande.fromMap(map))
-            .toList();
+        List<Commande> commandes =
+            dataList.map((map) => Commande.fromMap(map)).toList();
 
         final box = await Hive.openBox<Commande>('commande');
         await box.clear();
@@ -235,7 +281,6 @@ class Commande extends HiveObject {
     } catch (e) {
       return false;
     }
-
   }
 
   static Future<List<Commande>> fetchCommandesFromDB() async {
@@ -246,5 +291,4 @@ class Commande extends HiveObject {
   static Future<void> refreshLocalCommandes() async {
     await getAllCommandes();
   }
-
 }

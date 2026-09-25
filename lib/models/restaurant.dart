@@ -2,6 +2,9 @@ import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:hive/hive.dart';
 import '../db/database_helper.dart';
 import 'package:dios_delices/providers/data_version_notifier.dart';
+import '../services/restaurant_opening_hours_service.dart';
+import '../services/session_service.dart';
+import '../utils/currency_util.dart';
 
 part 'restaurant.g.dart';
 
@@ -60,12 +63,22 @@ class Restaurant extends HiveObject {
 
   String country;
 
+  @HiveField(14)
   String openingDays;
-  bool get isCurrentlyOpen => isOpen == 1;
+  RestaurantOpeningStatus get openingStatus =>
+      RestaurantOpeningHoursService.status(
+        openingDays: openingDays,
+        openingHours: openingHours,
+        openingHoursByDay: openingHoursByDay,
+        manualStatus: isOpen,
+      );
+
+  bool get isCurrentlyOpen => openingStatus.isOpen;
   double minOrderAmount;
   double deliveryRadius;
   String closedDates;
 
+  @HiveField(15)
   String openingHoursByDay;
   String recoveryMode;
   int cityID;
@@ -177,8 +190,9 @@ class Restaurant extends HiveObject {
         trainingCompleted: map['trainingCompleted'] == 1 || map['trainingCompleted'] == true,
         isPro: map['isPro'] == true || map['isPro']?.toString() == 'true',
         reviewRemark: map['reviewRemark']?.toString() ?? '',
-        currency: map['currency']?.toString() ?? 'EUR',
         country: map['country']?.toString() ?? '',
+        currency: map['currency']?.toString() ??
+            CurrencyUtil.code(map['country']?.toString() ?? '').toUpperCase(),
         openingDays: map['openingDays']?.toString() ?? 'Lun,Mar,Mer,Jeu,Ven,Sam',
         minOrderAmount: double.tryParse(map['minOrderAmount']?.toString() ?? '0') ?? 0,
         deliveryRadius: double.tryParse(map['deliveryRadius']?.toString() ?? '10') ?? 10,
@@ -277,13 +291,14 @@ class Restaurant extends HiveObject {
     double deliveryFee = 0.0,
     int isOpen = 1,
     DateTime? date_creation,
-    ParseFile? image,
+    ParseFileBase? image,
     String? img_url,
     int? addressID,
     String professionalType = 'amateur',
     bool trainingCompleted = false,
     bool isPro = false,
-    String currency = 'EUR',
+    String currency = '',
+    String country = '',
     String openingDays = 'Lun,Mar,Mer,Jeu,Ven,Sam',
     String recoveryMode = 'delivery',
     int cityID = 1,
@@ -298,6 +313,12 @@ class Restaurant extends HiveObject {
     String closedDates = '',
     String openingHoursByDay = '',
   }) async {
+    final session = await SessionService.readSession();
+    final effectiveCountry = country.trim().isEmpty ? session.country : country;
+    final effectiveCurrency = currency.trim().isEmpty
+        ? CurrencyUtil.code(effectiveCountry).toUpperCase()
+        : currency.toUpperCase();
+
     // Determine cloud function name based on operation
     String functionName = restaurantID == null ? 'add1Restaurant' : 'update1Restaurant';
     var cloudFunction = ParseCloudFunction(functionName);
@@ -314,7 +335,7 @@ class Restaurant extends HiveObject {
       // Handle the response for file upload
       if (response.success && response.result != null) {
         // Get the URL of the uploaded file
-        imageUrl = (response.result as ParseFile).url ?? "";
+        imageUrl = (response.result as ParseFileBase).url ?? "";
       } else {
         return "Erreur lors de l'upload de l'image: ${response.error?.message}";
       }
@@ -340,7 +361,8 @@ class Restaurant extends HiveObject {
       'professionalType': professionalType,
       'trainingCompleted': trainingCompleted,
       'isPro': isPro,
-      'currency': currency,
+      'currency': effectiveCurrency,
+      'country': effectiveCountry,
       'openingDays': openingDays,
       'recoveryMode': recoveryMode,
       'cityID': cityID,
@@ -386,12 +408,15 @@ class Restaurant extends HiveObject {
             image: image == null ? img_url : imageUrl,
             date_creation: date_creation,
             openingHours: openingHours,
+            openingDays: openingDays,
+            openingHoursByDay: openingHoursByDay,
             deliveryFee: deliveryFee,
             isOpen: isOpen,
             professionalType: professionalType,
             trainingCompleted: trainingCompleted,
             isPro: isPro,
-            currency: currency,
+            currency: effectiveCurrency,
+            country: effectiveCountry,
             rccm: rccm,
           );
 

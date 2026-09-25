@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:dios_delices/l10n/app_localizations.dart';
 import 'package:dios_delices/models/users.dart';
 import 'package:dios_delices/models/address.dart';
@@ -10,6 +9,7 @@ import 'package:dios_delices/screens/profile/location_page.dart';
 import 'package:dios_delices/screens/orders/user_orders_page.dart';
 import 'package:dios_delices/utils/image_picker_helper.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -19,7 +19,7 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   Users? _user;
-  File? _newPhoto;
+  XFile? _newPhoto;
   String _address = '';
   bool _isAdmin = false;
 
@@ -46,7 +46,8 @@ class _ProfilePageState extends State<ProfilePage> {
     final user = Users.getUsersByUserId(users, session.userId);
     if (!mounted) return;
     final addresses = await Address.fetchAddressesFromDB();
-    final address = Address.getAddressByObject(addresses, 'user', session.userId);
+    final address =
+        Address.getAddressByObject(addresses, 'User', session.userId);
     if (!mounted) return;
     setState(() {
       _user = user;
@@ -76,83 +77,117 @@ class _ProfilePageState extends State<ProfilePage> {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: AppColors.brandSurface,
+              color: AppColors.resolve(
+                  AppColors.brandSurface, AppDarkColors.brandSurface),
               borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
-            child: const Icon(Icons.person_rounded,
-                color: AppColors.brand, size: 18),
+            child: Icon(Icons.person_rounded,
+                color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+                size: 18),
           ),
           const SizedBox(width: 10),
           Text(AppLocalizations.of(ctx)!.editProfileTitle,
-              style: AppTypography.titleMedium().copyWith(fontSize: 16)),
+              style: AppTypography.titleMedium(
+                      color:
+                          AppColors.resolve(AppColors.ink, AppDarkColors.ink))
+                  .copyWith(fontSize: 16)),
         ]),
         content: Form(
           key: formKey,
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            GestureDetector(
-              onTap: () async {
-                final file = await pickAndConfirmImage(context);
-                if (file != null) setState(() => _newPhoto = file);
-              },
-              child: Stack(children: [
-                CircleAvatar(
-                  radius: 42,
-                  backgroundColor: AppColors.brandSurface,
-                  child: _newPhoto != null
-                      ? ClipOval(child: Image.file(_newPhoto!, width: 84, height: 84, fit: BoxFit.cover))
-                      : user.image.isNotEmpty
-                          ? ClipOval(child: Image.memory(const Base64Decoder().convert(user.image), width: 84, height: 84, fit: BoxFit.cover))
-                          : Text('${user.firstname.isNotEmpty ? user.firstname[0] : ''}${user.lastname.isNotEmpty ? user.lastname[0] : ''}'.toUpperCase(),
-                              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.brand)),
+          child: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              GestureDetector(
+                onTap: () async {
+                  final file = await pickAndConfirmImage(context);
+                  if (file != null) setState(() => _newPhoto = file);
+                },
+                child: Stack(children: [
+                  CircleAvatar(
+                    radius: 42,
+                    backgroundColor: AppColors.resolve(
+                        AppColors.brandSurface, AppDarkColors.brandSurface),
+                    child: _newPhoto != null
+                        ? ClipOval(
+                            child: pickedImagePreview(_newPhoto!,
+                                width: 84, height: 84, fit: BoxFit.cover))
+                        : user.image.isNotEmpty
+                            ? ClipOval(
+                                child: Image.memory(
+                                    const Base64Decoder().convert(user.image),
+                                    width: 84,
+                                    height: 84,
+                                    fit: BoxFit.cover))
+                            : Text(
+                                '${user.firstname.isNotEmpty ? user.firstname[0] : ''}${user.lastname.isNotEmpty ? user.lastname[0] : ''}'
+                                    .toUpperCase(),
+                                style: TextStyle(
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.resolve(
+                                        AppColors.brand, AppDarkColors.brand))),
+                  ),
+                  Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                            color: AppColors.resolve(
+                                AppColors.brand, AppDarkColors.brand),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2)),
+                        child: const Icon(Icons.camera_alt_rounded,
+                            color: Colors.white, size: 14),
+                      )),
+                ]),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: firstnameCtrl,
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.of(ctx)!.firstName,
+                  prefixIcon:
+                      const Icon(Icons.person_outline_rounded, size: 20),
                 ),
-                Positioned(bottom: 0, right: 0, child: Container(
-                  width: 28, height: 28,
-                  decoration: BoxDecoration(color: AppColors.brand, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)),
-                  child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 14),
-                )),
-              ]),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: firstnameCtrl,
-              decoration: InputDecoration(
-                labelText: AppLocalizations.of(ctx)!.firstName,
-                prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: lastnameCtrl,
-              decoration: InputDecoration(
-                labelText: AppLocalizations.of(ctx)!.lastName,
-                prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
+              const SizedBox(height: 12),
+              TextField(
+                controller: lastnameCtrl,
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.of(ctx)!.lastName,
+                  prefixIcon:
+                      const Icon(Icons.person_outline_rounded, size: 20),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: emailCtrl,
-              keyboardType: TextInputType.emailAddress,
-              decoration: InputDecoration(
-                labelText: AppLocalizations.of(ctx)!.email,
-                prefixIcon: const Icon(Icons.email_outlined, size: 20),
+              const SizedBox(height: 12),
+              TextField(
+                controller: emailCtrl,
+                keyboardType: TextInputType.emailAddress,
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.of(ctx)!.email,
+                  prefixIcon: const Icon(Icons.email_outlined, size: 20),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: phoneCtrl,
-              keyboardType: TextInputType.phone,
-              decoration: InputDecoration(
-                labelText: AppLocalizations.of(ctx)!.phone,
-                prefixIcon: const Icon(Icons.phone_outlined, size: 20),
+              const SizedBox(height: 12),
+              TextField(
+                controller: phoneCtrl,
+                keyboardType: TextInputType.phone,
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.of(ctx)!.phone,
+                  prefixIcon: const Icon(Icons.phone_outlined, size: 20),
+                ),
               ),
-            ),
-          ]),
+            ]),
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
             child: Text(AppLocalizations.of(ctx)!.cancel,
-                style: AppTypography.labelMedium(color: AppColors.inkMuted)),
+                style: AppTypography.labelMedium(
+                    color: AppColors.resolve(
+                        AppColors.inkMuted, AppDarkColors.inkMuted))),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -161,7 +196,8 @@ class _ProfilePageState extends State<ProfilePage> {
                   emailCtrl.text.trim().isEmpty ||
                   phoneCtrl.text.trim().isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text(AppLocalizations.of(context)!.allFieldsRequired)));
+                    content:
+                        Text(AppLocalizations.of(context)!.allFieldsRequired)));
                 return;
               }
               final result = await Users.updateProfile(
@@ -170,7 +206,9 @@ class _ProfilePageState extends State<ProfilePage> {
                 lastname: lastnameCtrl.text.trim(),
                 email: emailCtrl.text.trim(),
                 telephone: phoneCtrl.text.trim(),
-                image: _newPhoto != null ? base64Encode(_newPhoto!.readAsBytesSync()) : null,
+                image: _newPhoto != null
+                    ? base64Encode(await _newPhoto!.readAsBytes())
+                    : null,
               );
               if (!ctx.mounted) return;
               Navigator.pop(ctx, result == 'success');
@@ -200,7 +238,8 @@ class _ProfilePageState extends State<ProfilePage> {
     final user = _user;
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor:
+          AppColors.resolve(AppColors.surface, AppDarkColors.surface),
       appBar: AppBar(title: Text(l10n.myProfile)),
       body: SafeArea(
         child: user == null
@@ -212,35 +251,46 @@ class _ProfilePageState extends State<ProfilePage> {
                   Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: AppColors.card,
+                      color:
+                          AppColors.resolve(AppColors.card, AppDarkColors.card),
                       borderRadius: BorderRadius.circular(AppRadius.lg),
-                      border: Border.all(color: AppColors.border, width: 0.5),
+                      border: Border.all(
+                          color: AppColors.resolve(
+                              AppColors.border, AppDarkColors.border),
+                          width: 0.5),
                     ),
                     child: Column(children: [
                       CircleAvatar(
                         radius: 40,
-                        backgroundColor: AppColors.brandSurface,
+                        backgroundColor: AppColors.resolve(
+                            AppColors.brandSurface, AppDarkColors.brandSurface),
                         child: user.image.isNotEmpty
-                            ? ClipOval(child: Image.memory(base64Decode(user.image), width: 80, height: 80, fit: BoxFit.cover))
+                            ? ClipOval(
+                                child: Image.memory(base64Decode(user.image),
+                                    width: 80, height: 80, fit: BoxFit.cover))
                             : Text(
                                 '${user.firstname.isNotEmpty ? user.firstname[0] : ''}${user.lastname.isNotEmpty ? user.lastname[0] : ''}'
                                     .toUpperCase(),
-                                style: const TextStyle(
-                                  fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.brand,
+                                style: AppTypography.titleMedium(
+                                  color: AppColors.resolve(
+                                      AppColors.ink, AppDarkColors.ink),
                                 ),
                               ),
                       ),
                       const SizedBox(height: 12),
                       Text(
                         '${user.firstname} ${user.lastname}',
-                        style:
-                            AppTypography.titleMedium().copyWith(fontSize: 18),
+                        style: AppTypography.titleMedium(
+                                color: AppColors.resolve(
+                                    AppColors.ink, AppDarkColors.ink))
+                            .copyWith(fontSize: 18),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         '@${user.username}',
                         style: AppTypography.bodyMedium(
-                            color: AppColors.inkSubtle),
+                            color: AppColors.resolve(
+                                AppColors.inkSubtle, AppDarkColors.inkSubtle)),
                       ),
                     ]),
                   ),
@@ -249,9 +299,13 @@ class _ProfilePageState extends State<ProfilePage> {
                   // ── Informations ──────────────────────────
                   Container(
                     decoration: BoxDecoration(
-                      color: AppColors.card,
+                      color:
+                          AppColors.resolve(AppColors.card, AppDarkColors.card),
                       borderRadius: BorderRadius.circular(AppRadius.lg),
-                      border: Border.all(color: AppColors.border, width: 0.5),
+                      border: Border.all(
+                          color: AppColors.resolve(
+                              AppColors.border, AppDarkColors.border),
+                          width: 0.5),
                     ),
                     child: Column(children: [
                       _infoTile(
@@ -284,8 +338,8 @@ class _ProfilePageState extends State<ProfilePage> {
                                       AppDarkColors.inkMuted),
                                   fontSize: 12)),
                           trailing: Icon(Icons.chevron_right_rounded,
-                              color: AppColors.resolve(AppColors.inkSubtle,
-                                  AppDarkColors.inkSubtle),
+                              color: AppColors.resolve(
+                                  AppColors.inkSubtle, AppDarkColors.inkSubtle),
                               size: 20),
                           onTap: () async {
                             final session = await SessionService.readSession();
@@ -352,9 +406,12 @@ class _ProfilePageState extends State<ProfilePage> {
     return Material(
       color: Colors.transparent,
       child: ListTile(
-        leading: Icon(icon, color: AppColors.brand),
+        leading: Icon(icon,
+            color: AppColors.resolve(AppColors.brand, AppDarkColors.brand)),
         title: Text(label,
-            style: AppTypography.bodyMedium(color: AppColors.inkSubtle)
+            style: AppTypography.bodyMedium(
+                    color: AppColors.resolve(
+                        AppColors.inkSubtle, AppDarkColors.inkSubtle))
                 .copyWith(fontSize: 12)),
         subtitle: Text(value, style: AppTypography.labelMedium()),
       ),

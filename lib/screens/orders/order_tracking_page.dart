@@ -18,7 +18,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
   bool isLoading = true;
   List<Commande> commandes = [];
   Map<int, Restaurant> restaurantById = {};
-  String _country = 'France';
+  String _country = 'RDC';
 
   @override
   void initState() {
@@ -29,6 +29,11 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
   Future<void> _load() async {
     final session = await SessionService.readSession();
     _country = session.country;
+    try {
+      await Commande.refreshLocalCommandes();
+    } catch (_) {
+      // Le cache local reste utilisable si Parse est temporairement indisponible.
+    }
     final allC = await Commande.fetchCommandesFromDB();
     final restos = await Restaurant.fetchRestaurantsFromDB();
     final userC = allC.where((c) => c.userID == session.userId).toList()
@@ -97,14 +102,24 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
         const SizedBox(height: 12),
         Text(_statusMessage(status), style: AppTypography.bodyMedium()),
         const SizedBox(height: 16),
-        // Étapes
-        Row(children: [
-          _Step('Créée', status != CommandeStatus.cancelled, status == CommandeStatus.cancelled),
-          _StepConnector(status != CommandeStatus.cancelled && (status == CommandeStatus.paid || status == CommandeStatus.confirmed)),
-          _Step('Payée', status == CommandeStatus.paid || status == CommandeStatus.confirmed, status == CommandeStatus.cancelled),
-          _StepConnector(status == CommandeStatus.confirmed),
-          _Step('Confirmée', status == CommandeStatus.confirmed, status == CommandeStatus.cancelled),
-        ]),
+        // Parcours unique : préparation du restaurant puis livraison.
+        Row(
+          children: [
+            for (var i = 0; i < 5; i++) ...[
+              _Step(
+                _trackingLabels[i],
+                i <= _trackingStepIndex(c, status),
+                status == CommandeStatus.cancelled ||
+                    status == CommandeStatus.refused,
+              ),
+              if (i < 4)
+                _StepConnector(
+                    i < _trackingStepIndex(c, status) &&
+                        status != CommandeStatus.cancelled &&
+                        status != CommandeStatus.refused),
+            ],
+          ],
+        ),
         const SizedBox(height: 12),
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           Text(AppLocalizations.of(context)!.delivery_cost(CurrencyUtil.formatPrice(c.fraisLivraison, _country)),
@@ -122,9 +137,44 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
       case CommandeStatus.pending: return l10n.tracking_pending_label;
       case CommandeStatus.paid: return l10n.tracking_paid_label;
       case CommandeStatus.confirmed: return l10n.tracking_confirmed_label;
+      case CommandeStatus.preparing: return 'Le restaurant prépare votre commande.';
+      case CommandeStatus.ready: return 'Votre commande est prête. Recherche d’un livreur en cours.';
+      case CommandeStatus.delivered: return 'Commande livrée.';
+      case CommandeStatus.refused: return 'Commande refusée par le restaurant.';
       case CommandeStatus.cancelled: return l10n.tracking_cancelled_label;
       default: return 'Statut mis à jour.';
     }
+  }
+
+  static const _trackingLabels = [
+    'Créée',
+    'Préparation',
+    'Prête',
+    'En livraison',
+    'Livrée',
+  ];
+
+  int _trackingStepIndex(Commande commande, String status) {
+    if (status == CommandeStatus.cancelled || status == CommandeStatus.refused) {
+      return -1;
+    }
+    final delivery = commande.deliveryStatus == null
+        ? null
+        : DeliveryStatus.normalize(commande.deliveryStatus);
+    if (status == CommandeStatus.delivered ||
+        delivery == DeliveryStatus.delivered) {
+      return 4;
+    }
+    if (delivery == DeliveryStatus.inTransit) return 3;
+    if (delivery == DeliveryStatus.pickedUp) return 3;
+    if (delivery == DeliveryStatus.assigned ||
+        delivery == DeliveryStatus.atPickup ||
+        delivery == DeliveryStatus.searching ||
+        status == CommandeStatus.ready) {
+      return 2;
+    }
+    if (status == CommandeStatus.preparing) return 1;
+    return 0;
   }
 
   Widget _Step(String label, bool done, bool cancelled) {

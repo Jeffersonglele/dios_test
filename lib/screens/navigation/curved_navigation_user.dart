@@ -9,7 +9,8 @@ import '../store/my_store.dart';
 class CurvedNavigationUser extends StatefulWidget {
   final int specified_index;
   final String country;
-  const CurvedNavigationUser({super.key, required this.specified_index, this.country = 'France'});
+  const CurvedNavigationUser(
+      {super.key, required this.specified_index, this.country = 'RDC'});
 
   @override
   State<CurvedNavigationUser> createState() => _CurvedNavigationUserState();
@@ -31,21 +32,25 @@ class _CurvedNavigationUserState extends State<CurvedNavigationUser> {
       icon: Icon(Icons.home_outlined),
       activeIcon: Icon(Icons.home),
       label: 'Accueil',
+      iosSystemName: 'house.fill',
     ),
     DiosNavItem(
       icon: Icon(Icons.shopping_cart_outlined),
       activeIcon: Icon(Icons.shopping_cart),
       label: 'Panier',
+      iosSystemName: 'cart.fill',
     ),
     DiosNavItem(
       icon: Icon(Icons.favorite_border),
       activeIcon: Icon(Icons.favorite),
       label: 'Favoris',
+      iosSystemName: 'heart.fill',
     ),
     DiosNavItem(
       icon: Icon(Icons.store_outlined),
       activeIcon: Icon(Icons.store),
       label: 'Profil',
+      iosSystemName: 'storefront.fill',
     ),
   ];
 
@@ -65,8 +70,10 @@ class _CurvedNavigationUserState extends State<CurvedNavigationUser> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
-      body: SafeArea(child: PageView(
+      backgroundColor:
+          AppColors.resolve(AppColors.surface, AppDarkColors.surface),
+      body: SafeArea(
+          child: PageView(
         controller: _pageController,
         onPageChanged: (index) => setState(() => _activePage = index),
         children: _pages,

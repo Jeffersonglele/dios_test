@@ -229,6 +229,14 @@
   "skip": "Skip",
   "start": "Start",
   "cart_title": "Your Cart",
+  "cart_baskets_title": "My baskets",
+  "cart_baskets_hint": "Select a seller to see the details of their basket.",
+  "cart_basket_articles": "{count} item(s)",
+  "cart_basket_details": "View details",
+  "cart_leave_restaurant_title": "Leave the seller's page",
+  "cart_leave_restaurant_message": "You have products from {restaurant} in your basket. Do you want to empty your basket? Otherwise, you can find it again by returning to this seller.",
+  "cart_keep_cart": "Keep my basket",
+  "cart_empty_cart": "Empty the basket",
   "cart_empty": "Your cart is empty",
   "cart_empty_hint": "Add homemade dishes!",
   "cart_delivery_option_delivery": "Delivery",
@@ -241,13 +249,23 @@
   "cart_promo_apply": "Apply",
   "cart_promo_invalid": "Invalid promo code.",
   "cart_promo_applied": "Promo code applied: {description}",
+  "@cart_promo_applied": {
+    "placeholders": {
+      "description": {}
+    }
+  },
   "cart_summary_section": "Summary",
   "cart_discount": "Discount",
   "cart_payment_section": "Payment method",
   "cart_payment_cod": "Cash on delivery",
-  "cart_payment_fedapay": "Mobile Money (CinetPay)",
+  "cart_payment_fedapay": "Mobile Money (iKeepPay)",
   "cart_processing": "Processing...",
   "cart_order_button": "Order · {amount}",
+  "@cart_order_button": {
+    "placeholders": {
+      "amount": {}
+    }
+  },
   "cart_choose_address_warning": "Please choose an address.",
   "cart_order_confirm_message": "Order confirmed!",
   "cart_order_failed": "Failed to create order.",
@@ -257,6 +275,11 @@
   "cart_payment_online_error": "Online payment error. Please try again or choose another payment method.",
   "cart_payment_error": "Payment error.",
   "cart_order_confirmed_message": "Your order #{orderId} has been placed successfully.",
+  "@cart_order_confirmed_message": {
+    "placeholders": {
+      "orderId": {}
+    }
+  },
   "cart_track_order": "Track my order",
   "cart_address_not_found": "Address not found.",
   "cart_address_saved": "Address saved!",
@@ -267,6 +290,11 @@
   "cart_your_addresses": "Your addresses",
   "cart_new_address": "New address",
   "cart_item_deleted": "{mealName} removed",
+  "@cart_item_deleted": {
+    "placeholders": {
+      "mealName": {}
+    }
+  },
   "street": "Street",
   "postal_code": "Postal code",
   "city": "City",
@@ -282,6 +310,11 @@
   "home_subtagline": "Home cooking · Local chefs · Fresh daily",
   "home_categories": "Categories",
   "home_delivery_fee_label": "{fee} € delivery",
+  "@home_delivery_fee_label": {
+    "placeholders": {
+      "fee": {}
+    }
+  },
   "home_rated": "Rated",
   "home_contact": "Contact",
   "home_no_restaurants": "No restaurants nearby",
@@ -292,11 +325,21 @@
   "dish_add_error": "Error adding to cart.",
   "dish_popular": "Popular",
   "dish_servings_available": "{count} servings available",
+  "@dish_servings_available": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "dish_photos": "Photos",
   "dish_quantity": "Quantity",
   "dish_options": "Options",
   "dish_reviews": "Reviews",
   "dish_add_to_cart": "Add to cart · {price}",
+  "@dish_add_to_cart": {
+    "placeholders": {
+      "price": {}
+    }
+  },
   "store_my_earnings": "My earnings",
   "store_delivery_radius": "Delivery radius",
   "store_become_seller": "Become a seller",
@@ -316,12 +359,32 @@
   "store_yes_cancel": "Yes, cancel",
   "store_request_cancelled": "Request cancelled.",
   "store_max_distance": "Maximum distance: {distance} km",
+  "@store_max_distance": {
+    "placeholders": {
+      "distance": {}
+    }
+  },
   "store_max_distance_limit": "Limited to 10 km maximum",
   "store_radius_updated": "Radius updated: {distance} km",
+  "@store_radius_updated": {
+    "placeholders": {
+      "distance": {}
+    }
+  },
   "store_update_error": "Update error",
   "admin_dashboard_title": "Administration",
   "admin_greeting": "Hello, {name}",
+  "@admin_greeting": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "admin_validation_alert": "{count} restaurant(s) pending",
+  "@admin_validation_alert": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "admin_validation_subtitle": "Action required · Validate or reject below",
   "admin_validation_section": "Restaurant validation",
   "admin_quick_actions": "Quick actions",
@@ -340,7 +403,17 @@
   "admin_validate": "Validate",
   "admin_reject": "Reject",
   "admin_restaurant_validated": "{name} validated ✓",
+  "@admin_restaurant_validated": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "admin_restaurant_rejected": "{name} rejected",
+  "@admin_restaurant_rejected": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "admin_rejection_reason_hint": "Rejection reason…",
   "admin_pro_requests": "Pro Requests",
   "admin_pro_requests_pending": "Pending",
@@ -349,7 +422,17 @@
   "admin_pro_validate": "Approve",
   "admin_pro_reject": "Reject",
   "admin_pro_validated": "{name} approved ✓",
+  "@admin_pro_validated": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "admin_pro_rejected": "{name} rejected",
+  "@admin_pro_rejected": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "admin_pro_no_requests": "No Pro requests.",
   "admin_pro_status_pending": "Pending review",
   "admin_pro_status_validated": "Approved",
@@ -359,7 +442,49 @@
   "admin_pro_view_document": "View",
   "admin_pro_description": "Request description",
   "admin_pro_no_description": "No description provided.",
+  "admin_delivery_requests": "Driver Requests",
+  "admin_delivery_requests_pending": "Pending",
+  "admin_delivery_requests_validated": "Validated",
+  "admin_delivery_requests_rejected": "Rejected",
+  "admin_delivery_validate": "Approve",
+  "admin_delivery_reject": "Reject",
+  "admin_delivery_no_requests": "No driver requests.",
+  "admin_delivery_status_pending": "Pending review",
+  "admin_delivery_status_validated": "Approved",
+  "admin_delivery_status_rejected": "Rejected",
+  "admin_delivery_remark_hint": "Reason for rejection…",
+  "admin_delivery_documents": "Documents",
+  "admin_delivery_view_document": "View",
+  "admin_delivery_description": "Request description",
+  "admin_delivery_id_card": "ID card",
+  "admin_delivery_license": "Driver's license",
+  "@admin_delivery_license": {
+    "placeholders": {}
+  },
+  "superAdminDashboard": "Super Admin Dashboard",
+  "superAdminWeeklyCommissions": "Weekly Commissions",
+  "superAdminPaymentsCompleted": "Completed Payments",
+  "superAdminPaymentsPending": "Pending Payments",
+  "superAdminDisputesOpen": "Open Disputes",
+  "superAdminDisputesInProgress": "In Progress Disputes",
+  "superAdminDisputesResolved": "Resolved Disputes",
+  "superAdminDisputeRate": "Dispute Rate",
   "optional": "optional",
+  "@optional": {
+    "description": "Indicates a field is optional"
+  },
+  "admin_delivery_validated": "{name} approved ✓",
+  "@admin_delivery_validated": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "admin_delivery_rejected": "{name} rejected",
+  "@admin_delivery_rejected": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "delivery_status_assigned": "Assigned",
   "delivery_status_picked_up": "Picked up",
   "delivery_status_in_transit": "In transit",
@@ -374,6 +499,11 @@
   "delivery_toggle_online": "✅ Online",
   "delivery_toggle_offline": "⛔ Offline",
   "delivery_earnings": "Earnings {period}",
+  "@delivery_earnings": {
+    "placeholders": {
+      "period": {}
+    }
+  },
   "delivery_today": "today",
   "delivery_this_week": "this week",
   "delivery_this_month": "this month",
@@ -416,18 +546,69 @@
   "livreur_no_results": "No drivers found",
   "livreur_validate_license": "Validate license",
   "livreur_validate_license_confirm": "Confirm license validation for {firstname} {lastname} ?",
+  "@livreur_validate_license_confirm": {
+    "placeholders": {
+      "firstname": {},
+      "lastname": {}
+    }
+  },
   "livreur_license_validated": "License for {firstname} validated",
+  "@livreur_license_validated": {
+    "placeholders": {
+      "firstname": {}
+    }
+  },
   "livreur_validate_error": "Error during validation",
   "livreur_vehicle_moto": "Motorcycle",
   "livreur_vehicle_bike": "Bicycle",
   "livreur_vehicle_car": "Car",
   "livreur_vehicle_unspecified": "Unspecified",
   "livreur_map_title": "Available orders ({count})",
+  "@livreur_map_title": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "livreur_map_no_orders": "No orders available at the moment.",
   "livreur_map_position_unavailable": "Position unavailable",
   "livreur_map_accept": "Accept",
   "livreur_order_accepted": "Order #{id} accepted",
+  "@livreur_order_accepted": {
+    "placeholders": {
+      "id": {}
+    }
+  },
   "livreur_order_already_in_progress": "Cannot accept: you already have an order in progress",
+  "delivery_must_be_online": "You must be online to perform this action.",
+  "livreur_accept_title": "Accept this order?",
+  "livreur_accept_body": "Order #{id}\nAmount to collect: {amount}",
+  "@livreur_accept_body": {
+    "placeholders": {
+      "id": {},
+      "amount": {}
+    }
+  },
+  "delivery_confirm_picked_title": "Confirm pickup?",
+  "delivery_confirm_picked_body": "Did you successfully pick up order #{id} from the restaurant?",
+  "@delivery_confirm_picked_body": {
+    "placeholders": {
+      "id": {}
+    }
+  },
+  "delivery_confirm_transit_title": "Start delivery?",
+  "delivery_confirm_transit_body": "Is order #{id} ready to be delivered to the customer?",
+  "@delivery_confirm_transit_body": {
+    "placeholders": {
+      "id": {}
+    }
+  },
+  "delivery_confirm_delivered_title": "Mark as delivered?",
+  "delivery_confirm_delivered_body": "Confirm you have handed order #{id} to the customer?",
+  "@delivery_confirm_delivered_body": {
+    "placeholders": {
+      "id": {}
+    }
+  },
   "restaurant_form_title_create": "Create my restaurant",
   "restaurant_form_title_edit": "Edit my restaurant",
   "restaurant_form_section_restaurant": "Your restaurant",
@@ -453,14 +634,42 @@
   "restaurant_form_update": "Update",
   "restaurant_form_delivery_fee_hint": "Delivery fee",
   "restaurant_form_opening_hours_hint": "Opening hours (e.g. 09:00 - 20:00)",
+  "restaurant_form_day_required": "Select at least one opening day.",
+  "restaurant_opens_at": "Open from {time}",
+  "@restaurant_opens_at": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "restaurant_opens_on": "Open {day} at {time}",
+  "@restaurant_opens_on": {
+    "placeholders": {
+      "day": {},
+      "time": {}
+    }
+  },
+  "restaurant_closed_today": "Closed today",
+  "restaurant_closed_manually": "Temporarily closed",
+  "restaurant_closed_detail": "This seller is currently closed. Please try again during opening hours.",
+  "restaurant_closed_short": "Restaurant closed",
   "restaurant_form_open_now": "Restaurant currently open",
   "restaurant_details_menu": "Menu",
   "restaurant_details_dish_count": "{count} dishes",
+  "@restaurant_details_dish_count": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "restaurant_details_reviews": "Reviews",
   "restaurant_details_mode_delivery": "Delivery + Takeaway",
   "restaurant_details_mode_takeaway": "Takeaway",
   "restaurant_details_mode_delivery_only": "Delivery",
   "restaurant_list_title": "Restaurants · {country}",
+  "@restaurant_list_title": {
+    "placeholders": {
+      "country": {}
+    }
+  },
   "restaurant_list_search_hint": "Search restaurants...",
   "restaurant_list_filter_pending": "Pending",
   "restaurant_list_filter_validated": "Validated",
@@ -468,8 +677,25 @@
   "restaurant_list_no_results": "No restaurants found",
   "restaurant_list_reject_title": "Reject restaurant",
   "restaurant_list_reject_hint": "Rejection reason for \"{name}\":",
+  "@restaurant_list_reject_hint": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "restaurant_list_validated_toast": "Restaurant {name} has been validated{emailSent}",
+  "@restaurant_list_validated_toast": {
+    "placeholders": {
+      "name": {},
+      "emailSent": {}
+    }
+  },
   "restaurant_list_rejected_toast": "Restaurant {name} has been rejected{emailSent}",
+  "@restaurant_list_rejected_toast": {
+    "placeholders": {
+      "name": {},
+      "emailSent": {}
+    }
+  },
   "near_restaurants_title": "Restaurants nearby",
   "near_restaurants_search_hint": "Search restaurant or cuisine",
   "near_restaurants_open_now": "Open now",
@@ -484,6 +710,11 @@
   "verification_verify": "Verify",
   "verification_resend": "Resend code",
   "verification_code_hint": "Enter the code sent by email to {email}",
+  "@verification_code_hint": {
+    "placeholders": {
+      "email": {}
+    }
+  },
   "verification_spam_hint": "If you can't find the email, check your spam folder.",
   "verification_enter_code": "Please enter the code.",
   "verification_account_error": "Error validating account.",
@@ -491,6 +722,11 @@
   "verification_new_code_sent": "New code sent by email.",
   "verification_new_code_error": "Cannot send code.",
   "verification_resend_cooldown": "Resend code ({seconds} s)",
+  "@verification_resend_cooldown": {
+    "placeholders": {
+      "seconds": {}
+    }
+  },
   "identity_title": "My identity",
   "identity_your_photo": "Your photo",
   "identity_no_photo": "No photo taken",
@@ -526,7 +762,17 @@
   "user_orders_rate": "Rate",
   "user_orders_rate_driver": "Rate driver",
   "user_orders_confirm_prompt": "Confirm order #{id}?",
+  "@user_orders_confirm_prompt": {
+    "placeholders": {
+      "id": {}
+    }
+  },
   "user_orders_cancel_prompt": "Cancel order #{id}?",
+  "@user_orders_cancel_prompt": {
+    "placeholders": {
+      "id": {}
+    }
+  },
   "user_orders_yes_confirm": "Yes, confirm",
   "user_orders_yes_cancel": "Yes, cancel",
   "user_orders_assign_driver": "Assign a driver",
@@ -547,7 +793,7 @@
   "commande_details_card": "Credit card",
   "commande_details_om": "Orange Money",
   "commande_details_wave": "Wave",
-  "commande_details_cinetpay": "Mobile Money (CinetPay)",
+  "commande_details_cinetpay": "Mobile Money (iKeepPay)",
   "commande_details_items": "Items",
   "commande_details_no_items": "No items",
   "commande_details_address": "Delivery address",
@@ -612,6 +858,11 @@
   "category_added": "Category added.",
   "category_add_error": "Error adding category.",
   "category_delete_confirm": "Delete category \"{name}\"?",
+  "@category_delete_confirm": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "category_deleted": "Category deleted.",
   "category_delete_error": "Error deleting category.",
   "category_new_hint": "New category...",
@@ -621,23 +872,87 @@
   "scheduled_deletions_title": "Scheduled deletions",
   "scheduled_deletions_empty": "No scheduled deletions",
   "scheduled_deletions_all_active": "All accounts are active for {country}",
+  "@scheduled_deletions_all_active": {
+    "placeholders": {
+      "country": {}
+    }
+  },
   "scheduled_deletions_restore_title": "Restore user",
   "scheduled_deletions_restore_confirm": "Do you want to restore \"{firstname} {lastname}\"?\n\nTheir account will be reactivated with \"active\" status.",
+  "@scheduled_deletions_restore_confirm": {
+    "placeholders": {
+      "firstname": {},
+      "lastname": {}
+    }
+  },
   "scheduled_deletions_restore": "Restore",
   "scheduled_deletions_restored": "{firstname} {lastname} restored ✓",
+  "@scheduled_deletions_restored": {
+    "placeholders": {
+      "firstname": {},
+      "lastname": {}
+    }
+  },
   "scheduled_deletions_permanent_title": "Permanent deletion",
   "scheduled_deletions_permanent_confirm": "Do you want to permanently delete \"{firstname} {lastname}\"?\n\nThis action is irreversible. All associated data will be lost.",
+  "@scheduled_deletions_permanent_confirm": {
+    "placeholders": {
+      "firstname": {},
+      "lastname": {}
+    }
+  },
   "scheduled_deletions_permanent_delete": "Delete permanently",
   "scheduled_deletions_deleted": "{firstname} {lastname} permanently deleted",
+  "@scheduled_deletions_deleted": {
+    "placeholders": {
+      "firstname": {},
+      "lastname": {}
+    }
+  },
   "scheduled_deletions_pending": "{count} deletion(s) pending",
+  "@scheduled_deletions_pending": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "scheduled_deletions_period": "Period of {days}d",
+  "@scheduled_deletions_period": {
+    "placeholders": {
+      "days": {}
+    }
+  },
   "scheduled_deletions_requested_on": "Requested on {date}",
+  "@scheduled_deletions_requested_on": {
+    "placeholders": {
+      "date": {}
+    }
+  },
   "scheduled_deletions_last_day": "Last day",
   "scheduled_deletions_days_elapsed": "{days}d elapsed",
+  "@scheduled_deletions_days_elapsed": {
+    "placeholders": {
+      "days": {}
+    }
+  },
   "scheduled_deletions_days_remaining": "{days}d remaining",
+  "@scheduled_deletions_days_remaining": {
+    "placeholders": {
+      "days": {}
+    }
+  },
   "audit_log_title": "Audit Log — {country}",
+  "@audit_log_title": {
+    "placeholders": {
+      "country": {}
+    }
+  },
   "audit_log_empty": "No logs for this country.",
   "support_chat_title": "Support Messaging — {country}",
+  "@support_chat_title": {
+    "placeholders": {
+      "country": {}
+    }
+  },
   "support_chat_search_hint": "Search users…",
   "support_chat_no_results": "No users found.",
   "referral_title": "Referral",
@@ -667,6 +982,11 @@
   "commande_details_actions": "Actions",
   "commande_details_tracking": "Order tracking",
   "commande_details_item_count": "{count} item(s)",
+  "@commande_details_item_count": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "commande_details_rating_label": "Rating",
   "commande_details_livraison": "Delivery",
   "commande_details_reduction": "Discount",
@@ -969,7 +1289,9 @@
   "reviews_count": "{count} reviews",
   "@reviews_count": {
     "placeholders": {
-      "count": {}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "previous": "Previous",
@@ -1108,7 +1430,16 @@
   "delivery_config_deliverer_per_km": "Rate per km (CDF)",
   "cart_address_out_of_zone": "Area not covered yet",
   "cart_address_out_of_zone_detail": "This address is outside our delivery zone. We currently deliver only in active delivery zones.",
+  "delivery_unavailable_title": "Delivery is not available at this address",
+  "delivery_unavailable_detail": "This seller is outside your delivery area. You can view the menu, but you cannot add dishes to your cart.",
+  "delivery_unavailable_short": "Delivery unavailable",
+  "delivery_unavailable_close": "Close",
   "cart_address_zone_checking": "Checking delivery zone...",
+  "cart_delivery_to": "Deliver to",
+  "cart_choose_current_location": "Choose an address or use your current location.",
+  "cart_current_location": "My current location",
+  "cart_location_in_progress": "Finding your location...",
+  "cart_location_saved": "Location saved for this order",
   "restaurant_form_payment_method": "Payment method",
   "restaurant_form_payment_mobile_money": "Mobile Money",
   "restaurant_form_payment_bank": "Bank transfer",
@@ -1122,7 +1453,6 @@
   "restaurant_form_payment_account_holder_required": "Account holder name required",
   "age_confirm_label": "I confirm I am 18 or older",
   "age_confirm_warning": "You must confirm you are 18 or older to sign up",
-
   "login_phone_tab": "By phone",
   "login_phone_title": "Login by phone",
   "login_phone_subtitle": "Enter your number to receive a code via SMS",
@@ -1136,7 +1466,6 @@
   "login_otp_verify": "Verify",
   "login_otp_invalid": "Invalid or expired code",
   "login_otp_attempts_exceeded": "Too many attempts. Try again in 10 minutes.",
-  "age_confirm_label": "I confirm I am 18 or older",
   "age_confirm_required": "You must confirm you are 18 or older",
   "account_simplified_notice": "Simplified account (phone only). Add email and password for a full account.",
   "upgrade_account": "Upgrade to full account",
@@ -1144,7 +1473,6 @@
   "upgrade_email_hint": "Email",
   "upgrade_password_hint": "Password",
   "upgrade_confirm_password_hint": "Confirm password",
-
   "dispute_title": "Report a problem",
   "dispute_subtitle": "Describe the issue with your order",
   "dispute_type_label": "Problem type",
@@ -1174,7 +1502,6 @@
   "dispute_admin_reject": "Reject",
   "dispute_admin_reason_hint": "Reason for decision...",
   "dispute_scoring_warning": "Warning: {count} validated disputes this month. Suspension risk at 5.",
-
   "finance_title": "My finances",
   "finance_payouts": "Payouts",
   "finance_commission_invoices": "Commission invoices",
@@ -1201,7 +1528,6 @@
   "finance_config_delivery_proof_threshold": "Delivery proof threshold (CDF)",
   "finance_config_driver_accept_warning": "Acceptance warning threshold (%)",
   "finance_config_driver_accept_suspension": "Acceptance suspension threshold (%)",
-
   "delivery_proof_title": "Confirm delivery",
   "delivery_proof_instruction": "Take a photo of the delivered package",
   "delivery_proof_take_photo": "Take photo",
@@ -1223,245 +1549,26 @@
   "driver_earnings_tips": "Tips: {amount}",
   "driver_earnings_total": "Total: {amount}",
   "driver_payout_status": "Payout status: {status}",
-
   "payment_unavailable": "Payment temporarily unavailable",
   "payment_unavailable_retry": "Try again in a few minutes",
   "verification_reminder": "Identity re-verification required",
   "verification_reminder_body": "Your verification is {days} days old. Please submit a new ID photo.",
   "verification_suspended": "Account suspended: re-verification required",
   "hygiene_badge": "Hygiene 🎓",
-  "pro_badge": "PRO",
-
   "error_generic": "An error occurred. Please try again.",
   "success_generic": "Operation successful",
-  "login_otp_attempts_exceeded": "Too many attempts. Try again in 10 minutes.",
-  "login_otp_invalid": "Invalid or expired code",
-  "login_otp_timer": "Resend available in {seconds}s",
-  "login_otp_resend": "Resend code",
-  "login_otp_verify": "Verify",
   "login_otp_sent": "OTP code sent via SMS",
-  "login_otp_invalid": "Invalid or expired code",
-
-  "dispute_title": "Report a problem",
-  "dispute_subtitle": "Describe the issue with your order",
-  "dispute_type_label": "Problem type",
-  "dispute_type_missing": "Missing item",
-  "dispute_type_not_delivered": "Not delivered",
-  "dispute_type_bad_quality": "Bad quality",
-  "dispute_type_other": "Other",
-  "dispute_description_label": "Description",
-  "dispute_description_hint": "Explain what happened...",
-  "dispute_photo_label": "Photo (required for missing item / not delivered)",
-  "dispute_take_photo": "Take a photo",
-  "dispute_submit": "Submit report",
-  "dispute_submitted": "Dispute submitted. We will review within 24-48h.",
-  "dispute_my_disputes": "My disputes",
-  "dispute_status_open": "Open",
-  "dispute_status_resolved_client": "Resolved in your favor",
-  "dispute_status_resolved_restaurant": "Resolved for restaurant",
-  "dispute_status_resolved_driver": "Resolved for driver",
-  "dispute_status_rejected": "Rejected",
-  "dispute_refund_amount": "Refunded amount: {amount}",
-  "dispute_admin_panel": "Dispute management",
-  "dispute_admin_queue": "Queue",
-  "dispute_admin_detail": "Dispute detail",
-  "dispute_admin_resolve_client": "Refund client",
-  "dispute_admin_resolve_restaurant": "Rule for restaurant",
-  "dispute_admin_resolve_driver": "Rule for driver",
-  "dispute_admin_reject": "Reject",
-  "dispute_admin_reason_hint": "Reason for decision...",
-  "dispute_scoring_warning": "Warning: {count} validated disputes this month. Suspension risk at 5.",
   "dispute_photo_required": "Photo required for this type",
   "dispute_max_photos": "Maximum 5 photos",
   "dispute_description_required": "Description required",
   "dispute_submit_error": "Error submitting dispute",
-
-  "finance_title": "My finances",
-  "finance_payouts": "Payouts",
-  "finance_commission_invoices": "Commission invoices",
-  "finance_period": "Period: {start} - {end}",
-  "finance_gross_amount": "Gross amount: {amount}",
-  "finance_commission_rate": "Commission rate: {rate}%",
-  "finance_commission_amount": "Commission: -{amount}",
-  "finance_net_amount": "Net paid: {amount}",
-  "finance_payout_status_pending": "Pending",
-  "finance_payout_status_processing": "Processing",
-  "finance_payout_status_completed": "Paid",
-  "finance_payout_status_failed": "Failed",
-  "finance_download_invoice": "Download invoice",
-  "finance_dual_currency_cdf": "CDF",
-  "finance_dual_currency_usd": "USD",
-  "finance_exchange_rate": "Exchange rate: 1 USD = {rate} CDF",
-  "finance_rate_date": "Rate as of {date}",
-  "finance_admin_config": "Platform settings",
-  "finance_config_commission": "Commission rate (%)",
-  "finance_config_dispute_warning": "Dispute warning threshold (30d)",
-  "finance_config_dispute_suspension": "Dispute suspension threshold (30d)",
-  "finance_config_driver_min_rating": "Min driver rating",
-  "finance_config_payment_timeout": "Payment timeout (min)",
-  "finance_config_delivery_proof_threshold": "Delivery proof threshold (CDF)",
-  "finance_config_driver_accept_warning": "Acceptance warning threshold (%)",
-  "finance_config_driver_accept_suspension": "Acceptance suspension threshold (%)",
-
-  "delivery_proof_title": "Confirm delivery",
-  "delivery_proof_instruction": "Take a photo of the delivered package",
-  "delivery_proof_take_photo": "Take photo",
-  "delivery_proof_code_label": "Confirmation code (4 digits)",
-  "delivery_proof_code_hint": "Enter the code received by the client",
-  "delivery_proof_submit": "Confirm delivery",
-  "delivery_proof_submitted": "Delivery confirmed with proof",
   "delivery_proof_camera_only": "Camera only (no gallery)",
   "delivery_proof_photo_required": "Photo required",
   "delivery_proof_invalid_code": "Invalid code",
-
-  "driver_rating_title": "Rate your driver",
-  "driver_rating_hint": "Optional",
   "driver_rating_label": "Rating",
-  "driver_rating_comment_hint": "Comment (optional)",
-  "driver_rating_submit": "Submit",
-  "driver_rating_thanks": "Thanks for your rating!",
-  "driver_rating_average": "Average rating: {rating}/5 ({count} deliveries)",
-  "driver_acceptance_warning": "Your acceptance rate is {rate}%. Suspension risk if < {threshold}%.",
-  "driver_acceptance_suspended": "Account suspended: acceptance rate too low ({rate}%).",
-  "driver_earnings_title": "My earnings",
-  "driver_earnings_base": "Base: {amount}",
-  "driver_earnings_distance": "Distance: {amount}",
-  "driver_earnings_tips": "Tips: {amount}",
-  "driver_earnings_total": "Total: {amount}",
-  "driver_payout_status": "Payout status: {status}",
-
-  "payment_unavailable": "Payment temporarily unavailable",
-  "payment_unavailable_retry": "Try again in a few minutes",
-  "verification_reminder": "Identity re-verification required",
-  "verification_reminder_body": "Your verification is {days} days old. Please submit a new ID photo.",
-  "verification_suspended": "Account suspended: re-verification required",
-  "hygiene_badge": "Hygiene 🎓",
-  "pro_badge": "PRO",
-
-  "error_generic": "An error occurred. Please try again.",
-  "success_generic": "Operation successful",
-  "login_otp_attempts_exceeded": "Too many attempts. Try again in 10 minutes.",
-  "login_otp_invalid": "Invalid or expired code",
-  "login_otp_timer": "Resend available in {seconds}s",
-  "login_otp_resend": "Resend code",
-  "login_otp_verify": "Verify",
-  "login_otp_sent": "OTP code sent via SMS",
-  "login_otp_invalid": "Invalid or expired code",
-
-  "dispute_title": "Report a problem",
-  "dispute_subtitle": "Describe the issue with your order",
-  "dispute_type_label": "Problem type",
-  "dispute_type_missing": "Missing item",
-  "dispute_type_not_delivered": "Not delivered",
-  "dispute_type_bad_quality": "Bad quality",
-  "dispute_type_other": "Other",
-  "dispute_description_label": "Description",
-  "dispute_description_hint": "Explain what happened...",
-  "dispute_photo_label": "Photo (required for missing item / not delivered)",
-  "dispute_take_photo": "Take a photo",
-  "dispute_submit": "Submit report",
-  "dispute_submitted": "Dispute submitted. We will review within 24-48h.",
-  "dispute_my_disputes": "My disputes",
-  "dispute_status_open": "Open",
-  "dispute_status_resolved_client": "Resolved in your favor",
-  "dispute_status_resolved_restaurant": "Resolved for restaurant",
-  "dispute_status_resolved_driver": "Resolved for driver",
-  "dispute_status_rejected": "Rejected",
-  "dispute_refund_amount": "Refunded amount: {amount}",
-  "dispute_admin_panel": "Dispute management",
-  "dispute_admin_queue": "Queue",
-  "dispute_admin_detail": "Dispute detail",
-  "dispute_admin_resolve_client": "Refund client",
-  "dispute_admin_resolve_restaurant": "Rule for restaurant",
-  "dispute_admin_resolve_driver": "Rule for driver",
-  "dispute_admin_reject": "Reject",
-  "dispute_admin_reason_hint": "Reason for decision...",
-  "dispute_scoring_warning": "Warning: {count} validated disputes this month. Suspension risk at 5.",
-  "dispute_photo_required": "Photo required for this type",
-  "dispute_max_photos": "Maximum 5 photos",
-  "dispute_description_required": "Description required",
-  "dispute_submit_error": "Error submitting dispute",
   "dispute_no_disputes": "No disputes",
   "dispute_resolution_notes": "Resolution",
-  "dispute_refund_amount": "Refunded amount: {amount}",
   "dispute_created": "Created on",
   "dispute_resolved": "Resolved on",
-
-  "finance_title": "My finances",
-  "finance_payouts": "Payouts",
-  "finance_commission_invoices": "Commission invoices",
-  "finance_period": "Period: {start} - {end}",
-  "finance_gross_amount": "Gross amount: {amount}",
-  "finance_commission_rate": "Commission rate: {rate}%",
-  "finance_commission_amount": "Commission: -{amount}",
-  "finance_net_amount": "Net paid: {amount}",
-  "finance_payout_status_pending": "Pending",
-  "finance_payout_status_processing": "Processing",
-  "finance_payout_status_completed": "Paid",
-  "finance_payout_status_failed": "Failed",
-  "finance_download_invoice": "Download invoice",
-  "finance_dual_currency_cdf": "CDF",
-  "finance_dual_currency_usd": "USD",
-  "finance_exchange_rate": "Exchange rate: 1 USD = {rate} CDF",
-  "finance_rate_date": "Rate as of {date}",
-  "finance_admin_config": "Platform settings",
-  "finance_config_commission": "Commission rate (%)",
-  "finance_config_dispute_warning": "Dispute warning threshold (30d)",
-  "finance_config_dispute_suspension": "Dispute suspension threshold (30d)",
-  "finance_config_driver_min_rating": "Min driver rating",
-  "finance_config_payment_timeout": "Payment timeout (min)",
-  "finance_config_delivery_proof_threshold": "Delivery proof threshold (CDF)",
-  "finance_config_driver_accept_warning": "Acceptance warning threshold (%)",
-  "finance_config_driver_accept_suspension": "Acceptance suspension threshold (%)",
-
-  "delivery_proof_title": "Confirm delivery",
-  "delivery_proof_instruction": "Take a photo of the delivered package",
-  "delivery_proof_take_photo": "Take photo",
-  "delivery_proof_code_label": "Confirmation code (4 digits)",
-  "delivery_proof_code_hint": "Enter the code received by the client",
-  "delivery_proof_submit": "Confirm delivery",
-  "delivery_proof_submitted": "Delivery confirmed with proof",
-  "delivery_proof_camera_only": "Camera only (no gallery)",
-  "delivery_proof_photo_required": "Photo required",
-  "delivery_proof_invalid_code": "Invalid code",
-
-  "driver_rating_title": "Rate your driver",
-  "driver_rating_hint": "Optional",
-  "driver_rating_label": "Rating",
-  "driver_rating_comment_hint": "Comment (optional)",
-  "driver_rating_submit": "Submit",
-  "driver_rating_thanks": "Thanks for your rating!",
-  "driver_rating_average": "Average rating: {rating}/5 ({count} deliveries)",
-  "driver_acceptance_warning": "Your acceptance rate is {rate}%. Suspension risk if < {threshold}%.",
-  "driver_acceptance_suspended": "Account suspended: acceptance rate too low ({rate}%).",
-  "driver_earnings_title": "My earnings",
-  "driver_earnings_base": "Base: {amount}",
-  "driver_earnings_distance": "Distance: {amount}",
-  "driver_earnings_tips": "Tips: {amount}",
-  "driver_earnings_total": "Total: {amount}",
-  "driver_payout_status": "Payout status: {status}",
-
-  "payment_unavailable": "Payment temporarily unavailable",
-  "payment_unavailable_retry": "Try again in a few minutes",
-  "verification_reminder": "Identity re-verification required",
-  "verification_reminder_body": "Your verification is {days} days old. Please submit a new ID photo.",
-  "verification_suspended": "Account suspended: re-verification required",
-"hygiene_badge": "Hygiene 🎓",
-  "pro_badge": "PRO",
-
-  "error_generic": "An error occurred. Please try again.",
-  "success_generic": "Operation successful",
-  "login_email_tab": "By email",
-  "login_phone_tab": "By phone",
-  "login_phone_subtitle": "Enter your number to receive a code via SMS",
-  "login_phone_hint": "+243 XXX XXX XXX",
-  "login_send_otp": "Send code",
-  "login_otp_subtitle": "Enter the 4-digit code received by SMS",
-  "login_otp_hint": "****",
-  "login_otp_timer": "Resend available in {seconds}s",
-  "login_otp_resend": "Resend code",
-  "login_otp_verify": "Verify",
-  "login_otp_sent": "OTP code sent via SMS",
-  "login_otp_invalid": "Invalid or expired code",
-  "login_otp_attempts_exceeded": "Too many attempts. Try again in 10 minutes."
+  "login_email_tab": "By email"
 }

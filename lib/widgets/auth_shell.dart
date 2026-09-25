@@ -23,23 +23,27 @@ class AuthShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bgSurface =
+        AppColors.resolve(AppColors.surface, AppDarkColors.surface);
+    final bgGradEnd =
+        AppColors.resolve(AppColors.gradientEnd, AppDarkColors.gradientEnd);
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: bgSurface,
       body: Stack(
         children: [
           // Fond dégradé signature
-          const Positioned.fill(
+          Positioned.fill(
             child: DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    AppColors.surface,
-                    AppColors.gradientEnd,
-                    AppColors.surface,
+                    bgSurface,
+                    bgGradEnd,
+                    bgSurface,
                   ],
-                  stops: [0.0, 0.5, 1.0],
+                  stops: const [0.0, 0.5, 1.0],
                 ),
               ),
             ),
@@ -51,27 +55,25 @@ class AuthShell extends StatelessWidget {
                 final hPad = isWide ? 48.0 : 20.0;
 
                 final content = isWide
-                    ? IntrinsicHeight(
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: _AuthHero(
-                                title: title,
-                                subtitle: subtitle,
-                                heroImage: heroImage,
-                              ),
+                    ? Row(
+                        children: [
+                          Expanded(
+                            child: _AuthHero(
+                              title: title,
+                              subtitle: subtitle,
+                              heroImage: heroImage,
                             ),
-                            const SizedBox(width: 36),
-                            Expanded(
-                              child: _AuthCard(
-                                title: title,
-                                subtitle: subtitle,
-                                form: form,
-                                footer: footer,
-                              ),
+                          ),
+                          const SizedBox(width: 36),
+                          Expanded(
+                            child: _AuthCard(
+                              title: title,
+                              subtitle: subtitle,
+                              form: form,
+                              footer: footer,
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       )
                     : Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -126,6 +128,12 @@ class _AuthHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final resolvedBrandDark =
+        AppColors.resolve(AppColors.brandDark, AppDarkColors.brandDark);
+    final resolvedCard = AppColors.resolve(AppColors.card, AppDarkColors.card);
+    final resolvedInk = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
+    final resolvedInkMuted =
+        AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
     return Column(
       crossAxisAlignment:
           compact ? CrossAxisAlignment.center : CrossAxisAlignment.start,
@@ -139,7 +147,7 @@ class _AuthHero extends StatelessWidget {
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.brandDark.withValues(alpha: 0.15),
+                  color: resolvedBrandDark.withValues(alpha: 0.20),
                   blurRadius: 24,
                   offset: const Offset(0, 10),
                 ),
@@ -170,11 +178,11 @@ class _AuthHero extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              color: AppColors.card.withValues(alpha: 0.85),
+              color: resolvedCard.withValues(alpha: 0.85),
               borderRadius: BorderRadius.circular(999),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.ink.withValues(alpha: 0.04),
+                  color: resolvedInk.withValues(alpha: 0.08),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -182,7 +190,7 @@ class _AuthHero extends StatelessWidget {
             ),
             child: Text(
               'Dios Délices',
-              style: AppTypography.labelLarge(color: AppColors.brandDark),
+              style: AppTypography.labelLarge(color: resolvedBrandDark),
             ),
           ),
           const SizedBox(height: 20),
@@ -198,7 +206,7 @@ class _AuthHero extends StatelessWidget {
           style: AppTypography.displayMedium().copyWith(
             fontSize: compact ? 36 : 44,
             height: 1.08,
-            color: AppColors.ink,
+            color: resolvedInk,
           ),
         ),
         const SizedBox(height: 14),
@@ -207,7 +215,7 @@ class _AuthHero extends StatelessWidget {
               ? subtitle
               : 'Connectez-vous pour découvrir les meilleurs plats faits maison près de chez vous.',
           textAlign: compact ? TextAlign.center : TextAlign.start,
-          style: AppTypography.bodyLarge(color: AppColors.inkMuted),
+          style: AppTypography.bodyLarge(color: resolvedInkMuted),
         ),
       ],
     );
@@ -231,6 +239,12 @@ class _AuthCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final resolvedCard = AppColors.resolve(AppColors.card, AppDarkColors.card);
+    final resolvedBorder =
+        AppColors.resolve(AppColors.border, AppDarkColors.border);
+    final resolvedInk = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
+    final resolvedInkMuted =
+        AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
     final content = Padding(
       padding: EdgeInsets.all(compact ? 4 : 30),
       child: Column(
@@ -238,11 +252,12 @@ class _AuthCard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (!compact) ...[
-            Text(title, style: AppTypography.headlineMedium()),
+            Text(title,
+                style: AppTypography.headlineMedium(color: resolvedInk)),
             const SizedBox(height: 10),
             Text(
               subtitle,
-              style: AppTypography.bodyLarge(color: AppColors.inkMuted),
+              style: AppTypography.bodyLarge(color: resolvedInkMuted),
             ),
             const SizedBox(height: 24),
           ],
@@ -259,12 +274,12 @@ class _AuthCard extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: resolvedCard,
         borderRadius: BorderRadius.circular(AppRadius.xl),
-        border: Border.all(color: AppColors.border, width: 0.5),
+        border: Border.all(color: resolvedBorder, width: 0.5),
         boxShadow: [
           BoxShadow(
-            color: AppColors.ink.withValues(alpha: 0.05),
+            color: resolvedInk.withValues(alpha: 0.10),
             blurRadius: 24,
             offset: const Offset(0, 8),
           ),

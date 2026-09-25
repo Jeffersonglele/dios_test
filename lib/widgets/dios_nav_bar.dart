@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../core/device_info.dart';
 import '../theme/app_theme.dart';
 
 /// Barre de navigation inférieure signature Dios Délices
@@ -23,6 +25,10 @@ class DiosNavBar extends StatefulWidget {
 
 class _DiosNavBarState extends State<DiosNavBar>
     with SingleTickerProviderStateMixin {
+  static const _channel = MethodChannel('app.navbar/navigate');
+  static final List<_DiosNavBarState> _activeStates = [];
+  static bool _handlerInitialized = false;
+
   late AnimationController _indicatorController;
   int _previousIndex = 0;
 
@@ -35,6 +41,28 @@ class _DiosNavBarState extends State<DiosNavBar>
       duration: AppMotion.normal,
     );
     _indicatorController.value = 1.0;
+
+    if (DeviceInfo.instance.useNativeIOSNavBar) {
+      _activeStates.add(this);
+      _initNativeHandler();
+    }
+  }
+
+  static void _initNativeHandler() {
+    if (_handlerInitialized) return;
+    _handlerInitialized = true;
+    _channel.setMethodCallHandler((call) async {
+      if (_activeStates.isEmpty) return;
+      final activeState = _activeStates.last;
+      if (!activeState.mounted || call.method != 'selectIndex') return;
+
+      final index = call.arguments as int?;
+      if (index != null &&
+          index >= 0 &&
+          index < activeState.widget.items.length) {
+        activeState.widget.onTap(index);
+      }
+    });
   }
 
   @override
@@ -46,16 +74,25 @@ class _DiosNavBarState extends State<DiosNavBar>
         ..reset()
         ..forward();
     }
+    if (DeviceInfo.instance.useNativeIOSNavBar &&
+        oldWidget.currentIndex != widget.currentIndex) {
+      _channel.invokeMethod('updateIndex', widget.currentIndex);
+    }
   }
 
   @override
   void dispose() {
     _indicatorController.dispose();
+    _activeStates.remove(this);
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (DeviceInfo.instance.useNativeIOSNavBar) {
+      return _buildLiquidGlass(context);
+    }
+
     final bottomPadding = MediaQuery.of(context).padding.bottom;
     final hasProminent = widget.prominentIndex != null;
 
@@ -63,11 +100,12 @@ class _DiosNavBarState extends State<DiosNavBar>
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       padding: EdgeInsets.only(bottom: bottomPadding > 0 ? 0 : 8),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: AppColors.resolve(AppColors.card, AppDarkColors.card),
         borderRadius: BorderRadius.circular(AppRadius.xl),
         boxShadow: AppShadows.floatingList,
         border: Border.all(
-          color: AppColors.border.withValues(alpha: 0.6),
+          color: AppColors.resolve(AppColors.border, AppDarkColors.border)
+              .withValues(alpha: 0.6),
           width: 0.5,
         ),
       ),
@@ -96,6 +134,33 @@ class _DiosNavBarState extends State<DiosNavBar>
             );
           }),
         ),
+      ),
+    );
+  }
+
+  Widget _buildLiquidGlass(BuildContext context) {
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
+
+    return SizedBox(
+      height: 72 + bottomPadding + 12,
+      child: UiKitView(
+        viewType: 'liquid_glass_navbar',
+        layoutDirection: TextDirection.ltr,
+        creationParams: {
+          'currentIndex': widget.currentIndex,
+          'items': widget.items
+              .asMap()
+              .entries
+              .map(
+                (entry) => {
+                  'index': entry.key,
+                  'icon': entry.value.iosSystemName ?? 'circle.fill',
+                  'label': entry.value.label,
+                },
+              )
+              .toList(),
+        },
+        creationParamsCodec: const StandardMessageCodec(),
       ),
     );
   }
@@ -144,7 +209,8 @@ class _NavBarItem extends StatelessWidget {
                       width: isSelected ? 32 : 0,
                       height: 3,
                       decoration: BoxDecoration(
-                        color: AppColors.brand,
+                        color: AppColors.resolve(
+                            AppColors.brand, AppDarkColors.brand),
                         borderRadius: BorderRadius.circular(AppRadius.xl),
                       ),
                     ),
@@ -152,7 +218,11 @@ class _NavBarItem extends StatelessWidget {
                     // Icône
                     IconTheme(
                       data: IconThemeData(
-                        color: isSelected ? AppColors.brand : AppColors.inkMuted,
+                        color: isSelected
+                            ? AppColors.resolve(
+                                AppColors.brand, AppDarkColors.brand)
+                            : AppColors.resolve(
+                                AppColors.inkMuted, AppDarkColors.inkMuted),
                         size: 24,
                       ),
                       child: isSelected ? item.activeIcon : item.icon,
@@ -162,7 +232,11 @@ class _NavBarItem extends StatelessWidget {
                     AnimatedDefaultTextStyle(
                       duration: AppMotion.fast,
                       style: AppTypography.labelMedium(
-                        color: isSelected ? AppColors.brand : AppColors.inkMuted,
+                        color: isSelected
+                            ? AppColors.resolve(
+                                AppColors.brand, AppDarkColors.brand)
+                            : AppColors.resolve(
+                                AppColors.inkMuted, AppDarkColors.inkMuted),
                       ).copyWith(fontSize: 10),
                       child: Text(
                         item.label,
@@ -199,11 +273,12 @@ class _ProminentButton extends StatelessWidget {
         height: 56,
         margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
-          color: AppColors.brand,
+          color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
           borderRadius: BorderRadius.circular(AppRadius.md),
           boxShadow: [
             BoxShadow(
-              color: AppColors.brand.withValues(alpha: 0.4),
+              color: AppColors.resolve(AppColors.brand, AppDarkColors.brand)
+                  .withValues(alpha: 0.4),
               blurRadius: 16,
               offset: const Offset(0, 6),
             ),
@@ -224,9 +299,11 @@ class DiosNavItem {
     required this.icon,
     required this.activeIcon,
     required this.label,
+    this.iosSystemName,
   });
 
   final Widget icon;
   final Widget activeIcon;
   final String label;
+  final String? iosSystemName;
 }

@@ -27,16 +27,28 @@ class PromoService {
       final response = await cloudFunction.execute(parameters: {
         'code': code,
         'subtotal': subtotal,
+        'orderAmount': subtotal,
         'deliveryFee': deliveryFee,
       });
 
       if (response.success && response.result != null) {
         final result = response.result as Map<String, dynamic>;
         if (result['success'] == true) {
+          final serverDiscount =
+              (result['discountAmount'] ?? result['discount']) as num?;
+          final percent =
+              (result['discountPercent'] as num?)?.toDouble() ?? 0.0;
+          final fixed =
+              (result['discountFixed'] as num?)?.toDouble() ?? 0.0;
+          final discountAmount = (serverDiscount?.toDouble() ??
+                  (percent > 0 ? subtotal * percent / 100 : fixed)
+                      .clamp(0.0, subtotal))
+              .toDouble();
+          if (discountAmount <= 0) return null;
           return PromoApplication(
-            code: result['code'] as String,
-            description: result['description'] as String,
-            discountAmount: (result['discountAmount'] as num).toDouble(),
+            code: result['code']?.toString() ?? code,
+            description: result['description']?.toString() ?? 'Promotion',
+            discountAmount: discountAmount,
           );
         }
       }
@@ -117,8 +129,11 @@ class PromoService {
       final cloudFunction = ParseCloudFunction('togglePromoCode');
       final response = await cloudFunction.execute(parameters: {'code': code});
       if (response.success && response.result != null) {
-        notifyDataChanged();
-        return true;
+        final result = response.result as Map<dynamic, dynamic>;
+        if (result['success'] == true) {
+          notifyDataChanged();
+          return true;
+        }
       }
       return false;
     } catch (e) {

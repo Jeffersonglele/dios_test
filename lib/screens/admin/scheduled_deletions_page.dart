@@ -78,19 +78,21 @@ class _ScheduledDeletionsPageState extends State<ScheduledDeletionsPage> {
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.xl)),
-        title:
-            Text(AppLocalizations.of(context)!.scheduled_deletions_restore_title, style: AppTypography.titleMedium()),
-        content: Text(
-            AppLocalizations.of(context)!.scheduled_deletions_restore_confirm(user.firstname, user.lastname)),
+        title: Text(
+            AppLocalizations.of(context)!.scheduled_deletions_restore_title,
+            style: AppTypography.titleMedium()),
+        content: Text(AppLocalizations.of(context)!
+            .scheduled_deletions_restore_confirm(
+                user.firstname, user.lastname)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
               child: Text(AppLocalizations.of(context)!.cancel)),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.success),
-            child: Text(AppLocalizations.of(context)!.scheduled_deletions_restore,
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.success),
+            child: Text(
+                AppLocalizations.of(context)!.scheduled_deletions_restore,
                 style: TextStyle(color: Colors.white)),
           ),
         ],
@@ -100,7 +102,11 @@ class _ScheduledDeletionsPageState extends State<ScheduledDeletionsPage> {
     final result = await Users.updateStatus(user.userID, 'active');
     if (!mounted) return;
     if (result == 'success') {
-      Toast(context, AppLocalizations.of(context)!.scheduled_deletions_restored(user.firstname, user.lastname), true);
+      Toast(
+          context,
+          AppLocalizations.of(context)!
+              .scheduled_deletions_restored(user.firstname, user.lastname),
+          true);
       _load();
     } else {
       Toast(context, 'Erreur : $result', false);
@@ -113,19 +119,22 @@ class _ScheduledDeletionsPageState extends State<ScheduledDeletionsPage> {
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.xl)),
-        title: Text(AppLocalizations.of(context)!.scheduled_deletions_permanent_title,
+        title: Text(
+            AppLocalizations.of(context)!.scheduled_deletions_permanent_title,
             style: AppTypography.titleMedium()),
-        content: Text(
-            AppLocalizations.of(context)!.scheduled_deletions_permanent_confirm(user.firstname, user.lastname)),
+        content: Text(AppLocalizations.of(context)!
+            .scheduled_deletions_permanent_confirm(
+                user.firstname, user.lastname)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
               child: Text(AppLocalizations.of(context)!.cancel)),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.error),
-            child: Text(AppLocalizations.of(context)!.scheduled_deletions_permanent_delete,
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            child: Text(
+                AppLocalizations.of(context)!
+                    .scheduled_deletions_permanent_delete,
                 style: TextStyle(color: Colors.white)),
           ),
         ],
@@ -135,8 +144,11 @@ class _ScheduledDeletionsPageState extends State<ScheduledDeletionsPage> {
     final result = await Users.permanentlyDeleteUser(user.userID);
     if (!mounted) return;
     if (result == 'success') {
-      Toast(context,
-          AppLocalizations.of(context)!.scheduled_deletions_deleted(user.firstname, user.lastname), false);
+      Toast(
+          context,
+          AppLocalizations.of(context)!
+              .scheduled_deletions_deleted(user.firstname, user.lastname),
+          false);
       _load();
     } else {
       Toast(context, 'Erreur : $result', false);
@@ -159,17 +171,16 @@ class _ScheduledDeletionsPageState extends State<ScheduledDeletionsPage> {
       backgroundColor: surface,
       appBar: AppBar(
         title: Text(AppLocalizations.of(context)!.scheduled_deletions_title,
-            style: AppTypography.titleMedium()),
+            style: AppTypography.titleMedium(
+                color: AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
       ),
       body: RefreshIndicator(
         color: AppColors.brand,
-        backgroundColor:
-            AppColors.resolve(AppColors.card, AppDarkColors.card),
+        backgroundColor: AppColors.resolve(AppColors.card, AppDarkColors.card),
         onRefresh: _load,
         child: _loading
             ? const Center(
-                child:
-                    CircularProgressIndicator(color: AppColors.brand))
+                child: CircularProgressIndicator(color: AppColors.brand))
             : _items.isEmpty
                 ? ListView(
                     physics: const AlwaysScrollableScrollPhysics(),
@@ -180,22 +191,25 @@ class _ScheduledDeletionsPageState extends State<ScheduledDeletionsPage> {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(
-                                  Icons.check_circle_outline_rounded,
+                              Icon(Icons.check_circle_outline_rounded,
                                   size: 64,
-                                  color: AppColors.resolve(
-                                      AppColors.success,
+                                  color: AppColors.resolve(AppColors.success,
                                       AppDarkColors.success)),
                               const SizedBox(height: AppSpacing.md),
-                              Text(AppLocalizations.of(context)!.scheduled_deletions_empty,
+                              Text(
+                                  AppLocalizations.of(context)!
+                                      .scheduled_deletions_empty,
                                   style: AppTypography.titleMedium(
                                       color: AppColors.resolve(
-                                          AppColors.ink,
-                                          AppDarkColors.ink))),
+                                          AppColors.ink, AppDarkColors.ink))),
                               const SizedBox(height: AppSpacing.sm),
                               Text(
-                                  AppLocalizations.of(context)!.scheduled_deletions_all_active(widget.country),
-                                  style: AppTypography.bodyMedium()),
+                                  AppLocalizations.of(context)!
+                                      .scheduled_deletions_all_active(
+                                          widget.country),
+                                  style: AppTypography.bodyMedium(
+                                      color: AppColors.resolve(
+                                          AppColors.ink, AppDarkColors.ink))),
                             ],
                           ),
                         ),
@@ -207,18 +221,15 @@ class _ScheduledDeletionsPageState extends State<ScheduledDeletionsPage> {
                     padding: const EdgeInsets.all(AppSpacing.md),
                     children: [
                       _StatsHeader(
-                          count: _items.length,
-                          country: widget.country),
+                          count: _items.length, country: widget.country),
                       const SizedBox(height: AppSpacing.md),
                       ..._items.map((item) => Padding(
-                            padding: const EdgeInsets.only(
-                                bottom: AppSpacing.sm),
+                            padding:
+                                const EdgeInsets.only(bottom: AppSpacing.sm),
                             child: _DeletionCard(
                               item: item,
-                              roleLabel:
-                                  _roleLabel(item.user.roleID),
-                              onRestore: () =>
-                                  _restore(item.user),
+                              roleLabel: _roleLabel(item.user.roleID),
+                              onRestore: () => _restore(item.user),
                               onPermanentDelete: () =>
                                   _permanentDelete(item.user),
                             ),
@@ -278,24 +289,33 @@ class _StatsHeader extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(AppLocalizations.of(context)!.scheduled_deletions_pending('$count'),
-                    style: AppTypography.titleSmall(color: Colors.white)
+                Text(
+                    AppLocalizations.of(context)!
+                        .scheduled_deletions_pending('$count'),
+                    style: AppTypography.titleSmall(
+                            color: AppColors.resolve(
+                                AppColors.ink, AppDarkColors.ink))
                         .copyWith(fontSize: 15)),
                 Text(country,
-                    style: AppTypography.bodySmall(color: Colors.white70)
+                    style: AppTypography.bodySmall(
+                            color: AppColors.resolve(
+                                AppColors.ink, AppDarkColors.ink))
                         .copyWith(fontSize: 12)),
               ],
             ),
           ),
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.18),
               borderRadius: BorderRadius.circular(999),
             ),
-            child: Text(AppLocalizations.of(context)!.scheduled_deletions_period('${_DeletionCard.deletionPeriodDays}'),
-                style: AppTypography.labelMedium(color: Colors.white)
+            child: Text(
+                AppLocalizations.of(context)!.scheduled_deletions_period(
+                    '${_DeletionCard.deletionPeriodDays}'),
+                style: AppTypography.labelMedium(
+                        color:
+                            AppColors.resolve(AppColors.ink, AppDarkColors.ink))
                     .copyWith(fontSize: 11)),
           ),
         ],
@@ -341,10 +361,8 @@ class _DeletionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = item.user;
-    final cardBg =
-        AppColors.resolve(AppColors.card, AppDarkColors.card);
-    final ink =
-        AppColors.resolve(AppColors.ink, AppDarkColors.ink);
+    final cardBg = AppColors.resolve(AppColors.card, AppDarkColors.card);
+    final ink = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
     final inkMuted =
         AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
 
@@ -416,10 +434,12 @@ class _DeletionCard extends StatelessWidget {
           // ── Date + J-XX chip ──
           Row(
             children: [
-              Icon(Icons.calendar_today_rounded,
-                  size: 14, color: inkMuted),
+              Icon(Icons.calendar_today_rounded, size: 14, color: inkMuted),
               const SizedBox(width: 6),
-              Text(AppLocalizations.of(context)!.scheduled_deletions_requested_on(_formatDate(item.deletedAt)),
+              Text(
+                  AppLocalizations.of(context)!
+                      .scheduled_deletions_requested_on(
+                          _formatDate(item.deletedAt)),
                   style: AppTypography.bodySmall(color: inkMuted)
                       .copyWith(fontSize: 12)),
               const Spacer(),
@@ -429,17 +449,19 @@ class _DeletionCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: _progressColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(999),
-                  border: Border.all(
-                      color: _progressColor.withValues(alpha: 0.3)),
+                  border:
+                      Border.all(color: _progressColor.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.timer_outlined,
-                        size: 14, color: _progressColor),
+                    Icon(Icons.timer_outlined, size: 14, color: _progressColor),
                     const SizedBox(width: 4),
                     Text(
-                      _daysRemaining > 0 ? 'J-$_daysRemaining' : AppLocalizations.of(context)!.scheduled_deletions_last_day,
+                      _daysRemaining > 0
+                          ? 'J-$_daysRemaining'
+                          : AppLocalizations.of(context)!
+                              .scheduled_deletions_last_day,
                       style: AppTypography.labelMedium(color: _progressColor)
                           .copyWith(fontSize: 12),
                     ),
@@ -468,17 +490,17 @@ class _DeletionCard extends StatelessWidget {
           Row(
             children: [
               Text(
-                AppLocalizations.of(context)!.scheduled_deletions_days_elapsed('$_daysElapsed'),
+                AppLocalizations.of(context)!
+                    .scheduled_deletions_days_elapsed('$_daysElapsed'),
                 style: AppTypography.bodySmall(color: inkMuted)
                     .copyWith(fontSize: 11),
               ),
               const Spacer(),
               Text(
-                AppLocalizations.of(context)!.scheduled_deletions_days_remaining('$_daysRemaining'),
+                AppLocalizations.of(context)!
+                    .scheduled_deletions_days_remaining('$_daysRemaining'),
                 style: AppTypography.bodySmall(
-                        color: _daysRemaining <= 5
-                            ? AppColors.error
-                            : inkMuted)
+                        color: _daysRemaining <= 5 ? AppColors.error : inkMuted)
                     .copyWith(fontSize: 11),
               ),
             ],
@@ -497,7 +519,9 @@ class _DeletionCard extends StatelessWidget {
                   child: OutlinedButton.icon(
                     onPressed: onRestore,
                     icon: const Icon(Icons.restore_rounded, size: 18),
-                    label: Text(AppLocalizations.of(context)!.scheduled_deletions_restore,
+                    label: Text(
+                        AppLocalizations.of(context)!
+                            .scheduled_deletions_restore,
                         style: TextStyle(fontSize: 13)),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.success,
@@ -516,9 +540,10 @@ class _DeletionCard extends StatelessWidget {
                   height: 40,
                   child: ElevatedButton.icon(
                     onPressed: onPermanentDelete,
-                    icon: const Icon(Icons.delete_forever_rounded,
-                        size: 18),
-                    label: Text(AppLocalizations.of(context)!.scheduled_deletions_permanent_delete,
+                    icon: const Icon(Icons.delete_forever_rounded, size: 18),
+                    label: Text(
+                        AppLocalizations.of(context)!
+                            .scheduled_deletions_permanent_delete,
                         style: TextStyle(fontSize: 11)),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.error,

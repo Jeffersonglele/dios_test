@@ -1,12 +1,11 @@
-import 'dart:io';
 import 'package:dios_delices/l10n/app_localizations.dart';
 import 'package:dios_delices/models/restaurant.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:geocoding/geocoding.dart' as geo;
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
-import 'package:path/path.dart' as p;
 import '../../constants/constant.dart';
 import '../../utils/image_picker_helper.dart';
 import '../../models/users.dart';
@@ -41,8 +40,11 @@ class _RestaurantUpdateFormPageState
   final TextEditingController _deliveryFeeController = TextEditingController();
   bool _isOpen = true;
   List<String> _selectedHashtags = [];
+  List<String> _selectedDays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
 
-  File? _image;
+  static const _allDays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+
+  XFile? _image;
 
   // Méthode pour ouvrir l'image picker
   Future<void> _pickImage() async {
@@ -94,6 +96,13 @@ class _RestaurantUpdateFormPageState
     _descriptionController.text = widget.restaurant.description;
     _categoriesController.text = widget.restaurant.categories;
     _openingHoursController.text = widget.restaurant.openingHours;
+    if (widget.restaurant.openingDays.isNotEmpty) {
+      _selectedDays = widget.restaurant.openingDays
+          .split(',')
+          .map((day) => day.trim())
+          .where((day) => day.isNotEmpty)
+          .toList();
+    }
     _deliveryFeeController.text =
         widget.restaurant.deliveryFee.toStringAsFixed(2);
     _isOpen = widget.restaurant.isOpen == 1;
@@ -153,6 +162,8 @@ class _RestaurantUpdateFormPageState
                       return null;
                     },
                   ),
+                  SizedBox(height: size.height * 0.02),
+                  _buildOpeningDays(l10n),
                   SizedBox(height: size.height * 0.02),
                   _buildTextField(
                     controller: _addressController,
@@ -244,7 +255,7 @@ class _RestaurantUpdateFormPageState
                     child: Column(
                       children: <Widget>[
                         _image != null
-                            ? Image.file(
+                            ? pickedImagePreview(
                                 _image!,
                                 width: 100,
                                 height: 60,
@@ -292,6 +303,10 @@ class _RestaurantUpdateFormPageState
                       ),
                       onPressed: () async {
                         if (_formKey.currentState!.validate()) {
+                          if (_selectedDays.isEmpty) {
+                            Toast(context, l10n.restaurant_form_day_required, false);
+                            return;
+                          }
                           final isAddressValid =
                               await _isValidAddress(_addressController.text);
 
@@ -306,27 +321,17 @@ class _RestaurantUpdateFormPageState
 
                           final user = ref.read(usersProvider);
                           if (user != null) {
-                            ParseFile? parseFile;
+                            ParseFileBase? parseFile;
                             final _image = this._image;
 
                             if (_image != null) {
-                              String fileName =
-                                  p.basename(_image.path); // Get the file name
-                              String extension = p.extension(
-                                  fileName); // Get the file extension (.jpg, .png)
-
-                              // Check if name and user ID are not empty
                               if (_nameController.text.isNotEmpty &&
                                   user.userID != null) {
-                                String nom_image = _nameController.text +
-                                    "_" +
-                                    user.userID.toString(); // New image name
-                                String newFileName =
-                                    "$nom_image$extension"; // Combine name and extension
-
-                                // Create the ParseFile with the new name
-                                parseFile = ParseFile(File(_image.path),
-                                    name: newFileName);
+                                final newFileName = safeUploadFileName(
+                                  prefix: 'restaurant_${user.userID}',
+                                  file: _image,
+                                );
+                                parseFile = ParseXFile(_image, name: newFileName);
                               } else {
                                 return;
                               }
@@ -337,6 +342,7 @@ class _RestaurantUpdateFormPageState
                                 await Restaurant.manageRestaurant(
                               restaurantID: widget.restaurant.restaurantID,
                               userID: user.userID,
+                              country: user.country,
                               valid: widget.restaurant.valid,
                               nb_orders: widget.restaurant.nb_orders,
                               note: widget.restaurant.note,
@@ -345,6 +351,7 @@ class _RestaurantUpdateFormPageState
                               location: _addressController.text,
                               name: _nameController.text,
                               openingHours: _openingHoursController.text.trim(),
+                              openingDays: _selectedDays.join(','),
                               deliveryFee: double.parse(
                                 _deliveryFeeController.text
                                     .replaceAll(',', '.'),
@@ -385,6 +392,41 @@ class _RestaurantUpdateFormPageState
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildOpeningDays(AppLocalizations l10n) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.calendar_today, size: 18),
+            const SizedBox(width: 8),
+            Text(l10n.restaurant_form_opening_days,
+                style: Theme.of(context).textTheme.titleSmall),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: _allDays.map((day) {
+            final selected = _selectedDays.contains(day);
+            return FilterChip(
+              label: Text(day),
+              selected: selected,
+              onSelected: (_) => setState(() {
+                if (selected) {
+                  _selectedDays.remove(day);
+                } else {
+                  _selectedDays.add(day);
+                }
+              }),
+            );
+          }).toList(),
+        ),
+      ],
     );
   }
 

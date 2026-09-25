@@ -26,11 +26,13 @@ class _CurvedNavigationAdminState extends State<CurvedNavigationAdmin> {
       icon: const Icon(Icons.dashboard_outlined),
       activeIcon: const Icon(Icons.dashboard_rounded),
       label: 'Dashboard',
+      iosSystemName: 'square.grid.2x2.fill',
     ),
     DiosNavItem(
       icon: const Icon(Icons.settings_outlined),
       activeIcon: const Icon(Icons.settings_rounded),
       label: 'Paramètres',
+      iosSystemName: 'gearshape.fill',
     ),
   ];
 
