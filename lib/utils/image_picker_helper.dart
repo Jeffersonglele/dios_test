@@ -89,3 +89,11 @@ Future<File?> pickAndConfirmImage(BuildContext context) async {
 
   return showImageConfirmDialog(context, File(picked.path));
 }
+
+/// Pick image directly from camera (for delivery proof)
+Future<File?> pickImageFromCamera(BuildContext context) async {
+  final picker = ImagePicker();
+  final XFile? picked = await picker.pickImage(source: ImageSource.camera);
+  if (picked == null) return null;
+  return File(picked.path);
+}

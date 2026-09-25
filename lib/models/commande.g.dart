@@ -33,13 +33,14 @@ class CommandeAdapter extends TypeAdapter<Commande> {
       deliveryStatus: fields[13] as String?,
       livreurLat: fields[14] as double?,
       livreurLng: fields[15] as double?,
+      cityID: fields[16] as int,
     );
   }
 
   @override
   void write(BinaryWriter writer, Commande obj) {
     writer
-      ..writeByte(16)
+      ..writeByte(17)
       ..writeByte(0)
       ..write(obj.commandeID)
       ..writeByte(1)
@@ -71,7 +72,9 @@ class CommandeAdapter extends TypeAdapter<Commande> {
       ..writeByte(14)
       ..write(obj.livreurLat)
       ..writeByte(15)
-      ..write(obj.livreurLng);
+      ..write(obj.livreurLng)
+      ..writeByte(16)
+      ..write(obj.cityID);
   }
 
   @override

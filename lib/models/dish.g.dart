@@ -32,13 +32,14 @@ class DishAdapter extends TypeAdapter<Dish> {
       nb_servings: fields[9] as int?,
       restauID: fields[10] as int,
       status: fields[8] as int?,
+      cityID: fields[15] as int,
     );
   }
 
   @override
   void write(BinaryWriter writer, Dish obj) {
     writer
-      ..writeByte(15)
+      ..writeByte(16)
       ..writeByte(0)
       ..write(obj.dishID)
       ..writeByte(1)
@@ -68,7 +69,9 @@ class DishAdapter extends TypeAdapter<Dish> {
       ..writeByte(13)
       ..write(obj.option2)
       ..writeByte(14)
-      ..write(obj.option3);
+      ..write(obj.option3)
+      ..writeByte(15)
+      ..write(obj.cityID);
   }
 
   @override

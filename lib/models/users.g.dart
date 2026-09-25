@@ -31,13 +31,17 @@ class UsersAdapter extends TypeAdapter<Users> {
       status: fields[11] as String,
       identity: fields[12] as String,
       addressID: fields[13] as int,
+      cityID: fields[14] as int,
+      isPhoneVerified: fields[15] as bool,
+      isSimplified: fields[16] as bool,
+      lastVerificationDate: fields[17] as DateTime?,
     );
   }
 
   @override
   void write(BinaryWriter writer, Users obj) {
     writer
-      ..writeByte(14)
+      ..writeByte(18)
       ..writeByte(0)
       ..write(obj.userID)
       ..writeByte(1)
@@ -65,7 +69,15 @@ class UsersAdapter extends TypeAdapter<Users> {
       ..writeByte(12)
       ..write(obj.identity)
       ..writeByte(13)
-      ..write(obj.addressID);
+      ..write(obj.addressID)
+      ..writeByte(14)
+      ..write(obj.cityID)
+      ..writeByte(15)
+      ..write(obj.isPhoneVerified)
+      ..writeByte(16)
+      ..write(obj.isSimplified)
+      ..writeByte(17)
+      ..write(obj.lastVerificationDate);
   }
 
   @override

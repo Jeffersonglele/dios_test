@@ -3139,4 +3139,409 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get age_confirm_warning =>
       'You must confirm you are 18 or older to sign up';
+
+  @override
+  String get login_phone_tab => 'By phone';
+
+  @override
+  String get login_phone_title => 'Login by phone';
+
+  @override
+  String get login_phone_subtitle =>
+      'Enter your number to receive a code via SMS';
+
+  @override
+  String get login_phone_hint => '+243 XXX XXX XXX';
+
+  @override
+  String get login_send_otp => 'Send code';
+
+  @override
+  String get login_otp_title => 'Verification code';
+
+  @override
+  String get login_otp_subtitle => 'Enter the 4-digit code received by SMS';
+
+  @override
+  String get login_otp_hint => '****';
+
+  @override
+  String login_otp_timer(Object seconds) {
+    return 'Resend available in ${seconds}s';
+  }
+
+  @override
+  String get login_otp_resend => 'Resend code';
+
+  @override
+  String get login_otp_verify => 'Verify';
+
+  @override
+  String get login_otp_invalid => 'Invalid or expired code';
+
+  @override
+  String get login_otp_attempts_exceeded =>
+      'Too many attempts. Try again in 10 minutes.';
+
+  @override
+  String get age_confirm_required => 'You must confirm you are 18 or older';
+
+  @override
+  String get account_simplified_notice =>
+      'Simplified account (phone only). Add email and password for a full account.';
+
+  @override
+  String get upgrade_account => 'Upgrade to full account';
+
+  @override
+  String get upgrade_account_title => 'Complete my account';
+
+  @override
+  String get upgrade_email_hint => 'Email';
+
+  @override
+  String get upgrade_password_hint => 'Password';
+
+  @override
+  String get upgrade_confirm_password_hint => 'Confirm password';
+
+  @override
+  String get dispute_title => 'Report a problem';
+
+  @override
+  String get dispute_subtitle => 'Describe the issue with your order';
+
+  @override
+  String get dispute_type_label => 'Problem type';
+
+  @override
+  String get dispute_type_missing => 'Missing item';
+
+  @override
+  String get dispute_type_not_delivered => 'Not delivered';
+
+  @override
+  String get dispute_type_bad_quality => 'Bad quality';
+
+  @override
+  String get dispute_type_other => 'Other';
+
+  @override
+  String get dispute_description_label => 'Description';
+
+  @override
+  String get dispute_description_hint => 'Explain what happened...';
+
+  @override
+  String get dispute_photo_label =>
+      'Photo (required for missing item / not delivered)';
+
+  @override
+  String get dispute_take_photo => 'Take a photo';
+
+  @override
+  String get dispute_submit => 'Submit report';
+
+  @override
+  String get dispute_submitted =>
+      'Dispute submitted. We will review within 24-48h.';
+
+  @override
+  String get dispute_my_disputes => 'My disputes';
+
+  @override
+  String get dispute_status_open => 'Open';
+
+  @override
+  String get dispute_status_resolved_client => 'Resolved in your favor';
+
+  @override
+  String get dispute_status_resolved_restaurant => 'Resolved for restaurant';
+
+  @override
+  String get dispute_status_resolved_driver => 'Resolved for driver';
+
+  @override
+  String get dispute_status_rejected => 'Rejected';
+
+  @override
+  String dispute_refund_amount(Object amount) {
+    return 'Refunded amount: $amount';
+  }
+
+  @override
+  String get dispute_admin_panel => 'Dispute management';
+
+  @override
+  String get dispute_admin_queue => 'Queue';
+
+  @override
+  String get dispute_admin_detail => 'Dispute detail';
+
+  @override
+  String get dispute_admin_resolve_client => 'Refund client';
+
+  @override
+  String get dispute_admin_resolve_restaurant => 'Rule for restaurant';
+
+  @override
+  String get dispute_admin_resolve_driver => 'Rule for driver';
+
+  @override
+  String get dispute_admin_reject => 'Reject';
+
+  @override
+  String get dispute_admin_reason_hint => 'Reason for decision...';
+
+  @override
+  String dispute_scoring_warning(Object count) {
+    return 'Warning: $count validated disputes this month. Suspension risk at 5.';
+  }
+
+  @override
+  String get finance_title => 'My finances';
+
+  @override
+  String get finance_payouts => 'Payouts';
+
+  @override
+  String get finance_commission_invoices => 'Commission invoices';
+
+  @override
+  String finance_period(Object end, Object start) {
+    return 'Period: $start - $end';
+  }
+
+  @override
+  String finance_gross_amount(Object amount) {
+    return 'Gross amount: $amount';
+  }
+
+  @override
+  String finance_commission_rate(Object rate) {
+    return 'Commission rate: $rate%';
+  }
+
+  @override
+  String finance_commission_amount(Object amount) {
+    return 'Commission: -$amount';
+  }
+
+  @override
+  String finance_net_amount(Object amount) {
+    return 'Net paid: $amount';
+  }
+
+  @override
+  String get finance_payout_status_pending => 'Pending';
+
+  @override
+  String get finance_payout_status_processing => 'Processing';
+
+  @override
+  String get finance_payout_status_completed => 'Paid';
+
+  @override
+  String get finance_payout_status_failed => 'Failed';
+
+  @override
+  String get finance_download_invoice => 'Download invoice';
+
+  @override
+  String get finance_dual_currency_cdf => 'CDF';
+
+  @override
+  String get finance_dual_currency_usd => 'USD';
+
+  @override
+  String finance_exchange_rate(Object rate) {
+    return 'Exchange rate: 1 USD = $rate CDF';
+  }
+
+  @override
+  String finance_rate_date(Object date) {
+    return 'Rate as of $date';
+  }
+
+  @override
+  String get finance_admin_config => 'Platform settings';
+
+  @override
+  String get finance_config_commission => 'Commission rate (%)';
+
+  @override
+  String get finance_config_dispute_warning =>
+      'Dispute warning threshold (30d)';
+
+  @override
+  String get finance_config_dispute_suspension =>
+      'Dispute suspension threshold (30d)';
+
+  @override
+  String get finance_config_driver_min_rating => 'Min driver rating';
+
+  @override
+  String get finance_config_payment_timeout => 'Payment timeout (min)';
+
+  @override
+  String get finance_config_delivery_proof_threshold =>
+      'Delivery proof threshold (CDF)';
+
+  @override
+  String get finance_config_driver_accept_warning =>
+      'Acceptance warning threshold (%)';
+
+  @override
+  String get finance_config_driver_accept_suspension =>
+      'Acceptance suspension threshold (%)';
+
+  @override
+  String get delivery_proof_title => 'Confirm delivery';
+
+  @override
+  String get delivery_proof_instruction =>
+      'Take a photo of the delivered package';
+
+  @override
+  String get delivery_proof_take_photo => 'Take photo';
+
+  @override
+  String get delivery_proof_code_label => 'Confirmation code (4 digits)';
+
+  @override
+  String get delivery_proof_code_hint =>
+      'Enter the code received by the client';
+
+  @override
+  String get delivery_proof_submit => 'Confirm delivery';
+
+  @override
+  String get delivery_proof_submitted => 'Delivery confirmed with proof';
+
+  @override
+  String get driver_rating_title => 'Rate your driver';
+
+  @override
+  String get driver_rating_hint => 'Optional';
+
+  @override
+  String get driver_rating_comment_hint => 'Comment (optional)';
+
+  @override
+  String get driver_rating_submit => 'Submit';
+
+  @override
+  String get driver_rating_thanks => 'Thanks for your rating!';
+
+  @override
+  String driver_rating_average(Object count, Object rating) {
+    return 'Average rating: $rating/5 ($count deliveries)';
+  }
+
+  @override
+  String driver_acceptance_warning(Object rate, Object threshold) {
+    return 'Your acceptance rate is $rate%. Suspension risk if < $threshold%.';
+  }
+
+  @override
+  String driver_acceptance_suspended(Object rate) {
+    return 'Account suspended: acceptance rate too low ($rate%).';
+  }
+
+  @override
+  String get driver_earnings_title => 'My earnings';
+
+  @override
+  String driver_earnings_base(Object amount) {
+    return 'Base: $amount';
+  }
+
+  @override
+  String driver_earnings_distance(Object amount) {
+    return 'Distance: $amount';
+  }
+
+  @override
+  String driver_earnings_tips(Object amount) {
+    return 'Tips: $amount';
+  }
+
+  @override
+  String driver_earnings_total(Object amount) {
+    return 'Total: $amount';
+  }
+
+  @override
+  String driver_payout_status(Object status) {
+    return 'Payout status: $status';
+  }
+
+  @override
+  String get payment_unavailable => 'Payment temporarily unavailable';
+
+  @override
+  String get payment_unavailable_retry => 'Try again in a few minutes';
+
+  @override
+  String get verification_reminder => 'Identity re-verification required';
+
+  @override
+  String verification_reminder_body(Object days) {
+    return 'Your verification is $days days old. Please submit a new ID photo.';
+  }
+
+  @override
+  String get verification_suspended =>
+      'Account suspended: re-verification required';
+
+  @override
+  String get hygiene_badge => 'Hygiene 🎓';
+
+  @override
+  String get error_generic => 'An error occurred. Please try again.';
+
+  @override
+  String get success_generic => 'Operation successful';
+
+  @override
+  String get login_otp_sent => 'OTP code sent via SMS';
+
+  @override
+  String get dispute_photo_required => 'Photo required for this type';
+
+  @override
+  String get dispute_max_photos => 'Maximum 5 photos';
+
+  @override
+  String get dispute_description_required => 'Description required';
+
+  @override
+  String get dispute_submit_error => 'Error submitting dispute';
+
+  @override
+  String get delivery_proof_camera_only => 'Camera only (no gallery)';
+
+  @override
+  String get delivery_proof_photo_required => 'Photo required';
+
+  @override
+  String get delivery_proof_invalid_code => 'Invalid code';
+
+  @override
+  String get driver_rating_label => 'Rating';
+
+  @override
+  String get dispute_no_disputes => 'No disputes';
+
+  @override
+  String get dispute_resolution_notes => 'Resolution';
+
+  @override
+  String get dispute_created => 'Created on';
+
+  @override
+  String get dispute_resolved => 'Resolved on';
+
+  @override
+  String get login_email_tab => 'By email';
 }

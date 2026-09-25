@@ -76,6 +76,16 @@ class Users extends HiveObject {
 
   String? parrain;
 
+  // Phase 1 - OTP & Compte simplifié
+  @HiveField(15)
+  bool isPhoneVerified;
+
+  @HiveField(16)
+  bool isSimplified;
+
+  @HiveField(17)
+  DateTime? lastVerificationDate;
+
   Users({
     required this.userID,
     required this.roleID,
@@ -103,6 +113,10 @@ class Users extends HiveObject {
     this.isOnline = false,
     this.maxDeliveryDistance,
     this.parrain,
+    // Phase 1 - OTP & Compte simplifié
+    this.isPhoneVerified = false,
+    this.isSimplified = false,
+    this.lastVerificationDate,
   });
 
   Map<String, dynamic> toMap() {
@@ -133,6 +147,10 @@ class Users extends HiveObject {
       'isOnline': isOnline,
       'maxDeliveryDistance': maxDeliveryDistance ?? 10,
       'parrain': parrain,
+      // Phase 1
+      'isPhoneVerified': isPhoneVerified,
+      'isSimplified': isSimplified,
+      'lastVerificationDate': lastVerificationDate?.toIso8601String(),
     };
   }
 
@@ -176,6 +194,16 @@ class Users extends HiveObject {
           ? (map['maxDeliveryDistance'] as num).toDouble()
           : null,
       parrain: map['parrain']?.toString(),
+      // Phase 1
+      isPhoneVerified: map['isPhoneVerified'] == true || map['isPhoneVerified']?.toString() == 'true',
+      isSimplified: map['isSimplified'] == true || map['isSimplified']?.toString() == 'true',
+      lastVerificationDate: map['lastVerificationDate'] != null
+          ? (map['lastVerificationDate'] is String
+              ? DateTime.tryParse(map['lastVerificationDate'])
+              : (map['lastVerificationDate']['iso'] != null
+                  ? DateTime.tryParse(map['lastVerificationDate']['iso'])
+                  : null))
+          : null,
     );
   }
 
@@ -204,6 +232,10 @@ class Users extends HiveObject {
     bool? permisVerified,
     bool? isOnline,
     double? maxDeliveryDistance,
+    // Phase 1
+    bool? isPhoneVerified,
+    bool? isSimplified,
+    DateTime? lastVerificationDate,
   }) {
     return Users(
       userID: userID ?? this.userID,
@@ -230,6 +262,10 @@ class Users extends HiveObject {
       permisVerified: permisVerified ?? this.permisVerified,
       isOnline: isOnline ?? this.isOnline,
       maxDeliveryDistance: maxDeliveryDistance ?? this.maxDeliveryDistance,
+      // Phase 1
+      isPhoneVerified: isPhoneVerified ?? this.isPhoneVerified,
+      isSimplified: isSimplified ?? this.isSimplified,
+      lastVerificationDate: lastVerificationDate ?? this.lastVerificationDate,
     );
   }
 

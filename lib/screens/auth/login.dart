@@ -4,7 +4,9 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:async';
 
 import '../../constants/constant.dart';
 import '../../controllers/ui_controller.dart';
@@ -208,7 +210,7 @@ class Login extends ConsumerStatefulWidget {
   ConsumerState<Login> createState() => _LoginState();
 }
 
-class _LoginState extends ConsumerState<Login> {
+class _LoginState extends ConsumerState<Login> with SingleTickerProviderStateMixin {
   // ── Données ──────────────────────────────────────────────
   List<Users> _users = [];
   List<Restaurant> _restaus = [];
@@ -217,11 +219,24 @@ class _LoginState extends ConsumerState<Login> {
   final _nameCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  
+  // Phone OTP controllers
+  final _phoneCtrl = TextEditingController();
+  final _otpCtrl = TextEditingController();
+  final _otpFormKey = GlobalKey<FormState>();
 
   // ── État ─────────────────────────────────────────────────
   bool _isLoading = false;
   bool _loginFailed = false;
   bool _obscurePassword = true;
+  
+  // Phone OTP state
+  LoginTab _loginTab = LoginTab.emailPassword;
+  bool _isPhoneLogin = false;
+  bool _otpSent = false;
+  bool _otpVerifying = false;
+  int _otpTimer = 0;
+  Timer? _otpTimerSubscription;
 
   @override
   void initState() {
@@ -233,6 +248,9 @@ class _LoginState extends ConsumerState<Login> {
   void dispose() {
     _nameCtrl.dispose();
     _passwordCtrl.dispose();
+    _phoneCtrl.dispose();
+    _otpCtrl.dispose();
+    _otpTimerSubscription?.cancel();
     super.dispose();
   }
 
@@ -501,121 +519,183 @@ class _LoginState extends ConsumerState<Login> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Identifiant ───────────────────────────────────
-          Builder(
-            builder: (context) {
-              final colorScheme = Theme.of(context).colorScheme;
-              return TextFormField(
-                controller: _nameCtrl,
-                style: AppTypography.bodyLarge(color: colorScheme.onSurface),
-                textInputAction: TextInputAction.next,
-                decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.person_outline_rounded),
-                  hintText: AppLocalizations.of(context)!.username_or_email,
-                ),
-                validator: (v) {
-                  if (v == null || v.isEmpty)
-                    return AppLocalizations.of(context)!.enter_username;
-                  if (v.length < 4)
-                    return AppLocalizations.of(context)!.min_4_chars;
-                  if (v.length > 80) return AppLocalizations.of(context)!.too_long_max_80;
-                  return null;
-                },
-              );
-            },
+          // ── Tab selector: Email/Password vs Phone/OTP ─────────────────
+          _LoginTabSelector(
+            currentTab: _loginTab,
+            onTabChanged: (tab) => setState(() => _loginTab = tab),
           ),
+          const SizedBox(height: AppSpacing.lg),
 
-          const SizedBox(height: AppSpacing.md),
-
-          // ── Mot de passe ──────────────────────────────────
-          Builder(
-            builder: (context) {
-              final colorScheme = Theme.of(context).colorScheme;
-              return TextFormField(
-                controller: _passwordCtrl,
-                style: AppTypography.bodyLarge(color: colorScheme.onSurface),
-                obscureText: _obscurePassword,
-                textInputAction: TextInputAction.done,
-                onFieldSubmitted: (_) => _performLogin(),
-                decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.lock_outline_rounded),
-                  hintText: AppLocalizations.of(context)!.password,
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscurePassword
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
-                    ),
-                    onPressed: () =>
-                        setState(() => _obscurePassword = !_obscurePassword),
+          if (_loginTab == LoginTab.emailPassword) ...[
+            // ── Identifiant ───────────────────────────────────
+            Builder(
+              builder: (context) {
+                final colorScheme = Theme.of(context).colorScheme;
+                return TextFormField(
+                  controller: _nameCtrl,
+                  style: AppTypography.bodyLarge(color: colorScheme.onSurface),
+                  textInputAction: TextInputAction.next,
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.person_outline_rounded),
+                    hintText: AppLocalizations.of(context)!.username_or_email,
                   ),
-                ),
-                validator: (v) {
-                  if (v == null || v.isEmpty)
-                    return AppLocalizations.of(context)!.enter_password;
-                  if (v.length < 6)
-                    return AppLocalizations.of(context)!.min_6_chars;
-                  return null;
-                },
-              );
-            },
-          ),
-
-          // ── Mot de passe oublié ───────────────────────────
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: () {
-                _nameCtrl.clear();
-                _passwordCtrl.clear();
-                _formKey.currentState?.reset();
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => EmailInputScreen(listusers: _users),
-                  ),
+                  validator: (v) {
+                    if (v == null || v.isEmpty)
+                      return AppLocalizations.of(context)!.enter_username;
+                    if (v.length < 4)
+                      return AppLocalizations.of(context)!.min_4_chars;
+                    if (v.length > 80) return AppLocalizations.of(context)!.too_long_max_80;
+                    return null;
+                  },
                 );
               },
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.xs,
-                  vertical: AppSpacing.xs,
+            ),
+
+            const SizedBox(height: AppSpacing.md),
+
+            // ── Mot de passe ──────────────────────────────────
+            Builder(
+              builder: (context) {
+                final colorScheme = Theme.of(context).colorScheme;
+                return TextFormField(
+                  controller: _passwordCtrl,
+                  style: AppTypography.bodyLarge(color: colorScheme.onSurface),
+                  obscureText: _obscurePassword,
+                  textInputAction: TextInputAction.done,
+                  onFieldSubmitted: (_) => _performLogin(),
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.lock_outline_rounded),
+                    hintText: AppLocalizations.of(context)!.password,
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                      ),
+                      onPressed: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
+                    ),
+                  ),
+                  validator: (v) {
+                    if (v == null || v.isEmpty)
+                      return AppLocalizations.of(context)!.enter_password;
+                    if (v.length < 6)
+                      return AppLocalizations.of(context)!.min_6_chars;
+                    return null;
+                  },
+                );
+              },
+            ),
+
+            // ── Mot de passe oublié ───────────────────────────
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () {
+                  _nameCtrl.clear();
+                  _passwordCtrl.clear();
+                  _formKey.currentState?.reset();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => EmailInputScreen(listusers: _users),
+                    ),
+                  );
+                },
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.xs,
+                    vertical: AppSpacing.xs,
+                  ),
+                ),
+                child: Text(
+                  AppLocalizations.of(context)!.forgotten_password,
+                  style: AppTypography.labelMedium(color: AppColors.brand),
                 ),
               ),
-              child: Text(
-                AppLocalizations.of(context)!.forgotten_password,
-                style: AppTypography.labelMedium(color: AppColors.brand),
+            ),
+
+            const SizedBox(height: AppSpacing.md),
+
+            // ── Bannière erreur ───────────────────────────────
+            if (_loginFailed)
+              _LoginErrorBanner(
+                onDismiss: () => setState(() => _loginFailed = false),
+              ),
+
+            if (_loginFailed) const SizedBox(height: AppSpacing.md),
+
+            // ── Bouton connexion ──────────────────────────────
+            SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : _performLogin,
+                child: _isLoading
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation(Colors.white),
+                        ),
+                      )
+                    : Text(AppLocalizations.of(context)!.login),
               ),
             ),
+          ] else ...[
+            // ── Login par téléphone (OTP) ─────────────────────
+            _PhoneLoginForm(
+              isLoading: _isLoading,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// _LoginTabSelector — Onglets Email vs Téléphone
+// ═══════════════════════════════════════════════════════════════
+
+enum LoginTab { emailPassword, phone }
+
+class _LoginTabSelector extends StatelessWidget {
+  const _LoginTabSelector({
+    required this.currentTab,
+    required this.onTabChanged,
+  });
+
+  final LoginTab currentTab;
+  final ValueChanged<LoginTab> onTabChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AppColors.resolve(
+            AppColors.surfaceWarm, AppDarkColors.surfaceWarm),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(
+            color: AppColors.resolve(
+                    AppColors.border, AppDarkColors.border)
+                .withValues(alpha: 0.5)),
+      ),
+      child: Row(
+        children: [
+          _LoginTab(
+            label: AppLocalizations.of(context)!.login_email_tab,
+            icon: Icons.email_outlined,
+            selected: currentTab == LoginTab.emailPassword,
+            onTap: () => onTabChanged(LoginTab.emailPassword),
           ),
-
-          const SizedBox(height: AppSpacing.md),
-
-          // ── Bannière erreur ───────────────────────────────
-          if (_loginFailed)
-            _LoginErrorBanner(
-              onDismiss: () => setState(() => _loginFailed = false),
-            ),
-
-          if (_loginFailed) const SizedBox(height: AppSpacing.md),
-
-          // ── Bouton connexion ──────────────────────────────
-          SizedBox(
-            width: double.infinity,
-            height: 56,
-            child: ElevatedButton(
-              onPressed: _isLoading ? null : _performLogin,
-              child: _isLoading
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation(Colors.white),
-                      ),
-                    )
-                  : Text(AppLocalizations.of(context)!.login),
-            ),
+          _LoginTab(
+            label: AppLocalizations.of(context)!.login_phone_tab,
+            icon: Icons.phone_outlined,
+            selected: currentTab == LoginTab.phone,
+            onTap: () => onTabChanged(LoginTab.phone),
           ),
         ],
       ),
@@ -623,9 +703,310 @@ class _LoginState extends ConsumerState<Login> {
   }
 }
 
-// ═══════════════════════════════════════════════════════════
+class _LoginTab extends StatelessWidget {
+  const _LoginTab({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: AppMotion.fast,
+          curve: AppMotion.standard,
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.card : Colors.transparent,
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: AppColors.ink.withValues(alpha: 0.06),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    )
+                  ]
+                : null,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: selected ? AppColors.brand : AppColors.inkMuted,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: AppTypography.labelMedium(
+                  color: selected ? AppColors.brand : AppColors.inkMuted,
+                ).copyWith(
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// _PhoneLoginForm — Formulaire téléphone + OTP
+// ═══════════════════════════════════════════════════════════════
+
+class _PhoneLoginForm extends ConsumerStatefulWidget {
+  const _PhoneLoginForm({
+    required this.isLoading,
+  });
+
+  final bool isLoading;
+
+  @override
+  ConsumerState<_PhoneLoginForm> createState() => _PhoneLoginFormState();
+}
+
+class _PhoneLoginFormState extends ConsumerState<_PhoneLoginForm> {
+  final _phoneCtrl = TextEditingController();
+  final _otpCtrl = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  bool _otpSent = false;
+  int _resendCooldown = 0;
+  Timer? _cooldownTimer;
+
+  @override
+  void dispose() {
+    _phoneCtrl.dispose();
+    _otpCtrl.dispose();
+    _cooldownTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startCooldown() {
+    setState(() => _resendCooldown = 60);
+    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_resendCooldown <= 1) {
+        timer.cancel();
+        setState(() => _resendCooldown = 0);
+      } else {
+        setState(() => _resendCooldown--);
+      }
+    });
+  }
+
+  Future<void> _sendOTP() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isLoading = true);
+    try {
+      final cloudFunction = ParseCloudFunction('sendOTP');
+      final response = await cloudFunction.execute(parameters: {
+        'phone': _phoneCtrl.text.replaceAll(RegExp(r'\D'), ''),
+      });
+      if (mounted) {
+        if (response.success && response.result is Map && response.result['success'] == true) {
+          setState(() {
+            _otpSent = true;
+          });
+          _startCooldown();
+          Toast(context, AppLocalizations.of(context)!.login_otp_sent, true);
+        } else {
+          Toast(context, AppLocalizations.of(context)!.login_otp_invalid, false);
+        }
+      }
+    } catch (e) {
+      if (mounted) Toast(context, 'Erreur: $e', false);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _verifyOTP() async {
+    if (_otpCtrl.text.length != 4) {
+      Toast(context, AppLocalizations.of(context)!.login_otp_invalid, false);
+      return;
+    }
+    setState(() => _isLoading = true);
+    try {
+      final cloudFunction = ParseCloudFunction('verifyOTP');
+      final response = await cloudFunction.execute(parameters: {
+        'phone': _phoneCtrl.text.replaceAll(RegExp(r'\D'), ''),
+        'code': _otpCtrl.text,
+        'ageConfirmed': true,
+      });
+      if (mounted) {
+        if (response.success && response.result is Map && response.result['success'] == true) {
+          final result = response.result as Map<String, dynamic>;
+          final sessionToken = result['sessionToken'];
+          final userMap = result['user'] as Map<String, dynamic>;
+          final user = Users.fromMap(userMap);
+          final role = AppRole.fromId(user.roleID);
+          await SessionService.saveUserSession(
+            userId: user.userID,
+            role: role,
+            country: user.country,
+          );
+          if (mounted) {
+            Toast(context, AppLocalizations.of(context)!.loginSuccess, true);
+            if (user.mustChangePassword || user.isSimplified) {
+              Navigator.pushReplacement(
+                context,
+                CupertinoPageRoute(
+                  builder: (_) => FirstLoginPasswordChange(user: user),
+                ),
+              );
+            } else {
+              Users.chooseCurvedNavigation(user.roleID, user.country, context);
+            }
+          }
+        } else {
+          Toast(context, response.result['error'] ?? AppLocalizations.of(context)!.login_otp_invalid, false);
+        }
+      }
+    } catch (e) {
+      if (mounted) Toast(context, 'Erreur: $e', false);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  bool _isLoading = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+
+    return _otpSent ? _buildOtpForm(loc) : _buildPhoneForm(loc);
+  }
+
+  Widget _buildPhoneForm(AppLocalizations loc) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          loc.login_phone_subtitle,
+          style: AppTypography.bodyMedium(color: AppColors.inkMuted),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Form(
+          key: _formKey,
+          child: TextFormField(
+            controller: _phoneCtrl,
+            keyboardType: TextInputType.phone,
+            style: AppTypography.bodyLarge(),
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.phone_outlined),
+              hintText: loc.login_phone_hint,
+              hintStyle: AppTypography.bodyMedium(color: AppColors.inkSubtle),
+            ),
+            validator: (v) {
+              if (v == null || v.isEmpty) return loc.enter_phone;
+              final digits = v.replaceAll(RegExp(r'\D'), '');
+              if (!digits.startsWith('243') || digits.length != 12) {
+                return loc.login_otp_invalid;
+              }
+              return null;
+            },
+          ),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        SizedBox(
+          width: double.infinity,
+          height: 56,
+          child: ElevatedButton(
+            onPressed: _isLoading ? null : _sendOTP,
+            child: _isLoading
+                ? const SizedBox(
+                    width: 22, height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation(Colors.white)),
+                  )
+                : Text(loc.login_send_otp),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOtpForm(AppLocalizations loc) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          loc.login_otp_subtitle,
+          style: AppTypography.bodyMedium(color: AppColors.inkMuted),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        TextFormField(
+          controller: _otpCtrl,
+          keyboardType: TextInputType.number,
+          maxLength: 4,
+          textAlign: TextAlign.center,
+          style: AppTypography.headlineMedium().copyWith(letterSpacing: 16),
+          decoration: InputDecoration(
+            hintText: loc.login_otp_hint,
+            counterText: '',
+          ),
+          validator: (v) {
+            if (v == null || v.length != 4) return loc.login_otp_invalid;
+            return null;
+          },
+        ),
+        const SizedBox(height: AppSpacing.md),
+        if (_resendCooldown > 0)
+          Center(
+            child: Text(
+              loc.login_otp_timer(_resendCooldown.toString()),
+              style: AppTypography.labelMedium(color: AppColors.inkMuted),
+            ),
+          )
+        else
+          Center(
+            child: TextButton(
+              onPressed: () {
+                setState(() => _otpSent = false);
+                _phoneCtrl.clear();
+                _otpCtrl.clear();
+              },
+              child: Text(loc.login_otp_resend),
+            ),
+          ),
+        const SizedBox(height: AppSpacing.lg),
+        SizedBox(
+          width: double.infinity,
+          height: 56,
+          child: ElevatedButton(
+            onPressed: _isLoading ? null : _verifyOTP,
+            child: _isLoading
+                ? const SizedBox(
+                    width: 22, height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation(Colors.white)),
+                  )
+                : Text(loc.login_otp_verify),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
 // _LoginErrorBanner — Bandeau d'erreur dismissible
-// ═══════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════
+
 class _LoginErrorBanner extends StatelessWidget {
   const _LoginErrorBanner({required this.onDismiss});
   final VoidCallback onDismiss;

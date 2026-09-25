@@ -928,6 +928,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           child: _NavCardResponsive(
             icon: Icons.local_shipping_rounded,
             label: l10n.delivery_config_admin_nav,
+            count: '',
             color: AppColors.resolve(AppColors.accent, AppDarkColors.accent),
             onTap: () => Navigator.push(context,
                 MaterialPageRoute(
