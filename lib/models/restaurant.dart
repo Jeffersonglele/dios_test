@@ -436,15 +436,19 @@ class Restaurant extends HiveObject {
     }
   }
 
-  static Future<String> updateRestaurantStatus(int restaurantID, int status) async {
-    // Déterminer le nom de la fonction cloud en fonction de l'opération
-    String functionName = 'update1Restaurant';
+  static Future<String> updateRestaurantStatus(int restaurantID, int status,
+      {String? remark}) async {
+    // La validation est une opération admin distincte de la simple édition
+    // d'un restaurant. Le backend contrôle ainsi le rôle de l'appelant et ne
+    // laisse pas un client s'attribuer le rôle vendeur.
+    String functionName = 'validateRestaurantApplication';
     var cloudFunction = ParseCloudFunction(functionName);
 
     // Construire les paramètres, y compris restaurantID pour la mise à jour
     var params = <String, dynamic>{
       if (restaurantID != null) 'restaurantID': restaurantID,
-      'valid': status
+      'valid': status,
+      if (remark != null) 'remark': remark,
     };
 
     try {

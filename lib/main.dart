@@ -33,6 +33,7 @@ import 'theme/app_theme.dart';
 import 'theme/theme_provider.dart';
 import 'providers/theme_provider.dart' as legacy_providers;
 import 'core/device_info.dart';
+import 'widgets/session_guard.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -130,6 +131,7 @@ class MyApp extends ConsumerStatefulWidget {
 }
 
 class _MyAppState extends ConsumerState<MyApp> {
+  final _navigatorKey = GlobalKey<NavigatorState>();
   @override
   void initState() {
     super.initState();
@@ -155,6 +157,7 @@ class _MyAppState extends ConsumerState<MyApp> {
     final isDark = themeMode == ThemeMode.dark;
 
     return MaterialApp(
+      navigatorKey: _navigatorKey,
       title: 'Dios Délices',
       debugShowCheckedModeBanner: false,
       locale: appLocale,
@@ -191,7 +194,7 @@ class _MyAppState extends ConsumerState<MyApp> {
               textScaleFactor: factor,
               platformBrightness: isDark ? Brightness.dark : Brightness.light,
             ),
-            child: child!,
+            child: SessionGuard(navigatorKey: _navigatorKey, child: child!),
           ),
         );
       },

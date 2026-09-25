@@ -315,7 +315,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
       ),
     );
     if (remark == null || !mounted) return;
-    final result = await Restaurant.updateRestaurantStatus(r.restaurantID, 2);
+    final result = await Restaurant.updateRestaurantStatus(r.restaurantID, 2,
+        remark: remark.trim());
     if (!mounted) return;
     if (result == 'success') {
       Toast(

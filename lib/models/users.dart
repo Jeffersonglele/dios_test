@@ -626,11 +626,24 @@ class Users extends HiveObject {
     try {
       final cloudFunction = ParseCloudFunction('loginUser');
       final passwordHash = await encryptPassword(password);
-      final response = await cloudFunction.execute(parameters: {
+      var response = await cloudFunction.execute(parameters: {
         'login': login.trim(),
         'password': password,
         'passwordHash': passwordHash,
       });
+
+      // Le SDK peut encore envoyer un ancien token local avec l'appel Cloud
+      // Function. Parse rejette alors la requête avec le code 209 avant même
+      // d'exécuter loginUser. On efface ce token local puis on rejoue une
+      // seule fois la demande, sans toucher aux autres appareils.
+      if (!response.success && response.error?.code == 209) {
+        await SessionService.clearLocalParseSession();
+        response = await cloudFunction.execute(parameters: {
+          'login': login.trim(),
+          'password': password,
+          'passwordHash': passwordHash,
+        });
+      }
 
       if (!response.success) {
         lastLoginError = response.error?.message;

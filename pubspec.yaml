@@ -104,6 +104,8 @@ flutter:
     - assets/images/onboarding/slide1.png
     - assets/images/onboarding/slide2.png
     - assets/images/onboarding/slide3.png
+    - assets/images/onboarding/slide4.png
+    - assets/images/onboarding/slide5.png
     - assets/images/onboarding/slideX_accent.png
     - assets/images/logo_app.png
     - assets/images/meals/pancakes.png

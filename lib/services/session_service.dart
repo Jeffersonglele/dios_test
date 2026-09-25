@@ -42,6 +42,38 @@ class UserSession {
   }
 }
 
+class ServerAccountState {
+  const ServerAccountState({
+    required this.userId,
+    required this.roleId,
+    required this.country,
+    required this.restaurantId,
+    required this.restaurantValid,
+    required this.restaurantRemark,
+  });
+
+  final int userId;
+  final int roleId;
+  final String country;
+  final int restaurantId;
+  final int restaurantValid;
+  final String restaurantRemark;
+
+  factory ServerAccountState.fromMap(Map<String, dynamic> map) {
+    int number(Object? value, [int fallback = 0]) =>
+        int.tryParse(value?.toString() ?? '') ?? fallback;
+
+    return ServerAccountState(
+      userId: number(map['userID']),
+      roleId: number(map['roleID']),
+      country: map['country']?.toString() ?? '',
+      restaurantId: number(map['restaurantID']),
+      restaurantValid: number(map['restaurantValid'], -1),
+      restaurantRemark: map['restaurantRemark']?.toString() ?? '',
+    );
+  }
+}
+
 class SessionService {
   const SessionService._();
 
@@ -141,6 +173,39 @@ class SessionService {
       return parseUser.sessionToken?.isNotEmpty == true;
     } catch (_) {
       return false;
+    }
+  }
+
+  /// Lit le rôle et l'état de la demande vendeur directement sur Parse.
+  /// Cette vérification permet à chaque appareil de réagir à une validation
+  /// faite par l'administrateur sans révoquer les sessions des autres appareils.
+  static Future<ServerAccountState?> fetchServerAccountState() async {
+    if (!await hasParseSession()) return null;
+    try {
+      final response = await ParseCloudFunction('getMyAccountState').execute();
+      if (!response.success || response.result is! Map) return null;
+      return ServerAccountState.fromMap(
+          Map<String, dynamic>.from(response.result as Map));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Supprime uniquement la session Parse locale périmée.
+  ///
+  /// Cette méthode ne fait pas de logout réseau : elle ne touche donc pas
+  /// aux sessions ouvertes sur les autres appareils du même compte.
+  static Future<void> clearLocalParseSession() async {
+    try {
+      final parseUser = await ParseUser.currentUser();
+      if (parseUser != null) {
+        parseUser.forgetLocalSession();
+        await parseUser.deleteLocalUserData();
+      }
+    } catch (_) {
+      // Le nettoyage des préférences métier doit tout de même être effectué.
+    } finally {
+      await markLoggedOut();
     }
   }
 

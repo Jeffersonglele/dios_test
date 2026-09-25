@@ -30,8 +30,7 @@ import '../../widgets/animations.dart';
 import '../../widgets/auth_shell.dart';
 
 // ═══════════════════════════════════════════════════════════
-// WelcomeScreen — Écran post-inscription (inchangé logique)
-// Refonte visuelle : fond brand, check animé, texte blanc
+// WelcomeScreen
 // ═══════════════════════════════════════════════════════════
 
 class WelcomeScreen extends StatefulWidget {
@@ -115,6 +114,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
   @override
   Widget build(BuildContext context) {
+    final brandColor = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+
     return Scaffold(
       backgroundColor:
           AppColors.resolve(AppColors.surfaceWarm, AppDarkColors.surfaceWarm),
@@ -129,24 +130,53 @@ class _WelcomeScreenState extends State<WelcomeScreen>
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Cercle check animé sur fond brand doux
-                  Container(
-                    width: 88,
-                    height: 88,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: AppColors.resolve(
-                          AppColors.brandSurface, AppDarkColors.brandSurface),
-                      border: Border.all(
-                        color: AppColors.brand.withValues(alpha: 0.2),
-                        width: 2,
+                  // ── Cercle check avec halo brand ──────────
+                  Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Halo extérieur doux
+                      Container(
+                        width: 112,
+                        height: 112,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: brandColor.withValues(alpha: 0.08),
+                        ),
                       ),
-                    ),
-                    child: const AnimatedSuccessCheck(),
+                      // Cercle principal
+                      Container(
+                        width: 88,
+                        height: 88,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            colors: [
+                              brandColor.withValues(alpha: 0.18),
+                              brandColor.withValues(alpha: 0.08),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          border: Border.all(
+                            color: brandColor.withValues(alpha: 0.25),
+                            width: 2,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: brandColor.withValues(alpha: 0.18),
+                              blurRadius: 24,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: const AnimatedSuccessCheck(),
+                      ),
+                    ],
                   ),
 
                   const SizedBox(height: AppSpacing.xl),
 
+                  // ── Texte animé ───────────────────────────
                   FadeTransition(
                     opacity: _textOpacity,
                     child: SlideTransition(
@@ -154,17 +184,22 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                       child: Column(
                         children: [
                           Text(
-                            _isAdmin ? AppLocalizations.of(context)!.admin_welcome_title : AppLocalizations.of(context)!.welcome,
+                            _isAdmin
+                                ? AppLocalizations.of(context)!
+                                    .admin_welcome_title
+                                : AppLocalizations.of(context)!.welcome,
                             style: AppTypography.headlineLarge(),
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: AppSpacing.sm),
                           Text(
                             _isAdmin
-                                ? AppLocalizations.of(context)!.admin_welcome_body
+                                ? AppLocalizations.of(context)!
+                                    .admin_welcome_body
                                 : AppLocalizations.of(context)!.welcomeSubtitle,
                             style: AppTypography.bodyLarge(
-                              color: AppColors.inkMuted,
+                              color: AppColors.resolve(
+                                  AppColors.inkMuted, AppDarkColors.inkMuted),
                             ),
                             textAlign: TextAlign.center,
                           ),
@@ -175,16 +210,13 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
                   const SizedBox(height: AppSpacing.xl),
 
+                  // ── Bouton animé ──────────────────────────
                   if (_showButton)
                     FadeTransition(
                       opacity: _btnFade,
-                      child: SizedBox(
-                        width: double.infinity,
-                        height: 56,
-                        child: ElevatedButton(
-                          onPressed: _continue,
-                          child: Text(AppLocalizations.of(context)!.discover),
-                        ),
+                      child: _GradientButton(
+                        label: AppLocalizations.of(context)!.discover,
+                        onPressed: _continue,
                       ),
                     ),
                 ],
@@ -198,7 +230,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 }
 
 // ═══════════════════════════════════════════════════════════
-// Login — Refonte complète
+// Login
 // ═══════════════════════════════════════════════════════════
 
 class Login extends ConsumerStatefulWidget {
@@ -257,6 +289,7 @@ class _LoginState extends ConsumerState<Login> {
     });
 
     try {
+      await SessionService.clearLocalParseSession();
       final user = await _findUser();
       if (user == null) {
         _onLoginFailed(Users.lastLoginError);
@@ -284,7 +317,6 @@ class _LoginState extends ConsumerState<Login> {
             ),
           );
         }
-
         return;
       }
 
@@ -296,16 +328,14 @@ class _LoginState extends ConsumerState<Login> {
         _redirectToVerification(user);
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         Toast(context, AppLocalizations.of(context)!.connectError, false);
+      }
       _onLoginFailed();
     }
   }
 
   Future<Users?> _findUser() async {
-    // Le serveur Parse est la source d'autorité, comme l'API Node/JWT.
-    // Le cache local ne sert qu'à conserver les données d'affichage après une
-    // connexion serveur réussie.
     Users? user = await Users.loginUser(_nameCtrl.text, _passwordCtrl.text);
     if (user != null) {
       await DatabaseHelper.createUser(user);
@@ -318,9 +348,6 @@ class _LoginState extends ConsumerState<Login> {
       return user;
     }
 
-    // Compatibilité hors-ligne conservée pour les écrans historiques, mais
-    // _performLogin vérifiera qu'une vraie session Parse existe avant de
-    // laisser entrer dans l'application.
     await Users.getAllUsersDetails();
     final fresh = await Users.fetchUsersFromDB();
     if (mounted) setState(() => _users = fresh);
@@ -368,7 +395,6 @@ class _LoginState extends ConsumerState<Login> {
   void _handleRestaurantValidation(Users user) async {
     var restau = await Restaurant.getRestaurantByUser(_restaus, user.userID);
 
-    // Si pas trouvé en cache local, tenter une synchro Parse
     if (restau == null) {
       await Restaurant.getAllRestaurantsDetails();
       final refreshed = await Restaurant.fetchRestaurantsFromDB();
@@ -493,13 +519,16 @@ class _LoginState extends ConsumerState<Login> {
       child: RichText(
         text: TextSpan(
           text: AppLocalizations.of(context)!.dont_have_account,
-          style: AppTypography.bodyLarge(color: AppColors.inkMuted),
+          style: AppTypography.bodyLarge(
+            color:
+                AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted),
+          ),
           children: [
             TextSpan(
               text: '  ${AppLocalizations.of(context)!.signup}',
-              style: AppTypography.bodyLarge(color: AppColors.brand).copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+              style: AppTypography.bodyLarge(
+                color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+              ).copyWith(fontWeight: FontWeight.w700),
             ),
           ],
         ),
@@ -513,64 +542,92 @@ class _LoginState extends ConsumerState<Login> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Identifiant ───────────────────────────────────
-          Builder(
-            builder: (context) {
-              final colorScheme = Theme.of(context).colorScheme;
-              return TextFormField(
-                controller: _nameCtrl,
-                style: AppTypography.bodyLarge(color: colorScheme.onSurface),
-                textInputAction: TextInputAction.next,
-                decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.person_outline_rounded),
-                  hintText: AppLocalizations.of(context)!.username_or_email,
+          // ── Carte champs de connexion ─────────────────────
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              color: AppColors.resolve(AppColors.card, AppDarkColors.card),
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              border: Border.all(
+                color: AppColors.resolve(AppColors.border, AppDarkColors.border)
+                    .withValues(alpha: 0.6),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.resolve(AppColors.ink, AppDarkColors.ink)
+                      .withValues(alpha: 0.04),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
                 ),
-                validator: (v) {
-                  if (v == null || v.isEmpty)
-                    return AppLocalizations.of(context)!.enter_username;
-                  if (v.length < 4)
-                    return AppLocalizations.of(context)!.min_4_chars;
-                  if (v.length > 80) return AppLocalizations.of(context)!.too_long_max_80;
-                  return null;
-                },
-              );
-            },
-          ),
-
-          const SizedBox(height: AppSpacing.md),
-
-          // ── Mot de passe ──────────────────────────────────
-          Builder(
-            builder: (context) {
-              final colorScheme = Theme.of(context).colorScheme;
-              return TextFormField(
-                controller: _passwordCtrl,
-                style: AppTypography.bodyLarge(color: colorScheme.onSurface),
-                obscureText: _obscurePassword,
-                textInputAction: TextInputAction.done,
-                onFieldSubmitted: (_) => _performLogin(),
-                decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.lock_outline_rounded),
-                  hintText: AppLocalizations.of(context)!.password,
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscurePassword
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
-                    ),
-                    onPressed: () =>
-                        setState(() => _obscurePassword = !_obscurePassword),
-                  ),
+              ],
+            ),
+            child: Column(
+              children: [
+                // ── Identifiant ───────────────────────────
+                Builder(
+                  builder: (context) {
+                    final colorScheme = Theme.of(context).colorScheme;
+                    return TextFormField(
+                      controller: _nameCtrl,
+                      style:
+                          AppTypography.bodyLarge(color: colorScheme.onSurface),
+                      textInputAction: TextInputAction.next,
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.person_outline_rounded),
+                        hintText:
+                            AppLocalizations.of(context)!.username_or_email,
+                      ),
+                      validator: (v) {
+                        if (v == null || v.isEmpty)
+                          return AppLocalizations.of(context)!.enter_username;
+                        if (v.length < 4)
+                          return AppLocalizations.of(context)!.min_4_chars;
+                        if (v.length > 80)
+                          return AppLocalizations.of(context)!.too_long_max_80;
+                        return null;
+                      },
+                    );
+                  },
                 ),
-                validator: (v) {
-                  if (v == null || v.isEmpty)
-                    return AppLocalizations.of(context)!.enter_password;
-                  if (v.length < 6)
-                    return AppLocalizations.of(context)!.min_6_chars;
-                  return null;
-                },
-              );
-            },
+
+                const SizedBox(height: AppSpacing.sm),
+
+                // ── Mot de passe ──────────────────────────
+                Builder(
+                  builder: (context) {
+                    final colorScheme = Theme.of(context).colorScheme;
+                    return TextFormField(
+                      controller: _passwordCtrl,
+                      style:
+                          AppTypography.bodyLarge(color: colorScheme.onSurface),
+                      obscureText: _obscurePassword,
+                      textInputAction: TextInputAction.done,
+                      onFieldSubmitted: (_) => _performLogin(),
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.lock_outline_rounded),
+                        hintText: AppLocalizations.of(context)!.password,
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                          ),
+                          onPressed: () => setState(
+                              () => _obscurePassword = !_obscurePassword),
+                        ),
+                      ),
+                      validator: (v) {
+                        if (v == null || v.isEmpty)
+                          return AppLocalizations.of(context)!.enter_password;
+                        if (v.length < 6)
+                          return AppLocalizations.of(context)!.min_6_chars;
+                        return null;
+                      },
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
 
           // ── Mot de passe oublié ───────────────────────────
@@ -596,38 +653,37 @@ class _LoginState extends ConsumerState<Login> {
               ),
               child: Text(
                 AppLocalizations.of(context)!.forgotten_password,
-                style: AppTypography.labelMedium(color: AppColors.brand),
+                style: AppTypography.labelMedium(
+                  color:
+                      AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+                ),
               ),
             ),
           ),
 
-          const SizedBox(height: AppSpacing.md),
-
-          // ── Bannière erreur ───────────────────────────────
-          if (_loginFailed)
-            _LoginErrorBanner(
-              onDismiss: () => setState(() => _loginFailed = false),
-            ),
-
-          if (_loginFailed) const SizedBox(height: AppSpacing.md),
-
-          // ── Bouton connexion ──────────────────────────────
-          SizedBox(
-            width: double.infinity,
-            height: 56,
-            child: ElevatedButton(
-              onPressed: _isLoading ? null : _performLogin,
-              child: _isLoading
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation(Colors.white),
+          // ── Bannière erreur animée ────────────────────────
+          AnimatedSize(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeInOut,
+            child: _loginFailed
+                ? Column(
+                    children: [
+                      _LoginErrorBanner(
+                        onDismiss: () => setState(() => _loginFailed = false),
                       ),
-                    )
-                  : Text(AppLocalizations.of(context)!.login),
-            ),
+                      const SizedBox(height: AppSpacing.md),
+                    ],
+                  )
+                : const SizedBox.shrink(),
+          ),
+
+          const SizedBox(height: AppSpacing.sm),
+
+          // ── Bouton connexion avec gradient ────────────────
+          _GradientButton(
+            label: AppLocalizations.of(context)!.login,
+            isLoading: _isLoading,
+            onPressed: _isLoading ? null : _performLogin,
           ),
         ],
       ),
@@ -636,7 +692,101 @@ class _LoginState extends ConsumerState<Login> {
 }
 
 // ═══════════════════════════════════════════════════════════
-// _LoginErrorBanner — Bandeau d'erreur dismissible
+// _GradientButton — Bouton réutilisable avec gradient + ombre
+// ═══════════════════════════════════════════════════════════
+class _GradientButton extends StatelessWidget {
+  const _GradientButton({
+    required this.label,
+    required this.onPressed,
+    this.isLoading = false,
+  });
+
+  final String label;
+  final VoidCallback? onPressed;
+  final bool isLoading;
+
+  @override
+  Widget build(BuildContext context) {
+    final brandColor = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+
+    return SizedBox(
+      width: double.infinity,
+      height: 56,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: isLoading || onPressed == null
+              ? null
+              : LinearGradient(
+                  colors: [
+                    brandColor,
+                    brandColor.withValues(alpha: 0.80),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          boxShadow: isLoading || onPressed == null
+              ? null
+              : [
+                  BoxShadow(
+                    color: brandColor.withValues(alpha: 0.35),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+        ),
+        child: ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.transparent,
+            shadowColor: Colors.transparent,
+            disabledBackgroundColor: Colors.transparent,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+          ),
+          onPressed: onPressed,
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: isLoading
+                ? const SizedBox(
+                    key: ValueKey('loading'),
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2.5,
+                    ),
+                  )
+                : Row(
+                    key: const ValueKey('label'),
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        label,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(
+                        Icons.arrow_forward_rounded,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// _LoginErrorBanner — Bandeau d'erreur dismissible amélioré
 // ═══════════════════════════════════════════════════════════
 class _LoginErrorBanner extends StatelessWidget {
   const _LoginErrorBanner({required this.onDismiss});
@@ -650,18 +800,36 @@ class _LoginErrorBanner extends StatelessWidget {
         vertical: AppSpacing.sm,
       ),
       decoration: BoxDecoration(
-        color: AppColors.errorLight,
+        color: AppColors.resolve(
+          AppColors.errorLight,
+          AppColors.errorLight,
+        ),
         borderRadius: BorderRadius.circular(AppRadius.md),
         border: Border.all(
           color: AppColors.error.withValues(alpha: 0.25),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.error.withValues(alpha: 0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Row(
         children: [
-          const Icon(
-            Icons.error_outline_rounded,
-            color: AppColors.error,
-            size: 18,
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: AppColors.error.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+            ),
+            child: const Icon(
+              Icons.error_outline_rounded,
+              color: AppColors.error,
+              size: 18,
+            ),
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
@@ -672,10 +840,18 @@ class _LoginErrorBanner extends StatelessWidget {
           ),
           GestureDetector(
             onTap: onDismiss,
-            child: const Icon(
-              Icons.close_rounded,
-              color: AppColors.error,
-              size: 16,
+            child: Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: AppColors.error.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+              ),
+              child: const Icon(
+                Icons.close_rounded,
+                color: AppColors.error,
+                size: 15,
+              ),
             ),
           ),
         ],

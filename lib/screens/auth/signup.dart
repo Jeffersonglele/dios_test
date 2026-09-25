@@ -98,15 +98,14 @@ class _SignUpViewState extends State<SignUpView> {
           await placemarkFromCoordinates(pos.latitude, pos.longitude);
       if (placemarks.isNotEmpty) {
         final country = (placemarks.first.country ?? '').toLowerCase();
-        final detectedCountry =
-            CountryUtil.allowBeninTestMode &&
-                    (country.contains('benin') || country.contains('bénin'))
-                ? 'Bénin'
-                : country.contains('république démocratique') ||
-                            country.contains('democratic republic') ||
-                            country.contains('kinshasa')
-                        ? 'RDC'
-                        : null;
+        final detectedCountry = CountryUtil.allowBeninTestMode &&
+                (country.contains('benin') || country.contains('bénin'))
+            ? 'Bénin'
+            : country.contains('république démocratique') ||
+                    country.contains('democratic republic') ||
+                    country.contains('kinshasa')
+                ? 'RDC'
+                : null;
         if (detectedCountry != null && mounted) {
           setState(() {
             _selectedCountry = detectedCountry;
@@ -123,19 +122,102 @@ class _SignUpViewState extends State<SignUpView> {
     if (_isDetectingCountry) return;
     final selected = await showModalBottomSheet<String>(
       context: context,
-      builder: (context) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          children: _countryCodes.keys
-              .where(CountryUtil.selectableCountries.contains)
-              .map((country) => ListTile(
-                    leading: Text(_countryFlags[country] ?? ''),
-                    title: Text(country),
-                    trailing: Text(_countryCodes[country] ?? ''),
-                    selected: country == _selectedCountry,
-                    onTap: () => Navigator.pop(context, country),
-                  ))
-              .toList(),
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: AppColors.resolve(AppColors.card, AppDarkColors.card),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Handle bar
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(top: 12, bottom: 16),
+                decoration: BoxDecoration(
+                  color:
+                      AppColors.resolve(AppColors.border, AppDarkColors.border)
+                          .withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(left: 20, bottom: 12),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Choisir un pays',
+                    style: AppTypography.labelLarge(
+                      color:
+                          AppColors.resolve(AppColors.ink, AppDarkColors.ink),
+                    ).copyWith(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+              ..._countryCodes.keys
+                  .where(CountryUtil.selectableCountries.contains)
+                  .map((country) => ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 4),
+                        leading: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: country == _selectedCountry
+                                ? AppColors.resolve(AppColors.brandSurface,
+                                    AppDarkColors.brandSurface)
+                                : AppColors.resolve(AppColors.surfaceWarm,
+                                    AppDarkColors.surfaceWarm),
+                            borderRadius: BorderRadius.circular(AppRadius.sm),
+                          ),
+                          child: Center(
+                            child: Text(
+                              _countryFlags[country] ?? '',
+                              style: const TextStyle(fontSize: 20),
+                            ),
+                          ),
+                        ),
+                        title: Text(
+                          country,
+                          style: AppTypography.bodyLarge(
+                            color: AppColors.resolve(
+                                AppColors.ink, AppDarkColors.ink),
+                          ).copyWith(
+                            fontWeight: country == _selectedCountry
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                          ),
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _countryCodes[country] ?? '',
+                              style: AppTypography.bodyMedium(
+                                color: AppColors.resolve(
+                                    AppColors.inkMuted, AppDarkColors.inkMuted),
+                              ),
+                            ),
+                            if (country == _selectedCountry) ...[
+                              const SizedBox(width: 8),
+                              Icon(
+                                Icons.check_circle_rounded,
+                                color: AppColors.resolve(
+                                    AppColors.brand, AppDarkColors.brand),
+                                size: 18,
+                              ),
+                            ],
+                          ],
+                        ),
+                        onTap: () => Navigator.pop(context, country),
+                      ))
+                  .toList(),
+              const SizedBox(height: 8),
+            ],
+          ),
         ),
       ),
     );
@@ -217,299 +299,284 @@ class _SignUpViewState extends State<SignUpView> {
             ),
           ],
 
-          const SizedBox(height: AppSpacing.xl),
-
-          // ── 2. Identité ───────────────────────────────────
-          _SectionLabel(
-            icon: Icons.person_outline_rounded,
-            label: AppLocalizations.of(context)!.identity_section_label,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Row(
-            children: [
-              Expanded(
-                child: _FormField(
-                  controller: _firstnameCtrl,
-                  hint: AppLocalizations.of(context)!.firstname,
-                  validator: _minLengthValidator(
-                      4, AppLocalizations.of(context)!.enter_firstname),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: _FormField(
-                  controller: _lastnameCtrl,
-                  hint: AppLocalizations.of(context)!.lastname,
-                  validator: _minLengthValidator(
-                      4, AppLocalizations.of(context)!.enter_lastname),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          _FormField(
-            controller: _usernameCtrl,
-            hint: AppLocalizations.of(context)!.username,
-            prefixIcon: Icons.alternate_email_rounded,
-            validator: _minLengthValidator(
-                4, AppLocalizations.of(context)!.enter_username),
-          ),
-
-          const SizedBox(height: AppSpacing.xl),
-
-          // ── 3. Contact ────────────────────────────────────
-          _SectionLabel(
-            icon: Icons.contact_mail_outlined,
-            label: AppLocalizations.of(context)!.contact_section_label,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          _FormField(
-            controller: _emailCtrl,
-            hint: AppLocalizations.of(context)!.email,
-            prefixIcon: Icons.email_outlined,
-            keyboardType: TextInputType.emailAddress,
-            validator: (v) => !EmailValidator.validate(v ?? '')
-                ? AppLocalizations.of(context)!.enter_valid_email
-                : null,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-
-          // Pays (détecté automatiquement)
-          InkWell(
-            onTap: _chooseCountry,
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-              decoration: BoxDecoration(
-                border: Border.all(
-                    color: AppColors.resolve(
-                        AppColors.border, AppDarkColors.border)),
-                borderRadius: BorderRadius.circular(AppRadius.md),
-              ),
-              child: Row(children: [
-                Icon(Icons.location_on_rounded,
-                    color: AppColors.resolve(
-                        AppColors.brand, AppDarkColors.brand),
-                    size: 20),
-                const SizedBox(width: 10),
-                if (_isDetectingCountry)
-                  const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2))
-                else ...[
-                  Expanded(
-                    child: Text(
-                        '${_countryFlags[_selectedCountry] ?? ''} $_selectedCountry  ${_countryCodes[_selectedCountry] ?? ''}',
-                        style: AppTypography.bodyLarge(
-                            color: AppColors.resolve(
-                                AppColors.ink, AppDarkColors.ink))),
-                  ),
-                  Icon(Icons.keyboard_arrow_down_rounded,
-                      color: AppColors.resolve(
-                          AppColors.inkMuted, AppDarkColors.inkMuted),
-                      size: 20),
-                ],
-              ]),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-
-          // Téléphone
-          Builder(
-            builder: (context) {
-              final colorScheme = Theme.of(context).colorScheme;
-              return TextFormField(
-                controller: _telephoneCtrl,
-                keyboardType: TextInputType.number,
-                style: AppTypography.bodyLarge(color: colorScheme.onSurface),
-                inputFormatters: [
-                  CountryPhoneInputFormatter(_selectedCountry),
-                ],
-                decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.phone_outlined),
-                  hintText: phoneExampleForCountry(_selectedCountry),
-                ),
-                validator: (v) {
-                  if (v == null || v.isEmpty)
-                    return AppLocalizations.of(context)!.enter_phone;
-                  if (!isValidLocalPhoneForCountry(
-                    phone: v,
-                    country: _selectedCountry,
-                  )) {
-                    return 'Format : ${phoneExampleForCountry(_selectedCountry)}';
-                  }
-                  return null;
-                },
-              );
-            },
-          ),
-
-          const SizedBox(height: AppSpacing.xl),
-
-          // ── 4. Sécurité ───────────────────────────────────
-          _SectionLabel(
-            icon: Icons.lock_outline_rounded,
-            label: AppLocalizations.of(context)!.security_section_label,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          ListenableBuilder(
-            listenable: _simpleUIController,
-            builder: (context, __) {
-              final colorScheme = Theme.of(context).colorScheme;
-              return TextFormField(
-                controller: _passwordCtrl,
-                style: AppTypography.bodyLarge(color: colorScheme.onSurface),
-                obscureText: _simpleUIController.isObscure,
-                decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.lock_outline_rounded),
-                  hintText: AppLocalizations.of(context)!.password,
-                  suffixIcon: IconButton(
-                    icon: Icon(_simpleUIController.isObscure
-                        ? Icons.visibility_off_outlined
-                        : Icons.visibility_outlined),
-                    onPressed: _simpleUIController.isObscureActive,
-                  ),
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: 10),
-
-          // Indicateurs de force du mot de passe
-          _PasswordStrengthIndicator(controller: _passwordCtrl),
-
-          const SizedBox(height: AppSpacing.sm),
-          ListenableBuilder(
-            listenable: _simpleUIController,
-            builder: (context, __) {
-              final colorScheme = Theme.of(context).colorScheme;
-              return TextFormField(
-                controller: _passwordConfCtrl,
-                style: AppTypography.bodyLarge(color: colorScheme.onSurface),
-                obscureText: _simpleUIController.isObscure,
-                decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.lock_outline_rounded),
-                  hintText: AppLocalizations.of(context)!.confirm_password,
-                  suffixIcon: IconButton(
-                    icon: Icon(_simpleUIController.isObscure
-                        ? Icons.visibility_off_outlined
-                        : Icons.visibility_outlined),
-                    onPressed: _simpleUIController.isObscureActive,
-                  ),
-                ),
-                validator: (v) {
-                  if (v == null || v.isEmpty)
-                    return AppLocalizations.of(context)!
-                        .confirm_password_required;
-                  if (v != _passwordCtrl.text)
-                    return AppLocalizations.of(context)!.passwords_do_not_match;
-                  return null;
-                },
-              );
-            },
-          ),
-
           const SizedBox(height: AppSpacing.lg),
 
-          // ── 5. CGU ────────────────────────────────────────
-          _TermsCheckbox(
-            accepted: _termsAccepted,
-            onChanged: (v) => setState(() => _termsAccepted = v),
+          // ── 2. Identité ───────────────────────────────────
+          _SectionCard(
+            icon: Icons.person_outline_rounded,
+            label: AppLocalizations.of(context)!.identity_section_label,
+            step: 1,
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: _FormField(
+                        controller: _firstnameCtrl,
+                        hint: AppLocalizations.of(context)!.firstname,
+                        validator: _minLengthValidator(
+                            4, AppLocalizations.of(context)!.enter_firstname),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: _FormField(
+                        controller: _lastnameCtrl,
+                        hint: AppLocalizations.of(context)!.lastname,
+                        validator: _minLengthValidator(
+                            4, AppLocalizations.of(context)!.enter_lastname),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                _FormField(
+                  controller: _usernameCtrl,
+                  hint: AppLocalizations.of(context)!.username,
+                  prefixIcon: Icons.alternate_email_rounded,
+                  validator: _minLengthValidator(
+                      4, AppLocalizations.of(context)!.enter_username),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: AppSpacing.md),
-          _AgeCheckbox(
-            accepted: _ageConfirmed,
-            onChanged: (v) => setState(() => _ageConfirmed = v),
-          ),
-          const SizedBox(height: AppSpacing.xl),
 
-          // ── 6. Bouton inscription ─────────────────────────
-          SizedBox(
-            width: double.infinity,
-            height: 56,
-            child: ElevatedButton(
-              onPressed: () async {
-                if (!_formKey.currentState!.validate()) return;
-                if (!_termsAccepted) {
-                  Toast(
-                      context,
-                      AppLocalizations.of(context)!.accept_terms_warning,
-                      false);
-                  return;
-                }
-                if (!_ageConfirmed) {
-                  Toast(context,
-                      AppLocalizations.of(context)!.age_confirm_warning, false);
-                  return;
-                }
-                final encrypted =
-                    await Users.encryptPassword(_passwordCtrl.text);
-                final result = await Users.manageUser(
-                  roleID: _signupRole,
-                  password: _passwordCtrl.text,
-                  password_crypte: encrypted,
-                  firstname: _firstnameCtrl.text,
-                  lastname: _lastnameCtrl.text,
-                  username: _usernameCtrl.text,
-                  email: _emailCtrl.text,
-                  telephone: phoneStorageFormatForCountry(
-                    phone: _telephoneCtrl.text,
-                    country: _selectedCountry,
+          const SizedBox(height: AppSpacing.md),
+
+          // ── 3. Contact ────────────────────────────────────
+          _SectionCard(
+            icon: Icons.contact_mail_outlined,
+            label: AppLocalizations.of(context)!.contact_section_label,
+            step: 2,
+            child: Column(
+              children: [
+                _FormField(
+                  controller: _emailCtrl,
+                  hint: AppLocalizations.of(context)!.email,
+                  prefixIcon: Icons.email_outlined,
+                  keyboardType: TextInputType.emailAddress,
+                  validator: (v) => !EmailValidator.validate(v ?? '')
+                      ? AppLocalizations.of(context)!.enter_valid_email
+                      : null,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+
+                // Pays (détecté automatiquement)
+                InkWell(
+                  onTap: _chooseCountry,
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 14),
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                          color: AppColors.resolve(
+                              AppColors.border, AppDarkColors.border)),
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
+                    child: Row(children: [
+                      Icon(Icons.location_on_rounded,
+                          color: AppColors.resolve(
+                              AppColors.brand, AppDarkColors.brand),
+                          size: 20),
+                      const SizedBox(width: 10),
+                      if (_isDetectingCountry)
+                        Row(
+                          children: [
+                            const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2)),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Détection en cours…',
+                              style: AppTypography.bodyMedium(
+                                color: AppColors.resolve(
+                                    AppColors.inkMuted, AppDarkColors.inkMuted),
+                              ),
+                            ),
+                          ],
+                        )
+                      else ...[
+                        Expanded(
+                          child: Text(
+                              '${_countryFlags[_selectedCountry] ?? ''} $_selectedCountry  ${_countryCodes[_selectedCountry] ?? ''}',
+                              style: AppTypography.bodyLarge(
+                                  color: AppColors.resolve(
+                                      AppColors.ink, AppDarkColors.ink))),
+                        ),
+                        Icon(Icons.keyboard_arrow_down_rounded,
+                            color: AppColors.resolve(
+                                AppColors.inkMuted, AppDarkColors.inkMuted),
+                            size: 20),
+                      ],
+                    ]),
                   ),
-                  country: _selectedCountry,
-                  status: '',
-                  identity: '',
-                  addressID: 0,
-                  ageConfirmed: true,
-                );
-                if (result is int) {
-                  // add1User crée le compte métier ; on ouvre aussi la
-                  // session Parse native pour que le parcours de vérification
-                  // et les Cloud Functions soient déjà authentifiés.
-                  final authenticatedUser = await Users.loginUser(
-                      _usernameCtrl.text, _passwordCtrl.text);
-                  if (authenticatedUser == null) {
-                    if (mounted) {
-                      Toast(context, 'Connexion du compte impossible.', false);
-                    }
-                    return;
-                  }
-                  await SessionService.saveUserSession(
-                    userId: result,
-                    role: AppRole.fromId(_signupRole),
-                    country: _selectedCountry,
-                    email: _emailCtrl.text,
-                  );
-                  if (mounted) {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => VerificationPage(
-                          email: _emailCtrl.text,
-                          username: _usernameCtrl.text,
-                          userID: result,
-                          roleID: _signupRole,
-                          telephone: phoneStorageFormatForCountry(
-                            phone: _telephoneCtrl.text,
-                            country: _selectedCountry,
-                          ),
-                          password_crypte: encrypted,
-                          password: _passwordCtrl.text,
-                          firstname: _firstnameCtrl.text,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+
+                // Téléphone
+                Builder(
+                  builder: (context) {
+                    final colorScheme = Theme.of(context).colorScheme;
+                    return TextFormField(
+                      controller: _telephoneCtrl,
+                      keyboardType: TextInputType.number,
+                      style:
+                          AppTypography.bodyLarge(color: colorScheme.onSurface),
+                      inputFormatters: [
+                        CountryPhoneInputFormatter(_selectedCountry),
+                      ],
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.phone_outlined),
+                        hintText: phoneExampleForCountry(_selectedCountry),
+                      ),
+                      validator: (v) {
+                        if (v == null || v.isEmpty)
+                          return AppLocalizations.of(context)!.enter_phone;
+                        if (!isValidLocalPhoneForCountry(
+                          phone: v,
                           country: _selectedCountry,
-                          indicatif: _countryCodes[_selectedCountry] ?? '+229',
-                          lastname: _lastnameCtrl.text,
+                        )) {
+                          return 'Format : ${phoneExampleForCountry(_selectedCountry)}';
+                        }
+                        return null;
+                      },
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: AppSpacing.md),
+
+          // ── 4. Sécurité ───────────────────────────────────
+          _SectionCard(
+            icon: Icons.lock_outline_rounded,
+            label: AppLocalizations.of(context)!.security_section_label,
+            step: 3,
+            child: Column(
+              children: [
+                ListenableBuilder(
+                  listenable: _simpleUIController,
+                  builder: (context, __) {
+                    final colorScheme = Theme.of(context).colorScheme;
+                    return TextFormField(
+                      controller: _passwordCtrl,
+                      style:
+                          AppTypography.bodyLarge(color: colorScheme.onSurface),
+                      obscureText: _simpleUIController.isObscure,
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.lock_outline_rounded),
+                        hintText: AppLocalizations.of(context)!.password,
+                        suffixIcon: IconButton(
+                          icon: Icon(_simpleUIController.isObscure
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined),
+                          onPressed: _simpleUIController.isObscureActive,
                         ),
                       ),
                     );
-                  }
-                } else {
-                  Toast(context, "Erreur : $result", false);
-                }
-              },
-              child: Text(AppLocalizations.of(context)!.signup),
+                  },
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                _PasswordStrengthIndicator(controller: _passwordCtrl),
+                const SizedBox(height: AppSpacing.sm),
+                ListenableBuilder(
+                  listenable: _simpleUIController,
+                  builder: (context, __) {
+                    final colorScheme = Theme.of(context).colorScheme;
+                    return TextFormField(
+                      controller: _passwordConfCtrl,
+                      style:
+                          AppTypography.bodyLarge(color: colorScheme.onSurface),
+                      obscureText: _simpleUIController.isObscure,
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.lock_outline_rounded),
+                        hintText:
+                            AppLocalizations.of(context)!.confirm_password,
+                        suffixIcon: IconButton(
+                          icon: Icon(_simpleUIController.isObscure
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined),
+                          onPressed: _simpleUIController.isObscureActive,
+                        ),
+                      ),
+                      validator: (v) {
+                        if (v == null || v.isEmpty)
+                          return AppLocalizations.of(context)!
+                              .confirm_password_required;
+                        if (v != _passwordCtrl.text)
+                          return AppLocalizations.of(context)!
+                              .passwords_do_not_match;
+                        return null;
+                      },
+                    );
+                  },
+                ),
+              ],
             ),
+          ),
+
+          const SizedBox(height: AppSpacing.md),
+
+          // ── 5. CGU ────────────────────────────────────────
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              color: AppColors.resolve(
+                  AppColors.surfaceWarm, AppDarkColors.surfaceWarm),
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              border: Border.all(
+                color: AppColors.resolve(AppColors.border, AppDarkColors.border)
+                    .withValues(alpha: 0.5),
+              ),
+            ),
+            child: Column(
+              children: [
+                _TermsCheckbox(
+                  accepted: _termsAccepted,
+                  onChanged: (v) => setState(() => _termsAccepted = v),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                  child: Divider(
+                    color: AppColors.resolve(
+                            AppColors.border, AppDarkColors.border)
+                        .withValues(alpha: 0.5),
+                    height: 1,
+                  ),
+                ),
+                _AgeCheckbox(
+                  accepted: _ageConfirmed,
+                  onChanged: (v) => setState(() => _ageConfirmed = v),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: AppSpacing.xl),
+
+          // ── 6. Bouton inscription ─────────────────────────
+          _SubmitButton(
+            isLoading: _isLoading,
+            label: AppLocalizations.of(context)!.signup,
+            onPressed: () async {
+              if (!_formKey.currentState!.validate()) return;
+              if (!_termsAccepted) {
+                Toast(context,
+                    AppLocalizations.of(context)!.accept_terms_warning, false);
+                return;
+              }
+              if (!_ageConfirmed) {
+                Toast(context,
+                    AppLocalizations.of(context)!.age_confirm_warning, false);
+                return;
+              }
+              await _handleSignup();
+            },
           ),
         ],
       ),
@@ -553,16 +620,39 @@ class _SignUpViewState extends State<SignUpView> {
         final authenticatedUser =
             await Users.loginUser(_usernameCtrl.text, _passwordCtrl.text);
         if (authenticatedUser == null) {
-          if (mounted) Toast(context, 'Connexion du compte impossible.', false);
+          if (mounted) {
+            Toast(context, 'Connexion du compte impossible.', false);
+          }
           return;
         }
         await SessionService.saveUserSession(
           userId: result,
           role: AppRole.fromId(_signupRole),
           country: _selectedCountry,
+          email: _emailCtrl.text,
         );
         if (mounted) {
-          Users.chooseCurvedNavigation(_signupRole, _selectedCountry, context);
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => VerificationPage(
+                email: _emailCtrl.text,
+                username: _usernameCtrl.text,
+                userID: result,
+                roleID: _signupRole,
+                telephone: phoneStorageFormatForCountry(
+                  phone: _telephoneCtrl.text,
+                  country: _selectedCountry,
+                ),
+                password_crypte: encrypted,
+                password: _passwordCtrl.text,
+                firstname: _firstnameCtrl.text,
+                country: _selectedCountry,
+                indicatif: _countryCodes[_selectedCountry] ?? '+229',
+                lastname: _lastnameCtrl.text,
+              ),
+            ),
+          );
         }
       } else {
         Toast(context, 'Erreur : $result', false);
@@ -589,6 +679,231 @@ class _SignUpViewState extends State<SignUpView> {
     _passwordCtrl.clear();
     _passwordConfCtrl.clear();
     _telephoneCtrl.clear();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// _SectionCard — Carte de section numérotée
+// ═══════════════════════════════════════════════════════════
+class _SectionCard extends StatelessWidget {
+  const _SectionCard({
+    required this.icon,
+    required this.label,
+    required this.step,
+    required this.child,
+  });
+
+  final IconData icon;
+  final String label;
+  final int step;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.resolve(AppColors.card, AppDarkColors.card),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(
+          color: AppColors.resolve(AppColors.border, AppDarkColors.border)
+              .withValues(alpha: 0.6),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.resolve(AppColors.ink, AppDarkColors.ink)
+                .withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _SectionLabel(icon: icon, label: label, step: step),
+          const SizedBox(height: AppSpacing.md),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// _SectionLabel — En-tête de section avec numéro d'étape
+// ═══════════════════════════════════════════════════════════
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel({
+    required this.icon,
+    required this.label,
+    this.step,
+  });
+
+  final IconData icon;
+  final String label;
+  final int? step;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        // Badge numéroté avec gradient
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+                AppColors.resolve(AppColors.brand, AppDarkColors.brand)
+                    .withValues(alpha: 0.75),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.resolve(AppColors.brand, AppDarkColors.brand)
+                    .withValues(alpha: 0.25),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: step != null
+              ? Center(
+                  child: Text(
+                    '$step',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                )
+              : Icon(icon, size: 15, color: Colors.white),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Text(
+          label,
+          style: AppTypography.labelLarge(
+            color: AppColors.resolve(AppColors.ink, AppDarkColors.ink),
+          ).copyWith(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        // Ligne qui s'estompe vers la droite
+        Expanded(
+          child: Container(
+            height: 1,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppColors.resolve(AppColors.border, AppDarkColors.border),
+                  AppColors.resolve(AppColors.border, AppDarkColors.border)
+                      .withValues(alpha: 0),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// _SubmitButton — Bouton avec gradient + état de chargement
+// ═══════════════════════════════════════════════════════════
+class _SubmitButton extends StatelessWidget {
+  const _SubmitButton({
+    required this.isLoading,
+    required this.label,
+    required this.onPressed,
+  });
+
+  final bool isLoading;
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final brandColor = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+
+    return SizedBox(
+      width: double.infinity,
+      height: 56,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: isLoading
+              ? null
+              : LinearGradient(
+                  colors: [
+                    brandColor,
+                    brandColor.withValues(alpha: 0.80),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          boxShadow: isLoading
+              ? null
+              : [
+                  BoxShadow(
+                    color: brandColor.withValues(alpha: 0.35),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+        ),
+        child: ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.transparent,
+            shadowColor: Colors.transparent,
+            disabledBackgroundColor: Colors.transparent,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+          ),
+          onPressed: isLoading ? null : onPressed,
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: isLoading
+                ? const SizedBox(
+                    key: ValueKey('loading'),
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2.5,
+                    ),
+                  )
+                : Row(
+                    key: const ValueKey('label'),
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        label,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(
+                        Icons.arrow_forward_rounded,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -657,35 +972,47 @@ class _RoleTab extends StatelessWidget {
         child: AnimatedContainer(
           duration: AppMotion.fast,
           curve: AppMotion.standard,
-          padding: const EdgeInsets.symmetric(vertical: 12),
+          padding: const EdgeInsets.symmetric(vertical: 14),
           decoration: BoxDecoration(
-            color: selected
-                ? AppColors.resolve(AppColors.card, AppDarkColors.card)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            boxShadow: selected
-                ? [
-                    BoxShadow(
-                      color: AppColors.resolve(AppColors.ink, AppDarkColors.ink)
+            gradient: selected
+                ? LinearGradient(
+                    colors: [
+                      AppColors.resolve(AppColors.brand, AppDarkColors.brand)
+                          .withValues(alpha: 0.12),
+                      AppColors.resolve(AppColors.brand, AppDarkColors.brand)
                           .withValues(alpha: 0.06),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    )
-                  ]
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  )
+                : null,
+            color: selected ? null : Colors.transparent,
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            border: selected
+                ? Border.all(
+                    color: AppColors.resolve(
+                      AppColors.brand,
+                      AppDarkColors.brand,
+                    ).withValues(alpha: 0.3),
+                    width: 1.5,
+                  )
                 : null,
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          child: Column(
             children: [
-              Icon(
-                icon,
-                size: 16,
-                color: selected
-                    ? AppColors.resolve(AppColors.brand, AppDarkColors.brand)
-                    : AppColors.resolve(
-                        AppColors.inkMuted, AppDarkColors.inkMuted),
+              AnimatedScale(
+                scale: selected ? 1.1 : 1.0,
+                duration: AppMotion.fast,
+                child: Icon(
+                  icon,
+                  size: 22,
+                  color: selected
+                      ? AppColors.resolve(AppColors.brand, AppDarkColors.brand)
+                      : AppColors.resolve(
+                          AppColors.inkMuted, AppDarkColors.inkMuted),
+                ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(height: 4),
               Text(
                 label,
                 style: AppTypography.labelMedium(
@@ -694,7 +1021,8 @@ class _RoleTab extends StatelessWidget {
                       : AppColors.resolve(
                           AppColors.inkMuted, AppDarkColors.inkMuted),
                 ).copyWith(
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500),
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                ),
               ),
             ],
           ),
@@ -749,9 +1077,22 @@ class _VehicleSelector extends StatelessWidget {
                   ),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   decoration: BoxDecoration(
+                    gradient: selected
+                        ? LinearGradient(
+                            colors: [
+                              AppColors.resolve(AppColors.brandSurface,
+                                      AppDarkColors.brandSurface)
+                                  .withValues(alpha: 0.9),
+                              AppColors.resolve(AppColors.brandSurface,
+                                      AppDarkColors.brandSurface)
+                                  .withValues(alpha: 0.5),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          )
+                        : null,
                     color: selected
-                        ? AppColors.resolve(
-                            AppColors.brandSurface, AppDarkColors.brandSurface)
+                        ? null
                         : AppColors.resolve(AppColors.card, AppDarkColors.card),
                     borderRadius: BorderRadius.circular(AppRadius.md),
                     border: Border.all(
@@ -761,18 +1102,34 @@ class _VehicleSelector extends StatelessWidget {
                               .withValues(alpha: 0.4)
                           : AppColors.resolve(
                               AppColors.border, AppDarkColors.border),
+                      width: selected ? 1.5 : 1,
                     ),
+                    boxShadow: selected
+                        ? [
+                            BoxShadow(
+                              color: AppColors.resolve(
+                                      AppColors.brand, AppDarkColors.brand)
+                                  .withValues(alpha: 0.12),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : null,
                   ),
                   child: Column(
                     children: [
-                      Icon(
-                        v.icon,
-                        size: 22,
-                        color: selected
-                            ? AppColors.resolve(
-                                AppColors.brand, AppDarkColors.brand)
-                            : AppColors.resolve(
-                                AppColors.inkMuted, AppDarkColors.inkMuted),
+                      AnimatedScale(
+                        scale: selected ? 1.1 : 1.0,
+                        duration: AppMotion.fast,
+                        child: Icon(
+                          v.icon,
+                          size: 22,
+                          color: selected
+                              ? AppColors.resolve(
+                                  AppColors.brand, AppDarkColors.brand)
+                              : AppColors.resolve(
+                                  AppColors.inkMuted, AppDarkColors.inkMuted),
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -783,6 +1140,9 @@ class _VehicleSelector extends StatelessWidget {
                                   AppColors.brand, AppDarkColors.brand)
                               : AppColors.resolve(
                                   AppColors.inkMuted, AppDarkColors.inkMuted),
+                        ).copyWith(
+                          fontWeight:
+                              selected ? FontWeight.w700 : FontWeight.w500,
                         ),
                       ),
                     ],
@@ -806,49 +1166,6 @@ class _Vehicle {
   final String value;
   final String label;
   final IconData icon;
-}
-
-// ═══════════════════════════════════════════════════════════
-// _SectionLabel — En-tête de section avec icône + ligne
-// ═══════════════════════════════════════════════════════════
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 28,
-          height: 28,
-          decoration: BoxDecoration(
-            color: AppColors.resolve(
-                AppColors.brandSurface, AppDarkColors.brandSurface),
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-          ),
-          child: Icon(icon,
-              size: 15,
-              color: AppColors.resolve(AppColors.brand, AppDarkColors.brand)),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Text(
-          label,
-          style: AppTypography.labelLarge(
-              color: AppColors.resolve(AppColors.ink, AppDarkColors.ink)),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: Container(
-            height: 1,
-            color: AppColors.resolve(AppColors.border, AppDarkColors.border),
-          ),
-        ),
-      ],
-    );
-  }
 }
 
 // _FormField — Champ texte réutilisable
@@ -883,6 +1200,9 @@ class _FormField extends StatelessWidget {
   }
 }
 
+// ═══════════════════════════════════════════════════════════
+// _PasswordStrengthIndicator
+// ═══════════════════════════════════════════════════════════
 class _PasswordStrengthIndicator extends StatefulWidget {
   const _PasswordStrengthIndicator({required this.controller});
   final TextEditingController controller;
@@ -978,7 +1298,6 @@ class _PasswordStrengthIndicatorState
             }),
           ),
           const SizedBox(height: AppSpacing.sm),
-          // Critères en grille 2×2
           Wrap(
             spacing: AppSpacing.md,
             runSpacing: AppSpacing.xs,
@@ -1089,14 +1408,11 @@ class _TermsCheckbox extends StatelessWidget {
                           : AppColors.resolve(
                                   AppColors.inkSubtle, AppDarkColors.inkSubtle)
                               .withValues(alpha: 0.8)),
-                  children: [
+                  children: const [
                     TextSpan(text: "J'accepte les "),
                     TextSpan(
                         text: "conditions d'utilisation",
-                        style: TextStyle(
-                            color: AppColors.resolve(
-                                AppColors.brand, AppDarkColors.brand),
-                            decoration: TextDecoration.underline)),
+                        style: TextStyle(decoration: TextDecoration.underline)),
                   ],
                 ),
               ),

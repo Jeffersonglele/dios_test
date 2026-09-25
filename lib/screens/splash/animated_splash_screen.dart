@@ -55,15 +55,14 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
       bodyKey: 'onboarding_step_1_body',
     ),
     _OnboardingStep(
-      imagePath: 'assets/images/onboarding/slide2.png',
+      imagePath: 'assets/images/onboarding/slide4.png',
       accentColor: Color(0xFFF0F7ED),
       accentColorDark: Color(0xFF14221A),
       titleKey: 'onboarding_step_2_title',
       bodyKey: 'onboarding_step_2_body',
     ),
     _OnboardingStep(
-      // Visuel plus gourmand et plus dynamique pour conclure l'onboarding.
-      imagePath: 'assets/images/onboarding/slideX_accent.png',
+      imagePath: 'assets/images/onboarding/slide5.png',
       accentColor: Color(0xFFFFF0E4),
       accentColorDark: Color(0xFF2A1812),
       titleKey: 'onboarding_step_3_title',
@@ -432,7 +431,7 @@ class _SplashView extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Spacer(flex: 3),
+                    const Spacer(flex: 4),
                     Center(
                       child: AnimatedBuilder(
                         animation: Listenable.merge(
@@ -452,7 +451,7 @@ class _SplashView extends StatelessWidget {
                         child: const _SplashLogo(),
                       ),
                     ),
-                    const Spacer(flex: 3),
+                    const Spacer(flex: 2),
                     Center(
                       child: FadeTransition(
                         opacity: textOpacity,
@@ -615,6 +614,9 @@ class _LoadingIndicator extends StatelessWidget {
 // ONBOARDING VIEW — style "Burt" : fond dégradé plein écran,
 // collage photo agrandi, typo large, barre flottante dots +
 // bouton rond discret. Carrousel à 3 étapes conservé (swipe + dots).
+// Skip mutualisé au niveau du Stack (même traitement que le
+// bottom bar) : une seule instance, position stable pendant le
+// swipe, plus de duplication par étape.
 // ═══════════════════════════════════════════════════════════
 
 class _OnboardingView extends StatefulWidget {
@@ -686,7 +688,21 @@ class _OnboardingViewState extends State<_OnboardingView>
                     itemCount: widget.steps.length,
                     itemBuilder: (_, index) => _OnboardingPage(
                       step: widget.steps[index],
-                      onSkip: widget.onSkip,
+                    ),
+                  ),
+                  // Skip mutualisé ici : une seule instance, position fixe
+                  // pendant le swipe, identique au traitement du bottom bar.
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: SafeArea(
+                      child: Padding(
+                        padding: const EdgeInsets.only(
+                          top: AppSpacing.sm,
+                          right: AppSpacing.lg,
+                        ),
+                        child: _SolidSkipButton(onSkip: widget.onSkip),
+                      ),
                     ),
                   ),
                   Positioned(
@@ -711,79 +727,48 @@ class _OnboardingViewState extends State<_OnboardingView>
 }
 
 // ═══════════════════════════════════════════════════════════
-// Une page d'onboarding complète : fond dégradé plein écran
-// (tokens AppColors existants, pas de nouvelles couleurs),
-// skip en haut, collage photo, titre + texte plus bas.
+// Une page d'onboarding complète : image plein cadre en haut
+// (65% de la hauteur, edge-to-edge, sans card), bloc texte
+// plat en dessous (35%). Le Skip n'est plus ici : il vit une
+// seule fois au niveau du Stack dans _OnboardingView.
 // ═══════════════════════════════════════════════════════════
 class _OnboardingPage extends StatelessWidget {
-  const _OnboardingPage({
-    required this.step,
-    required this.onSkip,
-  });
+  const _OnboardingPage({required this.step});
 
   final _OnboardingStep step;
-  final VoidCallback onSkip;
 
   @override
   Widget build(BuildContext context) {
     final isDark = darkModeNotifier.value;
     final baseColor = isDark ? step.accentColorDark : step.accentColor;
-    final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: baseColor,
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            baseColor,
-            baseColor,
-            brand.withValues(alpha: isDark ? 0.30 : 0.16),
-          ],
-          stops: const [0.0, 0.45, 1.0],
-        ),
-      ),
+    return ColoredBox(
+      color: baseColor,
       child: SafeArea(
         bottom: false,
-        child: CustomScrollView(
-          physics: const ClampingScrollPhysics(),
-          slivers: [
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg,
-                AppSpacing.md,
-                AppSpacing.lg,
-                112,
-              ),
-              sliver: SliverFillRemaining(
-                hasScrollBody: false,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: _SolidSkipButton(onSkip: onSkip),
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Expanded(
-                      flex: 11,
-                      child: Center(child: _OnboardingPhotoCollage(step: step)),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    Expanded(
-                      flex: 7,
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: _OnboardingTextBlock(
-                          title: AppLocalizations.of(context)!
-                              .localized(step.titleKey),
-                          body: AppLocalizations.of(context)!
-                              .localized(step.bodyKey),
-                        ),
-                      ),
-                    ),
-                  ],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              flex: 65,
+              child: _OnboardingHeroImage(imagePath: step.imagePath),
+            ),
+            Expanded(
+              flex: 35,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.lg,
+                  AppSpacing.lg,
+                  112, // laisse la place au bottom bar flottant (dots + flèche)
+                ),
+                child: Align(
+                  alignment: Alignment.topLeft,
+                  child: _OnboardingTextBlock(
+                    title:
+                        AppLocalizations.of(context)!.localized(step.titleKey),
+                    body: AppLocalizations.of(context)!.localized(step.bodyKey),
+                  ),
                 ),
               ),
             ),
@@ -794,34 +779,19 @@ class _OnboardingPage extends StatelessWidget {
   }
 }
 
-// ── Visuel principal ───────────────────────────────────────
-// Une seule vraie image par étape. Les assets sont déjà composés avec
-// leur propre fond : aucune carte décorative supplémentaire ne vient
-// créer un faux doublon ou une bordure inutile.
-class _OnboardingPhotoCollage extends StatelessWidget {
-  const _OnboardingPhotoCollage({required this.step});
-  final _OnboardingStep step;
+// ── Visuel principal — plein cadre, edge-to-edge, sans card ─
+class _OnboardingHeroImage extends StatelessWidget {
+  const _OnboardingHeroImage({required this.imagePath});
+  final String imagePath;
 
   @override
   Widget build(BuildContext context) {
-    final screenW = MediaQuery.sizeOf(context).width;
-
-    // Les visuels d'onboarding sont carrés. Garder le même ratio évite que
-    // BoxFit.cover ne rogne les côtés de la photo sur les écrans étroits.
-    final imageSize = screenW * 0.70;
-
     return SizedBox(
-      width: imageSize,
-      height: imageSize,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(30),
-        child: Image.asset(
-          step.imagePath,
-          width: imageSize,
-          height: imageSize,
-          fit: BoxFit.cover,
-          filterQuality: FilterQuality.high,
-        ),
+      width: double.infinity,
+      child: Image.asset(
+        imagePath,
+        fit: BoxFit.cover,
+        filterQuality: FilterQuality.high,
       ),
     );
   }
@@ -854,8 +824,7 @@ class _OnboardingBottomBar extends StatelessWidget {
         ),
         child: Row(
           children: [
-            _ElasticDots(
-                totalSteps: steps.length, currentPage: currentPage),
+            _ElasticDots(totalSteps: steps.length, currentPage: currentPage),
             const Spacer(),
             _NextArrowButton(isLast: isLast, onNext: onNext),
           ],

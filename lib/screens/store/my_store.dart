@@ -68,6 +68,8 @@ class _MyStoreState extends State<MyStore> {
   Restaurant? _restaurant;
   Users? _currentUser;
   int _restoState = 0;
+  int _sellerRestaurantStatus = -1;
+  String _sellerRemark = '';
   bool _isVerified = false;
 
   @override
@@ -78,11 +80,15 @@ class _MyStoreState extends State<MyStore> {
 
   Future<void> _load() async {
     final session = await SessionService.readSession();
+    final serverState = await SessionService.fetchServerAccountState();
     final allUsers = await Users.fetchUsersFromDB();
     final currentUser = Users.getUsersByUserId(allUsers, session.userId);
     _currentUser = currentUser;
     final userRole = AppRole.fromId(currentUser?.roleID);
     _isVerified = currentUser?.identity == 'Verified';
+
+    _sellerRestaurantStatus = serverState?.restaurantValid ?? -1;
+    _sellerRemark = serverState?.restaurantRemark ?? '';
 
     if (userRole.isDelivery && currentUser != null) {
       final settings = await LivreurApi.getSettings(session.userId);
@@ -91,8 +97,14 @@ class _MyStoreState extends State<MyStore> {
       }
     }
 
-    // Fetch restaurant if user is professional
-    if (userRole.isProfessional && session.restaurantId != null) {
+    // Le restaurant peut exister avant la promotion du compte : il représente
+    // alors la demande vendeur en attente ou refusée.
+    if (serverState?.restaurantId != null && serverState!.restaurantId > 0) {
+      final restaurants = await Restaurant.fetchRestaurantsFromDB();
+      _restaurant = Restaurant.getRestaurantByRestaurantId(
+          restaurants, serverState.restaurantId);
+      _restoState = _restaurant?.valid ?? serverState.restaurantValid;
+    } else if (userRole.isProfessional && session.restaurantId != null) {
       final restaurants = await Restaurant.fetchRestaurantsFromDB();
       _restaurant = Restaurant.getRestaurantByRestaurantId(
           restaurants, session.restaurantId!);
@@ -201,6 +213,8 @@ class _MyStoreState extends State<MyStore> {
                       color:
                           AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
             ),
+            if (_currentUser?.roleID == 2 && _sellerRestaurantStatus >= 0)
+              _buildSellerRequestBanner(),
             const SizedBox(height: 20),
             if (_currentUser?.roleID == 5) ...[
               _buildDriverInfoCard(_currentUser!),
@@ -467,50 +481,52 @@ class _MyStoreState extends State<MyStore> {
     );
 
     if (confirmed == true && mounted) {
-      final session = await SessionService.readSession();
-      final cloudFunction = ParseCloudFunction('update1User');
-      final response = await cloudFunction.execute(parameters: {
-        'userID': session.userId,
-        'roleID': 3,
-        'identity': 'Verified',
-      });
-
-      if (mounted && response.success) {
-        final result = response.result as Map<String, dynamic>?;
-        if (result?['success'] == true) {
-          final updatedSession =
-              session.copyWith(role: AppRole.microRestaurant);
-          await SessionService.saveUserSession(
-            userId: updatedSession.userId,
-            role: updatedSession.role,
-            country: updatedSession.country,
-          );
-          if (mounted) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (_) => RestaurantFormPage(),
-              ),
-            );
-          }
-        } else {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content:
-                  Text('${l10n.error} : ${result?['error'] ?? 'inconnue'}'),
-              backgroundColor: AppColors.error,
-            ));
-          }
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('${l10n.error} : ${response.error?.message}'),
-            backgroundColor: AppColors.error,
-          ));
-        }
+      final submitted = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => RestaurantFormPage(
+            restaurant: _restaurant,
+            sellerApplication: true,
+          ),
+        ),
+      );
+      if (submitted == true && mounted) {
+        final session = await SessionService.readSession();
+        // La demande est terminée, mais le compte reste client jusqu'à la
+        // décision admin. On revient donc à l'accueil client.
+        Users.chooseCurvedNavigation(2, session.country, context);
       }
     }
+  }
+
+  Widget _buildSellerRequestBanner() {
+    final rejected = _sellerRestaurantStatus == 2;
+    final color = rejected ? AppColors.error : AppColors.accent;
+    final background = rejected ? AppColors.errorLight : AppColors.accentLight;
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.resolve(background, background),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(rejected ? Icons.error_outline : Icons.hourglass_bottom,
+              color: color),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              rejected
+                  ? 'Votre demande vendeur a été refusée.${_sellerRemark.isNotEmpty ? '\nMotif : $_sellerRemark' : ''}'
+                  : 'Votre demande vendeur est en attente de validation par l’administrateur.',
+              style: AppTypography.bodyMedium(color: color),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _cancelDemande() async {

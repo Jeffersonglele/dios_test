@@ -20,7 +20,9 @@ import '../onboarding/confirmation_page.dart';
 
 class RestaurantFormPage extends ConsumerStatefulWidget {
   final Restaurant? restaurant;
-  const RestaurantFormPage({super.key, this.restaurant});
+  final bool sellerApplication;
+  const RestaurantFormPage({super.key, this.restaurant,
+    this.sellerApplication = false});
 
   bool get isEditing => restaurant != null;
 
@@ -612,7 +614,7 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
             restaurantID: widget.restaurant?.restaurantID,
             userID: userID,
             country: userCountry,
-            valid: widget.restaurant?.valid ?? 0,
+            valid: widget.sellerApplication ? 0 : (widget.restaurant?.valid ?? 0),
             nb_orders: widget.restaurant?.nb_orders ?? 0,
             note: widget.restaurant?.note ?? 0.0,
             categories: _selectedHashtags.join(', '),
@@ -636,7 +638,7 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
 
           if (result == "success") {
             if (context.mounted) Toast(context, AppLocalizations.of(context)!.restaurant_form_saved, true);
-            if (widget.isEditing) {
+            if (widget.isEditing || widget.sellerApplication) {
               if (context.mounted) Navigator.pop(context, true);
             } else {
               final usersList = await Users.fetchUsersFromDB();
