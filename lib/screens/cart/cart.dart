@@ -1282,7 +1282,7 @@ class _CartState extends ConsumerState<Cart> {
       final usersList = await Users.fetchUsersFromDB();
       final currentUser = Users.getUsersByUserId(usersList, session.userId);
 
-      final response = await ParseCloudFunction('createIkeepayCheckout')
+      final response = await ParseCloudFunction('createNyoleCheckout')
           .execute(parameters: {
         'commandeID': int.tryParse(commandeId),
         'customerName':
@@ -1294,33 +1294,24 @@ class _CartState extends ConsumerState<Cart> {
         final data = Map<String, dynamic>.from(response.result as Map);
         final paymentUrl = data['paymentUrl']?.toString();
         if (paymentUrl != null && paymentUrl.isNotEmpty) {
-          final uri = Uri.parse(paymentUrl);
-          if (await canLaunchUrl(uri)) {
-            await launchUrl(uri, mode: LaunchMode.externalApplication);
-          }
-          final restaurantId = int.tryParse(
-                  cartItems.first['restaurant']['restau_id'].toString()) ??
-              0;
-          final restaurantsList = await Restaurant.fetchRestaurantsFromDB();
-          final currentRestaurant = Restaurant.getRestaurantByRestaurantId(
-              restaurantsList, restaurantId);
-          if (currentRestaurant != null) {
-            NotificationService.sendOrderNotificationToRestaurateur(
-              restaurateurId: currentRestaurant.userID,
-              restaurantName: currentRestaurant.name,
-              totalAmount: total,
-              orderId: int.tryParse(commandeId),
-              currencySymbol: CurrencyUtil.symbol(country),
-            );
-          }
-          await cartNotifier.clearRestaurantCart(restaurantId);
-          if (mounted) {
-            Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                    builder: (_) =>
-                        OrderConfirmationPage(commandeId: commandeId)));
-          }
+           final uri = Uri.parse(paymentUrl);
+           if (!await canLaunchUrl(uri)) {
+             throw Exception('Impossible d’ouvrir la page de paiement Nyole.');
+           }
+           await launchUrl(uri, mode: LaunchMode.externalApplication);
+           final restaurantId = int.tryParse(
+                   cartItems.first['restaurant']['restau_id'].toString()) ??
+               0;
+           await cartNotifier.clearRestaurantCart(restaurantId);
+           if (mounted) {
+             Navigator.pushReplacement(
+                 context,
+                 MaterialPageRoute(
+                     builder: (_) => OrderConfirmationPage(
+                           commandeId: commandeId,
+                           paymentPending: true,
+                         )));
+           }
         } else {
           Toast(context, AppLocalizations.of(context)!.cart_payment_url_error,
               false);
@@ -1646,25 +1637,32 @@ class _QtyButton extends StatelessWidget {
 
 class OrderConfirmationPage extends StatelessWidget {
   final String commandeId;
-  const OrderConfirmationPage({super.key, required this.commandeId});
+  final bool paymentPending;
+
+  const OrderConfirmationPage({
+    super.key,
+    required this.commandeId,
+    this.paymentPending = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    return Scaffold(
-        backgroundColor:
-            AppColors.resolve(AppColors.surface, AppDarkColors.surface),
-        body: OrderConfettiCelebration(
-          child: SafeArea(
+    final content = SafeArea(
             child: Center(
               child: Padding(
                 padding: const EdgeInsets.all(32),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const AnimatedSuccessCheck(),
+                    paymentPending
+                        ? const Icon(Icons.hourglass_top_rounded,
+                            size: 76, color: Colors.orange)
+                        : const AnimatedSuccessCheck(),
                     const SizedBox(height: 28),
-                    Text(l10n.cart_order_confirm_message,
+                    Text(paymentPending
+                        ? l10n.pending
+                        : l10n.cart_order_confirm_message,
                         style: AppTypography.headlineMedium(
                           color: AppColors.resolve(
                               AppColors.ink, AppDarkColors.ink),
@@ -1672,7 +1670,9 @@ class OrderConfirmationPage extends StatelessWidget {
                         textAlign: TextAlign.center),
                     const SizedBox(height: 12),
                     Text(
-                      l10n.cart_order_confirmed_message(commandeId),
+                      paymentPending
+                          ? l10n.tracking_pending_label
+                          : l10n.cart_order_confirmed_message(commandeId),
                       style: AppTypography.bodyLarge(
                         color:
                             AppColors.resolve(AppColors.ink, AppDarkColors.ink),
@@ -1698,8 +1698,14 @@ class OrderConfirmationPage extends StatelessWidget {
                 ),
               ),
             ),
-          ),
-        ));
+          );
+    return Scaffold(
+      backgroundColor:
+          AppColors.resolve(AppColors.surface, AppDarkColors.surface),
+      body: paymentPending
+          ? content
+          : OrderConfettiCelebration(child: content),
+    );
   }
 }
 

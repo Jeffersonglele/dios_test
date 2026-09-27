@@ -306,6 +306,7 @@ class _VerificationPageState extends State<VerificationPage> {
                               userId: widget.userID,
                               role: AppRole.fromId(widget.roleID),
                               country: country,
+                              email: widget.email,
                             );
 
                             if (!mounted) return;

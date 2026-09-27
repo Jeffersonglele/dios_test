@@ -156,7 +156,7 @@ List<String> whatsappPhoneCandidatesForCountry({
   final code = indicatif ?? _countryCode(country);
   final local = localPhoneDigitsForCountry(phone: phone, country: country);
   final primary = '${code.replaceAll('+', '')}$local';
-  return [primary, phoneDigits(phone.toString())].toSet().toList();
+  return {primary, phoneDigits(phone.toString())}.toList();
 }
 
 String _countryCode(String country) {

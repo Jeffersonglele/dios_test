@@ -22,18 +22,6 @@ class BrandAvatarLogo extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.brand,
         shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.brandDark.withValues(alpha: 0.25),
-            blurRadius: elevation * 2,
-            offset: Offset(0, elevation * 0.6),
-          ),
-        ],
-        gradient: const LinearGradient(
-          colors: [AppColors.brandLight, AppColors.brandDark],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
       ),
       padding: EdgeInsets.all(radius * 0.22),
       child: Image.asset(

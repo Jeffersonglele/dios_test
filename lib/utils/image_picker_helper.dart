@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -159,4 +160,12 @@ Future<XFile?> pickAndConfirmImage(BuildContext context) async {
   if (picked == null) return null;
 
   return showImageConfirmDialog(context, picked);
+}
+
+/// Pick image directly from camera (for delivery proof)
+Future<File?> pickImageFromCamera(BuildContext context) async {
+  final picker = ImagePicker();
+  final XFile? picked = await picker.pickImage(source: ImageSource.camera);
+  if (picked == null) return null;
+  return File(picked.path);
 }

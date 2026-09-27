@@ -4,7 +4,9 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:async';
 
 import '../../constants/constant.dart';
 import '../../controllers/ui_controller.dart';
@@ -17,6 +19,8 @@ import '../../services/notification_service.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 import '../../utils/toast.dart';
+import '../../utils/country_util.dart';
+import '../../utils/phone_number.dart';
 import '../../providers/users_provider.dart';
 import '../restaurants/restaurant_form_page.dart';
 import '../onboarding/start_address_saving.dart';
@@ -134,7 +138,6 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                   Stack(
                     alignment: Alignment.center,
                     children: [
-                      // Halo extérieur doux
                       Container(
                         width: 112,
                         height: 112,
@@ -143,7 +146,6 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                           color: brandColor.withValues(alpha: 0.08),
                         ),
                       ),
-                      // Cercle principal
                       Container(
                         width: 88,
                         height: 88,
@@ -240,7 +242,8 @@ class Login extends ConsumerStatefulWidget {
   ConsumerState<Login> createState() => _LoginState();
 }
 
-class _LoginState extends ConsumerState<Login> {
+class _LoginState extends ConsumerState<Login>
+    with SingleTickerProviderStateMixin {
   // ── Données ──────────────────────────────────────────────
   List<Users> _users = [];
   List<Restaurant> _restaus = [];
@@ -254,6 +257,8 @@ class _LoginState extends ConsumerState<Login> {
   bool _isLoading = false;
   bool _loginFailed = false;
   bool _obscurePassword = true;
+
+  LoginTab _loginTab = LoginTab.emailPassword;
 
   @override
   void initState() {
@@ -357,21 +362,29 @@ class _LoginState extends ConsumerState<Login> {
   void _handleApprovedUser(Users user) async {
     if (user.country.trim().isEmpty) {
       Navigator.pushReplacement(
-          context,
-          CupertinoPageRoute(
-              builder: (_) => StartAddressSaving(
-                  userID: user.userID, roleID: user.roleID)));
+        context,
+        CupertinoPageRoute(
+          builder: (_) =>
+              StartAddressSaving(userID: user.userID, roleID: user.roleID),
+        ),
+      );
     } else if (user.identity == "Verified") {
       _redirectToMainApp(user);
     } else if (user.identity == "En attente") {
       Navigator.push(
-          context, MaterialPageRoute(builder: (_) => WaitIdentityValidation()));
+        context,
+        MaterialPageRoute(builder: (_) => WaitIdentityValidation()),
+      );
     } else if (user.identity == "Rejected") {
       Navigator.push(
-          context,
-          MaterialPageRoute(
-              builder: (_) => UserIdentityRejected(
-                  objectID: user.userID, user_roleID: user.roleID)));
+        context,
+        MaterialPageRoute(
+          builder: (_) => UserIdentityRejected(
+            objectID: user.userID,
+            user_roleID: user.roleID,
+          ),
+        ),
+      );
     } else {
       _redirectToMainApp(user);
     }
@@ -406,10 +419,14 @@ class _LoginState extends ConsumerState<Login> {
 
     if (restau == null) {
       Navigator.push(
-          context, MaterialPageRoute(builder: (_) => RestaurantFormPage()));
+        context,
+        MaterialPageRoute(builder: (_) => RestaurantFormPage()),
+      );
     } else if (restau.valid == 0) {
-      Navigator.push(context,
-          MaterialPageRoute(builder: (_) => WaitRestaurantValidation()));
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => WaitRestaurantValidation()),
+      );
     } else if (restau.valid == 1) {
       await SessionService.setRestaurantId(restau.restaurantID);
       NotificationService.subscribeToRestaurantNotifications();
@@ -428,21 +445,23 @@ class _LoginState extends ConsumerState<Login> {
   void _redirectToVerification(Users user) {
     final country = user.country.trim().isEmpty ? "RDC" : user.country.trim();
     Navigator.push(
-        context,
-        MaterialPageRoute(
-            builder: (_) => VerificationPage(
-                  userID: user.userID,
-                  email: user.email,
-                  roleID: user.roleID,
-                  password: _passwordCtrl.text,
-                  password_crypte: user.password,
-                  firstname: user.firstname,
-                  lastname: user.lastname,
-                  username: user.username,
-                  telephone: user.telephone.toString(),
-                  country: country,
-                  indicatif: _indicatif(country),
-                )));
+      context,
+      MaterialPageRoute(
+        builder: (_) => VerificationPage(
+          userID: user.userID,
+          email: user.email,
+          roleID: user.roleID,
+          password: _passwordCtrl.text,
+          password_crypte: user.password,
+          firstname: user.firstname,
+          lastname: user.lastname,
+          username: user.username,
+          telephone: user.telephone.toString(),
+          country: country,
+          indicatif: _indicatif(country),
+        ),
+      ),
+    );
   }
 
   void _onLoginFailed([String? reason]) {
@@ -542,148 +561,217 @@ class _LoginState extends ConsumerState<Login> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Carte champs de connexion ─────────────────────
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(
-              color: AppColors.resolve(AppColors.card, AppDarkColors.card),
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-              border: Border.all(
-                color: AppColors.resolve(AppColors.border, AppDarkColors.border)
-                    .withValues(alpha: 0.6),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.resolve(AppColors.ink, AppDarkColors.ink)
-                      .withValues(alpha: 0.04),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                // ── Identifiant ───────────────────────────
-                Builder(
-                  builder: (context) {
-                    final colorScheme = Theme.of(context).colorScheme;
-                    return TextFormField(
-                      controller: _nameCtrl,
-                      style:
-                          AppTypography.bodyLarge(color: colorScheme.onSurface),
-                      textInputAction: TextInputAction.next,
-                      decoration: InputDecoration(
-                        prefixIcon: const Icon(Icons.person_outline_rounded),
-                        hintText:
-                            AppLocalizations.of(context)!.username_or_email,
-                      ),
-                      validator: (v) {
-                        if (v == null || v.isEmpty)
-                          return AppLocalizations.of(context)!.enter_username;
-                        if (v.length < 4)
-                          return AppLocalizations.of(context)!.min_4_chars;
-                        if (v.length > 80)
-                          return AppLocalizations.of(context)!.too_long_max_80;
-                        return null;
-                      },
-                    );
-                  },
-                ),
-
-                const SizedBox(height: AppSpacing.sm),
-
-                // ── Mot de passe ──────────────────────────
-                Builder(
-                  builder: (context) {
-                    final colorScheme = Theme.of(context).colorScheme;
-                    return TextFormField(
-                      controller: _passwordCtrl,
-                      style:
-                          AppTypography.bodyLarge(color: colorScheme.onSurface),
-                      obscureText: _obscurePassword,
-                      textInputAction: TextInputAction.done,
-                      onFieldSubmitted: (_) => _performLogin(),
-                      decoration: InputDecoration(
-                        prefixIcon: const Icon(Icons.lock_outline_rounded),
-                        hintText: AppLocalizations.of(context)!.password,
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _obscurePassword
-                                ? Icons.visibility_off_outlined
-                                : Icons.visibility_outlined,
-                          ),
-                          onPressed: () => setState(
-                              () => _obscurePassword = !_obscurePassword),
-                        ),
-                      ),
-                      validator: (v) {
-                        if (v == null || v.isEmpty)
-                          return AppLocalizations.of(context)!.enter_password;
-                        if (v.length < 6)
-                          return AppLocalizations.of(context)!.min_6_chars;
-                        return null;
-                      },
-                    );
-                  },
-                ),
-              ],
-            ),
+          // ── Sélecteur d'onglets ───────────────────────────
+          _LoginTabSelector(
+            currentTab: _loginTab,
+            onTabChanged: (tab) => setState(() => _loginTab = tab),
           ),
+          const SizedBox(height: AppSpacing.lg),
 
-          // ── Mot de passe oublié ───────────────────────────
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: () {
-                _nameCtrl.clear();
-                _passwordCtrl.clear();
-                _formKey.currentState?.reset();
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => EmailInputScreen(listusers: _users),
-                  ),
-                );
+          if (_loginTab == LoginTab.emailPassword) ...[
+            // ── Identifiant ───────────────────────────────────
+            TextFormField(
+              controller: _nameCtrl,
+              style: AppTypography.bodyLarge(
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+              textInputAction: TextInputAction.next,
+              decoration: _decoration(
+                context,
+                hint: AppLocalizations.of(context)!.username_or_email,
+              ),
+              validator: (v) {
+                if (v == null || v.isEmpty) {
+                  return AppLocalizations.of(context)!.enter_username;
+                }
+                if (v.length < 4) {
+                  return AppLocalizations.of(context)!.min_4_chars;
+                }
+                if (v.length > 80) {
+                  return AppLocalizations.of(context)!.too_long_max_80;
+                }
+                return null;
               },
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.xs,
-                  vertical: AppSpacing.xs,
+            ),
+
+            const SizedBox(height: AppSpacing.md),
+
+            // ── Mot de passe ──────────────────────────────────
+            TextFormField(
+              controller: _passwordCtrl,
+              style: AppTypography.bodyLarge(
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+              obscureText: _obscurePassword,
+              textInputAction: TextInputAction.done,
+              onFieldSubmitted: (_) => _performLogin(),
+              decoration: _decoration(
+                context,
+                hint: AppLocalizations.of(context)!.password,
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscurePassword
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                  ),
+                  onPressed: () =>
+                      setState(() => _obscurePassword = !_obscurePassword),
                 ),
               ),
-              child: Text(
-                AppLocalizations.of(context)!.forgotten_password,
-                style: AppTypography.labelMedium(
-                  color:
-                      AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+              validator: (v) {
+                if (v == null || v.isEmpty) {
+                  return AppLocalizations.of(context)!.enter_password;
+                }
+                if (v.length < 6) {
+                  return AppLocalizations.of(context)!.min_6_chars;
+                }
+                return null;
+              },
+            ),
+
+            // ── Mot de passe oublié ───────────────────────────
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () {
+                  _nameCtrl.clear();
+                  _passwordCtrl.clear();
+                  _formKey.currentState?.reset();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => EmailInputScreen(listusers: _users),
+                    ),
+                  );
+                },
+                child: Text(
+                  AppLocalizations.of(context)!.forgotten_password,
+                  style: AppTypography.labelMedium(
+                    color: AppColors.resolve(
+                      AppColors.brand,
+                      AppDarkColors.brand,
+                    ),
+                  ),
                 ),
               ),
             ),
+
+            // ── Bannière erreur ───────────────────────────────
+            AnimatedSize(
+              duration: const Duration(milliseconds: 250),
+              child: _loginFailed
+                  ? Column(
+                      children: [
+                        _LoginErrorBanner(
+                          onDismiss: () => setState(() => _loginFailed = false),
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                      ],
+                    )
+                  : const SizedBox.shrink(),
+            ),
+
+            // ── Bouton connexion ───────────────────────────────
+            _GradientButton(
+              label: AppLocalizations.of(context)!.login,
+              isLoading: _isLoading,
+              onPressed: _isLoading ? null : _performLogin,
+            ),
+          ] else ...[
+            // ── Formulaire téléphone ──────────────────────────
+            _PhoneLoginForm(isLoading: _isLoading),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // ── Décoration de champ — pilules, couleurs AppColors ────
+  InputDecoration _decoration(
+    BuildContext context, {
+    required String hint,
+    Widget? suffixIcon,
+  }) {
+    final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+    final border = AppColors.resolve(AppColors.border, AppDarkColors.border);
+    final surface =
+        AppColors.resolve(AppColors.surfaceWarm, AppDarkColors.surfaceWarm);
+    final inkMuted =
+        AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
+    final error = AppColors.resolve(AppColors.error, AppDarkColors.error);
+
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: AppTypography.bodyLarge(color: inkMuted),
+      suffixIcon: suffixIcon,
+      filled: true,
+      fillColor: surface,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(999),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(999),
+        borderSide: BorderSide(color: border, width: 1),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(999),
+        borderSide: BorderSide(color: brand, width: 1.6),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(999),
+        borderSide: BorderSide(color: error, width: 1.2),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(999),
+        borderSide: BorderSide(color: error, width: 1.6),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// _LoginTabSelector — Onglets Email vs Téléphone
+// ═══════════════════════════════════════════════════════════════
+
+enum LoginTab { emailPassword, phone }
+
+class _LoginTabSelector extends StatelessWidget {
+  const _LoginTabSelector({
+    required this.currentTab,
+    required this.onTabChanged,
+  });
+
+  final LoginTab currentTab;
+  final ValueChanged<LoginTab> onTabChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color:
+            AppColors.resolve(AppColors.surfaceWarm, AppDarkColors.surfaceWarm),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(
+          color: AppColors.resolve(AppColors.border, AppDarkColors.border)
+              .withValues(alpha: 0.5),
+        ),
+      ),
+      child: Row(
+        children: [
+          _LoginTab(
+            label: AppLocalizations.of(context)!.login_email_tab,
+            icon: Icons.email_outlined,
+            selected: currentTab == LoginTab.emailPassword,
+            onTap: () => onTabChanged(LoginTab.emailPassword),
           ),
-
-          // ── Bannière erreur animée ────────────────────────
-          AnimatedSize(
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeInOut,
-            child: _loginFailed
-                ? Column(
-                    children: [
-                      _LoginErrorBanner(
-                        onDismiss: () => setState(() => _loginFailed = false),
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                    ],
-                  )
-                : const SizedBox.shrink(),
-          ),
-
-          const SizedBox(height: AppSpacing.sm),
-
-          // ── Bouton connexion avec gradient ────────────────
-          _GradientButton(
-            label: AppLocalizations.of(context)!.login,
-            isLoading: _isLoading,
-            onPressed: _isLoading ? null : _performLogin,
+          _LoginTab(
+            label: AppLocalizations.of(context)!.login_phone_tab,
+            icon: Icons.phone_outlined,
+            selected: currentTab == LoginTab.phone,
+            onTap: () => onTabChanged(LoginTab.phone),
           ),
         ],
       ),
@@ -692,8 +780,79 @@ class _LoginState extends ConsumerState<Login> {
 }
 
 // ═══════════════════════════════════════════════════════════
-// _GradientButton — Bouton réutilisable avec gradient + ombre
+// _LoginTab — bouton Email / Téléphone individuel
 // ═══════════════════════════════════════════════════════════
+
+class _LoginTab extends StatelessWidget {
+  const _LoginTab({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+    final card = AppColors.resolve(AppColors.card, AppDarkColors.card);
+    final ink = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
+    final inkMuted =
+        AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: AppMotion.fast,
+          curve: AppMotion.standard,
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: selected ? card : Colors.transparent,
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: ink.withValues(alpha: 0.06),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: selected ? brand : inkMuted,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: AppTypography.labelMedium(
+                  color: selected ? brand : inkMuted,
+                ).copyWith(
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// _GradientButton — Bouton réutilisable gradient + ombre
+// ═══════════════════════════════════════════════════════════
+
 class _GradientButton extends StatelessWidget {
   const _GradientButton({
     required this.label,
@@ -724,7 +883,7 @@ class _GradientButton extends StatelessWidget {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
-          borderRadius: BorderRadius.circular(AppRadius.md),
+          borderRadius: BorderRadius.circular(18),
           boxShadow: isLoading || onPressed == null
               ? null
               : [
@@ -741,7 +900,7 @@ class _GradientButton extends StatelessWidget {
             shadowColor: Colors.transparent,
             disabledBackgroundColor: Colors.transparent,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppRadius.md),
+              borderRadius: BorderRadius.circular(18),
             ),
           ),
           onPressed: onPressed,
@@ -785,32 +944,670 @@ class _GradientButton extends StatelessWidget {
   }
 }
 
-// ═══════════════════════════════════════════════════════════
-// _LoginErrorBanner — Bandeau d'erreur dismissible amélioré
-// ═══════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════
+// _PhoneLoginForm — Formulaire téléphone + OTP
+// ════════════════════════════════════════════════════════════════
+
+class _PhoneLoginForm extends ConsumerStatefulWidget {
+  const _PhoneLoginForm({required this.isLoading});
+
+  final bool isLoading;
+
+  @override
+  ConsumerState<_PhoneLoginForm> createState() => _PhoneLoginFormState();
+}
+
+class _PhoneLoginFormState extends ConsumerState<_PhoneLoginForm> {
+  final _phoneCtrl = TextEditingController();
+  final _otpCtrl = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+
+  bool _otpSent = false;
+  int _resendCooldown = 0;
+  Timer? _cooldownTimer;
+  String _country = CountryUtil.rdc;
+  bool _isLoading = false;
+
+  // ── Maps drapeaux / indicatifs ────────────────────────────
+  final Map<String, String> _countryFlags = const {
+    'RDC': '🇨🇩',
+    'Bénin': '🇧🇯',
+  };
+
+  final Map<String, String> _countryCodes = const {
+    'RDC': '+243',
+    'Bénin': '+229',
+  };
+
+  @override
+  void dispose() {
+    _phoneCtrl.dispose();
+    _otpCtrl.dispose();
+    _cooldownTimer?.cancel();
+    super.dispose();
+  }
+
+  // ── Cooldown renvoi OTP ───────────────────────────────────
+  void _startCooldown() {
+    setState(() => _resendCooldown = 60);
+    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_resendCooldown <= 1) {
+        timer.cancel();
+        setState(() => _resendCooldown = 0);
+      } else {
+        setState(() => _resendCooldown--);
+      }
+    });
+  }
+
+  // ── Envoi OTP ─────────────────────────────────────────────
+  Future<void> _sendOTP() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isLoading = true);
+    try {
+      final cloudFunction = ParseCloudFunction('sendOTP');
+      final response = await cloudFunction.execute(parameters: {
+        'phone': phoneE164ForCountry(
+          phone: _phoneCtrl.text,
+          country: _country,
+        ),
+        'country': _country,
+      });
+      if (mounted) {
+        if (response.success &&
+            response.result is Map &&
+            response.result['success'] == true) {
+          setState(() => _otpSent = true);
+          _startCooldown();
+          Toast(
+            context,
+            AppLocalizations.of(context)!.login_otp_sent,
+            true,
+          );
+        } else {
+          Toast(
+            context,
+            AppLocalizations.of(context)!.login_otp_invalid,
+            false,
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) Toast(context, 'Erreur: $e', false);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // ── Vérification OTP ──────────────────────────────────────
+  Future<void> _verifyOTP() async {
+    if (_otpCtrl.text.length != 6) {
+      Toast(
+        context,
+        AppLocalizations.of(context)!.login_otp_invalid,
+        false,
+      );
+      return;
+    }
+    setState(() => _isLoading = true);
+    try {
+      final cloudFunction = ParseCloudFunction('verifyOTP');
+      final response = await cloudFunction.execute(parameters: {
+        'phone': phoneE164ForCountry(
+          phone: _phoneCtrl.text,
+          country: _country,
+        ),
+        'country': _country,
+        'code': _otpCtrl.text,
+        'ageConfirmed': true,
+      });
+      if (mounted) {
+        if (response.success &&
+            response.result is Map &&
+            response.result['success'] == true) {
+          final result = response.result as Map<String, dynamic>;
+          final userMap = result['user'] as Map<String, dynamic>;
+          final user = Users.fromMap(userMap);
+          final role = AppRole.fromId(user.roleID);
+          await SessionService.saveUserSession(
+            userId: user.userID,
+            role: role,
+            country: user.country,
+          );
+          if (mounted) {
+            Toast(
+              context,
+              AppLocalizations.of(context)!.loginSuccess,
+              true,
+            );
+            if (user.mustChangePassword || user.isSimplified) {
+              Navigator.pushReplacement(
+                context,
+                CupertinoPageRoute(
+                  builder: (_) => FirstLoginPasswordChange(user: user),
+                ),
+              );
+            } else {
+              Users.chooseCurvedNavigation(user.roleID, user.country, context);
+            }
+          }
+        } else {
+          final result = response.result;
+          final error = result is Map ? result['error']?.toString() : null;
+          Toast(
+            context,
+            error ?? AppLocalizations.of(context)!.login_otp_invalid,
+            false,
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) Toast(context, 'Erreur: $e', false);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // ── Ouvre le sélecteur de pays ────────────────────────────
+  Future<void> _chooseCountry() async {
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.resolve(AppColors.card, AppDarkColors.card),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => _PhoneCountryPicker(
+        currentCountry: _country,
+        countryFlags: _countryFlags,
+        countryCodes: _countryCodes,
+      ),
+    );
+    if (selected != null && mounted) {
+      setState(() {
+        _country = selected;
+        _phoneCtrl.clear();
+      });
+    }
+  }
+
+  // ── Décoration de champ pilule ────────────────────────────
+  InputDecoration _decoration(
+    BuildContext context, {
+    required String hint,
+    Widget? suffixIcon,
+  }) {
+    final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+    final border = AppColors.resolve(AppColors.border, AppDarkColors.border);
+    final surface =
+        AppColors.resolve(AppColors.surfaceWarm, AppDarkColors.surfaceWarm);
+    final inkMuted =
+        AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
+
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: AppTypography.bodyLarge(color: inkMuted),
+      suffixIcon: suffixIcon,
+      filled: true,
+      fillColor: surface,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(999),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(999),
+        borderSide: BorderSide(color: border, width: 1),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(999),
+        borderSide: BorderSide(color: brand, width: 1.6),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+    return _otpSent ? _buildOtpForm(loc) : _buildPhoneForm(loc);
+  }
+
+  // ── Formulaire saisie du téléphone ────────────────────────
+  Widget _buildPhoneForm(AppLocalizations loc) {
+    final inkMuted =
+        AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          loc.login_phone_subtitle,
+          style: AppTypography.bodyMedium(color: inkMuted),
+        ),
+        const SizedBox(height: AppSpacing.md),
+
+        // ── Tuile sélecteur de pays ───────────────────────
+        _PhoneCountryTile(
+          country: _country,
+          flag: _countryFlags[_country] ?? '🌍',
+          dialCode: _countryCodes[_country] ?? '+243',
+          onTap: _chooseCountry,
+        ),
+
+        const SizedBox(height: AppSpacing.md),
+
+        // ── Champ téléphone ───────────────────────────────
+        Form(
+          key: _formKey,
+          child: TextFormField(
+            controller: _phoneCtrl,
+            keyboardType: TextInputType.phone,
+            style: AppTypography.bodyLarge(),
+            decoration: _decoration(
+              context,
+              hint: phoneExampleForCountry(_country),
+            ),
+            validator: (v) {
+              if (v == null || v.isEmpty) return loc.enter_phone;
+              if (!isValidLocalPhoneForCountry(
+                phone: v,
+                country: _country,
+              )) {
+                return loc.login_otp_invalid;
+              }
+              return null;
+            },
+          ),
+        ),
+
+        const SizedBox(height: AppSpacing.lg),
+
+        // ── Bouton envoyer OTP ────────────────────────────
+        _GradientButton(
+          label: loc.login_send_otp,
+          isLoading: _isLoading,
+          onPressed: _isLoading ? null : _sendOTP,
+        ),
+      ],
+    );
+  }
+
+  // ── Formulaire saisie de l'OTP ────────────────────────────
+  Widget _buildOtpForm(AppLocalizations loc) {
+    final inkMuted =
+        AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
+    final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+    final border = AppColors.resolve(AppColors.border, AppDarkColors.border);
+    final surface =
+        AppColors.resolve(AppColors.surfaceWarm, AppDarkColors.surfaceWarm);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          loc.login_otp_subtitle,
+          style: AppTypography.bodyMedium(color: inkMuted),
+        ),
+        const SizedBox(height: AppSpacing.md),
+
+        // ── Champ OTP centré ──────────────────────────────
+        TextFormField(
+          controller: _otpCtrl,
+          keyboardType: TextInputType.number,
+          maxLength: 6,
+          textAlign: TextAlign.center,
+          style: AppTypography.headlineMedium().copyWith(letterSpacing: 16),
+          decoration: InputDecoration(
+            hintText: loc.login_otp_hint,
+            counterText: '',
+            filled: true,
+            fillColor: surface,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 24,
+              vertical: 20,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(999),
+              borderSide: BorderSide(color: border),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(999),
+              borderSide: BorderSide(color: border),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(999),
+              borderSide: BorderSide(color: brand, width: 1.6),
+            ),
+          ),
+          validator: (v) {
+            if (v == null || v.length != 6) return loc.login_otp_invalid;
+            return null;
+          },
+        ),
+
+        const SizedBox(height: AppSpacing.md),
+
+        // ── Timer / bouton renvoi ─────────────────────────
+        if (_resendCooldown > 0)
+          Center(
+            child: Text(
+              loc.login_otp_timer(_resendCooldown.toString()),
+              style: AppTypography.labelMedium(color: inkMuted),
+            ),
+          )
+        else
+          Center(
+            child: TextButton(
+              onPressed: () {
+                setState(() => _otpSent = false);
+                _phoneCtrl.clear();
+                _otpCtrl.clear();
+              },
+              child: Text(loc.login_otp_resend),
+            ),
+          ),
+
+        const SizedBox(height: AppSpacing.lg),
+
+        // ── Bouton vérifier OTP ───────────────────────────
+        _GradientButton(
+          label: loc.login_otp_verify,
+          isLoading: _isLoading,
+          onPressed: _isLoading ? null : _verifyOTP,
+        ),
+      ],
+    );
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// _PhoneCountryTile — Tuile pilule pour afficher le pays choisi
+// ════════════════════════════════════════════════════════════════
+
+class _PhoneCountryTile extends StatelessWidget {
+  const _PhoneCountryTile({
+    required this.country,
+    required this.flag,
+    required this.dialCode,
+    required this.onTap,
+  });
+
+  final String country;
+  final String flag;
+  final String dialCode;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final surface =
+        AppColors.resolve(AppColors.surfaceWarm, AppDarkColors.surfaceWarm);
+    final border = AppColors.resolve(AppColors.border, AppDarkColors.border);
+    final ink = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
+    final inkMuted =
+        AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          decoration: BoxDecoration(
+            color: surface,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: border, width: 1),
+          ),
+          child: Row(
+            children: [
+              // Drapeau
+              Text(
+                flag,
+                style: const TextStyle(fontSize: 22),
+              ),
+              const SizedBox(width: 10),
+              // Nom du pays
+              Expanded(
+                child: Text(
+                  country,
+                  style: AppTypography.bodyLarge(color: ink),
+                ),
+              ),
+              // Indicatif
+              Text(
+                dialCode,
+                style: AppTypography.bodyMedium(color: inkMuted),
+              ),
+              const SizedBox(width: 6),
+              // Chevron
+              Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: inkMuted,
+                size: 20,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// _PhoneCountryPicker — Bottom sheet sélection de pays
+// ════════════════════════════════════════════════════════════════
+
+class _PhoneCountryPicker extends StatelessWidget {
+  const _PhoneCountryPicker({
+    required this.currentCountry,
+    required this.countryFlags,
+    required this.countryCodes,
+  });
+
+  final String currentCountry;
+  final Map<String, String> countryFlags;
+  final Map<String, String> countryCodes;
+
+  @override
+  Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+    final card = AppColors.resolve(AppColors.card, AppDarkColors.card);
+    final ink = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
+    final inkMuted =
+        AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
+    final border = AppColors.resolve(AppColors.border, AppDarkColors.border);
+    final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+    final surfaceWarm =
+        AppColors.resolve(AppColors.surfaceWarm, AppDarkColors.surfaceWarm);
+
+    final countries = CountryUtil.selectableCountries;
+
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.only(
+          top: 8,
+          left: AppSpacing.lg,
+          right: AppSpacing.lg,
+          bottom: AppSpacing.lg,
+        ),
+        decoration: BoxDecoration(
+          color: card,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // ── Handle ────────────────────────────────────
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+              decoration: BoxDecoration(
+                color: border.withValues(alpha: 0.7),
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+
+            // ── Header titre + bouton fermer ──────────────
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    loc.country,
+                    style: AppTypography.displayMedium(color: ink),
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(
+                    Icons.close_rounded,
+                    color: inkMuted,
+                    size: 20,
+                  ),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: AppSpacing.sm),
+
+            // ── Barre de recherche décorative ─────────────
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 10,
+              ),
+              decoration: BoxDecoration(
+                color: surfaceWarm,
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: border),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.search_rounded,
+                    color: inkMuted,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    loc.search,
+                    style: AppTypography.bodyMedium(color: inkMuted),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: AppSpacing.md),
+
+            // ── Liste des pays ────────────────────────────
+            Flexible(
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: countries.length,
+                separatorBuilder: (_, __) => Divider(
+                  height: 1,
+                  color: border.withValues(alpha: 0.5),
+                ),
+                itemBuilder: (context, index) {
+                  final c = countries[index];
+                  final isSelected = c == currentCountry;
+                  final flag = countryFlags[c] ?? '🌍';
+                  final dial = countryCodes[c] ?? '+243';
+
+                  return ListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 4,
+                    ),
+                    onTap: () => Navigator.of(context).pop(c),
+                    leading: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: surfaceWarm,
+                      ),
+                      child: Center(
+                        child: Text(
+                          flag,
+                          style: const TextStyle(fontSize: 22),
+                        ),
+                      ),
+                    ),
+                    title: Text(
+                      c,
+                      style: AppTypography.bodyLarge(color: ink),
+                    ),
+                    subtitle: Text(
+                      dial,
+                      style: AppTypography.bodyMedium(color: inkMuted),
+                    ),
+                    trailing: Container(
+                      width: 20,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isSelected ? brand : border,
+                          width: 2,
+                        ),
+                      ),
+                      child: isSelected
+                          ? Center(
+                              child: Container(
+                                width: 10,
+                                height: 10,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: brand,
+                                ),
+                              ),
+                            )
+                          : null,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// _LoginErrorBanner — Bannière d'erreur de connexion
+// ════════════════════════════════════════════════════════════════
+
 class _LoginErrorBanner extends StatelessWidget {
   const _LoginErrorBanner({required this.onDismiss});
+
   final VoidCallback onDismiss;
 
   @override
   Widget build(BuildContext context) {
+    final error = AppColors.resolve(AppColors.error, AppDarkColors.error);
+    final errorLight =
+        AppColors.resolve(AppColors.errorLight, AppDarkColors.errorLight);
+
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
         vertical: AppSpacing.sm,
       ),
       decoration: BoxDecoration(
-        color: AppColors.resolve(
-          AppColors.errorLight,
-          AppColors.errorLight,
-        ),
+        color: errorLight,
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(
-          color: AppColors.error.withValues(alpha: 0.25),
-        ),
+        border: Border.all(color: error.withValues(alpha: 0.25)),
         boxShadow: [
           BoxShadow(
-            color: AppColors.error.withValues(alpha: 0.08),
+            color: error.withValues(alpha: 0.08),
             blurRadius: 8,
             offset: const Offset(0, 3),
           ),
@@ -818,38 +1615,41 @@ class _LoginErrorBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
+          // ── Icône erreur ──────────────────────────────
           Container(
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: AppColors.error.withValues(alpha: 0.12),
+              color: error.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.error_outline_rounded,
-              color: AppColors.error,
+              color: error,
               size: 18,
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
+          // ── Message ───────────────────────────────────
           Expanded(
             child: Text(
               AppLocalizations.of(context)!.login_failed,
-              style: AppTypography.labelMedium(color: AppColors.error),
+              style: AppTypography.labelMedium(color: error),
             ),
           ),
+          // ── Bouton fermer ─────────────────────────────
           GestureDetector(
             onTap: onDismiss,
             child: Container(
               width: 28,
               height: 28,
               decoration: BoxDecoration(
-                color: AppColors.error.withValues(alpha: 0.10),
+                color: error.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(AppRadius.sm),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.close_rounded,
-                color: AppColors.error,
+                color: error,
                 size: 15,
               ),
             ),

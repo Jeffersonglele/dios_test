@@ -31,8 +31,8 @@ class RestaurantAdapter extends TypeAdapter<Restaurant> {
       openingHours: fields[11] as String,
       deliveryFee: fields[12] as double,
       isOpen: fields[13] as int,
-      openingDays: fields[14] as String? ?? 'Lun,Mar,Mer,Jeu,Ven,Sam',
-      openingHoursByDay: fields[15] as String? ?? '',
+      openingDays: fields[14] as String,
+      openingHoursByDay: fields[15] as String,
     );
   }
 

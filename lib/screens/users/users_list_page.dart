@@ -389,8 +389,8 @@ class _UsersListPageState extends State<UsersListPage> {
         bg = AppColors.resolve(
             AppColors.successLight, AppDarkColors.successLight);
         break;
-      case AppRole.livreur:
-        label = l10n.livreur_role_label;
+      case AppRole.individual:
+        label = 'Client';
         bg =
             AppColors.resolve(AppColors.surfaceWarm, AppDarkColors.surfaceWarm);
         break;

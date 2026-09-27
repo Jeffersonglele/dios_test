@@ -792,7 +792,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get cart_payment_cod => 'À la livraison';
 
   @override
-  String get cart_payment_fedapay => 'Mobile Money (iKeepPay)';
+  String get cart_payment_fedapay => 'Mobile Money (Nyole)';
 
   @override
   String get cart_processing => 'Traitement...';
@@ -1934,7 +1934,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get commande_details_wave => 'Wave';
 
   @override
-  String get commande_details_cinetpay => 'Mobile Money (iKeepPay)';
+  String get commande_details_cinetpay => 'Mobile Money (Nyole)';
 
   @override
   String get commande_details_items => 'Articles';
@@ -3371,4 +3371,589 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get age_confirm_warning =>
       'Vous devez confirmer avoir 18 ans ou plus pour vous inscrire';
+
+  @override
+  String get login_phone_tab => 'Par téléphone';
+
+  @override
+  String get login_phone_title => 'Connexion par téléphone';
+
+  @override
+  String get login_phone_subtitle =>
+      'Entrez votre numéro pour recevoir un code par SMS';
+
+  @override
+  String get login_phone_hint => '+243 XXX XXX XXX';
+
+  @override
+  String get login_send_otp => 'Envoyer le code';
+
+  @override
+  String get login_otp_title => 'Code de vérification';
+
+  @override
+  String get login_otp_subtitle => 'Entrez le code à 4 chiffres reçu par SMS';
+
+  @override
+  String get login_otp_hint => '****';
+
+  @override
+  String login_otp_timer(Object seconds) {
+    return 'Renvoi possible dans ${seconds}s';
+  }
+
+  @override
+  String get login_otp_resend => 'Renvoyer le code';
+
+  @override
+  String get login_otp_verify => 'Vérifier';
+
+  @override
+  String get login_otp_invalid => 'Code invalide ou expiré';
+
+  @override
+  String get login_otp_attempts_exceeded =>
+      'Trop de tentatives. Réessayez dans 10 minutes.';
+
+  @override
+  String get age_confirm_required =>
+      'Vous devez confirmer avoir 18 ans ou plus';
+
+  @override
+  String get account_simplified_notice =>
+      'Compte simplifié (téléphone uniquement). Ajoutez un email et un mot de passe pour un compte complet.';
+
+  @override
+  String get upgrade_account => 'Passer au compte complet';
+
+  @override
+  String get upgrade_account_title => 'Compléter mon compte';
+
+  @override
+  String get upgrade_email_hint => 'Email';
+
+  @override
+  String get upgrade_password_hint => 'Mot de passe';
+
+  @override
+  String get upgrade_confirm_password_hint => 'Confirmer le mot de passe';
+
+  @override
+  String get dispute_title => 'Signaler un problème';
+
+  @override
+  String get dispute_subtitle =>
+      'Décrivez le problème rencontré avec votre commande';
+
+  @override
+  String get dispute_type_label => 'Type de problème';
+
+  @override
+  String get dispute_type_missing => 'Produit manquant';
+
+  @override
+  String get dispute_type_not_delivered => 'Non livré';
+
+  @override
+  String get dispute_type_bad_quality => 'Mauvaise qualité';
+
+  @override
+  String get dispute_type_other => 'Autre';
+
+  @override
+  String get dispute_description_label => 'Description';
+
+  @override
+  String get dispute_description_hint => 'Expliquez ce qui s\'est passé...';
+
+  @override
+  String get dispute_photo_label =>
+      'Photo (obligatoire pour produit manquant / non livré)';
+
+  @override
+  String get dispute_take_photo => 'Prendre une photo';
+
+  @override
+  String get dispute_submit => 'Envoyer le signalement';
+
+  @override
+  String get dispute_submitted =>
+      'Litige soumis. Nous l\'examinerons sous 24-48h.';
+
+  @override
+  String get dispute_my_disputes => 'Mes litiges';
+
+  @override
+  String get dispute_status_open => 'Ouvert';
+
+  @override
+  String get dispute_status_resolved_client => 'Résolu en votre faveur';
+
+  @override
+  String get dispute_status_resolved_restaurant => 'Résolu pour le restaurant';
+
+  @override
+  String get dispute_status_resolved_driver => 'Résolu pour le livreur';
+
+  @override
+  String get dispute_status_rejected => 'Rejeté';
+
+  @override
+  String dispute_refund_amount(Object amount) {
+    return 'Montant remboursé : $amount';
+  }
+
+  @override
+  String get dispute_admin_panel => 'Gestion des litiges';
+
+  @override
+  String get dispute_admin_queue => 'File d\'attente';
+
+  @override
+  String get dispute_admin_detail => 'Détail du litige';
+
+  @override
+  String get dispute_admin_resolve_client => 'Rembourser le client';
+
+  @override
+  String get dispute_admin_resolve_restaurant => 'Donner raison au restaurant';
+
+  @override
+  String get dispute_admin_resolve_driver => 'Donner raison au livreur';
+
+  @override
+  String get dispute_admin_reject => 'Rejeter';
+
+  @override
+  String get dispute_admin_reason_hint => 'Motif de la décision...';
+
+  @override
+  String dispute_scoring_warning(Object count) {
+    return 'Attention : $count litiges validés ce mois. Risque de suspension à 5.';
+  }
+
+  @override
+  String get finance_title => 'Mes finances';
+
+  @override
+  String get finance_payouts => 'Versements';
+
+  @override
+  String get finance_commission_invoices => 'Factures de commission';
+
+  @override
+  String finance_period(Object end, Object start) {
+    return 'Période : $start - $end';
+  }
+
+  @override
+  String finance_gross_amount(Object amount) {
+    return 'Montant brut : $amount';
+  }
+
+  @override
+  String finance_commission_rate(Object rate) {
+    return 'Taux commission : $rate%';
+  }
+
+  @override
+  String finance_commission_amount(Object amount) {
+    return 'Commission : -$amount';
+  }
+
+  @override
+  String finance_net_amount(Object amount) {
+    return 'Net versé : $amount';
+  }
+
+  @override
+  String get finance_payout_status_pending => 'En attente';
+
+  @override
+  String get finance_payout_status_processing => 'En cours';
+
+  @override
+  String get finance_payout_status_completed => 'Versé';
+
+  @override
+  String get finance_payout_status_failed => 'Échoué';
+
+  @override
+  String get finance_download_invoice => 'Télécharger la facture';
+
+  @override
+  String get finance_dual_currency_cdf => 'CDF';
+
+  @override
+  String get finance_dual_currency_usd => 'USD';
+
+  @override
+  String finance_exchange_rate(Object rate) {
+    return 'Taux de change : 1 USD = $rate CDF';
+  }
+
+  @override
+  String finance_rate_date(Object date) {
+    return 'Taux du $date';
+  }
+
+  @override
+  String get finance_admin_config => 'Paramètres plateforme';
+
+  @override
+  String get finance_config_commission => 'Taux commission (%)';
+
+  @override
+  String get finance_config_dispute_warning =>
+      'Seuil avertissement litiges (30j)';
+
+  @override
+  String get finance_config_dispute_suspension =>
+      'Seuil suspension litiges (30j)';
+
+  @override
+  String get finance_config_driver_min_rating => 'Note min livreur';
+
+  @override
+  String get finance_config_payment_timeout => 'Timeout paiement (min)';
+
+  @override
+  String get finance_config_delivery_proof_threshold =>
+      'Seuil preuve livraison (CDF)';
+
+  @override
+  String get finance_config_driver_accept_warning =>
+      'Seuil avertissement acceptation (%)';
+
+  @override
+  String get finance_config_driver_accept_suspension =>
+      'Seuil suspension acceptation (%)';
+
+  @override
+  String get delivery_proof_title => 'Confirmer la livraison';
+
+  @override
+  String get delivery_proof_instruction => 'Prenez une photo du colis livré';
+
+  @override
+  String get delivery_proof_take_photo => 'Prendre la photo';
+
+  @override
+  String get delivery_proof_code_label => 'Code de confirmation (4 chiffres)';
+
+  @override
+  String get delivery_proof_code_hint => 'Entrez le code reçu par le client';
+
+  @override
+  String get delivery_proof_submit => 'Valider la livraison';
+
+  @override
+  String get delivery_proof_submitted => 'Livraison confirmée avec preuve';
+
+  @override
+  String get driver_rating_title => 'Noter votre livreur';
+
+  @override
+  String get driver_rating_hint => 'Optionnel';
+
+  @override
+  String get driver_rating_comment_hint => 'Commentaire (optionnel)';
+
+  @override
+  String get driver_rating_submit => 'Envoyer';
+
+  @override
+  String get driver_rating_thanks => 'Merci pour votre notation !';
+
+  @override
+  String driver_rating_average(Object count, Object rating) {
+    return 'Note moyenne : $rating/5 ($count courses)';
+  }
+
+  @override
+  String driver_acceptance_warning(Object rate, Object threshold) {
+    return 'Votre taux d\'acceptation est de $rate%. Risque de suspension si < $threshold%.';
+  }
+
+  @override
+  String driver_acceptance_suspended(Object rate) {
+    return 'Compte suspendu : taux d\'acceptation trop bas ($rate%).';
+  }
+
+  @override
+  String get driver_earnings_title => 'Mes gains';
+
+  @override
+  String driver_earnings_base(Object amount) {
+    return 'Base : $amount';
+  }
+
+  @override
+  String driver_earnings_distance(Object amount) {
+    return 'Distance : $amount';
+  }
+
+  @override
+  String driver_earnings_tips(Object amount) {
+    return 'Pourboires : $amount';
+  }
+
+  @override
+  String driver_earnings_total(Object amount) {
+    return 'Total : $amount';
+  }
+
+  @override
+  String driver_payout_status(Object status) {
+    return 'Statut versement : $status';
+  }
+
+  @override
+  String get payment_unavailable => 'Paiement temporairement indisponible';
+
+  @override
+  String get payment_unavailable_retry => 'Réessayez dans quelques minutes';
+
+  @override
+  String get verification_reminder => 'Re-vérification d\'identité requise';
+
+  @override
+  String verification_reminder_body(Object days) {
+    return 'Votre vérification date de $days jours. Merci de soumettre une nouvelle photo d\'identité.';
+  }
+
+  @override
+  String get verification_suspended =>
+      'Compte suspendu : re-vérification requise';
+
+  @override
+  String get hygiene_badge => 'Hygiène 🎓';
+
+  @override
+  String get error_generic => 'Une erreur est survenue. Réessayez.';
+
+  @override
+  String get success_generic => 'Opération réussie';
+
+  @override
+  String get login_otp_sent => 'Code OTP envoyé par SMS';
+
+  @override
+  String get dispute_photo_required =>
+      'Photo obligatoire pour ce type de litige';
+
+  @override
+  String get dispute_max_photos => 'Maximum 5 photos';
+
+  @override
+  String get dispute_description_required => 'Description requise';
+
+  @override
+  String get dispute_submit_error => 'Erreur lors de l\'envoi';
+
+  @override
+  String get delivery_proof_camera_only => 'Ouvrir la caméra directement';
+
+  @override
+  String get delivery_proof_photo_required => 'Photo obligatoire';
+
+  @override
+  String get delivery_proof_invalid_code => 'Code invalide';
+
+  @override
+  String get driver_rating_label => 'Rating';
+
+  @override
+  String get dispute_no_disputes => 'Aucun litige';
+
+  @override
+  String get dispute_resolution_notes => 'Résolution';
+
+  @override
+  String get dispute_created => 'Créé le';
+
+  @override
+  String get dispute_resolved => 'Résolu le';
+
+  @override
+  String get login_email_tab => 'Par email';
+
+  @override
+  String get signup_customer_title => 'Créer votre compte';
+
+  @override
+  String get signup_driver_title => 'Devenir livreur';
+
+  @override
+  String get signup_customer_subtitle =>
+      'Rejoignez Dios Délices en quelques étapes.';
+
+  @override
+  String get signup_driver_subtitle =>
+      'Recevez des missions et livrez en toute simplicité.';
+
+  @override
+  String get signup_first_name => 'Prénom';
+
+  @override
+  String get signup_last_name => 'Nom';
+
+  @override
+  String get signup_username => 'Nom d\'utilisateur';
+
+  @override
+  String get signup_username_min_chars =>
+      'Choisissez un pseudo (4 caractères min.)';
+
+  @override
+  String signup_min_chars(int count) {
+    return '$count caractères min.';
+  }
+
+  @override
+  String get signup_continue => 'Continuer';
+
+  @override
+  String get signup_email => 'Adresse e-mail';
+
+  @override
+  String get signup_email_invalid => 'Entrez une adresse e-mail valide';
+
+  @override
+  String signup_phone_hint(Object example) {
+    return 'Tél. : $example';
+  }
+
+  @override
+  String get signup_phone_required => 'Entrez votre numéro';
+
+  @override
+  String signup_phone_format(Object example) {
+    return 'Format attendu : $example';
+  }
+
+  @override
+  String get signup_password_hint => 'Mot de passe (8 caractères min.)';
+
+  @override
+  String get signup_password_required => 'Veuillez saisir un mot de passe';
+
+  @override
+  String get signup_password_min_length => 'Au moins 8 caractères requis';
+
+  @override
+  String get signup_password_uppercase_required =>
+      'Au moins une majuscule requise';
+
+  @override
+  String get signup_password_digit_required => 'Au moins un chiffre requis';
+
+  @override
+  String get signup_password_special_required =>
+      'Au moins un caractère spécial requis';
+
+  @override
+  String get signup_password_confirm_hint => 'Répétez votre mot de passe';
+
+  @override
+  String get signup_password_confirm_required => 'Confirmez votre mot de passe';
+
+  @override
+  String get signup_password_mismatch =>
+      'Les mots de passe ne correspondent pas';
+
+  @override
+  String get signup_create_account => 'Créer mon compte';
+
+  @override
+  String get signup_accept_terms_warning =>
+      'Veuillez accepter les conditions d\'utilisation.';
+
+  @override
+  String get signup_age_warning => 'Veuillez confirmer votre âge (18+).';
+
+  @override
+  String signup_create_error(Object error) {
+    return 'Erreur : $error';
+  }
+
+  @override
+  String get signup_role_prompt => 'Utiliser l\'application comme';
+
+  @override
+  String get signup_customer_role => 'Client';
+
+  @override
+  String get signup_customer_role_description => 'Commander des repas';
+
+  @override
+  String get signup_driver_role => 'Livreur';
+
+  @override
+  String get signup_driver_role_description => 'Livrer des commandes';
+
+  @override
+  String get signup_vehicle_type => 'Type de véhicule';
+
+  @override
+  String get signup_vehicle_motorcycle => 'Moto';
+
+  @override
+  String get signup_vehicle_bicycle => 'Vélo';
+
+  @override
+  String get signup_vehicle_car => 'Voiture';
+
+  @override
+  String get signup_country_detecting => 'Détection…';
+
+  @override
+  String signup_country_calling_code(Object code) {
+    return 'Indicatif : $code';
+  }
+
+  @override
+  String get signup_country_drc => 'RDC';
+
+  @override
+  String get signup_country_benin => 'Bénin';
+
+  @override
+  String get signup_choose_country => 'Choisir un pays';
+
+  @override
+  String get signup_search_country => 'Rechercher un pays';
+
+  @override
+  String get signup_terms_prefix => 'J\'accepte les ';
+
+  @override
+  String get signup_terms_link => 'conditions d\'utilisation';
+
+  @override
+  String get signup_age_confirmation => 'Je confirme avoir 18 ans ou plus';
+
+  @override
+  String get signup_password_strength_strong => 'Mot de passe fort';
+
+  @override
+  String get signup_password_strength_medium => 'Mot de passe moyen';
+
+  @override
+  String get signup_password_strength_weak => 'Mot de passe faible';
+
+  @override
+  String get signup_password_strength_very_weak => 'Très faible';
+
+  @override
+  String get signup_password_min_8 => '8 car. min.';
+
+  @override
+  String get signup_password_uppercase => 'Majuscule';
+
+  @override
+  String get signup_password_digit => 'Chiffre';
+
+  @override
+  String get signup_password_symbol => 'Symbole';
 }

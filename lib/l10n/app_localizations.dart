@@ -1619,7 +1619,7 @@ abstract class AppLocalizations {
   /// No description provided for @cart_payment_fedapay.
   ///
   /// In en, this message translates to:
-  /// **'Mobile Money (iKeepPay)'**
+  /// **'Mobile Money (Nyole)'**
   String get cart_payment_fedapay;
 
   /// No description provided for @cart_processing.
@@ -3683,7 +3683,7 @@ abstract class AppLocalizations {
   /// No description provided for @commande_details_cinetpay.
   ///
   /// In en, this message translates to:
-  /// **'Mobile Money (iKeepPay)'**
+  /// **'Mobile Money (Nyole)'**
   String get commande_details_cinetpay;
 
   /// No description provided for @commande_details_items.
@@ -5562,7 +5562,7 @@ abstract class AppLocalizations {
   /// No description provided for @reviews_count.
   ///
   /// In en, this message translates to:
-  /// **'{count} avis'**
+  /// **'{count} reviews'**
   String reviews_count(int count);
 
   /// No description provided for @previous.
@@ -6266,6 +6266,1038 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'You must confirm you are 18 or older to sign up'**
   String get age_confirm_warning;
+
+  /// No description provided for @login_phone_tab.
+  ///
+  /// In en, this message translates to:
+  /// **'By phone'**
+  String get login_phone_tab;
+
+  /// No description provided for @login_phone_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Login by phone'**
+  String get login_phone_title;
+
+  /// No description provided for @login_phone_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your number to receive a code via SMS'**
+  String get login_phone_subtitle;
+
+  /// No description provided for @login_phone_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'+243 XXX XXX XXX'**
+  String get login_phone_hint;
+
+  /// No description provided for @login_send_otp.
+  ///
+  /// In en, this message translates to:
+  /// **'Send code'**
+  String get login_send_otp;
+
+  /// No description provided for @login_otp_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Verification code'**
+  String get login_otp_title;
+
+  /// No description provided for @login_otp_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the 4-digit code received by SMS'**
+  String get login_otp_subtitle;
+
+  /// No description provided for @login_otp_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'****'**
+  String get login_otp_hint;
+
+  /// No description provided for @login_otp_timer.
+  ///
+  /// In en, this message translates to:
+  /// **'Resend available in {seconds}s'**
+  String login_otp_timer(Object seconds);
+
+  /// No description provided for @login_otp_resend.
+  ///
+  /// In en, this message translates to:
+  /// **'Resend code'**
+  String get login_otp_resend;
+
+  /// No description provided for @login_otp_verify.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify'**
+  String get login_otp_verify;
+
+  /// No description provided for @login_otp_invalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid or expired code'**
+  String get login_otp_invalid;
+
+  /// No description provided for @login_otp_attempts_exceeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many attempts. Try again in 10 minutes.'**
+  String get login_otp_attempts_exceeded;
+
+  /// No description provided for @age_confirm_required.
+  ///
+  /// In en, this message translates to:
+  /// **'You must confirm you are 18 or older'**
+  String get age_confirm_required;
+
+  /// No description provided for @account_simplified_notice.
+  ///
+  /// In en, this message translates to:
+  /// **'Simplified account (phone only). Add email and password for a full account.'**
+  String get account_simplified_notice;
+
+  /// No description provided for @upgrade_account.
+  ///
+  /// In en, this message translates to:
+  /// **'Upgrade to full account'**
+  String get upgrade_account;
+
+  /// No description provided for @upgrade_account_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete my account'**
+  String get upgrade_account_title;
+
+  /// No description provided for @upgrade_email_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Email'**
+  String get upgrade_email_hint;
+
+  /// No description provided for @upgrade_password_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get upgrade_password_hint;
+
+  /// No description provided for @upgrade_confirm_password_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm password'**
+  String get upgrade_confirm_password_hint;
+
+  /// No description provided for @dispute_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Report a problem'**
+  String get dispute_title;
+
+  /// No description provided for @dispute_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Describe the issue with your order'**
+  String get dispute_subtitle;
+
+  /// No description provided for @dispute_type_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Problem type'**
+  String get dispute_type_label;
+
+  /// No description provided for @dispute_type_missing.
+  ///
+  /// In en, this message translates to:
+  /// **'Missing item'**
+  String get dispute_type_missing;
+
+  /// No description provided for @dispute_type_not_delivered.
+  ///
+  /// In en, this message translates to:
+  /// **'Not delivered'**
+  String get dispute_type_not_delivered;
+
+  /// No description provided for @dispute_type_bad_quality.
+  ///
+  /// In en, this message translates to:
+  /// **'Bad quality'**
+  String get dispute_type_bad_quality;
+
+  /// No description provided for @dispute_type_other.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get dispute_type_other;
+
+  /// No description provided for @dispute_description_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Description'**
+  String get dispute_description_label;
+
+  /// No description provided for @dispute_description_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Explain what happened...'**
+  String get dispute_description_hint;
+
+  /// No description provided for @dispute_photo_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo (required for missing item / not delivered)'**
+  String get dispute_photo_label;
+
+  /// No description provided for @dispute_take_photo.
+  ///
+  /// In en, this message translates to:
+  /// **'Take a photo'**
+  String get dispute_take_photo;
+
+  /// No description provided for @dispute_submit.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit report'**
+  String get dispute_submit;
+
+  /// No description provided for @dispute_submitted.
+  ///
+  /// In en, this message translates to:
+  /// **'Dispute submitted. We will review within 24-48h.'**
+  String get dispute_submitted;
+
+  /// No description provided for @dispute_my_disputes.
+  ///
+  /// In en, this message translates to:
+  /// **'My disputes'**
+  String get dispute_my_disputes;
+
+  /// No description provided for @dispute_status_open.
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get dispute_status_open;
+
+  /// No description provided for @dispute_status_resolved_client.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolved in your favor'**
+  String get dispute_status_resolved_client;
+
+  /// No description provided for @dispute_status_resolved_restaurant.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolved for restaurant'**
+  String get dispute_status_resolved_restaurant;
+
+  /// No description provided for @dispute_status_resolved_driver.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolved for driver'**
+  String get dispute_status_resolved_driver;
+
+  /// No description provided for @dispute_status_rejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected'**
+  String get dispute_status_rejected;
+
+  /// No description provided for @dispute_refund_amount.
+  ///
+  /// In en, this message translates to:
+  /// **'Refunded amount: {amount}'**
+  String dispute_refund_amount(Object amount);
+
+  /// No description provided for @dispute_admin_panel.
+  ///
+  /// In en, this message translates to:
+  /// **'Dispute management'**
+  String get dispute_admin_panel;
+
+  /// No description provided for @dispute_admin_queue.
+  ///
+  /// In en, this message translates to:
+  /// **'Queue'**
+  String get dispute_admin_queue;
+
+  /// No description provided for @dispute_admin_detail.
+  ///
+  /// In en, this message translates to:
+  /// **'Dispute detail'**
+  String get dispute_admin_detail;
+
+  /// No description provided for @dispute_admin_resolve_client.
+  ///
+  /// In en, this message translates to:
+  /// **'Refund client'**
+  String get dispute_admin_resolve_client;
+
+  /// No description provided for @dispute_admin_resolve_restaurant.
+  ///
+  /// In en, this message translates to:
+  /// **'Rule for restaurant'**
+  String get dispute_admin_resolve_restaurant;
+
+  /// No description provided for @dispute_admin_resolve_driver.
+  ///
+  /// In en, this message translates to:
+  /// **'Rule for driver'**
+  String get dispute_admin_resolve_driver;
+
+  /// No description provided for @dispute_admin_reject.
+  ///
+  /// In en, this message translates to:
+  /// **'Reject'**
+  String get dispute_admin_reject;
+
+  /// No description provided for @dispute_admin_reason_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason for decision...'**
+  String get dispute_admin_reason_hint;
+
+  /// No description provided for @dispute_scoring_warning.
+  ///
+  /// In en, this message translates to:
+  /// **'Warning: {count} validated disputes this month. Suspension risk at 5.'**
+  String dispute_scoring_warning(Object count);
+
+  /// No description provided for @finance_title.
+  ///
+  /// In en, this message translates to:
+  /// **'My finances'**
+  String get finance_title;
+
+  /// No description provided for @finance_payouts.
+  ///
+  /// In en, this message translates to:
+  /// **'Payouts'**
+  String get finance_payouts;
+
+  /// No description provided for @finance_commission_invoices.
+  ///
+  /// In en, this message translates to:
+  /// **'Commission invoices'**
+  String get finance_commission_invoices;
+
+  /// No description provided for @finance_period.
+  ///
+  /// In en, this message translates to:
+  /// **'Period: {start} - {end}'**
+  String finance_period(Object end, Object start);
+
+  /// No description provided for @finance_gross_amount.
+  ///
+  /// In en, this message translates to:
+  /// **'Gross amount: {amount}'**
+  String finance_gross_amount(Object amount);
+
+  /// No description provided for @finance_commission_rate.
+  ///
+  /// In en, this message translates to:
+  /// **'Commission rate: {rate}%'**
+  String finance_commission_rate(Object rate);
+
+  /// No description provided for @finance_commission_amount.
+  ///
+  /// In en, this message translates to:
+  /// **'Commission: -{amount}'**
+  String finance_commission_amount(Object amount);
+
+  /// No description provided for @finance_net_amount.
+  ///
+  /// In en, this message translates to:
+  /// **'Net paid: {amount}'**
+  String finance_net_amount(Object amount);
+
+  /// No description provided for @finance_payout_status_pending.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending'**
+  String get finance_payout_status_pending;
+
+  /// No description provided for @finance_payout_status_processing.
+  ///
+  /// In en, this message translates to:
+  /// **'Processing'**
+  String get finance_payout_status_processing;
+
+  /// No description provided for @finance_payout_status_completed.
+  ///
+  /// In en, this message translates to:
+  /// **'Paid'**
+  String get finance_payout_status_completed;
+
+  /// No description provided for @finance_payout_status_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed'**
+  String get finance_payout_status_failed;
+
+  /// No description provided for @finance_download_invoice.
+  ///
+  /// In en, this message translates to:
+  /// **'Download invoice'**
+  String get finance_download_invoice;
+
+  /// No description provided for @finance_dual_currency_cdf.
+  ///
+  /// In en, this message translates to:
+  /// **'CDF'**
+  String get finance_dual_currency_cdf;
+
+  /// No description provided for @finance_dual_currency_usd.
+  ///
+  /// In en, this message translates to:
+  /// **'USD'**
+  String get finance_dual_currency_usd;
+
+  /// No description provided for @finance_exchange_rate.
+  ///
+  /// In en, this message translates to:
+  /// **'Exchange rate: 1 USD = {rate} CDF'**
+  String finance_exchange_rate(Object rate);
+
+  /// No description provided for @finance_rate_date.
+  ///
+  /// In en, this message translates to:
+  /// **'Rate as of {date}'**
+  String finance_rate_date(Object date);
+
+  /// No description provided for @finance_admin_config.
+  ///
+  /// In en, this message translates to:
+  /// **'Platform settings'**
+  String get finance_admin_config;
+
+  /// No description provided for @finance_config_commission.
+  ///
+  /// In en, this message translates to:
+  /// **'Commission rate (%)'**
+  String get finance_config_commission;
+
+  /// No description provided for @finance_config_dispute_warning.
+  ///
+  /// In en, this message translates to:
+  /// **'Dispute warning threshold (30d)'**
+  String get finance_config_dispute_warning;
+
+  /// No description provided for @finance_config_dispute_suspension.
+  ///
+  /// In en, this message translates to:
+  /// **'Dispute suspension threshold (30d)'**
+  String get finance_config_dispute_suspension;
+
+  /// No description provided for @finance_config_driver_min_rating.
+  ///
+  /// In en, this message translates to:
+  /// **'Min driver rating'**
+  String get finance_config_driver_min_rating;
+
+  /// No description provided for @finance_config_payment_timeout.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment timeout (min)'**
+  String get finance_config_payment_timeout;
+
+  /// No description provided for @finance_config_delivery_proof_threshold.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery proof threshold (CDF)'**
+  String get finance_config_delivery_proof_threshold;
+
+  /// No description provided for @finance_config_driver_accept_warning.
+  ///
+  /// In en, this message translates to:
+  /// **'Acceptance warning threshold (%)'**
+  String get finance_config_driver_accept_warning;
+
+  /// No description provided for @finance_config_driver_accept_suspension.
+  ///
+  /// In en, this message translates to:
+  /// **'Acceptance suspension threshold (%)'**
+  String get finance_config_driver_accept_suspension;
+
+  /// No description provided for @delivery_proof_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm delivery'**
+  String get delivery_proof_title;
+
+  /// No description provided for @delivery_proof_instruction.
+  ///
+  /// In en, this message translates to:
+  /// **'Take a photo of the delivered package'**
+  String get delivery_proof_instruction;
+
+  /// No description provided for @delivery_proof_take_photo.
+  ///
+  /// In en, this message translates to:
+  /// **'Take photo'**
+  String get delivery_proof_take_photo;
+
+  /// No description provided for @delivery_proof_code_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirmation code (4 digits)'**
+  String get delivery_proof_code_label;
+
+  /// No description provided for @delivery_proof_code_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the code received by the client'**
+  String get delivery_proof_code_hint;
+
+  /// No description provided for @delivery_proof_submit.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm delivery'**
+  String get delivery_proof_submit;
+
+  /// No description provided for @delivery_proof_submitted.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery confirmed with proof'**
+  String get delivery_proof_submitted;
+
+  /// No description provided for @driver_rating_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Rate your driver'**
+  String get driver_rating_title;
+
+  /// No description provided for @driver_rating_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional'**
+  String get driver_rating_hint;
+
+  /// No description provided for @driver_rating_comment_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Comment (optional)'**
+  String get driver_rating_comment_hint;
+
+  /// No description provided for @driver_rating_submit.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit'**
+  String get driver_rating_submit;
+
+  /// No description provided for @driver_rating_thanks.
+  ///
+  /// In en, this message translates to:
+  /// **'Thanks for your rating!'**
+  String get driver_rating_thanks;
+
+  /// No description provided for @driver_rating_average.
+  ///
+  /// In en, this message translates to:
+  /// **'Average rating: {rating}/5 ({count} deliveries)'**
+  String driver_rating_average(Object count, Object rating);
+
+  /// No description provided for @driver_acceptance_warning.
+  ///
+  /// In en, this message translates to:
+  /// **'Your acceptance rate is {rate}%. Suspension risk if < {threshold}%.'**
+  String driver_acceptance_warning(Object rate, Object threshold);
+
+  /// No description provided for @driver_acceptance_suspended.
+  ///
+  /// In en, this message translates to:
+  /// **'Account suspended: acceptance rate too low ({rate}%).'**
+  String driver_acceptance_suspended(Object rate);
+
+  /// No description provided for @driver_earnings_title.
+  ///
+  /// In en, this message translates to:
+  /// **'My earnings'**
+  String get driver_earnings_title;
+
+  /// No description provided for @driver_earnings_base.
+  ///
+  /// In en, this message translates to:
+  /// **'Base: {amount}'**
+  String driver_earnings_base(Object amount);
+
+  /// No description provided for @driver_earnings_distance.
+  ///
+  /// In en, this message translates to:
+  /// **'Distance: {amount}'**
+  String driver_earnings_distance(Object amount);
+
+  /// No description provided for @driver_earnings_tips.
+  ///
+  /// In en, this message translates to:
+  /// **'Tips: {amount}'**
+  String driver_earnings_tips(Object amount);
+
+  /// No description provided for @driver_earnings_total.
+  ///
+  /// In en, this message translates to:
+  /// **'Total: {amount}'**
+  String driver_earnings_total(Object amount);
+
+  /// No description provided for @driver_payout_status.
+  ///
+  /// In en, this message translates to:
+  /// **'Payout status: {status}'**
+  String driver_payout_status(Object status);
+
+  /// No description provided for @payment_unavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment temporarily unavailable'**
+  String get payment_unavailable;
+
+  /// No description provided for @payment_unavailable_retry.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again in a few minutes'**
+  String get payment_unavailable_retry;
+
+  /// No description provided for @verification_reminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Identity re-verification required'**
+  String get verification_reminder;
+
+  /// No description provided for @verification_reminder_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Your verification is {days} days old. Please submit a new ID photo.'**
+  String verification_reminder_body(Object days);
+
+  /// No description provided for @verification_suspended.
+  ///
+  /// In en, this message translates to:
+  /// **'Account suspended: re-verification required'**
+  String get verification_suspended;
+
+  /// No description provided for @hygiene_badge.
+  ///
+  /// In en, this message translates to:
+  /// **'Hygiene 🎓'**
+  String get hygiene_badge;
+
+  /// No description provided for @error_generic.
+  ///
+  /// In en, this message translates to:
+  /// **'An error occurred. Please try again.'**
+  String get error_generic;
+
+  /// No description provided for @success_generic.
+  ///
+  /// In en, this message translates to:
+  /// **'Operation successful'**
+  String get success_generic;
+
+  /// No description provided for @login_otp_sent.
+  ///
+  /// In en, this message translates to:
+  /// **'OTP code sent via SMS'**
+  String get login_otp_sent;
+
+  /// No description provided for @dispute_photo_required.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo required for this type'**
+  String get dispute_photo_required;
+
+  /// No description provided for @dispute_max_photos.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum 5 photos'**
+  String get dispute_max_photos;
+
+  /// No description provided for @dispute_description_required.
+  ///
+  /// In en, this message translates to:
+  /// **'Description required'**
+  String get dispute_description_required;
+
+  /// No description provided for @dispute_submit_error.
+  ///
+  /// In en, this message translates to:
+  /// **'Error submitting dispute'**
+  String get dispute_submit_error;
+
+  /// No description provided for @delivery_proof_camera_only.
+  ///
+  /// In en, this message translates to:
+  /// **'Camera only (no gallery)'**
+  String get delivery_proof_camera_only;
+
+  /// No description provided for @delivery_proof_photo_required.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo required'**
+  String get delivery_proof_photo_required;
+
+  /// No description provided for @delivery_proof_invalid_code.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid code'**
+  String get delivery_proof_invalid_code;
+
+  /// No description provided for @driver_rating_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Rating'**
+  String get driver_rating_label;
+
+  /// No description provided for @dispute_no_disputes.
+  ///
+  /// In en, this message translates to:
+  /// **'No disputes'**
+  String get dispute_no_disputes;
+
+  /// No description provided for @dispute_resolution_notes.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolution'**
+  String get dispute_resolution_notes;
+
+  /// No description provided for @dispute_created.
+  ///
+  /// In en, this message translates to:
+  /// **'Created on'**
+  String get dispute_created;
+
+  /// No description provided for @dispute_resolved.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolved on'**
+  String get dispute_resolved;
+
+  /// No description provided for @login_email_tab.
+  ///
+  /// In en, this message translates to:
+  /// **'By email'**
+  String get login_email_tab;
+
+  /// No description provided for @signup_customer_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Create your account'**
+  String get signup_customer_title;
+
+  /// No description provided for @signup_driver_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Become a driver'**
+  String get signup_driver_title;
+
+  /// No description provided for @signup_customer_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Join Dios Délices in just a few steps.'**
+  String get signup_customer_subtitle;
+
+  /// No description provided for @signup_driver_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Receive delivery requests and deliver with ease.'**
+  String get signup_driver_subtitle;
+
+  /// No description provided for @signup_first_name.
+  ///
+  /// In en, this message translates to:
+  /// **'First name'**
+  String get signup_first_name;
+
+  /// No description provided for @signup_last_name.
+  ///
+  /// In en, this message translates to:
+  /// **'Last name'**
+  String get signup_last_name;
+
+  /// No description provided for @signup_username.
+  ///
+  /// In en, this message translates to:
+  /// **'Username'**
+  String get signup_username;
+
+  /// No description provided for @signup_username_min_chars.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a username (at least 4 characters)'**
+  String get signup_username_min_chars;
+
+  /// No description provided for @signup_min_chars.
+  ///
+  /// In en, this message translates to:
+  /// **'At least {count} characters'**
+  String signup_min_chars(int count);
+
+  /// No description provided for @signup_continue.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get signup_continue;
+
+  /// No description provided for @signup_email.
+  ///
+  /// In en, this message translates to:
+  /// **'Email address'**
+  String get signup_email;
+
+  /// No description provided for @signup_email_invalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid email address'**
+  String get signup_email_invalid;
+
+  /// No description provided for @signup_phone_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone: {example}'**
+  String signup_phone_hint(Object example);
+
+  /// No description provided for @signup_phone_required.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your phone number'**
+  String get signup_phone_required;
+
+  /// No description provided for @signup_phone_format.
+  ///
+  /// In en, this message translates to:
+  /// **'Expected format: {example}'**
+  String signup_phone_format(Object example);
+
+  /// No description provided for @signup_password_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Password (at least 8 characters)'**
+  String get signup_password_hint;
+
+  /// No description provided for @signup_password_required.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter a password'**
+  String get signup_password_required;
+
+  /// No description provided for @signup_password_min_length.
+  ///
+  /// In en, this message translates to:
+  /// **'Password must have at least 8 characters'**
+  String get signup_password_min_length;
+
+  /// No description provided for @signup_password_uppercase_required.
+  ///
+  /// In en, this message translates to:
+  /// **'At least one uppercase letter is required'**
+  String get signup_password_uppercase_required;
+
+  /// No description provided for @signup_password_digit_required.
+  ///
+  /// In en, this message translates to:
+  /// **'At least one number is required'**
+  String get signup_password_digit_required;
+
+  /// No description provided for @signup_password_special_required.
+  ///
+  /// In en, this message translates to:
+  /// **'At least one special character is required'**
+  String get signup_password_special_required;
+
+  /// No description provided for @signup_password_confirm_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-enter your password'**
+  String get signup_password_confirm_hint;
+
+  /// No description provided for @signup_password_confirm_required.
+  ///
+  /// In en, this message translates to:
+  /// **'Please confirm your password'**
+  String get signup_password_confirm_required;
+
+  /// No description provided for @signup_password_mismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Passwords do not match'**
+  String get signup_password_mismatch;
+
+  /// No description provided for @signup_create_account.
+  ///
+  /// In en, this message translates to:
+  /// **'Create my account'**
+  String get signup_create_account;
+
+  /// No description provided for @signup_accept_terms_warning.
+  ///
+  /// In en, this message translates to:
+  /// **'Please accept the terms of use.'**
+  String get signup_accept_terms_warning;
+
+  /// No description provided for @signup_age_warning.
+  ///
+  /// In en, this message translates to:
+  /// **'Please confirm that you are 18 or older.'**
+  String get signup_age_warning;
+
+  /// No description provided for @signup_create_error.
+  ///
+  /// In en, this message translates to:
+  /// **'Error: {error}'**
+  String signup_create_error(Object error);
+
+  /// No description provided for @signup_role_prompt.
+  ///
+  /// In en, this message translates to:
+  /// **'I want to use the app as'**
+  String get signup_role_prompt;
+
+  /// No description provided for @signup_customer_role.
+  ///
+  /// In en, this message translates to:
+  /// **'Customer'**
+  String get signup_customer_role;
+
+  /// No description provided for @signup_customer_role_description.
+  ///
+  /// In en, this message translates to:
+  /// **'Order meals'**
+  String get signup_customer_role_description;
+
+  /// No description provided for @signup_driver_role.
+  ///
+  /// In en, this message translates to:
+  /// **'Driver'**
+  String get signup_driver_role;
+
+  /// No description provided for @signup_driver_role_description.
+  ///
+  /// In en, this message translates to:
+  /// **'Deliver orders'**
+  String get signup_driver_role_description;
+
+  /// No description provided for @signup_vehicle_type.
+  ///
+  /// In en, this message translates to:
+  /// **'Vehicle type'**
+  String get signup_vehicle_type;
+
+  /// No description provided for @signup_vehicle_motorcycle.
+  ///
+  /// In en, this message translates to:
+  /// **'Motorcycle'**
+  String get signup_vehicle_motorcycle;
+
+  /// No description provided for @signup_vehicle_bicycle.
+  ///
+  /// In en, this message translates to:
+  /// **'Bicycle'**
+  String get signup_vehicle_bicycle;
+
+  /// No description provided for @signup_vehicle_car.
+  ///
+  /// In en, this message translates to:
+  /// **'Car'**
+  String get signup_vehicle_car;
+
+  /// No description provided for @signup_country_detecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Detecting…'**
+  String get signup_country_detecting;
+
+  /// No description provided for @signup_country_calling_code.
+  ///
+  /// In en, this message translates to:
+  /// **'Calling code: {code}'**
+  String signup_country_calling_code(Object code);
+
+  /// No description provided for @signup_country_drc.
+  ///
+  /// In en, this message translates to:
+  /// **'DR Congo'**
+  String get signup_country_drc;
+
+  /// No description provided for @signup_country_benin.
+  ///
+  /// In en, this message translates to:
+  /// **'Benin'**
+  String get signup_country_benin;
+
+  /// No description provided for @signup_choose_country.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a country'**
+  String get signup_choose_country;
+
+  /// No description provided for @signup_search_country.
+  ///
+  /// In en, this message translates to:
+  /// **'Search for a country'**
+  String get signup_search_country;
+
+  /// No description provided for @signup_terms_prefix.
+  ///
+  /// In en, this message translates to:
+  /// **'I agree to the '**
+  String get signup_terms_prefix;
+
+  /// No description provided for @signup_terms_link.
+  ///
+  /// In en, this message translates to:
+  /// **'terms of use'**
+  String get signup_terms_link;
+
+  /// No description provided for @signup_age_confirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'I confirm that I am 18 or older'**
+  String get signup_age_confirmation;
+
+  /// No description provided for @signup_password_strength_strong.
+  ///
+  /// In en, this message translates to:
+  /// **'Strong password'**
+  String get signup_password_strength_strong;
+
+  /// No description provided for @signup_password_strength_medium.
+  ///
+  /// In en, this message translates to:
+  /// **'Medium password'**
+  String get signup_password_strength_medium;
+
+  /// No description provided for @signup_password_strength_weak.
+  ///
+  /// In en, this message translates to:
+  /// **'Weak password'**
+  String get signup_password_strength_weak;
+
+  /// No description provided for @signup_password_strength_very_weak.
+  ///
+  /// In en, this message translates to:
+  /// **'Very weak'**
+  String get signup_password_strength_very_weak;
+
+  /// No description provided for @signup_password_min_8.
+  ///
+  /// In en, this message translates to:
+  /// **'8 characters min.'**
+  String get signup_password_min_8;
+
+  /// No description provided for @signup_password_uppercase.
+  ///
+  /// In en, this message translates to:
+  /// **'Uppercase'**
+  String get signup_password_uppercase;
+
+  /// No description provided for @signup_password_digit.
+  ///
+  /// In en, this message translates to:
+  /// **'Number'**
+  String get signup_password_digit;
+
+  /// No description provided for @signup_password_symbol.
+  ///
+  /// In en, this message translates to:
+  /// **'Symbol'**
+  String get signup_password_symbol;
 }
 
 class _AppLocalizationsDelegate

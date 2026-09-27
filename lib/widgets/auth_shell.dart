@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
-import 'brand_avatar_logo.dart';
 
-/// Coque d'authentification Dios Délices
-/// Mobile : formulaire pleine largeur
-/// Tablette/Desktop : split screen (illustration | formulaire)
 class AuthShell extends StatelessWidget {
   const AuthShell({
     super.key,
@@ -12,280 +8,207 @@ class AuthShell extends StatelessWidget {
     required this.subtitle,
     required this.form,
     this.footer,
-    this.heroImage,
+    this.backgroundImage,
   });
 
   final String title;
   final String subtitle;
   final Widget form;
   final Widget? footer;
-  final Widget? heroImage;
+  final ImageProvider? backgroundImage;
 
   @override
   Widget build(BuildContext context) {
     final bgSurface =
-        AppColors.resolve(AppColors.surface, AppDarkColors.surface);
-    final bgGradEnd =
-        AppColors.resolve(AppColors.gradientEnd, AppDarkColors.gradientEnd);
+        AppColors.resolve(AppColors.surfaceWarm, AppDarkColors.surfaceWarm);
+    final inkColor = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
+    final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+    final defaultImage = backgroundImage ??
+        const AssetImage(
+          'assets/images/background2.png',
+        );
+
     return Scaffold(
       backgroundColor: bgSurface,
-      body: Stack(
-        children: [
-          // Fond dégradé signature
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    bgSurface,
-                    bgGradEnd,
-                    bgSurface,
-                  ],
-                  stops: const [0.0, 0.5, 1.0],
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isWide = constraints.maxWidth >= 980;
+
+          if (isWide) {
+            return Row(
+              children: [
+                // Gauche : uniquement l'image, aucun texte dessus
+                Expanded(
+                  flex: 5,
+                  child: Image(image: defaultImage, fit: BoxFit.cover),
                 ),
-              ),
-            ),
-          ),
-          SafeArea(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final isWide = constraints.maxWidth >= 980;
-                final hPad = isWide ? 48.0 : 20.0;
-
-                final content = isWide
-                    ? Row(
-                        children: [
-                          Expanded(
-                            child: _AuthHero(
-                              title: title,
-                              subtitle: subtitle,
-                              heroImage: heroImage,
+                // Droite : Titre (centré) + Formulaire
+                Expanded(
+                  flex: 6,
+                  child: Center(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 60, vertical: 40),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 500),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Container(
+                              width: 44,
+                              height: 4,
+                              alignment: Alignment.center,
+                              margin: const EdgeInsets.only(bottom: 20),
+                              decoration: BoxDecoration(
+                                color: brand,
+                                borderRadius: BorderRadius.circular(99),
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 36),
-                          Expanded(
-                            child: _AuthCard(
-                              title: title,
-                              subtitle: subtitle,
-                              form: form,
-                              footer: footer,
+                            Text(
+                              title,
+                              textAlign: TextAlign.center,
+                              style:
+                                  AppTypography.displayMedium(color: inkColor)
+                                      .copyWith(
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 36,
+                                          height: 1.08),
                             ),
-                          ),
-                        ],
-                      )
-                    : Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _AuthHero(
-                            title: title,
-                            subtitle: subtitle,
-                            compact: true,
-                            heroImage: heroImage,
-                          ),
-                          const SizedBox(height: 22),
-                          _AuthCard(
-                            title: title,
-                            subtitle: subtitle,
-                            form: form,
-                            footer: footer,
-                            compact: true,
-                          ),
-                        ],
-                      );
-
-                return SingleChildScrollView(
-                  padding: EdgeInsets.fromLTRB(hPad, 18, hPad, 18),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minHeight: MediaQuery.of(context).size.height - 36,
+                            const SizedBox(height: 10),
+                            Text(
+                              subtitle,
+                              textAlign: TextAlign.center,
+                              style: AppTypography.bodySmall(color: inkColor)
+                                  .copyWith(height: 1.4),
+                            ),
+                            const SizedBox(height: 36),
+                            form,
+                            if (footer != null) ...[
+                              const SizedBox(height: 28),
+                              Center(child: footer!),
+                            ],
+                          ],
+                        ),
+                      ),
                     ),
-                    child: content,
                   ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AuthHero extends StatelessWidget {
-  const _AuthHero({
-    required this.title,
-    required this.subtitle,
-    this.compact = false,
-    this.heroImage,
-  });
-
-  final String title;
-  final String subtitle;
-  final bool compact;
-  final Widget? heroImage;
-
-  @override
-  Widget build(BuildContext context) {
-    final resolvedBrandDark =
-        AppColors.resolve(AppColors.brandDark, AppDarkColors.brandDark);
-    final resolvedCard = AppColors.resolve(AppColors.card, AppDarkColors.card);
-    final resolvedInk = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
-    final resolvedInkMuted =
-        AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
-    return Column(
-      crossAxisAlignment:
-          compact ? CrossAxisAlignment.center : CrossAxisAlignment.start,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        if (compact) ...[
-          const SizedBox(height: 46),
-          // Logo circulaire avec ombre chaude
-          Container(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: resolvedBrandDark.withValues(alpha: 0.20),
-                  blurRadius: 24,
-                  offset: const Offset(0, 10),
                 ),
               ],
-            ),
-            child: ClipOval(
-              child: Image.asset(
-                'assets/images/logo_circulaire.png',
-                width: 200,
-                height: 200,
-                fit: BoxFit.cover,
+            );
+          }
+
+          // ══════════════════════════════════════════════════════════
+          // DESIGN MOBILE : l'image reste fixe en fond ; la carte est
+          // dans le SEUL scroll de l'écran, donc au défilement elle
+          // remonte et finit par couvrir entièrement l'image. Titre
+          // et sous-titre sont centrés, le formulaire reste aligné
+          // à gauche pour rester lisible.
+          // ══════════════════════════════════════════════════════════
+          final size = MediaQuery.of(context).size;
+          final imageHeight = size.height * 0.46;
+          final cardTop = size.height * 0.30;
+
+          return Stack(
+            children: [
+              // 1. Image de fond, fixe, sans texte ni filtre
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: imageHeight,
+                child: Image(image: defaultImage, fit: BoxFit.cover),
               ),
-            ),
-          ),
-          const SizedBox(height: 30),
-        ] else ...[
-          const SizedBox(height: 24),
-          ClipOval(
-            child: Image.asset(
-              'assets/images/logo_circulaire.png',
-              width: 116,
-              height: 116,
-              fit: BoxFit.cover,
-            ),
-          ),
-          const SizedBox(height: 28),
-          // Badge marque pill
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              color: resolvedCard.withValues(alpha: 0.85),
-              borderRadius: BorderRadius.circular(999),
-              boxShadow: [
-                BoxShadow(
-                  color: resolvedInk.withValues(alpha: 0.08),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
+
+              // 2. Un seul scroll pour tout l'écran : un espace transparent
+              // (qui laisse voir l'image) puis la carte, qui remonte et
+              // couvre progressivement l'image quand on défile.
+              Positioned.fill(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minHeight: size.height),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        SizedBox(height: cardTop),
+                        Container(
+                          constraints: BoxConstraints(
+                            minHeight: size.height - cardTop,
+                          ),
+                          decoration: BoxDecoration(
+                            color: bgSurface,
+                            borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(40)),
+                            border: Border.all(
+                              color: inkColor.withValues(alpha: 0.1),
+                              width: 1.4,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: inkColor.withValues(alpha: 0.1),
+                                blurRadius: 20,
+                                offset: const Offset(0, -5),
+                              ),
+                            ],
+                          ),
+                          padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Petit grabber décoratif, centré
+                              Center(
+                                child: Container(
+                                  width: 40,
+                                  height: 4,
+                                  margin: const EdgeInsets.only(bottom: 18),
+                                  decoration: BoxDecoration(
+                                    color: inkColor.withValues(alpha: 0.14),
+                                    borderRadius: BorderRadius.circular(99),
+                                  ),
+                                ),
+                              ),
+                              SizedBox(
+                                width: double.infinity,
+                                child: Text(
+                                  title,
+                                  textAlign: TextAlign.center,
+                                  style: AppTypography.displayMedium(
+                                          color: inkColor)
+                                      .copyWith(
+                                          fontWeight: FontWeight.w800,
+                                          height: 1.08),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              SizedBox(
+                                width: double.infinity,
+                                child: Text(
+                                  subtitle,
+                                  textAlign: TextAlign.center,
+                                  style:
+                                      AppTypography.bodyLarge(color: inkColor)
+                                          .copyWith(height: 1.4),
+                                ),
+                              ),
+                              const SizedBox(height: 24),
+                              form,
+                              if (footer != null) ...[
+                                const SizedBox(height: 32),
+                                Center(child: footer!),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ],
-            ),
-            child: Text(
-              'Dios Délices',
-              style: AppTypography.labelLarge(color: resolvedBrandDark),
-            ),
-          ),
-          const SizedBox(height: 20),
-          // Illustration ou espace visuel
-          if (heroImage != null) ...[
-            heroImage!,
-            const SizedBox(height: 24),
-          ],
-        ],
-        Text(
-          compact ? title : 'Neighborhood cooking,\nwarmer and simpler.',
-          textAlign: compact ? TextAlign.center : TextAlign.start,
-          style: AppTypography.displayMedium().copyWith(
-            fontSize: compact ? 36 : 44,
-            height: 1.08,
-            color: resolvedInk,
-          ),
-        ),
-        const SizedBox(height: 14),
-        Text(
-          compact
-              ? subtitle
-              : 'Connectez-vous pour découvrir les meilleurs plats faits maison près de chez vous.',
-          textAlign: compact ? TextAlign.center : TextAlign.start,
-          style: AppTypography.bodyLarge(color: resolvedInkMuted),
-        ),
-      ],
-    );
-  }
-}
-
-class _AuthCard extends StatelessWidget {
-  const _AuthCard({
-    required this.title,
-    required this.subtitle,
-    required this.form,
-    this.footer,
-    this.compact = false,
-  });
-
-  final String title;
-  final String subtitle;
-  final Widget form;
-  final Widget? footer;
-  final bool compact;
-
-  @override
-  Widget build(BuildContext context) {
-    final resolvedCard = AppColors.resolve(AppColors.card, AppDarkColors.card);
-    final resolvedBorder =
-        AppColors.resolve(AppColors.border, AppDarkColors.border);
-    final resolvedInk = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
-    final resolvedInkMuted =
-        AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
-    final content = Padding(
-      padding: EdgeInsets.all(compact ? 4 : 30),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (!compact) ...[
-            Text(title,
-                style: AppTypography.headlineMedium(color: resolvedInk)),
-            const SizedBox(height: 10),
-            Text(
-              subtitle,
-              style: AppTypography.bodyLarge(color: resolvedInkMuted),
-            ),
-            const SizedBox(height: 24),
-          ],
-          form,
-          if (footer != null) ...[
-            const SizedBox(height: 22),
-            Align(alignment: Alignment.center, child: footer!),
-          ],
-        ],
+              ),
+            ],
+          );
+        },
       ),
-    );
-
-    if (compact) return content;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: resolvedCard,
-        borderRadius: BorderRadius.circular(AppRadius.xl),
-        border: Border.all(color: resolvedBorder, width: 0.5),
-        boxShadow: [
-          BoxShadow(
-            color: resolvedInk.withValues(alpha: 0.10),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: content,
     );
   }
 }
