@@ -62,6 +62,12 @@ async function sendEmail({ to, subject, text, html }) {
       html,
     });
   } catch (error) {
+    console.error('[email] Échec d’envoi SMTP', {
+      code: error.code,
+      responseCode: error.responseCode,
+      command: error.command,
+      message: error.message,
+    });
     const wrapped = new Error('Impossible d’envoyer l’e-mail.');
     wrapped.statusCode = 503;
     wrapped.cause = error;
