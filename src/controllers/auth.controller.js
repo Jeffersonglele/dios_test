@@ -32,6 +32,11 @@ function issueToken(user) {
   );
 }
 
+function registrationRoleId() {
+  const configured = Number.parseInt(process.env.DEFAULT_USER_ROLE_ID || '2', 10);
+  return Number.isInteger(configured) ? configured : 2;
+}
+
 async function nextLegacyUserId(tx) {
   const lastUser = await tx.user.findFirst({
     where: { userId: { not: null } },
@@ -79,6 +84,9 @@ async function register(req, res, next) {
       return tx.user.create({
         data: {
           ...profileData,
+          // Un compte public commence avec le rôle client. Les rôles
+          // sensibles restent attribués par le serveur après validation.
+          roleId: registrationRoleId(),
           userId,
           username: normalizedUsername,
           email: normalizedEmail,
