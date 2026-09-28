@@ -1,6 +1,6 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { randomUUID } = require('crypto');
+const { randomInt } = require('crypto');
 
 const prisma = require('../config/prisma');
 const {
@@ -11,11 +11,9 @@ const {
   pick,
 } = require('./controller.utils');
 
-const PROFILE_FIELDS = [
-  'firstname', 'lastname', 'username', 'email', 'telephone', 'telephoneLocal',
-  'telephoneE164', 'roleId', 'country', 'status', 'identity', 'addressId',
-  'image', 'parrain', 'cityId', 'phoneVerified', 'accountType', 'otpPhone',
-  'ageConfirmed',
+const REGISTRATION_FIELDS = [
+  'firstname', 'lastname', 'telephone', 'telephoneLocal', 'telephoneE164',
+  'country', 'cityId', 'accountType', 'ageConfirmed',
 ];
 
 function serializeUser(user) {
@@ -60,7 +58,8 @@ async function register(req, res, next) {
     const passwordHash = await bcrypt.hash(password, 12);
     const user = await prisma.$transaction(async (tx) => {
       const userId = await nextLegacyUserId(tx);
-      const profileData = pick(req.body, PROFILE_FIELDS);
+      // Role, verification and account status are server-controlled fields.
+      const profileData = pick(req.body, REGISTRATION_FIELDS);
 
       await tx.authUser.create({
         data: {
@@ -144,7 +143,7 @@ async function requestPasswordReset(req, res, next) {
     const user = await prisma.authUser.findUnique({ where: { email } });
     // The response stays identical to avoid disclosing existing accounts.
     if (user && !user.deletedAt) {
-      const code = String(Math.floor(100000 + Math.random() * 900000));
+      const code = String(randomInt(100000, 1000000));
       await prisma.verificationCode.create({
         data: { email, code, purpose: 'password_reset', expiresAt: new Date(Date.now() + 15 * 60 * 1000) },
       });

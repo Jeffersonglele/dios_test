@@ -9,6 +9,11 @@ const USER_FIELDS = [
   'image', 'parrain', 'cityId', 'phoneVerified', 'accountType', 'otpPhone',
   'ageConfirmed',
 ];
+const SELF_PROFILE_FIELDS = [
+  'firstname', 'lastname', 'username', 'email', 'telephone', 'telephoneLocal',
+  'telephoneE164', 'country', 'addressId', 'image', 'parrain', 'cityId',
+  'accountType', 'ageConfirmed',
+];
 
 const crud = createCrudController({
   delegate: 'user', resource: 'Utilisateur', fields: USER_FIELDS,
@@ -19,7 +24,7 @@ async function updateProfile(req, res, next) {
   try {
     const user = await prisma.user.findFirst({ where: { id: req.params.id, deletedAt: null } });
     if (!user) throw notFound('Utilisateur');
-    const data = pick(req.body, USER_FIELDS);
+    const data = pick(req.body, SELF_PROFILE_FIELDS);
     const updated = await prisma.user.update({ where: { id: user.id }, data });
 
     await prisma.authUser.updateMany({
@@ -46,4 +51,4 @@ async function setIdentityStatus(req, res, next) {
   }
 }
 
-module.exports = { ...crud, updateProfile, setIdentityStatus, USER_FIELDS };
+module.exports = { ...crud, updateProfile, setIdentityStatus, SELF_PROFILE_FIELDS, USER_FIELDS };

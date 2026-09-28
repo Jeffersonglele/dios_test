@@ -8,6 +8,14 @@ function errorHandler(error, req, res, next) { // eslint-disable-line no-unused-
   let statusCode = error.statusCode || 500;
   let message = error.message || 'Une erreur interne est survenue.';
 
+  if (error instanceof SyntaxError && error.status === 400 && error.type === 'entity.parse.failed') {
+    statusCode = 400;
+    message = 'Le corps JSON est invalide.';
+  } else if (error.type === 'entity.too.large') {
+    statusCode = 413;
+    message = 'La requête est trop volumineuse.';
+  }
+
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     if (error.code === 'P2002') {
       statusCode = 409;

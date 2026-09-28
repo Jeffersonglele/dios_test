@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 
 const cors = require('cors');
 const express = require('express');
@@ -11,24 +11,29 @@ const { errorHandler, notFoundHandler } = require('./middlware/error.middleware'
 const { getHealth } = require('./services/health.service');
 const { uploadDirectory } = require('./services/local-storage.service');
 const { setupSwagger } = require('./swagger');
+const { configuredOrigins, trustProxy } = require('./config/env');
 
 const app = express();
-const allowedOrigins = String(process.env.CORS_ORIGINS || '')
-  .split(',')
-  .map((origin) => origin.trim())
-  .filter(Boolean);
+const allowedOrigins = configuredOrigins();
 
 app.disable('x-powered-by');
-app.set('trust proxy', 1);
+app.set('trust proxy', trustProxy());
 app.use(helmet());
 app.use(cors({
   origin(origin, callback) {
-    if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) return callback(null, true);
-    return callback(new Error('Origine non autorisée par CORS.'));
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    const error = new Error('Origine non autorisée par CORS.');
+    error.statusCode = 403;
+    return callback(error);
   },
   credentials: true,
 }));
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+// Nyole signs the exact request body. Keep this route raw before express.json.
+app.use('/api/v1/payments/nyole/webhook', express.raw({
+  type: 'application/json',
+  limit: process.env.JSON_BODY_LIMIT || '1mb',
+}));
 app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || '1mb' }));
 app.use(express.urlencoded({ extended: false, limit: process.env.JSON_BODY_LIMIT || '1mb' }));
 app.use('/uploads', express.static(uploadDirectory(), { fallthrough: false, maxAge: '7d' }));

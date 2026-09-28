@@ -42,7 +42,7 @@ const validators = {
       password: Joi.string().min(8).max(128).required(), firstname: Joi.string().trim().max(100),
       lastname: Joi.string().trim().max(100), telephone: Joi.string().trim().max(32),
       telephoneLocal: Joi.string().trim().max(32), telephoneE164: Joi.string().trim().max(32),
-      country: Joi.string().trim().max(100), cityId: Joi.number().integer(), roleId: Joi.number().integer(),
+      country: Joi.string().trim().max(100), cityId: Joi.number().integer(),
       accountType: Joi.string().trim().max(50), ageConfirmed: Joi.boolean(),
     }).required(), params: Joi.object(), query: Joi.object(),
   }),

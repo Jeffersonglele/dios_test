@@ -608,7 +608,7 @@ model Transaction {
   operator          String?
   phone             String?
   paymentMethod     String?
-  /// Réponse et métadonnées du prestataire, par exemple CinetPay.
+  /// Réponse et métadonnées du prestataire, notamment Nyole.
   providerData      Json?
   settlementStatus  String?
   commissionRate    Float?

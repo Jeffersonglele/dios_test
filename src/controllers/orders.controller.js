@@ -101,8 +101,8 @@ async function createOrder(req, res, next) {
     const deliveryFee = quote?.deliveryFee || 0;
     const totalAmount = subtotalAmount + deliveryFee;
     const paymentMethod = String(payload.paymentMethod || payload.paymentProvider || 'CASH').trim().toUpperCase();
-    if (!['CASH', 'CINETPAY'].includes(paymentMethod)) {
-      throw badRequest('Le moyen de paiement doit être CASH ou CINETPAY. Le portefeuille reste désactivé.');
+    if (!['CASH', 'NYOLE'].includes(paymentMethod)) {
+      throw badRequest('Le moyen de paiement doit être CASH ou NYOLE. Le portefeuille reste désactivé.');
     }
 
     const order = await prisma.$transaction(async (tx) => {
