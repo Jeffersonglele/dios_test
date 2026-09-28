@@ -4,6 +4,10 @@ const { randomInt } = require('crypto');
 
 const prisma = require('../config/prisma');
 const {
+  sendPasswordResetCodeEmail,
+  sendVerificationCodeEmail,
+} = require('../services/email.service');
+const {
   badRequest,
   conflict,
   handleControllerError,
@@ -155,9 +159,71 @@ async function requestPasswordReset(req, res, next) {
       await prisma.verificationCode.create({
         data: { email, code, purpose: 'password_reset', expiresAt: new Date(Date.now() + 15 * 60 * 1000) },
       });
-      // Email delivery is intentionally delegated to a future notification service.
+      await sendPasswordResetCodeEmail({ to: email, code });
     }
     return res.status(200).json({ data: { message: 'Si ce compte existe, un code a été envoyé.' } });
+  } catch (error) {
+    return handleControllerError(error, next);
+  }
+}
+
+async function requestEmailVerification(req, res, next) {
+  try {
+    const userId = req.auth?.userId;
+    if (!userId) throw notFound('Utilisateur authentifié');
+
+    const user = await prisma.user.findFirst({
+      where: { userId, deletedAt: null },
+      select: { firstname: true, email: true },
+    });
+    if (!user?.email) throw badRequest('Aucune adresse e-mail associée à ce compte.');
+
+    const code = String(randomInt(100000, 1000000));
+    await prisma.verificationCode.create({
+      data: {
+        email: user.email.toLowerCase(),
+        code,
+        purpose: 'email_verification',
+        expiresAt: new Date(Date.now() + 15 * 60 * 1000),
+      },
+    });
+    await sendVerificationCodeEmail({ to: user.email, code, firstname: user.firstname });
+    return res.status(200).json({ data: { message: 'Code de vérification envoyé.' } });
+  } catch (error) {
+    return handleControllerError(error, next);
+  }
+}
+
+async function confirmEmailVerification(req, res, next) {
+  try {
+    const userId = req.auth?.userId;
+    const code = String(req.body.code || '').trim();
+    if (!userId || !code) throw badRequest('Le code de vérification est obligatoire.');
+
+    const user = await prisma.user.findFirst({
+      where: { userId, deletedAt: null },
+      select: { userId: true, email: true },
+    });
+    if (!user?.email) throw badRequest('Aucune adresse e-mail associée à ce compte.');
+
+    const verification = await prisma.verificationCode.findFirst({
+      where: {
+        email: user.email.toLowerCase(),
+        code,
+        purpose: 'email_verification',
+        verified: false,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!verification) throw badRequest('Le code est invalide ou expiré.');
+
+    await prisma.$transaction([
+      prisma.verificationCode.update({ where: { id: verification.id }, data: { verified: true } }),
+      prisma.authUser.updateMany({ where: { legacyUserId: user.userId }, data: { emailVerified: true } }),
+      prisma.user.updateMany({ where: { userId: user.userId }, data: { status: 'Verified' } }),
+    ]);
+    return res.status(200).json({ data: { message: 'Adresse e-mail vérifiée.' } });
   } catch (error) {
     return handleControllerError(error, next);
   }
@@ -195,4 +261,13 @@ async function resetPassword(req, res, next) {
   }
 }
 
-module.exports = { login, me, register, requestPasswordReset, resetPassword, serializeUser };
+module.exports = {
+  confirmEmailVerification,
+  login,
+  me,
+  register,
+  requestEmailVerification,
+  requestPasswordReset,
+  resetPassword,
+  serializeUser,
+};

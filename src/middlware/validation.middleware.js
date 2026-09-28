@@ -27,6 +27,7 @@ const paginationQuery = Joi.object({
 }).unknown(true);
 
 const validators = {
+  emptyBody: Joi.object({ body: Joi.object().max(0), params: Joi.object(), query: Joi.object() }),
   id: Joi.object({ params: uuidParam, query: Joi.object().unknown(true), body: Joi.object().unknown(true) }),
   pagination: Joi.object({ params: Joi.object().unknown(true), query: paginationQuery, body: Joi.object().unknown(true) }),
   login: Joi.object({
@@ -49,6 +50,10 @@ const validators = {
   resetRequest: Joi.object({ body: Joi.object({ email: Joi.string().email().required() }), params: Joi.object(), query: Joi.object() }),
   resetPassword: Joi.object({
     body: Joi.object({ email: Joi.string().email().required(), code: Joi.string().trim().required(), password: Joi.string().min(8).max(128).required() }),
+    params: Joi.object(), query: Joi.object(),
+  }),
+  emailVerification: Joi.object({
+    body: Joi.object({ code: Joi.string().trim().pattern(/^\d{6}$/).required() }),
     params: Joi.object(), query: Joi.object(),
   }),
   createOrder: Joi.object({
