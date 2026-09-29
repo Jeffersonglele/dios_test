@@ -7,11 +7,21 @@ const resolve4Async = promisify(dns.resolve4);
 
 let cachedTransporter = null;
 let cachedTransporterKey = null;
+let smtpReachability = null;
 
 const EMAIL_PROVIDERS = Object.freeze({
   BREVO: 'brevo',
   SMTP: 'smtp',
 });
+
+const SMTP_UNREACHABLE_CODES = new Set([
+  'ECONNREFUSED',
+  'ECONNRESET',
+  'ETIMEDOUT',
+  'ENETUNREACH',
+  'EHOSTUNREACH',
+  'EAI_AGAIN',
+]);
 
 function brevoConfig() {
   return {
@@ -30,12 +40,14 @@ function emailConfig() {
     user: String(process.env.SMTP_USER || '').trim(),
     pass: String(process.env.SMTP_PASS || '').replace(/\s+/g, ''),
     from: String(process.env.SMTP_FROM || process.env.SMTP_USER || '').trim(),
+    rejectUnauthorized: String(process.env.SMTP_REJECT_UNAUTHORIZED || 'true').toLowerCase() === 'true',
   };
 }
 
 function preferredProvider() {
   const explicit = String(process.env.EMAIL_PROVIDER || '').trim().toLowerCase();
   if (explicit && Object.values(EMAIL_PROVIDERS).includes(explicit)) return explicit;
+  if (isSmtpConfigured()) return EMAIL_PROVIDERS.SMTP;
   if (brevoConfig().apiKey) return EMAIL_PROVIDERS.BREVO;
   return EMAIL_PROVIDERS.SMTP;
 }
@@ -55,6 +67,11 @@ function isEmailConfigured() {
   const provider = preferredProvider();
   if (provider === EMAIL_PROVIDERS.BREVO) return isBrevoConfigured();
   return isSmtpConfigured();
+}
+
+function invalidateTransporterCache() {
+  cachedTransporter = null;
+  cachedTransporterKey = null;
 }
 
 const IPV4_REGEX = /^(?:\d{1,3}\.){3}\d{1,3}$/;
@@ -111,12 +128,55 @@ async function getTransporter() {
       tls: {
         family: 4,
         servername: config.host,
-        rejectUnauthorized: true,
+        rejectUnauthorized: config.rejectUnauthorized,
       },
     });
     cachedTransporterKey = key;
   }
   return { config, transporter: cachedTransporter };
+}
+
+async function verifySmtpReachability({ loud = false } = {}) {
+  if (!isSmtpConfigured()) {
+    smtpReachability = { ok: false, reason: 'non configuré', checkedAt: new Date() };
+    return smtpReachability;
+  }
+  const label = '[email] Diagnostic SMTP au démarrage';
+  try {
+    const { transporter, config } = await getTransporter();
+    await transporter.verify();
+    smtpReachability = { ok: true, checkedAt: new Date() };
+    if (loud) {
+      console.log(`${label} : ✔︎ SMTP joignable et authentifié (${config.host}:${config.port})`);
+    }
+  } catch (error) {
+    invalidateTransporterCache();
+    const code = error?.code || error?.errno || 'UNKNOWN';
+    const isNetwork = SMTP_UNREACHABLE_CODES.has(String(code));
+    smtpReachability = {
+      ok: false,
+      code,
+      message: error?.message,
+      isNetwork,
+      checkedAt: new Date(),
+    };
+    if (loud) {
+      console.warn(`${label} : ⚠︎ SMTP INJOIGNABLE`, {
+        host: emailConfig().host,
+        port: emailConfig().port,
+        code,
+        message: error?.message,
+      });
+      if (isNetwork) {
+        console.warn(`${label} : ce type d’erreur est typique d’un port SMTP bloqué par l’hébergeur (Render ferme 465/587/25 en sortie sur les plans gratuits / partagés). Le fallback Brevo sera utilisé automatiquement.`);
+      }
+    }
+  }
+  return smtpReachability;
+}
+
+function getCachedSmtpReachability() {
+  return smtpReachability;
 }
 
 function escapeHtml(value) {
@@ -199,15 +259,29 @@ async function sendEmailViaSmtp({ to, subject, text, html }) {
       response: result?.response,
     };
   } catch (error) {
+    invalidateTransporterCache();
+    const code = error?.code || error?.errno || 'UNKNOWN';
+    const isNetwork = SMTP_UNREACHABLE_CODES.has(String(code));
+    if (isNetwork) {
+      smtpReachability = {
+        ok: false,
+        code,
+        message: error?.message,
+        isNetwork: true,
+        failedAt: new Date(),
+      };
+    }
     console.error('[email] Échec d’envoi SMTP', {
-      code: error.code,
+      code,
       responseCode: error.responseCode,
       command: error.command,
       message: error.message,
+      isNetwork,
     });
     const wrapped = new Error('Impossible d’envoyer l’e-mail via SMTP.');
     wrapped.statusCode = 503;
     wrapped.cause = error;
+    wrapped.smtpNetworkFailure = isNetwork;
     throw wrapped;
   }
 }
@@ -215,6 +289,36 @@ async function sendEmailViaSmtp({ to, subject, text, html }) {
 async function sendEmail({ to, subject, text, html }) {
   if (!to || !String(to).trim()) throw new Error('Destinataire e-mail obligatoire.');
   const provider = preferredProvider();
+
+  if (provider === EMAIL_PROVIDERS.SMTP && isSmtpConfigured()) {
+    try {
+      const result = await sendEmailViaSmtp({ to, subject, text, html });
+      console.log('[email] Envoi réussi via SMTP', {
+        to: String(to).trim(),
+        subject,
+        messageId: result?.messageId,
+      });
+      return result;
+    } catch (smtpError) {
+      const shouldFallback = Boolean(smtpError?.smtpNetworkFailure)
+        || smtpError?.statusCode === 503;
+      if (shouldFallback && isBrevoConfigured()) {
+        console.warn('[email] Fallback SMTP → Brevo après échec SMTP', {
+          cause: smtpError?.cause?.message || smtpError?.message,
+        });
+        const { from } = emailConfig();
+        const brevoResult = await sendEmailViaBrevo({ from, to, subject, text, html });
+        console.log('[email] Envoi réussi via Brevo (fallback SMTP KO)', {
+          to: String(to).trim(),
+          subject,
+          messageId: brevoResult?.messageId,
+          status: brevoResult?.status,
+        });
+        return brevoResult;
+      }
+      throw smtpError;
+    }
+  }
 
   if (provider === EMAIL_PROVIDERS.BREVO && isBrevoConfigured()) {
     const { from } = emailConfig();
@@ -233,7 +337,7 @@ async function sendEmail({ to, subject, text, html }) {
           cause: brevoError?.cause?.message || brevoError?.message,
         });
         const smtpResult = await sendEmailViaSmtp({ to, subject, text, html });
-        console.log('[email] Envoi réussi via SMTP (fallback)', {
+        console.log('[email] Envoi réussi via SMTP (fallback Brevo KO)', {
           to: String(to).trim(),
           subject,
           messageId: smtpResult?.messageId,
@@ -245,13 +349,7 @@ async function sendEmail({ to, subject, text, html }) {
   }
 
   if (isSmtpConfigured()) {
-    const result = await sendEmailViaSmtp({ to, subject, text, html });
-    console.log('[email] Envoi réussi via SMTP', {
-      to: String(to).trim(),
-      subject,
-      messageId: result?.messageId,
-    });
-    return result;
+    return sendEmailViaSmtp({ to, subject, text, html });
   }
 
   const error = new Error('Aucun fournisseur d’e-mail n’est configuré (BREVO_API_KEY ou SMTP_*).');
@@ -286,6 +384,9 @@ module.exports = {
   isBrevoConfigured,
   isSmtpConfigured,
   isEmailConfigured,
+  verifySmtpReachability,
+  getCachedSmtpReachability,
+  invalidateTransporterCache,
   sendEmail,
   sendPasswordResetCodeEmail,
   sendVerificationCodeEmail,
