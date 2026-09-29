@@ -50,6 +50,57 @@ async function nextLegacyUserId(tx) {
   return (lastUser?.userId || 0) + 1;
 }
 
+async function recoverOrphanedRegistration(existing, req, normalizedUsername, normalizedEmail, password) {
+  const sameUsername = existing.username?.trim().toLowerCase() === normalizedUsername.toLowerCase();
+  const sameEmail = existing.email?.trim().toLowerCase() === normalizedEmail;
+  if (!sameUsername || !sameEmail || !(await bcrypt.compare(password, existing.password))) {
+    return null;
+  }
+
+  const linkedProfile = existing.legacyUserId == null
+    ? null
+    : await prisma.user.findFirst({ where: { userId: existing.legacyUserId } });
+
+  // Un compte complet existe déjà : le 409 est le comportement attendu.
+  if (linkedProfile && !linkedProfile.deletedAt) return null;
+
+  const profileData = pick(req.body, REGISTRATION_FIELDS);
+  return prisma.$transaction(async (tx) => {
+    const userId = existing.legacyUserId || await nextLegacyUserId(tx);
+    const data = {
+      ...profileData,
+      roleId: registrationRoleId(),
+      userId,
+      username: normalizedUsername,
+      email: normalizedEmail,
+      // Le mot de passe existant a déjà été vérifié ci-dessus.
+      password: existing.password,
+      deletedAt: null,
+    };
+
+    const user = linkedProfile
+      ? await tx.user.update({ where: { id: linkedProfile.id }, data })
+      : await tx.user.create({ data });
+
+    await tx.authUser.update({
+      where: { id: existing.id },
+      data: {
+        username: normalizedUsername,
+        email: normalizedEmail,
+        legacyUserId: userId,
+        deletedAt: null,
+        firstname: profileData.firstname,
+        lastname: profileData.lastname,
+        telephone: profileData.telephone,
+        telephoneLocal: profileData.telephoneLocal,
+        telephoneE164: profileData.telephoneE164,
+      },
+    });
+
+    return user;
+  });
+}
+
 async function register(req, res, next) {
   try {
     const { username, email, password } = req.body;
@@ -62,7 +113,24 @@ async function register(req, res, next) {
     const existing = await prisma.authUser.findFirst({
       where: { OR: [{ username: normalizedUsername }, { email: normalizedEmail }] },
     });
-    if (existing) throw conflict('Un compte utilise déjà cet email ou ce nom d’utilisateur.');
+    if (existing) {
+      // Répare un compte d'authentification créé lors d'une tentative
+      // interrompue, sans jamais reprendre un compte dont un seul identifiant
+      // correspond ou dont le mot de passe est différent.
+      const recovered = await recoverOrphanedRegistration(
+        existing,
+        req,
+        normalizedUsername,
+        normalizedEmail,
+        password,
+      );
+      if (recovered) {
+        return res.status(201).json({
+          data: { user: serializeUser(recovered), token: issueToken(recovered) },
+        });
+      }
+      throw conflict('Un compte utilise déjà cet email ou ce nom d’utilisateur.');
+    }
 
     const passwordHash = await bcrypt.hash(password, 12);
     const user = await prisma.$transaction(async (tx) => {
