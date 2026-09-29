@@ -376,11 +376,139 @@ async function sendEmail({ to, subject, text, html }) {
 
 async function sendVerificationCodeEmail({ to, code, firstname }) {
   const name = firstname ? ` ${escapeHtml(firstname)}` : '';
+  const safeCode = escapeHtml(code);
+  const brand = '#E1502F';
+  const brandDark = '#C7431F';
+  const ink = '#2B211D';
+  const inkMuted = '#8A7A72';
+  const surfaceWarm = '#FBEFE6';
+  const border = '#F0DDD0';
+
+  const html = `
+  <!DOCTYPE html>
+  <html lang="fr">
+    <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <title>Vérification de votre adresse e-mail</title>
+    </head>
+    <body style="margin:0; padding:0; background-color:${surfaceWarm}; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:${surfaceWarm}; padding:32px 16px;">
+        <tr>
+          <td align="center">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px; background-color:#ffffff; border-radius:24px; border:1px solid ${border}; overflow:hidden;">
+
+              <!-- En-tête marque -->
+              <tr>
+                <td style="padding:32px 32px 0 32px;" align="center">
+                  <table role="presentation" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td style="width:8px; height:8px; border-radius:99px; background-color:${brand};"></td>
+                      <td style="width:8px;"></td>
+                      <td style="font-size:12px; font-weight:700; letter-spacing:2px; color:${brand}; text-transform:uppercase;">
+                        Dios Délices
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+
+              <!-- Titre -->
+              <tr>
+                <td style="padding:20px 32px 0 32px;" align="center">
+                  <h1 style="margin:0; font-size:22px; line-height:1.3; font-weight:800; color:${ink};">
+                    Vérifiez votre adresse e-mail
+                  </h1>
+                </td>
+              </tr>
+
+              <!-- Texte d'intro -->
+              <tr>
+                <td style="padding:12px 32px 0 32px;" align="center">
+                  <p style="margin:0; font-size:15px; line-height:1.6; color:${inkMuted};">
+                    Bonjour${name},<br />
+                    Voici votre code de vérification pour confirmer votre compte Dios Délices&nbsp;:
+                  </p>
+                </td>
+              </tr>
+
+              <!-- Code -->
+              <tr>
+                <td style="padding:28px 32px 4px 32px;" align="center">
+                  <table role="presentation" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td style="background-color:${surfaceWarm}; border:1.5px solid ${border}; border-radius:16px; padding:18px 28px;">
+                        <span style="font-size:32px; font-weight:800; letter-spacing:10px; color:${brandDark}; font-family:'Courier New',Courier,monospace;">
+                          ${safeCode}
+                        </span>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+
+              <!-- Expiration -->
+              <tr>
+                <td style="padding:16px 32px 0 32px;" align="center">
+                  <p style="margin:0; font-size:13px; color:${inkMuted};">
+                    Ce code expire dans <strong style="color:${ink};">15 minutes</strong>.
+                  </p>
+                </td>
+              </tr>
+
+              <!-- Séparateur -->
+              <tr>
+                <td style="padding:28px 32px 0 32px;">
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td style="height:1px; line-height:1px; font-size:1px; background-color:${border};">&nbsp;</td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+
+              <!-- Note sécurité -->
+              <tr>
+                <td style="padding:20px 32px 32px 32px;" align="center">
+                  <p style="margin:0; font-size:12px; line-height:1.6; color:${inkMuted};">
+                    Vous n'êtes pas à l'origine de cette demande&nbsp;? Vous pouvez ignorer cet e-mail en toute sécurité.<br />
+                    Pensez aussi à vérifier votre dossier spam si vous ne voyez pas nos e-mails.
+                  </p>
+                </td>
+              </tr>
+            </table>
+
+            <!-- Pied de page -->
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px; margin-top:20px;">
+              <tr>
+                <td align="center">
+                  <p style="margin:0; font-size:12px; color:${inkMuted};">
+                    © ${new Date().getFullYear()} Dios Délices. Tous droits réservés.
+                  </p>
+                </td>
+              </tr>
+            </table>
+
+          </td>
+        </tr>
+      </table>
+    </body>
+  </html>
+  `;
+
+  const text = `Bonjour${firstname ? ` ${firstname}` : ''},
+
+Votre code de vérification Dios Délices est : ${code}
+
+Ce code expire dans 15 minutes.
+
+Vous n'êtes pas à l'origine de cette demande ? Vous pouvez ignorer cet e-mail.`;
+
   return sendEmail({
     to,
     subject: 'Dios Délices — Vérification de votre adresse e-mail',
-    text: `Bonjour${firstname ? ` ${firstname}` : ''},\n\nVotre code de vérification Dios Délices est : ${code}\n\nCe code expire dans 15 minutes.`,
-    html: `<p>Bonjour${name},</p><p>Votre code de vérification Dios Délices est :</p><p style="font-size:28px;font-weight:700;letter-spacing:6px">${escapeHtml(code)}</p><p>Ce code expire dans 15 minutes.</p>`,
+    text,
+    html,
   });
 }
 
