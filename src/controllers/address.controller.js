@@ -3,6 +3,7 @@ const { badRequest, handleControllerError, notFound, pagination, pick, sendPage 
 
 const fields = [
   'streetNumber', 'city', 'state', 'country', 'fullAddress',
+  'latitude', 'longitude', 'cityId',
 ];
 
 async function nextAddressId(tx) {
