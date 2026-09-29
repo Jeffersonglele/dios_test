@@ -37,10 +37,15 @@ function getTransporter() {
       port: config.port,
       secure: config.secure,
       auth: { user: config.user, pass: config.pass },
+      family: 4,
       connectionTimeout: 10 * 1000,
       greetingTimeout: 10 * 1000,
       socketTimeout: 15 * 1000,
       dnsTimeout: 5 * 1000,
+      tls: {
+        family: 4,
+        servername: config.host,
+      },
     });
     cachedTransporterKey = key;
   }
