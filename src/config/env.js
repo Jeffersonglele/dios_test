@@ -1,11 +1,4 @@
 const LOCAL_ORIGINS = ['http://localhost:3000', 'http://localhost:5173'];
-const {
-  preferredProvider,
-  isBrevoConfigured,
-  isSmtpConfigured,
-  EMAIL_PROVIDERS,
-  emailConfig,
-} = require('../services/email.service');
 
 function originFrom(value) {
   if (!value) return null;
@@ -32,8 +25,6 @@ function configuredOrigins() {
   ].map(originFrom).filter(Boolean);
   const value = [...new Set([...configured, ...serviceOrigins])];
 
-  // Render exposes its public URL automatically. Other origins remain
-  // explicit, so a missing CORS_ORIGINS never silently enables all origins.
   return value.length > 0 ? value : (isProduction() ? [] : LOCAL_ORIGINS);
 }
 
@@ -44,6 +35,27 @@ function trustProxy() {
   if (value === 'false') return false;
   const hops = Number.parseInt(value, 10);
   return Number.isInteger(hops) && hops >= 0 ? hops : false;
+}
+
+function detectEmailProvider() {
+  const explicit = String(process.env.EMAIL_PROVIDER || '').trim().toLowerCase();
+  const brevoKey = String(process.env.BREVO_API_KEY || '').trim();
+  const smtpHost = String(process.env.SMTP_HOST || '').trim();
+  const smtpUser = String(process.env.SMTP_USER || '').trim();
+  const smtpPass = String(process.env.SMTP_PASS || '').trim();
+  const smtpFrom = String(process.env.SMTP_FROM || process.env.SMTP_USER || '').trim();
+  const smtpOk = Boolean(smtpHost && smtpUser && smtpPass && smtpFrom);
+  const brevoOk = Boolean(brevoKey && smtpFrom);
+
+  let provider = 'smtp';
+  if (explicit === 'brevo' || explicit === 'smtp') {
+    provider = explicit;
+  } else if (smtpOk) {
+    provider = 'smtp';
+  } else if (brevoOk) {
+    provider = 'brevo';
+  }
+  return { explicit, provider, smtpOk, brevoOk, smtpFrom, brevoKey: brevoKey ? '***' : '' };
 }
 
 function validateRuntimeConfig() {
@@ -81,32 +93,29 @@ function validateRuntimeConfig() {
     (production ? errors : warnings).push(`NYOLE_${nyoleMode === 'live' ? 'LIVE' : 'TEST'}_SECRET_KEY est obligatoire pour les paiements Nyole.`);
   }
 
-  const provider = preferredProvider();
-  const brevoOk = isBrevoConfigured();
-  const smtpOk = isSmtpConfigured();
-  if (provider === EMAIL_PROVIDERS.BREVO) {
+  const email = detectEmailProvider();
+  if (email.provider === 'brevo') {
     const brevoKey = String(process.env.BREVO_API_KEY || '').trim();
-    const { from } = emailConfig();
     if (!brevoKey) {
       (production ? errors : warnings).push('EMAIL_PROVIDER=brevo mais BREVO_API_KEY est vide.');
     }
-    if (!from) {
+    if (!email.smtpFrom) {
       (production ? errors : warnings).push('EMAIL_PROVIDER=brevo mais SMTP_FROM est vide (expéditeur requis).');
     }
-    console.log(`[email] Provider actif : BREVO (API HTTPS) ${brevoKey && from ? '✔︎ configuré' : '⚠︎ incomplet'}`);
-  } else if (provider === EMAIL_PROVIDERS.SMTP) {
-    if (smtpOk) {
+    console.log(`[email] Provider actif : BREVO (API HTTPS) ${brevoKey && email.smtpFrom ? '✔︎ configuré (from=' + email.smtpFrom + ')' : '⚠︎ incomplet'}`);
+  } else if (email.provider === 'smtp') {
+    if (email.smtpOk) {
       console.log('[email] Provider actif : SMTP (⚠︎ peut échouer sur Render à cause des ports bloqués).');
-    } else if (brevoOk) {
+    } else if (email.brevoOk) {
       console.log('[email] Provider actif : SMTP, mais BREVO_API_KEY est disponible — définis EMAIL_PROVIDER=brevo pour utiliser l’API HTTPS.');
     } else {
       (production ? errors : warnings).push('Aucun fournisseur d’e-mail n’est configuré (BREVO_API_KEY ou SMTP_*).');
     }
-  } else if (!smtpOk && !brevoOk) {
+  } else if (!email.smtpOk && !email.brevoOk) {
     (production ? errors : warnings).push('Aucun fournisseur d’e-mail n’est configuré (BREVO_API_KEY ou SMTP_*).');
   }
 
   return { errors, warnings };
 }
 
-module.exports = { configuredOrigins, isProduction, trustProxy, validateRuntimeConfig };
+module.exports = { configuredOrigins, isProduction, trustProxy, validateRuntimeConfig, detectEmailProvider };
