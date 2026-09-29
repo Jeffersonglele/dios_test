@@ -10,7 +10,9 @@ function emailConfig() {
     port: Number.isInteger(port) ? port : 465,
     secure: String(process.env.SMTP_SECURE || (port === 465 ? 'true' : 'false')).toLowerCase() === 'true',
     user: String(process.env.SMTP_USER || '').trim(),
-    pass: String(process.env.SMTP_PASS || ''),
+    // Google affiche parfois le mot de passe d’application avec des espaces.
+    // Ils sont uniquement visuels et ne doivent pas être transmis à Gmail.
+    pass: String(process.env.SMTP_PASS || '').replace(/\s+/g, ''),
     from: String(process.env.SMTP_FROM || process.env.SMTP_USER || '').trim(),
   };
 }
