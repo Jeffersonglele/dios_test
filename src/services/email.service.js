@@ -1,4 +1,8 @@
+const dns = require('dns');
 const nodemailer = require('nodemailer');
+const { promisify } = require('util');
+
+const resolve4Async = promisify(dns.resolve4);
 
 let cachedTransporter = null;
 let cachedTransporterKey = null;
@@ -10,7 +14,7 @@ function emailConfig() {
     port: Number.isInteger(port) ? port : 465,
     secure: String(process.env.SMTP_SECURE || (port === 465 ? 'true' : 'false')).toLowerCase() === 'true',
     user: String(process.env.SMTP_USER || '').trim(),
-    // Google affiche parfois le mot de passe d’application avec des espaces.
+    // Google affiche parfois le mot de passe d'application avec des espaces.
     // Ils sont uniquement visuels et ne doivent pas être transmis à Gmail.
     pass: String(process.env.SMTP_PASS || '').replace(/\s+/g, ''),
     from: String(process.env.SMTP_FROM || process.env.SMTP_USER || '').trim(),
@@ -22,7 +26,27 @@ function isEmailConfigured() {
   return Boolean(config.host && config.user && config.pass && config.from);
 }
 
-function getTransporter() {
+const IPV4_REGEX = /^(?:\d{1,3}\.){3}\d{1,3}$/;
+
+async function resolveHostToIpv4(host) {
+  if (IPV4_REGEX.test(host)) return host;
+  try {
+    const addresses = await resolve4Async(host);
+    if (addresses && addresses.length > 0) return addresses[0];
+  } catch (err) {
+    // DNS échoue : on retombe sur l'host natif en laissant la main à Node
+    // (le `family: 4` ci-dessous fera quand même le filtre IPv4)
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('[email] Résolution IPv4 échouée, fallback host natif :', {
+        host,
+        cause: err?.message,
+      });
+    }
+  }
+  return host;
+}
+
+async function getTransporter() {
   const config = emailConfig();
   if (!isEmailConfigured()) {
     const error = new Error('La configuration SMTP est incomplète.');
@@ -32,8 +56,9 @@ function getTransporter() {
 
   const key = `${config.host}:${config.port}:${config.secure}:${config.user}:${config.from}`;
   if (!cachedTransporter || cachedTransporterKey !== key) {
+    const resolvedHost = await resolveHostToIpv4(config.host);
     cachedTransporter = nodemailer.createTransport({
-      host: config.host,
+      host: resolvedHost,
       port: config.port,
       secure: config.secure,
       auth: { user: config.user, pass: config.pass },
@@ -45,6 +70,7 @@ function getTransporter() {
       tls: {
         family: 4,
         servername: config.host,
+        rejectUnauthorized: true,
       },
     });
     cachedTransporterKey = key;
@@ -63,7 +89,7 @@ function escapeHtml(value) {
 
 async function sendEmail({ to, subject, text, html }) {
   if (!to || !String(to).trim()) throw new Error('Destinataire e-mail obligatoire.');
-  const { config, transporter } = getTransporter();
+  const { config, transporter } = await getTransporter();
   try {
     return await transporter.sendMail({
       from: config.from,
@@ -73,13 +99,13 @@ async function sendEmail({ to, subject, text, html }) {
       html,
     });
   } catch (error) {
-    console.error('[email] Échec d’envoi SMTP', {
+    console.error('[email] Échec d\'envoi SMTP', {
       code: error.code,
       responseCode: error.responseCode,
       command: error.command,
       message: error.message,
     });
-    const wrapped = new Error('Impossible d’envoyer l’e-mail.');
+    const wrapped = new Error('Impossible d\'envoyer l\'e-mail.');
     wrapped.statusCode = 503;
     wrapped.cause = error;
     throw wrapped;
