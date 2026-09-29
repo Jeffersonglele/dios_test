@@ -39,7 +39,10 @@ app.use(express.urlencoded({ extended: false, limit: process.env.JSON_BODY_LIMIT
 app.use('/uploads', express.static(uploadDirectory(), { fallthrough: false, maxAge: '7d' }));
 app.use(rateLimit({
   windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
-  limit: Number(process.env.RATE_LIMIT_MAX) || 300,
+  // Valeur adaptée aux tests mobiles : l'accueil peut lancer plusieurs
+  // requêtes parallèles (profil, restaurants, catégories, adresses, menu).
+  // La valeur reste configurable par RATE_LIMIT_MAX sur Render.
+  limit: Number(process.env.RATE_LIMIT_MAX) || 1000,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
   message: { error: { message: 'Trop de requêtes. Réessayez plus tard.' } },
