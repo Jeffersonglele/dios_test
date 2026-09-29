@@ -219,20 +219,39 @@ async function sendEmail({ to, subject, text, html }) {
   if (provider === EMAIL_PROVIDERS.BREVO && isBrevoConfigured()) {
     const { from } = emailConfig();
     try {
-      return await sendEmailViaBrevo({ from, to, subject, text, html });
+      const result = await sendEmailViaBrevo({ from, to, subject, text, html });
+      console.log('[email] Envoi réussi via Brevo', {
+        to: String(to).trim(),
+        subject,
+        messageId: result?.messageId,
+        status: result?.status,
+      });
+      return result;
     } catch (brevoError) {
       if (isSmtpConfigured()) {
         console.warn('[email] Fallback Brevo → SMTP après échec Brevo', {
           cause: brevoError?.cause?.message || brevoError?.message,
         });
-        return sendEmailViaSmtp({ to, subject, text, html });
+        const smtpResult = await sendEmailViaSmtp({ to, subject, text, html });
+        console.log('[email] Envoi réussi via SMTP (fallback)', {
+          to: String(to).trim(),
+          subject,
+          messageId: smtpResult?.messageId,
+        });
+        return smtpResult;
       }
       throw brevoError;
     }
   }
 
   if (isSmtpConfigured()) {
-    return sendEmailViaSmtp({ to, subject, text, html });
+    const result = await sendEmailViaSmtp({ to, subject, text, html });
+    console.log('[email] Envoi réussi via SMTP', {
+      to: String(to).trim(),
+      subject,
+      messageId: result?.messageId,
+    });
+    return result;
   }
 
   const error = new Error('Aucun fournisseur d’e-mail n’est configuré (BREVO_API_KEY ou SMTP_*).');

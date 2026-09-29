@@ -1,4 +1,11 @@
 const LOCAL_ORIGINS = ['http://localhost:3000', 'http://localhost:5173'];
+const {
+  preferredProvider,
+  isBrevoConfigured,
+  isSmtpConfigured,
+  EMAIL_PROVIDERS,
+  emailConfig,
+} = require('../services/email.service');
 
 function originFrom(value) {
   if (!value) return null;
@@ -72,6 +79,31 @@ function validateRuntimeConfig() {
     errors.push('NYOLE_MODE doit valoir test ou live.');
   } else if (!nyoleSecret) {
     (production ? errors : warnings).push(`NYOLE_${nyoleMode === 'live' ? 'LIVE' : 'TEST'}_SECRET_KEY est obligatoire pour les paiements Nyole.`);
+  }
+
+  const provider = preferredProvider();
+  const brevoOk = isBrevoConfigured();
+  const smtpOk = isSmtpConfigured();
+  if (provider === EMAIL_PROVIDERS.BREVO) {
+    const brevoKey = String(process.env.BREVO_API_KEY || '').trim();
+    const { from } = emailConfig();
+    if (!brevoKey) {
+      (production ? errors : warnings).push('EMAIL_PROVIDER=brevo mais BREVO_API_KEY est vide.');
+    }
+    if (!from) {
+      (production ? errors : warnings).push('EMAIL_PROVIDER=brevo mais SMTP_FROM est vide (expéditeur requis).');
+    }
+    console.log(`[email] Provider actif : BREVO (API HTTPS) ${brevoKey && from ? '✔︎ configuré' : '⚠︎ incomplet'}`);
+  } else if (provider === EMAIL_PROVIDERS.SMTP) {
+    if (smtpOk) {
+      console.log('[email] Provider actif : SMTP (⚠︎ peut échouer sur Render à cause des ports bloqués).');
+    } else if (brevoOk) {
+      console.log('[email] Provider actif : SMTP, mais BREVO_API_KEY est disponible — définis EMAIL_PROVIDER=brevo pour utiliser l’API HTTPS.');
+    } else {
+      (production ? errors : warnings).push('Aucun fournisseur d’e-mail n’est configuré (BREVO_API_KEY ou SMTP_*).');
+    }
+  } else if (!smtpOk && !brevoOk) {
+    (production ? errors : warnings).push('Aucun fournisseur d’e-mail n’est configuré (BREVO_API_KEY ou SMTP_*).');
   }
 
   return { errors, warnings };
