@@ -159,7 +159,17 @@ async function requestPasswordReset(req, res, next) {
       await prisma.verificationCode.create({
         data: { email, code, purpose: 'password_reset', expiresAt: new Date(Date.now() + 15 * 60 * 1000) },
       });
-      await sendPasswordResetCodeEmail({ to: email, code });
+      // Envoi asynchrone (non bloquant) : la réponse HTTP ne dépend pas
+      // de la disponibilité du serveur SMTP. Les erreurs sont journalisées.
+      setImmediate(() => {
+        sendPasswordResetCodeEmail({ to: email, code }).catch((err) => {
+          console.error('[auth] Échec envoi email réinitialisation', {
+            email,
+            message: err?.message,
+            cause: err?.cause?.message,
+          });
+        });
+      });
     }
     return res.status(200).json({ data: { message: 'Si ce compte existe, un code a été envoyé.' } });
   } catch (error) {
@@ -187,7 +197,18 @@ async function requestEmailVerification(req, res, next) {
         expiresAt: new Date(Date.now() + 15 * 60 * 1000),
       },
     });
-    await sendVerificationCodeEmail({ to: user.email, code, firstname: user.firstname });
+    // Envoi asynchrone (non bloquant) : la réponse HTTP ne dépend pas
+    // de la disponibilité du serveur SMTP. Les erreurs sont journalisées.
+    setImmediate(() => {
+      sendVerificationCodeEmail({ to: user.email, code, firstname: user.firstname }).catch((err) => {
+        console.error('[auth] Échec envoi email vérification', {
+          email: user.email,
+          userId,
+          message: err?.message,
+          cause: err?.cause?.message,
+        });
+      });
+    });
     return res.status(200).json({ data: { message: 'Code de vérification envoyé.' } });
   } catch (error) {
     return handleControllerError(error, next);

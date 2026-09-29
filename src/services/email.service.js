@@ -37,6 +37,10 @@ function getTransporter() {
       port: config.port,
       secure: config.secure,
       auth: { user: config.user, pass: config.pass },
+      connectionTimeout: 10 * 1000,
+      greetingTimeout: 10 * 1000,
+      socketTimeout: 15 * 1000,
+      dnsTimeout: 5 * 1000,
     });
     cachedTransporterKey = key;
   }
