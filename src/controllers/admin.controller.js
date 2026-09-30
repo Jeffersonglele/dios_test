@@ -32,24 +32,50 @@ async function getDashboardStats(req, res, next) {
     if (country) restauWhere.country = country;
     const restaurantsCount = await m.restaurant.count({ where: restauWhere });
 
-    const proDocsWhere = {};
+    let proDocumentsCount;
+    let deliveryDocumentsCount;
     if (country) {
-      proDocsWhere.OR = [
-        { country: country },
-        { user: { country: country } },
-        { restaurant: { country: country } },
-      ];
+      const countryUserIds = (
+        await m.user.findMany({ where: userWhere, select: { userId: true, id: true } })
+      )
+        .map((u) => u.userId)
+        .filter((v) => v !== null && v !== undefined);
+      const countryRestauIds = (
+        await m.restaurant.findMany({ where: restauWhere, select: { restaurantId: true, id: true } })
+      )
+        .map((r) => r.restaurantId)
+        .filter((v) => v !== null && v !== undefined);
+
+      const proWhere = {
+        OR: [
+          { userId: { in: countryUserIds } },
+          { restaurantId: { in: countryRestauIds } },
+        ],
+      };
+      if (countryUserIds.length === 0 && countryRestauIds.length === 0) {
+        proDocumentsCount = 0;
+      } else if (countryUserIds.length === 0) {
+        proDocumentsCount = await m.proDocument.count({ where: { restaurantId: { in: countryRestauIds } } });
+      } else if (countryRestauIds.length === 0) {
+        proDocumentsCount = await m.proDocument.count({ where: { userId: { in: countryUserIds } } });
+      } else {
+        proDocumentsCount = await m.proDocument.count({ where: proWhere });
+      }
+
+      if (countryUserIds.length === 0) {
+        deliveryDocumentsCount = 0;
+      } else {
+        deliveryDocumentsCount = await m.identity.count({
+          where: { deletedAt: null, userId: { in: countryUserIds } },
+        });
+      }
+    } else {
+      proDocumentsCount = await m.proDocument.count();
+      deliveryDocumentsCount = await m.identity.count({ where: { deletedAt: null } });
     }
-    const proDocumentsCount = await m.proDocument.count({ where: proDocsWhere });
 
     const categoriesCount = await m.category.count({ where: { deletedAt: null } });
     const promoCodesCount = await m.promoCode.count({ where: { deletedAt: null } });
-
-    const deliveryDocsWhere = { deletedAt: null };
-    if (country) {
-      deliveryDocsWhere.user = { country: country };
-    }
-    const deliveryDocumentsCount = await m.identity.count({ where: deliveryDocsWhere });
 
     const referralCount = await m.promoCode.count({
       where: {
@@ -119,21 +145,55 @@ async function getProDocuments(req, res, next) {
     const m = _model();
     const countryRaw = req.query?.country;
     const country = countryRaw ? canonicalCountry(countryRaw) : null;
-    const where = {};
+
+    let docs;
     if (country) {
-      where.OR = [
-        { country: country },
-        { user: { country: country } },
-        { restaurant: { country: country } },
-      ];
+      const userWhere = { deletedAt: null, country: country };
+      const restauWhere = { deletedAt: null, country: country };
+      const countryUserIds = (
+        await m.user.findMany({ where: userWhere, select: { userId: true } })
+      )
+        .map((u) => u.userId)
+        .filter((v) => v !== null && v !== undefined);
+      const countryRestauIds = (
+        await m.restaurant.findMany({ where: restauWhere, select: { restaurantId: true } })
+      )
+        .map((r) => r.restaurantId)
+        .filter((v) => v !== null && v !== undefined);
+
+      const where = {};
+      const orParts = [];
+      if (countryUserIds.length > 0) orParts.push({ userId: { in: countryUserIds } });
+      if (countryRestauIds.length > 0) orParts.push({ restaurantId: { in: countryRestauIds } });
+      if (orParts.length === 1) Object.assign(where, orParts[0]);
+      else if (orParts.length > 1) where.OR = orParts;
+
+      if (orParts.length === 0) {
+        docs = [];
+      } else {
+        docs = await m.proDocument.findMany({ where });
+      }
+    } else {
+      docs = await m.proDocument.findMany();
     }
-    const data = await m.proDocument.findMany({
-      where,
-      include: {
-        restaurant: true,
-        user: true,
-      },
+
+    const userIds = [...new Set(docs.map((d) => d.userId).filter((v) => v !== null && v !== undefined))];
+    const restauIds = [...new Set(docs.map((d) => d.restaurantId).filter((v) => v !== null && v !== undefined))];
+    const usersMap = new Map();
+    const restaurantsMap = new Map();
+    if (userIds.length > 0) {
+      (await m.user.findMany({ where: { userId: { in: userIds } } })).forEach((u) => usersMap.set(u.userId, u));
+    }
+    if (restauIds.length > 0) {
+      (await m.restaurant.findMany({ where: { restaurantId: { in: restauIds } } })).forEach((r) => restaurantsMap.set(r.restaurantId, r));
+    }
+    const data = docs.map((d) => {
+      const copy = { ...d };
+      if (d.userId !== null && d.userId !== undefined) copy.user = usersMap.get(d.userId) || null;
+      if (d.restaurantId !== null && d.restaurantId !== undefined) copy.restaurant = restaurantsMap.get(d.restaurantId) || null;
+      return copy;
     });
+
     return res.status(200).json({ data });
   } catch (error) {
     return handleControllerError(error, next);
@@ -167,14 +227,38 @@ async function getDeliveryDocuments(req, res, next) {
     const m = _model();
     const countryRaw = req.query?.country;
     const country = countryRaw ? canonicalCountry(countryRaw) : null;
-    const where = { deletedAt: null };
+
+    let identities;
     if (country) {
-      where.user = { country: country };
+      const userWhere = { deletedAt: null, country: country };
+      const countryUserIds = (
+        await m.user.findMany({ where: userWhere, select: { userId: true } })
+      )
+        .map((u) => u.userId)
+        .filter((v) => v !== null && v !== undefined);
+
+      if (countryUserIds.length === 0) {
+        identities = [];
+      } else {
+        identities = await m.identity.findMany({
+          where: { deletedAt: null, userId: { in: countryUserIds } },
+        });
+      }
+    } else {
+      identities = await m.identity.findMany({ where: { deletedAt: null } });
     }
-    const data = await m.identity.findMany({
-      where,
-      include: { user: true },
+
+    const userIds = [...new Set(identities.map((d) => d.userId).filter((v) => v !== null && v !== undefined))];
+    const usersMap = new Map();
+    if (userIds.length > 0) {
+      (await m.user.findMany({ where: { userId: { in: userIds } } })).forEach((u) => usersMap.set(u.userId, u));
+    }
+    const data = identities.map((d) => {
+      const copy = { ...d };
+      if (d.userId !== null && d.userId !== undefined) copy.user = usersMap.get(d.userId) || null;
+      return copy;
     });
+
     return res.status(200).json({ data });
   } catch (error) {
     return handleControllerError(error, next);
