@@ -23,6 +23,8 @@ router.get('/scheduled-deletions', adminController.getScheduledDeletions);
 
 router.get('/referral-stats', adminController.getReferralStats);
 
+router.get('/countries', adminController.getAvailableCountries);
+
 router.patch('/restaurants/:restaurantId', adminController.validateRestaurant);
 router.patch('/users/:userId/identity-status', adminController.setIdentityStatus);
 

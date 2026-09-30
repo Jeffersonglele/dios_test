@@ -50,7 +50,8 @@ const roles = [
   { roleId: 1, name: 'ADMIN' },
   { roleId: 2, name: 'CLIENT' },
   { roleId: 3, name: 'RESTAURATEUR' },
-  { roleId: 4, name: 'LIVREUR' },
+  { roleId: 4, name: 'SUPER_ADMIN' },  // SuperAdmin — accès tous pays
+  { roleId: 5, name: 'LIVREUR' },
 ];
 
 // Les noms et adresses correspondent à des restaurants existants à Kinshasa.
@@ -87,11 +88,11 @@ const dishes = [
 ];
 
 const accounts = [
-  { userId: 1, username: 'admin_seed', email: 'admin.seed@dios.cd', firstname: 'Administrateur', lastname: 'Dios', roleId: 1, accountType: 'ADMIN' },
-  { userId: 2, username: 'kanya_owner_seed', email: 'kanya.owner.seed@dios.cd', firstname: 'Gérant', lastname: 'Kanya', roleId: 3, accountType: 'RESTAURATEUR' },
-  { userId: 3, username: 'kiros_owner_seed', email: 'kiros.owner.seed@dios.cd', firstname: 'Gérant', lastname: 'Kiros', roleId: 3, accountType: 'RESTAURATEUR' },
-  { userId: 4, username: 'livreur_one_seed', email: 'livreur.one.seed@dios.cd', firstname: 'Livreur', lastname: 'Un', roleId: 4, accountType: 'LIVREUR', telephoneE164: '+243810000001' },
-  { userId: 5, username: 'livreur_two_seed', email: 'livreur.two.seed@dios.cd', firstname: 'Livreur', lastname: 'Deux', roleId: 4, accountType: 'LIVREUR', telephoneE164: '+243810000002' },
+  { userId: 1, username: 'admin_seed', email: 'admin.seed@dios.cd', firstname: 'Administrateur', lastname: 'Dios', roleId: 1, accountType: 'ADMIN', country: 'RDC' },
+  { userId: 2, username: 'kanya_owner_seed', email: 'kanya.owner.seed@dios.cd', firstname: 'Gérant', lastname: 'Kanya', roleId: 3, accountType: 'RESTAURATEUR', country: 'RDC' },
+  { userId: 3, username: 'kiros_owner_seed', email: 'kiros.owner.seed@dios.cd', firstname: 'Gérant', lastname: 'Kiros', roleId: 3, accountType: 'RESTAURATEUR', country: 'RDC' },
+  { userId: 4, username: 'livreur_one_seed', email: 'livreur.one.seed@dios.cd', firstname: 'Livreur', lastname: 'Un', roleId: 5, accountType: 'LIVREUR', telephoneE164: '+243810000001', country: 'RDC' },
+  { userId: 5, username: 'livreur_two_seed', email: 'livreur.two.seed@dios.cd', firstname: 'Livreur', lastname: 'Deux', roleId: 5, accountType: 'LIVREUR', telephoneE164: '+243810000002', country: 'RDC' },
   {
     userId: 6,
     username: 'pierre',
@@ -103,6 +104,17 @@ const accounts = [
     cityId: NZILO.cityId,
     latitude: NZILO.latitude,
     longitude: NZILO.longitude,
+  },
+  // ── SuperAdmin ── accès à tous les pays ─────────────────────
+  {
+    userId: 10,
+    username: 'superadmin',
+    email: 'superadmin@dios.cd',
+    firstname: 'Super',
+    lastname: 'Admin',
+    roleId: 4,          // SUPER_ADMIN dans Flutter = AppRole.superAdmin(4)
+    accountType: 'SUPER_ADMIN',
+    country: 'RDC',     // pays par défaut à la connexion
   },
 ];
 

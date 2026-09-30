@@ -411,6 +411,32 @@ async function setIdentityStatus(req, res, next) {
   }
 }
 
+async function getAvailableCountries(req, res, next) {
+  try {
+    const m = _model();
+    // Récupère les valeurs distinctes du champ country dans la table users
+    const rows = await m.user.findMany({
+      where: { deletedAt: null, country: { not: null } },
+      select: { country: true },
+      distinct: ['country'],
+    });
+    // Filtre les valeurs vides et déduplique (insensible à la casse)
+    const seen = new Set();
+    const countries = [];
+    for (const row of rows) {
+      const c = (row.country || '').trim();
+      const key = c.toLowerCase();
+      if (c && !seen.has(key)) {
+        seen.add(key);
+        countries.push(c);
+      }
+    }
+    return res.status(200).json({ data: countries });
+  } catch (error) {
+    return handleControllerError(error, next);
+  }
+}
+
 module.exports = {
   getDashboardStats,
   sendEmail,
@@ -423,4 +449,5 @@ module.exports = {
   getReferralStats,
   validateRestaurant,
   setIdentityStatus,
+  getAvailableCountries,
 };
