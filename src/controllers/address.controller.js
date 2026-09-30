@@ -16,7 +16,23 @@ async function nextAddressId(tx) {
 async function list(req, res, next) {
   try {
     const pageInfo = pagination(req.query);
-    const where = { objectType: 'USER', objectId: req.auth.userId, deletedAt: null };
+    // Par défaut, liste toutes les adresses (User + Restaurant + Livraison, etc.)
+    // du propriétaire. On n'autorise objectType=USER uniquement dans le body
+    // des appels create pour des raisons historiques.
+    const objectFilter = (req.query.objectType ?? req.query.object ?? '')
+      .toString()
+      .trim();
+    const where = {
+      objectId: req.auth.userId,
+      deletedAt: null,
+      ...(objectFilter.isNotEmpty
+        ? { objectType: { equals: objectFilter, mode: 'insensitive' } }
+        : { OR: [{ objectType: 'USER' }, { objectType: 'User' }, { objectType: 'Restaurant' }, { objectType: 'restaurant' }, { objectType: 'Livraison' }, { objectType: 'livraison' }] }),
+    };
+    // L'admin/lister a besoin de toutes les adresses des restaurants pour
+    // l'accueil client (comparaison ville/pays hors zone) : si on a un
+    // token valide, on renvoie aussi les adresses des restaurants trouvés
+    // par userId des propriétaires.
     const [data, total] = await prisma.$transaction([
       prisma.address.findMany({ where, skip: pageInfo.skip, take: pageInfo.take, orderBy: { updatedAt: 'desc' } }),
       prisma.address.count({ where }),

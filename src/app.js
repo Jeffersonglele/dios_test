@@ -28,7 +28,7 @@ app.use(cors({
   credentials: true,
 }));
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
-// Nyole signs the exact request body. Keep this route raw before express.json.
+// Nyole inscrit exactement le request body. Garder cette route avant le express.json.
 app.use('/api/v1/payments/nyole/webhook', express.raw({
   type: 'application/json',
   limit: process.env.JSON_BODY_LIMIT || '1mb',

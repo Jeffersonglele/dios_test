@@ -293,6 +293,9 @@ async function seedCatalog() {
   }
 
   for (const restaurant of restaurants) {
+    const existingRestaurant = await prisma.restaurant.findUnique({
+      where: { restaurantId: restaurant.restaurantId },
+    });
     await prisma.restaurant.upsert({
       where: { restaurantId: restaurant.restaurantId },
       update: {
@@ -337,6 +340,55 @@ async function seedCatalog() {
           "location_updated_at" = NOW()
       WHERE "restaurantId" = ${restaurant.restaurantId}
     `;
+
+    // ── Créer l'adresse Restaurant correspondante si absente ──
+    const existingAddress = await prisma.address.findFirst({
+      where: {
+        objectType: { in: ['Restaurant', 'restaurant', 'User'] },
+        objectId: restaurant.ownerUserId,
+        deletedAt: null,
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+    if (!existingAddress || existingAddress.cityId !== KINSHASA.cityId) {
+      const lastAddress = await prisma.address.findFirst({
+        where: { addressId: { not: null } },
+        orderBy: { addressId: 'desc' },
+        select: { addressId: true },
+      });
+      const nextAddressId = (lastAddress?.addressId || 0) + 1;
+      await prisma.address.create({
+        data: {
+          addressId: existingAddress?.addressId ?? nextAddressId,
+          objectType: 'Restaurant',
+          objectId: restaurant.ownerUserId,
+          city: KINSHASA.name,
+          state: KINSHASA.country,
+          country: KINSHASA.country,
+          fullAddress: restaurant.address,
+          latitude: restaurant.latitude,
+          longitude: restaurant.longitude,
+          cityId: KINSHASA.cityId,
+        },
+      }).catch(async () => {
+        if (existingAddress) {
+          await prisma.address.update({
+            where: { id: existingAddress.id },
+            data: {
+              objectType: 'Restaurant',
+              city: KINSHASA.name,
+              state: KINSHASA.country,
+              country: KINSHASA.country,
+              fullAddress: restaurant.address,
+              latitude: restaurant.latitude,
+              longitude: restaurant.longitude,
+              cityId: KINSHASA.cityId,
+              deletedAt: null,
+            },
+          });
+        }
+      });
+    }
   }
 
   for (const dish of dishes) {

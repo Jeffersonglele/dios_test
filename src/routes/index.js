@@ -13,6 +13,7 @@ const users = require('./users.routes');
 const uploads = require('./uploads.routes');
 const verification = require('./verification.routes');
 const wallet = require('./wallet.routes');
+const admin = require('./admin.routes');
 
 const router = express.Router();
 
@@ -30,5 +31,6 @@ router.use('/', verification);
 router.use('/', communication);
 router.use('/', operations);
 router.use('/', wallet);
+router.use('/admin', admin);
 
 module.exports = router;

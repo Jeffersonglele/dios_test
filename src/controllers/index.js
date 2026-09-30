@@ -12,4 +12,5 @@ module.exports = {
   users: require('./users.controller'),
   verification: require('./verification.controller'),
   wallet: require('./wallet.controller'),
+  admin: require('./admin.controller'),
 };
