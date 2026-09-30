@@ -14,6 +14,7 @@ const uploads = require('./uploads.routes');
 const verification = require('./verification.routes');
 const wallet = require('./wallet.routes');
 const admin = require('./admin.routes');
+const promotions = require('./promotions.routes');
 
 const router = express.Router();
 
@@ -32,5 +33,6 @@ router.use('/', communication);
 router.use('/', operations);
 router.use('/', wallet);
 router.use('/admin', admin);
+router.use('/', promotions);
 
 module.exports = router;

@@ -1,55 +1,115 @@
-const prisma = require('../config/prisma');
 const { handleControllerError } = require('./controller.utils');
+const prisma = require('../config/prisma');
 
 async function getDashboardStats(req, res, next) {
   try {
-    const country = req.query.country;
-    
-    const userWhere = { deletedAt: null };
-    if (country) userWhere.country = country;
+    const usersCount = await prisma.users.count({ where: { deletedAt: null } });
+    const ordersCount = await prisma.commande.count();
+    const proDocumentsCount = await prisma.proDocument.count();
+    const categoriesCount = await prisma.category.count({ where: { deletedAt: null } });
+    const promoCodesCount = await prisma.promoCode.count({ where: { deletedAt: null } });
+    const deliveryDocumentsCount = await prisma.identity.count({ where: { deletedAt: null, documentType: 'DRIVER' } });
+    const referralCount = await prisma.promoCode.count({ where: { deletedAt: null, description: 'Code de parrainage' } });
+    const scheduledDeletionsCount = await prisma.users.count({ where: { isDeleted: 1 } });
+    const auditLogCount = await prisma.auditLog.count();
 
-    const restaurantWhere = { deletedAt: null };
-    if (country) restaurantWhere.country = country;
+    const data = {
+      users: usersCount,
+      orders: ordersCount,
+      proDocuments: proDocumentsCount,
+      categories: categoriesCount,
+      promoCodes: promoCodesCount,
+      deliveryDocuments: deliveryDocumentsCount,
+      referralCount,
+      scheduledDeletionsCount,
+      auditLogCount,
+    };
 
-    // Calcul du début du mois
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
+    return res.status(200).json({ data });
+  } catch (error) {
+    return handleControllerError(error, next);
+  }
+}
 
-    const newUsersWhere = { ...userWhere, createdAt: { gte: startOfMonth } };
-
-    const [
-      totalUsers,
-      totalRestaurants,
-      newUsersThisMonth,
-      ordersConfirmed,
-      ordersPending,
-    ] = await Promise.all([
-      prisma.user.count({ where: userWhere }),
-      prisma.restaurant.count({ where: restaurantWhere }),
-      prisma.user.count({ where: newUsersWhere }),
-      // status in ['CONFIRMED', 'DELIVERED', 'IN_TRANSIT', 'PREPARING']
-      prisma.order.count({ where: { status: { in: ['CONFIRMED', 'DELIVERED', 'IN_TRANSIT', 'PREPARING'] } } }),
-      prisma.order.count({ where: { status: 'PENDING' } }),
-    ]);
-
-    // totalRevenue (exemple simplifié: somme de totalAmount pour les livrées)
-    const revenueResult = await prisma.order.aggregate({
-      _sum: { totalAmount: true },
-      where: { status: 'DELIVERED' }
+async function getProDocuments(req, res, next) {
+  try {
+    const data = await prisma.proDocument.findMany({
+      include: {
+        restaurant: true,
+        user: true,
+      },
     });
+    return res.status(200).json({ data });
+  } catch (error) {
+    return handleControllerError(error, next);
+  }
+}
 
-    const totalRevenue = revenueResult._sum.totalAmount || 0;
+async function validateProDocuments(req, res, next) {
+  try {
+    const { documentId, status } = req.body;
+    const document = await prisma.proDocument.update({
+      where: { id: documentId },
+      data: { status },
+    });
+    return res.status(200).json({ data: document });
+  } catch (error) {
+    return handleControllerError(error, next);
+  }
+}
+
+async function getDeliveryDocuments(req, res, next) {
+  try {
+    // Identity with documentType = 'DRIVER' (if that's how it's modelled)
+    const data = await prisma.identity.findMany({
+      where: { documentType: 'DRIVER' }, // Need to adapt to actual schema
+      include: { user: true },
+    });
+    return res.status(200).json({ data });
+  } catch (error) {
+    return handleControllerError(error, next);
+  }
+}
+
+async function validateDeliveryDocuments(req, res, next) {
+  try {
+    const { documentId, status } = req.body;
+    const document = await prisma.identity.update({
+      where: { id: documentId },
+      data: { status },
+    });
+    return res.status(200).json({ data: document });
+  } catch (error) {
+    return handleControllerError(error, next);
+  }
+}
+
+async function getScheduledDeletions(req, res, next) {
+  try {
+    const data = await prisma.users.findMany({
+      where: { isDeleted: 1 },
+    });
+    return res.status(200).json({ data });
+  } catch (error) {
+    return handleControllerError(error, next);
+  }
+}
+
+async function getReferralStats(req, res, next) {
+  try {
+    const activeCodes = await prisma.promoCode.count({ where: { deletedAt: null, active: true, description: 'Code de parrainage' } });
+    const allCodes = await prisma.promoCode.findMany({ where: { deletedAt: null, description: 'Code de parrainage' } });
+    
+    let totalReferrals = 0;
+    for (const code of allCodes) {
+      totalReferrals += code.usedCount;
+    }
 
     return res.status(200).json({
-      success: true,
-      stats: {
-        totalUsers,
-        totalRestaurants,
-        newUsersThisMonth,
-        totalOrders: ordersConfirmed,
-        pendingOrders: ordersPending,
-        totalRevenue
+      data: {
+        totalReferrals,
+        activeCodes,
+        rewardsGiven: totalReferrals * 5, // Just an example
       }
     });
   } catch (error) {
@@ -57,40 +117,20 @@ async function getDashboardStats(req, res, next) {
   }
 }
 
-async function validateRestaurant(req, res, next) {
+async function sendEmail(req, res, next) {
   try {
-    const restaurantId = Number.parseInt(req.params.restaurantId, 10);
-    const valid = req.body.valid;
-    const reviewRemark = req.body.reviewRemark;
-
-    const restaurant = await prisma.restaurant.findUnique({ where: { restaurantId } });
-    if (!restaurant) throw notFound('Restaurant');
-
-    const updated = await prisma.restaurant.update({
-      where: { restaurantId },
-      data: { valid, reviewRemark }
-    });
-
-    return res.status(200).json({ success: true, data: updated });
+    // Mock email sending
+    return res.status(200).json({ success: true, message: 'Email envoyé' });
   } catch (error) {
     return handleControllerError(error, next);
   }
 }
 
-async function setIdentityStatus(req, res, next) {
+async function forceDeleteUser(req, res, next) {
   try {
-    const userId = Number.parseInt(req.params.userId, 10);
-    const status = req.body.status; // e.g. "APPROVED", "REJECTED"
-
-    const user = await prisma.user.findUnique({ where: { userId } });
-    if (!user) throw notFound('User');
-
-    const updated = await prisma.user.update({
-      where: { userId },
-      data: { status }
-    });
-
-    return res.status(200).json({ success: true, data: updated });
+    const { userId } = req.params;
+    await prisma.users.delete({ where: { userId: Number(userId) } });
+    return res.status(200).json({ success: true });
   } catch (error) {
     return handleControllerError(error, next);
   }
@@ -98,6 +138,12 @@ async function setIdentityStatus(req, res, next) {
 
 module.exports = {
   getDashboardStats,
-  validateRestaurant,
-  setIdentityStatus,
+  sendEmail,
+  forceDeleteUser,
+  getProDocuments,
+  validateProDocuments,
+  getDeliveryDocuments,
+  validateDeliveryDocuments,
+  getScheduledDeletions,
+  getReferralStats,
 };

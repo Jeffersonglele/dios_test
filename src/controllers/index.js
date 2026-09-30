@@ -13,4 +13,5 @@ module.exports = {
   verification: require('./verification.controller'),
   wallet: require('./wallet.controller'),
   admin: require('./admin.controller'),
+  promotions: require('./promotions.controller'),
 };
