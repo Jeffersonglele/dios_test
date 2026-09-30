@@ -135,6 +135,33 @@ async function forceDeleteUser(req, res, next) {
     return handleControllerError(error, next);
   }
 }
+async function validateRestaurant(req, res, next) {
+  try {
+    const { restaurantId } = req.params;
+    const { valid, reviewRemark } = req.body;
+    const data = await prisma.restaurant.update({
+      where: { restaurantId: Number(restaurantId) },
+      data: { valid: Number(valid), ...(reviewRemark ? { reviewRemark } : {}) },
+    });
+    return res.status(200).json({ data });
+  } catch (error) {
+    return handleControllerError(error, next);
+  }
+}
+
+async function setIdentityStatus(req, res, next) {
+  try {
+    const { userId } = req.params;
+    const { status } = req.body;
+    const data = await prisma.users.update({
+      where: { userId: Number(userId) },
+      data: { identityStatus: status },
+    });
+    return res.status(200).json({ data });
+  } catch (error) {
+    return handleControllerError(error, next);
+  }
+}
 
 module.exports = {
   getDashboardStats,
@@ -146,4 +173,6 @@ module.exports = {
   validateDeliveryDocuments,
   getScheduledDeletions,
   getReferralStats,
+  validateRestaurant,
+  setIdentityStatus,
 };

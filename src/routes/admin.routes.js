@@ -23,4 +23,7 @@ router.get('/scheduled-deletions', adminController.getScheduledDeletions);
 
 router.get('/referral-stats', adminController.getReferralStats);
 
+router.patch('/restaurants/:restaurantId', adminController.validateRestaurant);
+router.patch('/users/:userId/identity-status', adminController.setIdentityStatus);
+
 module.exports = router;
