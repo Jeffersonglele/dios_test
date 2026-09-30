@@ -2,7 +2,6 @@ require('dotenv').config({ quiet: true });
 
 const cors = require('cors');
 const express = require('express');
-const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const morgan = require('morgan');
 
@@ -37,16 +36,6 @@ app.use('/api/v1/payments/nyole/webhook', express.raw({
 app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || '1mb' }));
 app.use(express.urlencoded({ extended: false, limit: process.env.JSON_BODY_LIMIT || '1mb' }));
 app.use('/uploads', express.static(uploadDirectory(), { fallthrough: false, maxAge: '7d' }));
-app.use(rateLimit({
-  windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
-  // Valeur adaptée aux tests mobiles : l'accueil peut lancer plusieurs
-  // requêtes parallèles (profil, restaurants, catégories, adresses, menu).
-  // La valeur reste configurable par RATE_LIMIT_MAX sur Render.
-  limit: Number(process.env.RATE_LIMIT_MAX) || 1000,
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-  message: { error: { message: 'Trop de requêtes. Réessayez plus tard.' } },
-}));
 
 app.get('/health', async (req, res) => {
   const health = await getHealth();
