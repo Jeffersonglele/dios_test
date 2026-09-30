@@ -1,4 +1,4 @@
-const { handleControllerError } = require('./controller.utils');
+const { handleControllerError, canonicalCountry } = require('./controller.utils');
 const prisma = require('../config/prisma');
 
 function _model() {
@@ -17,7 +17,8 @@ function _model() {
 async function getDashboardStats(req, res, next) {
   try {
     const m = _model();
-    const country = req.query?.country;
+    const countryRaw = req.query?.country;
+    const country = countryRaw ? canonicalCountry(countryRaw) : null;
 
     const userWhere = { deletedAt: null };
     if (country) userWhere.country = country;
@@ -32,12 +33,22 @@ async function getDashboardStats(req, res, next) {
     const restaurantsCount = await m.restaurant.count({ where: restauWhere });
 
     const proDocsWhere = {};
+    if (country) {
+      proDocsWhere.OR = [
+        { country: country },
+        { user: { country: country } },
+        { restaurant: { country: country } },
+      ];
+    }
     const proDocumentsCount = await m.proDocument.count({ where: proDocsWhere });
 
     const categoriesCount = await m.category.count({ where: { deletedAt: null } });
     const promoCodesCount = await m.promoCode.count({ where: { deletedAt: null } });
 
     const deliveryDocsWhere = { deletedAt: null };
+    if (country) {
+      deliveryDocsWhere.user = { country: country };
+    }
     const deliveryDocumentsCount = await m.identity.count({ where: deliveryDocsWhere });
 
     const referralCount = await m.promoCode.count({
@@ -106,7 +117,18 @@ async function getDashboardStats(req, res, next) {
 async function getProDocuments(req, res, next) {
   try {
     const m = _model();
+    const countryRaw = req.query?.country;
+    const country = countryRaw ? canonicalCountry(countryRaw) : null;
+    const where = {};
+    if (country) {
+      where.OR = [
+        { country: country },
+        { user: { country: country } },
+        { restaurant: { country: country } },
+      ];
+    }
     const data = await m.proDocument.findMany({
+      where,
       include: {
         restaurant: true,
         user: true,
@@ -143,7 +165,14 @@ async function validateProDocuments(req, res, next) {
 async function getDeliveryDocuments(req, res, next) {
   try {
     const m = _model();
+    const countryRaw = req.query?.country;
+    const country = countryRaw ? canonicalCountry(countryRaw) : null;
+    const where = { deletedAt: null };
+    if (country) {
+      where.user = { country: country };
+    }
     const data = await m.identity.findMany({
+      where,
       include: { user: true },
     });
     return res.status(200).json({ data });

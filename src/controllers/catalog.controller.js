@@ -1,6 +1,6 @@
 const prisma = require('../config/prisma');
 const { createCrudController } = require('./crud.controller');
-const { badRequest, handleControllerError, notFound, pagination, sendPage } = require('./controller.utils');
+const { badRequest, handleControllerError, notFound, pagination, sendPage, canonicalCountry } = require('./controller.utils');
 
 const RESTAURANT_FIELDS = [
   'restaurantId', 'userId', 'categories', 'description', 'address', 'addressId',
@@ -65,6 +65,11 @@ async function listRestaurants(req, res, next) {
   try {
     const pageInfo = pagination(req.query);
     const where = { deletedAt: null };
+    const countryRaw = req.query.country;
+    if (countryRaw !== undefined && countryRaw !== '') {
+      const country = canonicalCountry(countryRaw);
+      if (country) where.country = country;
+    }
     if (req.query.cityId) where.cityId = Number.parseInt(req.query.cityId, 10);
     if (req.query.userId) where.userId = Number.parseInt(req.query.userId, 10);
     if (req.query.isOpen !== undefined) where.isOpen = req.query.isOpen === 'true' ? 1 : 0;
@@ -84,6 +89,11 @@ async function listDishes(req, res, next) {
   try {
     const pageInfo = pagination(req.query);
     const where = { deletedAt: null };
+    const countryRaw = req.query.country;
+    if (countryRaw !== undefined && countryRaw !== '') {
+      const country = canonicalCountry(countryRaw);
+      if (country) where.country = country;
+    }
     for (const field of ['restaurantId', 'userId', 'cityId', 'status']) {
       if (req.query[field] !== undefined) where[field] = Number.parseInt(req.query[field], 10);
     }

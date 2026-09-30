@@ -14,6 +14,25 @@ function pagination(query = {}) {
   return { page, pageSize, skip: (page - 1) * pageSize, take: pageSize };
 }
 
+function canonicalCountry(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (
+    normalized === 'rdc' ||
+    normalized === 'cd' ||
+    normalized.includes('république démocratique') ||
+    normalized.includes('republique democratique') ||
+    normalized.includes('democratic republic') ||
+    normalized === 'congo' ||
+    normalized === 'cod'
+  ) {
+    return 'RDC';
+  }
+  if (normalized === 'bénin' || normalized === 'benin' || normalized === 'bj') {
+    return 'Bénin';
+  }
+  return value || '';
+}
+
 function pick(source = {}, allowedFields = []) {
   return allowedFields.reduce((data, field) => {
     if (source[field] !== undefined) data[field] = source[field];
@@ -64,6 +83,7 @@ function handleControllerError(error, next) {
 
 module.exports = {
   badRequest,
+  canonicalCountry,
   conflict,
   handleControllerError,
   notFound,

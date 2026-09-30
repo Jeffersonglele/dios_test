@@ -5,6 +5,7 @@ const {
   pagination,
   pick,
   sendPage,
+  canonicalCountry,
 } = require('./controller.utils');
 
 /**
@@ -28,7 +29,12 @@ function createCrudController({
 
     for (const field of filterFields) {
       if (query[field] !== undefined && query[field] !== '') {
-        where[field] = query[field];
+        if (field === 'country') {
+          const normalized = canonicalCountry(query[field]);
+          if (normalized) where[field] = normalized;
+        } else {
+          where[field] = query[field];
+        }
       }
     }
     return where;
