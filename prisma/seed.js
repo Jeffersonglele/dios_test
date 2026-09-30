@@ -364,7 +364,6 @@ async function seedCatalog() {
     });
     if (!existingAddress || existingAddress.cityId !== KINSHASA.cityId) {
       const lastAddress = await prisma.address.findFirst({
-        where: { addressId: { not: null } },
         orderBy: { addressId: 'desc' },
         select: { addressId: true },
       });
