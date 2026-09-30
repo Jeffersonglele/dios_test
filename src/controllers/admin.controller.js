@@ -153,11 +153,21 @@ async function setIdentityStatus(req, res, next) {
   try {
     const { userId } = req.params;
     const { status } = req.body;
-    const data = await prisma.users.update({
-      where: { userId: Number(userId) },
-      data: { identityStatus: status },
+    const legacyUserId = Number(userId);
+    const user = Number.isInteger(legacyUserId)
+      ? await prisma.user.findFirst({ where: { userId: legacyUserId, deletedAt: null } })
+      : await prisma.user.findFirst({ where: { id: userId, deletedAt: null } });
+    if (!user) {
+      const error = new Error('Utilisateur introuvable.');
+      error.statusCode = 404;
+      throw error;
+    }
+    const data = await prisma.user.update({
+      where: { id: user.id },
+      data: { identity: String(status || '').trim() },
     });
-    return res.status(200).json({ data });
+    const { password, ...safeData } = data;
+    return res.status(200).json({ data: safeData });
   } catch (error) {
     return handleControllerError(error, next);
   }
