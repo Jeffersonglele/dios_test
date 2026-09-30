@@ -18,6 +18,7 @@ router.patch('/couriers/me/availability', authenticate, authorize('LIVREUR'), de
 router.post('/couriers/me/location', authenticate, authorize('LIVREUR'), delivery.updateCourierLocation);
 router.get('/couriers/me/offers', authenticate, authorize('LIVREUR'), delivery.listCourierOffers);
 router.get('/couriers/me/deliveries', authenticate, authorize('LIVREUR'), delivery.listCourierDeliveries);
+router.get('/couriers/me/earnings', authenticate, authorize('LIVREUR'), delivery.getCourierEarnings);
 router.post('/delivery-offers/:id/accept', authenticate, authorize('LIVREUR'), delivery.acceptDeliveryOffer);
 router.post('/delivery-offers/:id/reject', authenticate, authorize('LIVREUR'), delivery.rejectDeliveryOffer);
 router.patch('/deliveries/:id/status', authenticate, authorize('LIVREUR'), delivery.updateDeliveryStatus);

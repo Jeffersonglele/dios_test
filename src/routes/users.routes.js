@@ -1,6 +1,6 @@
 const express = require('express');
 
-const { users } = require('../controllers');
+const { users, auth } = require('../controllers');
 const { authenticate } = require('../middlware/auth.middleware');
 const { authorize } = require('../middlware/authorization.middleware');
 const { userOwnerOrAdmin } = require('../middlware/ownership.middleware');
@@ -9,6 +9,8 @@ const { createResourceRouter } = require('./resource.routes');
 
 const router = express.Router();
 
+router.get('/me', authenticate, auth.me);
+router.patch('/me', authenticate, auth.updateMe);
 router.patch('/:id/profile', authenticate, validate(validators.id), userOwnerOrAdmin, users.updateProfile);
 router.patch('/:id/identity-status', authenticate, authorize('ADMIN'), validate(validators.id), users.setIdentityStatus);
 router.use('/', createResourceRouter(users, {

@@ -222,6 +222,66 @@ async function updateDeliveryStatus(req, res, next) {
   }
 }
 
+async function getCourierEarnings(req, res, next) {
+  try {
+    const userId = req.auth.userId;
+    const period = String(req.query.period || 'week').toLowerCase();
+
+    const now = new Date();
+    let start;
+    if (period === 'today') {
+      start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    } else if (period === 'month') {
+      start = new Date(now.getFullYear(), now.getMonth(), 1);
+    } else {
+      // week (default): last 7 days inclusive
+      start = new Date(now);
+      start.setDate(start.getDate() - 6);
+      start.setHours(0, 0, 0, 0);
+    }
+
+    const m = {
+      delivery: prisma.delivery || prisma.deliveries,
+      order: prisma.order || prisma.orders || prisma.commande,
+      delivererPayout: prisma.delivererPayout || prisma.delivererPayouts,
+      tip: prisma.tip || prisma.tips,
+    };
+
+    const deliveries = await m.delivery.count({
+      where: {
+        delivererId: userId,
+        status: 'DELIVERED',
+        deliveredAt: { gte: start },
+      },
+    });
+
+    const payoutAgg = await m.delivererPayout.aggregate({
+      where: { delivererId: userId, weekStart: { gte: start } },
+      _sum: { totalBasePay: true, totalDistancePay: true, totalTips: true, netAmount: true },
+    });
+
+    const base = Number(payoutAgg?._sum?.totalBasePay ?? 0);
+    const dist = Number(payoutAgg?._sum?.totalDistancePay ?? 0);
+    const tips = Number(payoutAgg?._sum?.totalTips ?? 0);
+    const net = Number(payoutAgg?._sum?.netAmount ?? 0);
+    const totalGains = net > 0 ? net : base + dist + tips;
+
+    return res.status(200).json({
+      data: {
+        period,
+        startDate: start.toISOString(),
+        totalLivraisons: deliveries,
+        totalBasePay: base,
+        totalDistancePay: dist,
+        totalPourboires: tips,
+        totalGains,
+      },
+    });
+  } catch (error) {
+    return handleControllerError(error, next);
+  }
+}
+
 module.exports = {
   city,
   zone: { ...zone, resolve: resolveZone },
@@ -234,6 +294,7 @@ module.exports = {
   updateCourierLocation,
   listCourierOffers,
   listCourierDeliveries,
+  getCourierEarnings,
   acceptDeliveryOffer,
   rejectDeliveryOffer,
   updateDeliveryStatus,

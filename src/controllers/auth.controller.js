@@ -20,10 +20,17 @@ const REGISTRATION_FIELDS = [
   'country', 'cityId', 'accountType', 'ageConfirmed',
 ];
 
+const ME_PATCH_FIELDS = [
+  'firstname', 'lastname', 'telephone', 'telephoneLocal', 'telephoneE164',
+  'image', 'maxDeliveryDistance',
+];
+
 function serializeUser(user) {
   if (!user) return null;
   const { password, ...safeUser } = user;
-  return safeUser;
+  const courierStatus = String(safeUser.courierStatus || '').toUpperCase();
+  const isOnline = courierStatus === 'ACTIVE' || courierStatus === 'ONLINE' || courierStatus === 'AVAILABLE';
+  return { ...safeUser, isOnline };
 }
 
 function issueToken(user) {
@@ -350,10 +357,31 @@ async function resetPassword(req, res, next) {
   }
 }
 
+async function updateMe(req, res, next) {
+  try {
+    const userId = req.auth?.userId;
+    if (!userId) throw notFound('Utilisateur authentifié');
+    const user = await prisma.user.findFirst({ where: { userId, deletedAt: null } });
+    if (!user) throw notFound('Utilisateur');
+    const data = pick(req.body, ME_PATCH_FIELDS);
+    const updated = await prisma.user.update({ where: { id: user.id }, data });
+    if (Object.keys(pick(req.body, ['firstname', 'lastname', 'username', 'email', 'telephone', 'telephoneLocal', 'telephoneE164', 'image'])).length > 0) {
+      await prisma.authUser.updateMany({
+        where: { legacyUserId: userId },
+        data: pick(req.body, ['firstname', 'lastname', 'username', 'email', 'telephone', 'telephoneLocal', 'telephoneE164', 'image']),
+      });
+    }
+    return res.status(200).json({ data: serializeUser(updated) });
+  } catch (error) {
+    return handleControllerError(error, next);
+  }
+}
+
 module.exports = {
   confirmEmailVerification,
   login,
   me,
+  updateMe,
   register,
   requestEmailVerification,
   requestPasswordReset,

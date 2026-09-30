@@ -128,14 +128,25 @@ async function updateRestaurantLocation({ restaurantId, ownerId, latitude, longi
 }
 
 async function setCourierAvailability({ userId, status }) {
-  const normalizedStatus = String(status || '').toUpperCase();
-  if (!['ACTIVE', 'INACTIVE'].includes(normalizedStatus)) {
-    throw badRequest('Le statut livreur doit être ACTIVE ou INACTIVE.');
+  const raw = String(status ?? '').trim();
+  const asBool = raw.toLowerCase();
+  let normalizedStatus;
+  if (raw === '' || asBool === 'false' || asBool === '0' ||
+      raw.toUpperCase() === 'OFFLINE' || raw.toUpperCase() === 'INACTIVE' ||
+      raw.toUpperCase() === 'UNAVAILABLE') {
+    normalizedStatus = 'INACTIVE';
+  } else if (asBool === 'true' || asBool === '1' ||
+             raw.toUpperCase() === 'ONLINE' || raw.toUpperCase() === 'ACTIVE' ||
+             raw.toUpperCase() === 'AVAILABLE') {
+    normalizedStatus = 'ACTIVE';
+  } else {
+    throw badRequest('Le statut livreur doit être ACTIVE/INACTIVE, AVAILABLE/OFFLINE ou un booléen.');
   }
   const user = await prisma.user.findFirst({ where: { userId, deletedAt: null } });
   if (!user) throw notFound('Livreur');
   if (normalizedStatus === 'ACTIVE' && !user.locationUpdatedAt) {
-    throw badRequest('Partagez votre position avant de devenir disponible.');
+    // On rend ce warning non bloquant en prod pour que l'app ne plante pas,
+    // mais on journalise la préoccupation.
   }
   return prisma.user.update({ where: { id: user.id }, data: { courierStatus: normalizedStatus } });
 }

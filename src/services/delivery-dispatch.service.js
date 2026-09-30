@@ -184,8 +184,70 @@ async function courierOffers(delivererId) {
 }
 
 async function courierDeliveries(delivererId) {
-  return prisma.delivery.findMany({
-    where: { delivererId }, orderBy: { updatedAt: 'desc' }, take: 50,
+  const orders = await prisma.order.findMany({
+    where: {
+      delivererId,
+      deletedAt: null,
+    },
+    orderBy: { orderedAt: 'desc' },
+    take: 100,
+  });
+  const orderIds = orders.filter((o) => Number.isInteger(o.orderId)).map((o) => o.orderId);
+  const deliveriesById = new Map();
+  if (orderIds.length) {
+    const rows = await prisma.delivery.findMany({ where: { orderId: { in: orderIds } } });
+    for (const d of rows) deliveriesById.set(d.orderId, d);
+  }
+  const now = new Date();
+  return orders.map((order) => {
+    const delivery = deliveriesById.get(order.orderId);
+    const num = (value, fallback = 0) => {
+      if (value === null || value === undefined) return fallback;
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : fallback;
+    };
+    const dateCommande = order.orderedAt || order.legacyOrderedAt || order.createdAt || now;
+    const deliveryStatus =
+      (delivery && delivery.status) ||
+      order.deliveryStatus ||
+      order.livraisonStatus ||
+      order.status ||
+      '';
+    return {
+      commandeID: order.orderId ?? order.id,
+      userID: order.userId ?? order.legacyUserId ?? 0,
+      restauID: order.restaurantId ?? order.legacyRestaurantId ?? 0,
+      restaurateurID: order.restaurateurId ?? order.legacyRestaurateurId ?? 0,
+      moyenPaiementID: order.paymentMethodId ?? 0,
+      fraisLivraison: num(order.legacyDeliveryFee ?? order.deliveryFee),
+      reduction: num(order.reduction),
+      dateCommande: dateCommande.toISOString(),
+      heure: order.orderedTime ?? null,
+      addressID: order.deliveryAddressId ?? order.addressId ?? null,
+      note: num(order.rating, 0),
+      status: order.status ?? 'Pending',
+      livreurID: delivererId,
+      deliveryStatus,
+      livreurLat: num(order.delivererLatitude, 0),
+      livreurLng: num(order.delivererLongitude, 0),
+      totalAmount: num(order.totalAmount),
+      deliveryMode: order.deliveryMode ?? null,
+      promoCode: order.promoCode ?? null,
+      subtotalAmount: num(order.subtotalAmount ?? order.totalAmount),
+      country: order.country ?? 'RDC',
+      cityID: order.cityId ?? 1,
+      distance: delivery?.quotedDistanceKm != null ? num(delivery.quotedDistanceKm) : num(order.deliveryDistanceKm),
+      pourboire: num(order.tipAmount),
+      paymentStatus: order.paymentProvider ?? null,
+      paymentDate: order.createdAt?.toISOString() ?? now.toISOString(),
+      delivererBasePay: num(order.delivererBasePay),
+      delivererDistancePay: num(order.delivererDistancePay),
+      delivererEarningsStatus: order.delivererEarningsStatus ?? null,
+      // Embarque aussi les dates de la course Delivery pour l'UI livreur
+      deliveryAcceptedAt: delivery?.acceptedAt?.toISOString() ?? null,
+      deliveryPickedUpAt: delivery?.pickedUpAt?.toISOString() ?? null,
+      deliveryDeliveredAt: delivery?.deliveredAt?.toISOString() ?? null,
+    };
   });
 }
 
