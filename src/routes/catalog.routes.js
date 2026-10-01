@@ -9,6 +9,10 @@ const router = express.Router();
 const restaurants = express.Router();
 
 restaurants.get('/:restaurantId/menu', catalog.restaurant.getMenu);
+restaurants.get('/legacy/:restaurantId', catalog.restaurant.getByLegacy);
+restaurants.post('/legacy', authenticate, catalog.restaurant.manageLegacy);
+restaurants.patch('/legacy/:restaurantId', authenticate, catalog.restaurant.manageLegacy);
+restaurants.delete('/legacy/:restaurantId', authenticate, catalog.restaurant.deleteByLegacy);
 restaurants.patch('/:id/availability', authenticate, validate(validators.id), catalog.restaurant.setAvailability);
 restaurants.use('/', createResourceRouter(catalog.restaurant));
 

@@ -124,8 +124,94 @@ async function setRestaurantAvailability(req, res, next) {
   }
 }
 
+async function manageRestaurantLegacy(req, res, next) {
+  try {
+    const { restaurantID, restaurantId } = req.body;
+    const legacyIdRaw = req.params.restaurantId ? Number.parseInt(req.params.restaurantId, 10) : (Number(restaurantID) || Number(restaurantId));
+    const raw = req.body;
+    const data = {};
+    const fieldMap = {
+      userID: 'userId', categories: 'categories', description: 'description',
+      adress: 'address', address: 'address', location: 'address',
+      name: 'name', note: 'rating', rating: 'rating',
+      nb_orders: 'orderCount', orderCount: 'orderCount',
+      image: 'image', valid: 'valid', openingHours: 'openingHours',
+      deliveryFee: 'deliveryFee', isOpen: 'isOpen',
+      professionalType: 'professionalType', trainingCompleted: 'trainingCompleted',
+      isPro: 'isPro', currency: 'currency', country: 'country',
+      openingDays: 'openingDays', minOrderAmount: 'minOrderAmount',
+      deliveryRadius: 'deliveryRadius', closedDates: 'closedDates',
+      recoveryMode: 'recoveryMode', cityID: 'cityId', cityId: 'cityId',
+      paymentMethod: 'paymentMethod', mobileMoneyPhone: 'mobileMoneyPhone',
+      iban: 'iban', bankName: 'bankName', accountHolder: 'accountHolder',
+      rccm: 'rccm', addressID: 'addressId', addressId: 'addressId',
+    };
+    for (const [k, target] of Object.entries(fieldMap)) {
+      if (raw[k] !== undefined) data[target] = raw[k];
+    }
+    if (raw.country) data.country = canonicalCountry(raw.country);
+    let record;
+    let mode = 'created';
+    const legacyId = Number.isInteger(legacyIdRaw) ? legacyIdRaw : null;
+    if (legacyId) {
+      const existing = await prisma.restaurant.findFirst({ where: { restaurantId: legacyId, deletedAt: null } });
+      if (existing) {
+        record = await prisma.restaurant.update({ where: { id: existing.id }, data });
+        mode = 'updated';
+      } else if (raw.userID || raw.userId) {
+          data.restaurantId = legacyId;
+          if (!data.dateCreation) data.dateCreation = new Date();
+          if (!data.valid) data.valid = 0;
+          if (data.isOpen === undefined) data.isOpen = 1;
+          record = await prisma.restaurant.create({ data });
+      } else {
+        throw badRequest('Impossible de créer un restaurant sans userId.');
+      }
+    } else {
+      if (!(raw.userID || raw.userId)) throw badRequest('userId est requis.');
+      if (!data.dateCreation) data.dateCreation = new Date();
+      if (!data.valid) data.valid = 0;
+      if (data.isOpen === undefined) data.isOpen = 1;
+      record = await prisma.restaurant.create({ data });
+    }
+    return res.status(200).json({ data: record, meta: { mode } });
+  } catch (error) {
+    return handleControllerError(error, next);
+  }
+}
+
+async function getRestaurantByLegacy(req, res, next) {
+  try {
+    const legacyId = Number.parseInt(req.params.restaurantId, 10);
+    if (!Number.isInteger(legacyId)) throw badRequest('restaurantId doit être un entier.');
+    const restaurant = await prisma.restaurant.findFirst({ where: { restaurantId: legacyId, deletedAt: null } });
+    if (!restaurant) throw notFound('Restaurant');
+    return res.status(200).json({ data: restaurant });
+  } catch (error) {
+    return handleControllerError(error, next);
+  }
+}
+
+async function deleteRestaurantByLegacy(req, res, next) {
+  try {
+    const legacyId = Number.parseInt(req.params.restaurantId, 10);
+    if (!Number.isInteger(legacyId)) throw badRequest('restaurantId doit être un entier.');
+    const restaurant = await prisma.restaurant.findFirst({ where: { restaurantId: legacyId, deletedAt: null } });
+    if (!restaurant) throw notFound('Restaurant');
+    const deleted = await prisma.restaurant.update({
+      where: { id: restaurant.id }, data: { deletedAt: new Date() },
+    });
+    return res.status(200).json({ data: deleted });
+  } catch (error) {
+    return handleControllerError(error, next);
+  }
+}
+
 module.exports = {
-  restaurant: { ...restaurants, list: listRestaurants, getMenu: getRestaurantMenu, setAvailability: setRestaurantAvailability },
+  restaurant: {
+    ...restaurants, list: listRestaurants, getMenu: getRestaurantMenu, setAvailability: setRestaurantAvailability,
+    manageLegacy: manageRestaurantLegacy, getByLegacy: getRestaurantByLegacy, deleteByLegacy: deleteRestaurantByLegacy,
+  },
   dish: { ...dishes, list: listDishes },
   category: categories,
   gallery,
