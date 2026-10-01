@@ -3,6 +3,8 @@ import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 
 import '../core/commande_status.dart';
 import '../db/database_helper.dart';
+import '../services/node_order_service.dart';
+import '../services/session_service.dart';
 
 part 'commande.g.dart';
 
@@ -289,6 +291,22 @@ class Commande extends HiveObject {
   }
 
   static Future<void> refreshLocalCommandes() async {
+    final nodeToken = await SessionService.readNodeToken();
+    if (nodeToken != null) {
+      final session = await SessionService.readSession();
+      final orders = await NodeOrderService.listMine(
+        token: nodeToken,
+        userId: session.userId,
+      );
+      final box = await Hive.openBox<Commande>('commande');
+      await box.clear();
+      for (final order in orders) {
+        await DatabaseHelper.createCommande(
+          NodeOrderService.toLegacyCommande(order),
+        );
+      }
+      return;
+    }
     await getAllCommandes();
   }
 }

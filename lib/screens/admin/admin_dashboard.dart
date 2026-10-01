@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'dart:io';
 import 'package:dios_delices/l10n/app_localizations.dart';
 import 'package:dios_delices/screens/delivery/livreur_list_page.dart';
@@ -10,15 +11,21 @@ import 'package:dios_delices/models/restaurant.dart';
 import 'package:dios_delices/models/commande.dart';
 import 'package:dios_delices/core/commande_status.dart';
 import 'package:dios_delices/providers/data_version_notifier.dart';
+import 'package:dios_delices/db/database_helper.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 import 'package:google_fonts/google_fonts.dart';
-import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
+import 'package:dios_delices/models/category.dart';
+import 'package:dios_delices/services/promo_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../core/app_role.dart';
 import '../../services/session_service.dart';
+import '../../services/node_admin_service.dart';
+import '../../services/node_auth_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/currency_util.dart';
 import '../../utils/country_util.dart';
@@ -49,6 +56,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
   AppRole _userRole = AppRole.unknown;
   String _userCountry = 'RDC';
   String _userName = '';
+  // Liste des pays disponibles en BD (chargée dynamiquement pour le superAdmin)
+  List<String> _availableCountries = CountryUtil.selectableCountries;
 
   // ── Statistiques ─────────────────────────────────────────
   int _totalUsers = 0;
@@ -101,86 +110,75 @@ class _AdminDashboardState extends State<AdminDashboard> {
     final target = country ?? _userCountry;
     setState(() => _statsLoading = true);
 
-    try {
-      final fn = ParseCloudFunction('getDashboardStats');
-      final response = await fn
-          .execute(parameters: {if (target.isNotEmpty) 'country': target});
-      if (response.success && response.result != null) {
-        final data = response.result as Map<String, dynamic>;
-        if (data['success'] == true && data['stats'] != null) {
-          final stats = data['stats'] as Map<String, dynamic>;
-          final users = await Users.fetchUsersFromDB();
-          final restaurants = await Restaurant.fetchRestaurantsFromDB();
-          final commandes = await Commande.fetchCommandesFromDB();
-          if (!mounted) return;
-          setState(
-              () => _applyData(users, restaurants, commandes, target, stats));
-          _loadAuxiliaryCounts(target);
-          return;
-        }
-      }
-    } catch (_) {}
+    final token = await SessionService.readNodeToken();
+    if (token?.trim().isEmpty != false) {
+      if (mounted) setState(() => _statsLoading = false);
+      return;
+    }
 
-    final users = await Users.fetchUsersFromDB();
-    final restaurants = await Restaurant.fetchRestaurantsFromDB();
-    final commandes = await Commande.fetchCommandesFromDB();
-    if (!mounted) return;
-    setState(() => _applyData(users, restaurants, commandes, target, null));
-    _loadAuxiliaryCounts(target);
+    try {
+      final stats = await NodeAdminService.getDashboardStats(
+        token: token!,
+        country: target,
+      );
+      final users = await NodeAdminService.getUsers(
+        token: token,
+        country: target,
+      );
+      final restaurants = await NodeAdminService.getRestaurants(
+        token: token,
+        country: target,
+      );
+      final commandes = await Commande.fetchCommandesFromDB();
+      if (!mounted) return;
+      setState(() => _applyData(users, restaurants, commandes, target, stats));
+      _loadAuxiliaryCounts(target);
+    } catch (error) {
+      if (mounted) {
+        setState(() => _statsLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(
+                  'Impossible de charger le tableau de bord Node : $error')),
+        );
+      }
+    }
   }
 
   Future<void> _loadAuxiliaryCounts(String target) async {
     try {
-      final resCat = await ParseCloudFunction('getAllCategories').execute();
-      if (resCat.success && resCat.result is List) {
-        final cats = resCat.result as List;
-        _categoryCount = cats.length;
-      }
-    } catch (_) {}
-    try {
-      final resPromo = await ParseCloudFunction('getAllPromoCodes').execute();
-      if (resPromo.success && resPromo.result is List) {
-        _promoCount = (resPromo.result as List).length;
-      }
-    } catch (_) {}
-    try {
-      final resPro = await ParseCloudFunction('getAllProDocuments')
-          .execute(parameters: {'country': target});
-      if (resPro.success && resPro.result is List) {
-        _proPendingCount = (resPro.result as List)
-            .where((d) => d['status'] == 'pending')
-            .length;
-      }
-    } catch (_) {}
-    try {
-      final resDelivery = await ParseCloudFunction('getAllDeliveryDocuments')
-          .execute(parameters: {'country': target});
-      if (resDelivery.success && resDelivery.result is List) {
-        _deliveryPendingCount = (resDelivery.result as List)
-            .where((d) => d['status'] == 'pending')
-            .length;
-      }
-    } catch (_) {}
-    try {
-      final resRef = await ParseCloudFunction('getReferralCount')
-          .execute(parameters: {'country': target});
-      if (resRef.success && resRef.result is Map) {
-        _referralCount = (resRef.result as Map)['count'] ?? 0;
-      }
-    } catch (_) {}
-    try {
-      final resAudit = await ParseCloudFunction('getAuditLogCount')
-          .execute(parameters: {'country': target});
-      if (resAudit.success && resAudit.result is Map) {
-        _auditLogCount = (resAudit.result as Map)['count'] ?? 0;
-      }
-    } catch (_) {}
-    try {
-      final resDel = await ParseCloudFunction('getScheduledDeletionsCount')
-          .execute(parameters: {'country': target});
-      if (resDel.success && resDel.result is Map) {
-        _scheduledDeletionCount = (resDel.result as Map)['count'] ?? 0;
-      }
+      final token = await SessionService.readNodeToken();
+      if (token == null) return;
+
+      // Charger les stats depuis le nouveau backend
+      try {
+        final stats = await NodeAdminService.getDashboardStats(
+          token: token,
+          country: target,
+        );
+        _categoryCount = (stats['categories'] as num?)?.toInt() ?? 0;
+        _promoCount = (stats['promoCodes'] as num?)?.toInt() ?? 0;
+        _referralCount = (stats['referralCount'] as num?)?.toInt() ?? 0;
+        _auditLogCount = (stats['auditLogCount'] as num?)?.toInt() ?? 0;
+        _scheduledDeletionCount =
+            (stats['scheduledDeletionsCount'] as num?)?.toInt() ?? 0;
+      } catch (_) {}
+
+      // Charger les documents pro en attente
+      try {
+        final proDocs =
+            await NodeAdminService.getProDocuments(token, country: target);
+        _proPendingCount =
+            proDocs.where((d) => (d as Map)['status'] == 'pending').length;
+      } catch (_) {}
+
+      // Charger les documents livreur en attente
+      try {
+        final deliveryDocs =
+            await NodeAdminService.getDeliveryDocuments(token, country: target);
+        _deliveryPendingCount =
+            deliveryDocs.where((d) => (d as Map)['status'] == 'pending').length;
+      } catch (_) {}
     } catch (_) {}
     if (mounted) setState(() {});
   }
@@ -259,21 +257,79 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   Future<void> _loadUserRole() async {
     final session = await SessionService.readSession();
+    final token = await SessionService.readNodeToken();
+
+    String fallbackName = session.email ?? session.userId.toString();
+    try {
+      final local = await DatabaseHelper.getUser(session.userId);
+      if (local != null) {
+        final full = '${local.firstname} ${local.lastname}'.trim();
+        if (full.isNotEmpty) {
+          fallbackName = full;
+        } else if (local.username.isNotEmpty) {
+          fallbackName = local.username;
+        } else if ((local.email?.isNotEmpty ?? false)) {
+          fallbackName = local.email!;
+        }
+      } else if (session.email?.isNotEmpty == true) {
+        fallbackName = session.email!;
+      }
+    } catch (_) {}
+
     setState(() {
       _userRole = session.role;
       _userCountry = session.country;
-      _userName = session.userId.toString();
+      _userName = fallbackName;
     });
-    final users = await Users.fetchUsersFromDB();
-    final user = Users.getUsersByUserId(users, session.userId);
-    if (user != null && mounted) {
-      setState(() => _userName = '${user.firstname} ${user.lastname}');
+
+    if (token?.trim().isNotEmpty == true) {
+      try {
+        final response = await NodeAuthService.me(token!);
+        final rawData =
+            response['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
+        final user = Users.fromNodeAuth(rawData);
+        final full = '${user.firstname} ${user.lastname}'.trim();
+        final resolvedName = full.isNotEmpty
+            ? full
+            : (user.username.isNotEmpty
+                ? user.username
+                : ((user.email.isNotEmpty ? user.email : fallbackName)));
+        if (mounted) {
+          setState(() {
+            _userName = resolvedName;
+            _userCountry = user.country.isEmpty ? _userCountry : user.country;
+          });
+        }
+        // Charger la liste dynamique des pays pour le superAdmin
+        if (session.role == AppRole.superAdmin) {
+          final countries =
+              await NodeAdminService.getAvailableCountries(token!);
+          if (mounted && countries.isNotEmpty) {
+            setState(() => _availableCountries = countries);
+          }
+        }
+        try {
+          await DatabaseHelper.createUser(user);
+        } catch (_) {}
+      } catch (_) {
+        // Les statistiques afficheront l'erreur Node si la session est invalide.
+      }
     }
   }
 
   // ── Validation / rejet restaurant ────────────────────────
   Future<void> _validateRestaurant(Restaurant r) async {
-    final result = await Restaurant.updateRestaurantStatus(r.restaurantID, 1);
+    final nodeToken = await SessionService.readNodeToken();
+    if (nodeToken == null) {
+      Toast(context, 'Erreur : Non connecté', false);
+      return;
+    }
+    String result = 'success';
+    try {
+      await NodeAdminService.validateRestaurant(r.restaurantID, nodeToken);
+    } catch (e) {
+      result = e.toString();
+    }
     if (!mounted) return;
     if (result == 'success') {
       Toast(
@@ -315,8 +371,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
       ),
     );
     if (remark == null || !mounted) return;
-    final result = await Restaurant.updateRestaurantStatus(r.restaurantID, 2,
-        remark: remark.trim());
+    final nodeToken = await SessionService.readNodeToken();
+    if (nodeToken == null) {
+      Toast(context, 'Erreur : Non connecté', false);
+      return;
+    }
+    String result = 'success';
+    try {
+      await NodeAdminService.rejectRestaurant(
+          r.restaurantID, remark.trim(), nodeToken);
+    } catch (e) {
+      result = e.toString();
+    }
     if (!mounted) return;
     if (result == 'success') {
       Toast(
@@ -584,76 +650,121 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 
   Future<void> _doExport(String type) async {
+    final format = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Format d\'export', style: AppTypography.titleMedium()),
+        content: Text('Voulez-vous exporter au format CSV ou PDF ?',
+            style: AppTypography.bodyMedium()),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, 'csv'), child: Text('CSV')),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, 'pdf'), child: Text('PDF')),
+        ],
+      ),
+    );
+    if (format == null) return;
+
     try {
       final ts =
           DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
-      String filename, csv;
+      String filename = '${type}_$ts.$format';
+      List<String> headers = [];
+      List<List<String>> dataRows = [];
 
       if (type == 'users') {
-        filename = 'utilisateurs_$ts.csv';
-        csv = _csv(
-            ['ID', 'Nom', 'Prénom', 'Email', 'Rôle', 'Pays', 'Téléphone'],
-            _allUsers
-                .map((u) => [
-                      u.userID.toString(),
-                      _e(u.lastname),
-                      _e(u.firstname),
-                      _e(u.email),
-                      _role(u.roleID),
-                      _e(u.country),
-                      _e(u.telephone),
-                    ])
-                .toList());
+        headers = ['ID', 'Nom', 'Prénom', 'Email', 'Rôle', 'Pays', 'Téléphone'];
+        dataRows = _allUsers
+            .map((u) => [
+                  u.userID.toString(),
+                  _e(u.lastname),
+                  _e(u.firstname),
+                  _e(u.email),
+                  _role(u.roleID),
+                  _e(u.country),
+                  _e(u.telephone),
+                ])
+            .toList();
       } else if (type == 'restaurants') {
-        filename = 'restaurants_$ts.csv';
-        csv = _csv(
-            ['ID', 'Nom', 'Propriétaire', 'Catégories', 'Validé'],
-            _allRestaurants.map((r) {
-              final o = Users.getUsersByUserId(_allUsers, r.userID);
-              return [
-                r.restaurantID.toString(),
-                _e(r.name),
-                _e(o != null ? '${o.firstname} ${o.lastname}' : '#${r.userID}'),
-                _e(r.categories),
-                r.valid == 1
-                    ? 'Oui'
-                    : r.valid == 2
-                        ? 'Rejeté'
-                        : 'Attente',
-              ];
-            }).toList());
+        headers = ['ID', 'Nom', 'Propriétaire', 'Catégories', 'Validé'];
+        dataRows = _allRestaurants.map((r) {
+          final o = Users.getUsersByUserId(_allUsers, r.userID);
+          return [
+            r.restaurantID.toString(),
+            _e(r.name),
+            _e(o != null ? '${o.firstname} ${o.lastname}' : '#${r.userID}'),
+            _e(r.categories),
+            r.valid == 1
+                ? 'Oui'
+                : r.valid == 2
+                    ? 'Rejeté'
+                    : 'Attente',
+          ];
+        }).toList();
       } else if (type == 'orders') {
         final cmds = await Commande.fetchCommandesFromDB();
-        filename = 'commandes_$ts.csv';
-        csv = _csv(
-            ['ID', 'Client', 'Status', 'Livraison', 'Réduction', 'Date'],
-            cmds.map((c) {
-              final u = Users.getUsersByUserId(_allUsers, c.userID);
-              return [
-                c.commandeID.toString(),
-                _e(u != null ? '${u.firstname} ${u.lastname}' : '#${c.userID}'),
-                _e(c.status),
-                c.fraisLivraison.toStringAsFixed(2),
-                c.reduction.toStringAsFixed(2),
-                c.dateCommande.toIso8601String().split('T')[0],
-              ];
-            }).toList());
+        headers = ['ID', 'Client', 'Status', 'Livraison', 'Réduction', 'Date'];
+        dataRows = cmds.map((c) {
+          final u = Users.getUsersByUserId(_allUsers, c.userID);
+          return [
+            c.commandeID.toString(),
+            _e(u != null ? '${u.firstname} ${u.lastname}' : '#${c.userID}'),
+            _e(c.status),
+            c.fraisLivraison.toStringAsFixed(2),
+            c.reduction.toStringAsFixed(2),
+            c.dateCommande.toIso8601String().split('T')[0],
+          ];
+        }).toList();
       } else {
-        final cmds = await Commande.fetchCommandesFromDB();
-        filename = 'rapport_$ts.csv';
-        csv = 'Rapport — $_userCountry — $ts\n\n...\n';
+        headers = ['Métrique', 'Valeur'];
+        dataRows = [
+          ['Utilisateurs totaux', _allUsers.length.toString()],
+          ['Restaurants totaux', _allRestaurants.length.toString()],
+          ['Commandes totales', _totalOrders.toString()],
+          [
+            'Revenu estimé',
+            '${_totalRevenue.toStringAsFixed(2)} ${_userCountry == 'Bénin' ? 'FCFA' : 'CDF'}'
+          ],
+          ['Nouveaux utilisateurs (mois)', _newUsersMonth.toString()],
+        ];
       }
 
-      final fileBytes = const Utf8Codec().encode(csv);
-      String? savedPath;
+      List<int> fileBytes;
+      if (format == 'pdf') {
+        final pdf = pw.Document();
+        pdf.addPage(
+          pw.MultiPage(
+            pageFormat: PdfPageFormat.a4,
+            build: (context) => [
+              pw.Header(
+                  level: 0, child: pw.Text('Export $type - $_userCountry')),
+              pw.Paragraph(text: 'Généré le: ${DateTime.now()}'),
+              pw.TableHelper.fromTextArray(
+                headers: headers,
+                data: dataRows,
+                headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                cellStyle: const pw.TextStyle(fontSize: 10),
+                headerDecoration:
+                    const pw.BoxDecoration(color: PdfColors.grey300),
+              ),
+            ],
+          ),
+        );
+        fileBytes = await pdf.save();
+      } else {
+        String csv = _csv(headers, dataRows);
+        fileBytes = const Utf8Codec().encode(csv);
+      }
 
+      String? savedPath;
       try {
         savedPath = await FilePicker.platform.saveFile(
-          dialogTitle: 'Enregistrer le fichier CSV',
+          dialogTitle: 'Enregistrer le fichier $format',
           fileName: filename,
-          bytes: fileBytes,
+          bytes: Uint8List.fromList(fileBytes),
           type: FileType.custom,
-          allowedExtensions: ['csv'],
+          allowedExtensions: [format],
         );
       } catch (_) {
         savedPath = null;
@@ -661,77 +772,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
       if (savedPath != null && savedPath.isNotEmpty) {
         if (!mounted) return;
-        final display = savedPath.contains(Platform.pathSeparator)
-            ? savedPath.split(Platform.pathSeparator).last
-            : savedPath;
-        Toast(context, 'Fichier enregistré : $display', true);
-        return;
-      }
-
-      if (kIsWeb) {
-        if (!mounted) return;
-        Toast(context,
-            'Téléchargement annulé ou non supporté par le navigateur.', false);
-        return;
-      }
-
-      Directory? targetDir;
-      bool usedPublicDir = false;
-
-      if (Platform.isAndroid) {
-        try {
-          final extDirs = await getExternalStorageDirectories(
-              type: StorageDirectory.downloads);
-          if (extDirs != null && extDirs.isNotEmpty) {
-            final appDownloads = extDirs.first;
-            if (!await appDownloads.exists()) {
-              await appDownloads.create(recursive: true);
-            }
-            targetDir = appDownloads;
-            usedPublicDir = true;
-          }
-        } catch (_) {}
-
-        if (targetDir == null) {
-          try {
-            final extDir = await getExternalStorageDirectory();
-            if (extDir != null) {
-              final diosDir = Directory('${extDir.path}/DiosDelices');
-              if (!await diosDir.exists()) {
-                await diosDir.create(recursive: true);
-              }
-              targetDir = diosDir;
-              usedPublicDir = true;
-            }
-          } catch (_) {}
-        }
-      } else if (Platform.isIOS) {
-        try {
-          final appDocDir = await getApplicationDocumentsDirectory();
-          final diosDir = Directory('${appDocDir.path}/DiosDelices');
-          if (!await diosDir.exists()) {
-            await diosDir.create(recursive: true);
-          }
-          targetDir = diosDir;
-          usedPublicDir = true;
-        } catch (_) {}
-      }
-
-      targetDir ??= await getApplicationDocumentsDirectory();
-
-      final file = File('${targetDir.path}/$filename');
-      await file.writeAsBytes(fileBytes);
-
-      if (mounted) {
-        Toast(
-            context,
-            usedPublicDir
-                ? '✅ Enregistré : ${file.path}'
-                : '⚠️ Stockage interne app : ${file.path}',
-            true);
+        Toast(context, 'Fichier $format enregistré avec succès !', true);
       }
     } catch (e) {
-      if (mounted) Toast(context, 'Erreur export : $e', false);
+      if (!mounted) return;
+      Toast(context, 'Erreur lors de l\'export : $e', false);
     }
   }
 
@@ -882,9 +927,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       ? AppColors.resolve(
                           AppColors.success, AppDarkColors.success)
                       : AppColors.resolve(AppColors.error, AppDarkColors.error),
-                  behavior: SnackBarBehavior.floating,
+                  behavior: SnackBarBehavior.fixed,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.md)),
+                      borderRadius: BorderRadius.vertical(
+                          top: Radius.circular(AppRadius.md))),
                 ));
                 if (ok) {
                   Navigator.pop(ctx);
@@ -1194,6 +1240,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   userName: _userName,
                   userRole: _userRole,
                   userCountry: _userCountry,
+                  availableCountries: _availableCountries,
                   onSearch: _showSearch,
                   onCountryChanged: (c) {
                     setState(() => _userCountry = c);
@@ -1277,6 +1324,7 @@ class _HeroAppBar extends StatelessWidget {
     required this.userName,
     required this.userRole,
     required this.userCountry,
+    required this.availableCountries,
     required this.onSearch,
     required this.onCountryChanged,
   });
@@ -1284,6 +1332,8 @@ class _HeroAppBar extends StatelessWidget {
   final String userName;
   final AppRole userRole;
   final String userCountry;
+  /// Liste dynamique des pays (chargée depuis la BD pour le superAdmin).
+  final List<String> availableCountries;
   final VoidCallback onSearch;
   final ValueChanged<String> onCountryChanged;
 
@@ -1310,6 +1360,27 @@ class _HeroAppBar extends StatelessWidget {
     'Novembre',
     'Décembre'
   ];
+
+  /// Retourne le drapeau emoji correspondant au nom de pays.
+  static String _flagForCountry(String country) {
+    final c = CountryUtil.canonical(country);
+    if (c == CountryUtil.rdc) return '🇨🇩';
+    if (c == CountryUtil.benin) return '🇧🇯';
+    // Fallback pour d'autres pays ajoutés dynamiquement
+    final normalized = country.trim().toLowerCase();
+    if (normalized.contains('france')) return '🇫🇷';
+    if (normalized.contains('cameroun') || normalized.contains('cameroon')) return '🇨🇲';
+    if (normalized.contains('côte') || normalized.contains('ivoire')) return '🇨🇮';
+    if (normalized.contains('senegal') || normalized.contains('sénégal')) return '🇸🇳';
+    if (normalized.contains('mali')) return '🇲🇱';
+    if (normalized.contains('niger')) return '🇳🇪';
+    if (normalized.contains('togo')) return '🇹🇬';
+    if (normalized.contains('ghana')) return '🇬🇭';
+    if (normalized.contains('maroc') || normalized.contains('morocco')) return '🇲🇦';
+    if (normalized.contains('algerie') || normalized.contains('algérie')) return '🇩🇿';
+    if (normalized.contains('tunisie') || normalized.contains('tunisia')) return '🇹🇳';
+    return '🌍'; // Drapeau générique pour les pays inconnus
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1468,11 +1539,13 @@ class _HeroAppBar extends StatelessWidget {
                         SingleChildScrollView(
                           scrollDirection: Axis.horizontal,
                           child: Row(
-                            children: CountryUtil.selectableCountries
-                                .map((c) {
-                              final active = userCountry == c ||
-                                  (c == 'RDC' && userCountry == 'CD');
-                              final flag = c == 'RDC' ? '🇨🇩' : '🇧🇯';
+                            children: availableCountries.map((c) {
+                              final canonC = CountryUtil.canonical(c);
+                              final canonCurrent =
+                                  CountryUtil.canonical(userCountry);
+                              final active = canonC == canonCurrent ||
+                                  c == userCountry;
+                              final flag = _flagForCountry(c);
                               return Padding(
                                 padding: EdgeInsets.only(right: AppSpacing.sm),
                                 child: GestureDetector(

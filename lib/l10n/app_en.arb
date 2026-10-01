@@ -716,6 +716,14 @@
     }
   },
   "verification_spam_hint": "If you can't find the email, check your spam folder.",
+  "verification_verifying": "Verification in progress…",
+  "@verification_verifying": {
+    "description": "Title shown in the loading overlay while submitting the email verification code."
+  },
+  "verification_patience": "Please wait a few moments.",
+  "@verification_patience": {
+    "description": "Subtitle shown under the spinner while the verification code is being checked."
+  },
   "verification_enter_code": "Please enter the code.",
   "verification_account_error": "Error validating account.",
   "verification_code_invalid": "Error: invalid email code.",

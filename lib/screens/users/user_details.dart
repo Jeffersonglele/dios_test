@@ -10,7 +10,7 @@ import 'package:dios_delices/theme/app_theme.dart';
 import 'package:dios_delices/core/app_role.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
+import 'package:dios_delices/services/node_admin_service.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import '../../models/identity.dart';
 import '../../models/users.dart';
@@ -60,23 +60,100 @@ class _UserDetailsState extends ConsumerState<UserDetails> {
     super.dispose();
   }
 
+  Map<String, dynamic> _identityNodeToFlutter(Map<String, dynamic> node) {
+    return {
+      'identityID': node['identityId'] ?? 0,
+      'userID': node['userId'] ?? 0,
+      'piece_identite': node['identityFileUrl'] ?? node['piece_identite'] ?? '',
+      'photo': node['photoUrl'] ?? node['photo'] ?? '',
+    };
+  }
+
+  Map<String, dynamic> _restaurantNodeToFlutter(Map<String, dynamic> row) {
+    final dateCreation = row['dateCreation'];
+    return {
+      'restaurantID': row['restaurantId'],
+      'userID': row['userId'],
+      'categories': row['categories'],
+      'description': row['description'],
+      'adress': row['address'],
+      'name': row['name'],
+      'note': row['rating'],
+      'nb_orders': row['orderCount'],
+      'image': row['image'],
+      'valid': row['valid'],
+      'date_creation': dateCreation == null ? null : {'iso': dateCreation},
+      'openingHours': row['openingHours'],
+      'deliveryFee': row['deliveryFee'],
+      'isOpen': row['isOpen'],
+      'professionalType': row['professionalType'],
+      'trainingCompleted': row['trainingCompleted'],
+      'reviewRemark': row['reviewRemark'],
+      'currency': row['currency'],
+      'country': row['country'],
+      'openingDays': row['openingDays'],
+      'minOrderAmount': row['minOrderAmount'],
+      'deliveryRadius': row['deliveryRadius'],
+      'closedDates': row['closedDates'],
+      'recoveryMode': row['recoveryMode'],
+      'cityID': row['cityId'],
+      'paymentMethod': row['paymentMethod'],
+      'mobileMoneyPhone': row['mobileMoneyPhone'],
+      'iban': row['iban'],
+      'bankName': row['bankName'],
+      'accountHolder': row['accountHolder'],
+      'rccm': row['rccm'],
+      'isPro': row['isPro'],
+      'latitude': row['latitude'],
+      'longitude': row['longitude'],
+    };
+  }
+
   Future<void> loadData() async {
     try {
       final session = await SessionService.readSession();
       _isAdmin = session.role.isAdmin;
       _isSuperAdmin = session.role == AppRole.superAdmin;
 
-      List<Users> usersList = await Users.fetchUsersFromDB();
-      final user = Users.getUsersByUserId(usersList, widget.user_id);
-      List<Identity> allIdentities = await Identity.fetchIdentitiesFromDB();
-      List<Restaurant> restaurantsList =
-          await Restaurant.fetchRestaurantsFromDB();
-
+      Users? user;
       Identity? identity;
-      final matched = allIdentities.where((i) => i.userID == widget.user_id);
-      if (matched.isNotEmpty) identity = matched.first;
-      final restaurant =
-          Restaurant.getRestaurantByUser(restaurantsList, widget.user_id);
+      Restaurant? restaurant;
+
+      final token = await SessionService.readNodeToken();
+      if (token != null) {
+        final details =
+            await NodeAdminService.getUserDetails(widget.user_id, token);
+        final userNode = details['user'] as Map<String, dynamic>?;
+        if (userNode != null) {
+          user = Users.fromNodeAuth(userNode);
+        }
+        final identityNode = details['identity'] as Map<String, dynamic>?;
+        if (identityNode != null) {
+          identity = Identity.fromMap(
+              _identityNodeToFlutter(Map<String, dynamic>.from(identityNode)));
+        }
+        final restaurantNode = details['restaurant'] as Map<String, dynamic>?;
+        if (restaurantNode != null) {
+          restaurant = Restaurant.fromMap(_restaurantNodeToFlutter(
+              Map<String, dynamic>.from(restaurantNode)));
+        }
+      }
+
+      if (user == null) {
+        List<Users> usersList = await Users.fetchUsersFromDB();
+        user = Users.getUsersByUserId(usersList, widget.user_id);
+      }
+      if (identity == null) {
+        List<Identity> allIdentities = await Identity.fetchIdentitiesFromDB();
+        final matched = allIdentities.where((i) => i.userID == widget.user_id);
+        if (matched.isNotEmpty) identity = matched.first;
+      }
+      if (restaurant == null) {
+        List<Restaurant> restaurantsList =
+            await Restaurant.fetchRestaurantsFromDB();
+        restaurant =
+            Restaurant.getRestaurantByUser(restaurantsList, widget.user_id);
+      }
 
       if (_isSuperAdmin) {
         _canEdit = true;
@@ -130,20 +207,35 @@ class _UserDetailsState extends ConsumerState<UserDetails> {
     setState(() => _isSaving = true);
     final l10n = AppLocalizations.of(context)!;
     try {
-      final profileResult = await Users.updateProfile(
-        current_user!.userID,
+      final token = await SessionService.readNodeToken();
+      if (token == null) {
+        Toast(
+            context,
+            l10n.error_with_message("Token d'authentification manquant."),
+            false);
+        return;
+      }
+      await NodeAdminService.updateUserProfile(
+        userId: current_user!.userID,
+        token: token,
         firstname: _firstnameCtrl.text.trim(),
         lastname: _lastnameCtrl.text.trim(),
         email: _emailCtrl.text.trim(),
         telephone: _phoneCtrl.text.trim(),
       );
-      if (profileResult != "success") {
-        Toast(context, l10n.error_with_message(profileResult), false);
-        return;
-      }
+      await DatabaseHelper.updateUserProfile(
+        current_user!.userID,
+        _firstnameCtrl.text.trim(),
+        _lastnameCtrl.text.trim(),
+        _emailCtrl.text.trim(),
+        _phoneCtrl.text.trim(),
+      );
+      dataVersionNotifier.value = dataVersionNotifier.value + 1;
       await loadData();
       Toast(context, l10n.profileUpdated, true);
       setState(() => _isEditing = false);
+    } catch (e) {
+      Toast(context, l10n.error_with_message(e.toString()), false);
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -987,26 +1079,28 @@ class _UserDetailsState extends ConsumerState<UserDetails> {
                           color: AppColors.error,
                           fontWeight: FontWeight.w600))),
             ]),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                    '${current_user!.firstname} ${current_user!.lastname} (ID: ${widget.user_id})',
-                    style: const TextStyle(fontWeight: FontWeight.w600)),
-                const SizedBox(height: 8),
-                Text(l10n.delete_confirm_message,
-                    style:
-                        const TextStyle(fontSize: 12, color: AppColors.error)),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: confirmCtrl,
-                  decoration: InputDecoration(
-                    labelText: l10n.type_delete_to_confirm,
-                    border: const OutlineInputBorder(),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                      '${current_user!.firstname} ${current_user!.lastname} (ID: ${widget.user_id})',
+                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  Text(l10n.delete_confirm_message,
+                      style: const TextStyle(
+                          fontSize: 12, color: AppColors.error)),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: confirmCtrl,
+                    decoration: InputDecoration(
+                      labelText: l10n.type_delete_to_confirm,
+                      border: const OutlineInputBorder(),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
             actions: [
               TextButton(
@@ -1023,11 +1117,11 @@ class _UserDetailsState extends ConsumerState<UserDetails> {
                         }
                         set(() => deleting = true);
                         try {
-                          final fn = ParseCloudFunction('forceDeleteUser');
-                          final res = await fn
-                              .execute(parameters: {'userID': widget.user_id});
-                          if (!ctx.mounted) return;
-                          if (res.success) {
+                          final token = await SessionService.readNodeToken();
+                          if (token != null) {
+                            await NodeAdminService.forceDeleteUser(
+                                widget.user_id, token);
+                            if (!ctx.mounted) return;
                             await DatabaseHelper.deleteUser(widget.user_id);
                             if (current_user_restaurant != null) {
                               await DatabaseHelper.deleteRestaurant(
@@ -1043,12 +1137,7 @@ class _UserDetailsState extends ConsumerState<UserDetails> {
                             Navigator.pop(ctx);
                             Navigator.pop(context);
                           } else {
-                            Toast(
-                                context,
-                                l10n.error_with_message(res.error?.toString() ??
-                                    res.result?.toString() ??
-                                    ''),
-                                false);
+                            Toast(context, 'Token manquant', false);
                           }
                         } catch (e) {
                           if (ctx.mounted) Toast(context, '$e', false);
@@ -1167,17 +1256,14 @@ class _UserDetailsState extends ConsumerState<UserDetails> {
     final messageText = valid
         ? l10n.identity_validated_email_body(user.firstname!)
         : l10n.identity_rejected_email_body(user.firstname!, remark ?? "");
-    final cloudFunction = ParseCloudFunction('sendEmail');
-    try {
-      await cloudFunction.execute(parameters: {
-        'to': recipientEmail,
-        'subject': subject,
-        'text': messageText
-      });
-      return true;
-    } catch (e) {
-      return false;
-    }
+    final token = await SessionService.readNodeToken();
+    if (token == null) return false;
+    return NodeAdminService.sendEmail(
+      to: recipientEmail,
+      subject: subject,
+      text: messageText,
+      token: token,
+    );
   }
 }
 

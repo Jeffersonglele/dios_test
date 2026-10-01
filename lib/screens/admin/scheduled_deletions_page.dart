@@ -3,7 +3,8 @@ import 'package:dios_delices/models/users.dart';
 import 'package:dios_delices/theme/app_theme.dart';
 import 'package:dios_delices/utils/toast.dart';
 import 'package:flutter/material.dart';
-import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
+import 'package:dios_delices/services/session_service.dart';
+import 'package:dios_delices/services/node_admin_service.dart';
 
 class ScheduledDeletionsPage extends StatefulWidget {
   final String country;
@@ -28,32 +29,30 @@ class _ScheduledDeletionsPageState extends State<ScheduledDeletionsPage> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final fn = ParseCloudFunction('getScheduledDeletions');
-      final response = await fn.execute(parameters: {
-        'country': widget.country,
-      });
-      if (response.success && response.result != null) {
-        final list = response.result as List<dynamic>;
-        if (mounted) {
-          setState(() {
-            _items = list.map((e) {
-              final map = e as Map<String, dynamic>;
-              final user = Users.fromMap(map);
-              final deletedAt = map['deletedAt'] != null
-                  ? (map['deletedAt'] is String
-                      ? DateTime.tryParse(map['deletedAt'])
-                      : (map['deletedAt']['iso'] != null
-                          ? DateTime.tryParse(map['deletedAt']['iso'])
-                          : null))
-                  : DateTime.now();
-              return _ScheduledUser(
-                  user: user, deletedAt: deletedAt ?? DateTime.now());
-            }).toList();
-            _loading = false;
-          });
-        }
-      } else {
+      final token = await SessionService.readNodeToken();
+      if (token == null) {
         if (mounted) setState(() => _loading = false);
+        return;
+      }
+      
+      final list = await NodeAdminService.getScheduledDeletions(token, country: widget.country);
+      if (mounted) {
+        setState(() {
+          _items = list.map((e) {
+            final map = e as Map<String, dynamic>;
+            final user = Users.fromMap(map);
+            final deletedAt = map['deletedAt'] != null
+                ? (map['deletedAt'] is String
+                    ? DateTime.tryParse(map['deletedAt'])
+                    : (map['deletedAt']['iso'] != null
+                        ? DateTime.tryParse(map['deletedAt']['iso'])
+                        : null))
+                : DateTime.now();
+            return _ScheduledUser(
+                user: user, deletedAt: deletedAt ?? DateTime.now());
+          }).toList();
+          _loading = false;
+        });
       }
     } catch (_) {
       final all = await Users.fetchUsersFromDB();

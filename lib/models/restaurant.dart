@@ -1,10 +1,11 @@
-import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
+﻿import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:hive/hive.dart';
 import '../db/database_helper.dart';
 import 'package:dios_delices/providers/data_version_notifier.dart';
 import '../services/restaurant_opening_hours_service.dart';
 import '../services/session_service.dart';
 import '../utils/currency_util.dart';
+import '../services/node_auth_service.dart';
 
 part 'restaurant.g.dart';
 
@@ -88,6 +89,8 @@ class Restaurant extends HiveObject {
   String bankName;
   String accountHolder;
   String rccm;
+  final double? latitude;
+  final double? longitude;
 
   Restaurant(
       {required this.restaurantID,
@@ -119,10 +122,12 @@ class Restaurant extends HiveObject {
       this.cityID = 1,
       this.paymentMethod = '',
       this.mobileMoneyPhone = '',
-      this.iban = '',
-      this.bankName = '',
-      this.accountHolder = '',
-      this.rccm = ''});
+       this.iban = '',
+       this.bankName = '',
+       this.accountHolder = '',
+       this.rccm = '',
+       this.latitude,
+       this.longitude});
 
   Map<String, dynamic> toMap() {
     return {
@@ -204,8 +209,10 @@ class Restaurant extends HiveObject {
         mobileMoneyPhone: map['mobileMoneyPhone']?.toString() ?? '',
         iban: map['iban']?.toString() ?? '',
         bankName: map['bankName']?.toString() ?? '',
-        accountHolder: map['accountHolder']?.toString() ?? '',
-        rccm: map['rccm']?.toString() ?? '');
+         accountHolder: map['accountHolder']?.toString() ?? '',
+         rccm: map['rccm']?.toString() ?? '',
+         latitude: double.tryParse(map['latitude']?.toString() ?? ''),
+         longitude: double.tryParse(map['longitude']?.toString() ?? ''));
   }
 
   Restaurant copy({
@@ -505,27 +512,68 @@ class Restaurant extends HiveObject {
     }
   }
 
-  static Future<bool> getAllRestaurantsDetails() async {
-    // Créer une instance de ParseCloudFunction
-    var cloudFunction = ParseCloudFunction('getAllRestaurants');
-
-    // Appeler la fonction cloud et attendre la réponse
+    static Future<bool> getAllRestaurantsDetails() async {
     try {
-      var response = await cloudFunction.execute();
+      final response = await NodeAuthService.getJson(
+        '/restaurants',
+        queryParameters: const {'pageSize': '1000'},
+      );
 
-      if (response.success) {
-        List<dynamic> restaurantDataList = response.result;
-        for (var restaurantData in restaurantDataList) {
-          Restaurant restaurant = Restaurant.fromMap(restaurantData);
-          await DatabaseHelper.createRestaurant(restaurant);
+      final data = response['data'];
+      if (data is List) {
+        for (var row in data) {
+          if (row is Map) {
+            final map = Map<String, dynamic>.from(row);
+            final dateCreation = map['dateCreation'];
+            final restauMap = {
+              'restaurantID': map['restaurantId'],
+              'userID': map['userId'],
+              'categories': map['categories'],
+              'description': map['description'],
+              'adress': map['address'],
+              'name': map['name'],
+              'note': map['rating'],
+              'nb_orders': map['orderCount'],
+              'image': map['image'],
+              'valid': map['valid'],
+              'date_creation': dateCreation == null ? null : {'iso': dateCreation},
+              'openingHours': map['openingHours'],
+              'deliveryFee': map['deliveryFee'],
+              'isOpen': map['isOpen'],
+              'professionalType': map['professionalType'],
+              'trainingCompleted': map['trainingCompleted'],
+              'reviewRemark': map['reviewRemark'],
+              'currency': map['currency'],
+              'openingDays': map['openingDays'],
+              'minOrderAmount': map['minOrderAmount'],
+              'deliveryRadius': map['deliveryRadius'],
+              'closedDates': map['closedDates'],
+              'recoveryMode': map['recoveryMode'],
+              'cityID': map['cityId'],
+              'paymentMethod': map['paymentMethod'],
+              'mobileMoneyPhone': map['mobileMoneyPhone'],
+              'iban': map['iban'],
+              'bankName': map['bankName'],
+              'accountHolder': map['accountHolder'],
+              'rccm': map['rccm'],
+              'isPro': map['isPro'],
+              'latitude': map['latitude'],
+              'longitude': map['longitude'],
+            };
+            Restaurant restaurant = Restaurant.fromMap(restauMap);
+            try {
+              await DatabaseHelper.updateRestaurant(restaurant);
+            } catch (_) {
+              await DatabaseHelper.createRestaurant(restaurant);
+            }
+          }
         }
-      } else {
-        return false;
+        return true;
       }
+      return false;
     } catch (e) {
       return false;
     }
-    return true;
   }
 
   static Future<List<Restaurant>> fetchRestaurantsFromDB() async {

@@ -549,7 +549,7 @@ class _LivreurListPageState extends State<LivreurListPage> {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(AppLocalizations.of(context)!
                 .livreur_license_validated(livreur.firstname)),
-            behavior: SnackBarBehavior.floating,
+            behavior: SnackBarBehavior.fixed,
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(AppRadius.md)),
           ));
@@ -559,9 +559,10 @@ class _LivreurListPageState extends State<LivreurListPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(AppLocalizations.of(context)!.livreur_validate_error),
-          behavior: SnackBarBehavior.floating,
+          behavior: SnackBarBehavior.fixed,
           shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppRadius.md)),
+              borderRadius:
+                  BorderRadius.vertical(top: Radius.circular(AppRadius.md))),
         ));
       }
     }

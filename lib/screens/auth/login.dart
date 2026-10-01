@@ -15,6 +15,8 @@ import '../../models/restaurant.dart';
 import '../../models/users.dart';
 import '../../db/database_helper.dart';
 import '../../services/session_service.dart';
+import '../../services/node_auth_service.dart';
+import '../../services/node_home_service.dart';
 import '../../services/notification_service.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
@@ -294,31 +296,69 @@ class _LoginState extends ConsumerState<Login>
     });
 
     try {
+      // Évite qu'une ancienne session Parse soit réutilisée par les écrans
+      // encore en migration lorsque l'utilisateur ouvre une session Node.
       await SessionService.clearLocalParseSession();
-      final user = await _findUser();
+      final isNodeLogin = _loginTab == LoginTab.emailPassword;
+      Users? user;
+
+      if (isNodeLogin) {
+        final auth = await NodeAuthService.login(
+          identifier: _nameCtrl.text,
+          password: _passwordCtrl.text,
+        );
+        user = Users.fromNodeAuth(auth.user);
+        await DatabaseHelper.createUser(user);
+        await SessionService.saveNodeSession(
+          token: auth.token,
+          userId: user.userID,
+          role: AppRole.fromId(user.roleID),
+          country: user.country,
+          email: user.email,
+        );
+      } else {
+        // Le téléphone/OTP reste temporairement sur Parse jusqu'à sa
+        // migration vers le backend Node.js.
+        user = await _findUser();
+      }
+
       if (user == null) {
         _onLoginFailed(Users.lastLoginError);
         return;
       }
+      final authenticatedUser = user;
 
-      if (!await SessionService.hasParseSession()) {
+      if (isNodeLogin && !await SessionService.hasNodeSession()) {
+        _onLoginFailed('Session Node.js impossible à ouvrir.');
+        return;
+      }
+      if (!isNodeLogin && !await SessionService.hasParseSession()) {
         _onLoginFailed();
         return;
       }
 
-      final role = AppRole.fromId(user.roleID);
-      await SessionService.saveUserSession(
-        userId: user.userID,
-        role: role,
-        country: user.country,
-      );
+      final role = AppRole.fromId(authenticatedUser.roleID);
+      if (!isNodeLogin) {
+        await SessionService.saveUserSession(
+          userId: authenticatedUser.userID,
+          role: role,
+          country: authenticatedUser.country,
+          email: authenticatedUser.email,
+        );
+        // Même en login Parse/OTP, on synchronise le catalogue Node.js en
+        // local (Hive). Cela évite d'afficher d'anciens restaurants
+        // Back4App/Parse sur l'écran d'accueil.
+        try {
+          await NodeHomeService.load();
+        } catch (_) {}
+      }
 
-      if (user.mustChangePassword) {
+      if (authenticatedUser.mustChangePassword) {
         if (mounted) {
           Navigator.push(
             context,
             CupertinoPageRoute(
-              builder: (_) => FirstLoginPasswordChange(user: user),
+              builder: (_) => FirstLoginPasswordChange(user: authenticatedUser),
             ),
           );
         }
@@ -326,13 +366,17 @@ class _LoginState extends ConsumerState<Login>
       }
 
       if (role.isAdmin) {
-        _firstLogin(user);
-      } else if (user.status == 'Verified') {
-        _handleApprovedUser(user);
+        _firstLogin(authenticatedUser);
+      } else if (authenticatedUser.status == 'Verified') {
+        _handleApprovedUser(authenticatedUser);
       } else {
-        _redirectToVerification(user);
+        _redirectToVerification(authenticatedUser);
       }
     } catch (e) {
+      if (e is NodeAuthException) {
+        _onLoginFailed(e.message);
+        return;
+      }
       if (mounted) {
         Toast(context, AppLocalizations.of(context)!.connectError, false);
       }
@@ -622,8 +666,9 @@ class _LoginState extends ConsumerState<Login>
                 if (v == null || v.isEmpty) {
                   return AppLocalizations.of(context)!.enter_password;
                 }
-                if (v.length < 6) {
-                  return AppLocalizations.of(context)!.min_6_chars;
+                if (v.length < 8) {
+                  return AppLocalizations.of(context)!
+                      .signup_password_min_length;
                 }
                 return null;
               },

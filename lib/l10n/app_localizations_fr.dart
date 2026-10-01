@@ -1728,6 +1728,12 @@ class AppLocalizationsFr extends AppLocalizations {
       'Si vous ne trouvez pas l\'email, vérifiez dans vos spams.';
 
   @override
+  String get verification_verifying => 'Vérification en cours…';
+
+  @override
+  String get verification_patience => 'Merci de patienter quelques instants.';
+
+  @override
   String get verification_enter_code => 'Veuillez entrer le code.';
 
   @override

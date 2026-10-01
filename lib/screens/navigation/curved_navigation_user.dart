@@ -1,22 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../widgets/dios_nav_bar.dart';
 import '../../theme/app_theme.dart';
 import '../home/home_user.dart';
 import '../cart/cart.dart';
 import '../favorites/favorites.dart';
 import '../store/my_store.dart';
+import '../../providers/cart_provider.dart';
 
-class CurvedNavigationUser extends StatefulWidget {
+class CurvedNavigationUser extends ConsumerStatefulWidget {
   final int specified_index;
   final String country;
   const CurvedNavigationUser(
       {super.key, required this.specified_index, this.country = 'RDC'});
 
   @override
-  State<CurvedNavigationUser> createState() => _CurvedNavigationUserState();
+  ConsumerState<CurvedNavigationUser> createState() =>
+      _CurvedNavigationUserState();
 }
 
-class _CurvedNavigationUserState extends State<CurvedNavigationUser> {
+class _CurvedNavigationUserState extends ConsumerState<CurvedNavigationUser> {
   late PageController _pageController;
   int _activePage = 0;
 
@@ -69,6 +72,15 @@ class _CurvedNavigationUserState extends State<CurvedNavigationUser> {
 
   @override
   Widget build(BuildContext context) {
+    final cartItems = ref.watch(cartStateProvider);
+    final basketCount = cartItems
+        .map((item) =>
+            (item['restaurant'] as Map<String, dynamic>?)?['restau_id']
+                ?.toString())
+        .whereType<String>()
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .length;
     return Scaffold(
       backgroundColor:
           AppColors.resolve(AppColors.surface, AppDarkColors.surface),
@@ -81,6 +93,7 @@ class _CurvedNavigationUserState extends State<CurvedNavigationUser> {
       bottomNavigationBar: DiosNavBar(
         currentIndex: _activePage,
         items: _navItems,
+        badges: {if (basketCount > 0) 1: basketCount},
         onTap: (index) {
           setState(() => _activePage = index);
           _pageController.jumpToPage(index);

@@ -20,7 +20,7 @@ class FavoritesService {
         .whereType<int>()
         .toSet();
   }
-
+  
   static Future<void> _writeIds(String prefix, Set<int> ids) async {
     final prefs = await SharedPreferences.getInstance();
     final key = await _scopedKey(prefix);

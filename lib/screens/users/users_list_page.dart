@@ -5,7 +5,7 @@ import 'package:dios_delices/providers/data_version_notifier.dart';
 import 'package:dios_delices/services/session_service.dart';
 import 'package:dios_delices/theme/app_theme.dart';
 import 'package:flutter/material.dart';
-import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
+import 'package:dios_delices/services/node_admin_service.dart';
 import '../../models/users.dart';
 import '../../models/identity.dart';
 import '../../widgets/dios_image.dart';
@@ -45,17 +45,14 @@ class _UsersListPageState extends State<UsersListPage> {
         ? l10n.identity_validated_email_body(user!.firstname!)
         : l10n.identity_rejected_email_body(user!.firstname!, remark ?? '');
 
-    final cloudFunction = ParseCloudFunction('sendEmail');
-    try {
-      await cloudFunction.execute(parameters: {
-        'to': recipientEmail,
-        'subject': subject,
-        'text': messageText,
-      });
-      return true;
-    } catch (e) {
-      return false;
-    }
+    final token = await SessionService.readNodeToken();
+    if (token == null) return false;
+    return await NodeAdminService.sendEmail(
+      to: recipientEmail,
+      subject: subject,
+      text: messageText,
+      token: token,
+    );
   }
 
   @override
@@ -83,16 +80,51 @@ class _UsersListPageState extends State<UsersListPage> {
   }
 
   Future<void> loadData() async {
-    List<Identity> identityList = await Identity.fetchIdentitiesFromDB();
-    List<Users> usersList = await Users.fetchUsersFromDB();
+    final session = await SessionService.readSession();
+    final nodeToken = await SessionService.readNodeToken();
 
+    // Une session Node ne doit jamais retomber silencieusement sur le cache
+    // Hive/Parse : celui-ci peut afficher une liste obsolète.
+    if (nodeToken?.trim().isNotEmpty == true) {
+      try {
+        final usersList = await NodeAdminService.getUsers(
+          token: nodeToken!,
+          country: widget.country,
+        );
+        if (!mounted) return;
+        setState(() {
+          _currentUserId = session.userId;
+          identities = const [];
+          users = usersList;
+          filteredUsers = [];
+          isLoading = true;
+        });
+        await _fetchUsersByCountry();
+      } catch (error) {
+        if (!mounted) return;
+        setState(() {
+          identities = const [];
+          users = [];
+          filteredUsers = [];
+          isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Impossible de charger les utilisateurs Node : $error')),
+        );
+      }
+      return;
+    }
+
+    if (!mounted) return;
     setState(() {
-      identities = identityList;
-      users = usersList;
+      identities = const [];
+      users = [];
       filteredUsers = [];
-      isLoading = true;
+      isLoading = false;
     });
-    await _fetchUsersByCountry();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Session Node.js administrateur introuvable.')),
+    );
   }
 
   Future<void> _fetchUsersByCountry() async {
@@ -656,35 +688,67 @@ class _UsersListPageState extends State<UsersListPage> {
 
   Future<void> _validateUsers(Users user) async {
     final l10n = AppLocalizations.of(context)!;
-    final result = await Users.updateIdentity(user.userID, "Verified");
-    if (result == "success") {
-      await _sendEmailToUser(user, true);
-      if (mounted) {
-        setState(() => user.identity = "Verified");
+    final token = await SessionService.readNodeToken();
+    if (token?.trim().isNotEmpty == true) {
+      try {
+        await NodeAdminService.setIdentityStatus(user.userID, 'Verified', token!);
+        await _sendEmailToUser(user, true);
+        if (!mounted) return;
+        setState(() => user.identity = 'Verified');
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(l10n.profile_validated_email_sent(user.firstname!, '')),
-          behavior: SnackBarBehavior.floating,
+          content: Text(l10n.profile_validated_email_sent(user.firstname, '')),
+          behavior: SnackBarBehavior.fixed,
           shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppRadius.md)),
         ));
+        return;
+      } catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Erreur Node : $error')),
+          );
+        }
+        return;
       }
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Session Node.js administrateur introuvable.')),
+      );
     }
   }
 
   Future<void> _rejectUsers(Users user, String remark) async {
     final l10n = AppLocalizations.of(context)!;
-    final result = await Users.updateIdentity(user.userID, "Rejected");
-    if (result == "success") {
-      await _sendEmailToUser(user, false, remark);
-      if (mounted) {
-        setState(() => user.identity = "Rejected");
+    final token = await SessionService.readNodeToken();
+    if (token?.trim().isNotEmpty == true) {
+      try {
+        await NodeAdminService.setIdentityStatus(user.userID, 'Rejected', token!);
+        await _sendEmailToUser(user, false, remark);
+        if (!mounted) return;
+        setState(() => user.identity = 'Rejected');
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(l10n.profile_rejected_email_sent(user.firstname!, '')),
-          behavior: SnackBarBehavior.floating,
+          content: Text(l10n.profile_rejected_email_sent(user.firstname, '')),
+          behavior: SnackBarBehavior.fixed,
           shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppRadius.md)),
         ));
+        return;
+      } catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Erreur Node : $error')),
+          );
+        }
+        return;
       }
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Session Node.js administrateur introuvable.')),
+      );
     }
   }
 }

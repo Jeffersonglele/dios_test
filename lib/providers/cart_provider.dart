@@ -9,6 +9,8 @@ import '../models/address.dart' as addr;
 import '../services/session_service.dart';
 import '../services/delivery_availability_service.dart';
 import '../services/cart_sync_service.dart';
+import '../services/node_auth_service.dart';
+import '../services/node_catalog_service.dart';
 
 class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
   CartNotifier() : super([]) {
@@ -45,6 +47,7 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
   /// appareils et SharedPreferences reste un cache de secours hors connexion.
   Future<void> activateUser(int userId, {bool refreshRemote = false}) async {
     final version = ++_activationVersion;
+    final nodeSession = await SessionService.hasNodeSession();
     if (userId <= 0) {
       _activeUserId = null;
       _loadedUserId = null;
@@ -53,7 +56,7 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
       return;
     }
     if (_activeUserId == userId && _loadedUserId == userId) {
-      if (!refreshRemote) return;
+      if (!refreshRemote || nodeSession) return;
       final remote = await CartSyncService.loadCart();
       if (version != _activationVersion) return;
       if (remote?.exists == true) {
@@ -64,7 +67,7 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
       return;
     }
 
-    await _saveCart();
+    if (!nodeSession) await _saveCart();
     if (version != _activationVersion) return;
 
     _activeUserId = userId;
@@ -102,14 +105,16 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
     // Un panier déjà enregistré sur Parse doit être visible sur un nouvel
     // appareil. Si aucune copie serveur n'existe encore, on migre la copie
     // locale pour ne pas perdre un panier créé avant cette synchronisation.
-    final remote = await CartSyncService.loadCart();
-    if (version != _activationVersion) return;
-    if (remote?.exists == true) {
-      state = List<Map<String, dynamic>>.from(remote!.items);
-      total = _calculateTotal(state);
-      await _saveCart(syncRemote: false);
-    } else if (remote != null && restored.isNotEmpty) {
-      await _saveCart();
+    if (!nodeSession) {
+      final remote = await CartSyncService.loadCart();
+      if (version != _activationVersion) return;
+      if (remote?.exists == true) {
+        state = List<Map<String, dynamic>>.from(remote!.items);
+        total = _calculateTotal(state);
+        await _saveCart(syncRemote: false);
+      } else if (remote != null && restored.isNotEmpty) {
+        await _saveCart();
+      }
     }
   }
 
@@ -171,13 +176,29 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
   }) async {
     try {
       await activateUser(user_id);
-      List<Users> usersList = await Users.fetchUsersFromDB();
-      List<Restaurant> restaurantsList =
-          await Restaurant.fetchRestaurantsFromDB();
+      final nodeToken = await SessionService.readNodeToken();
+      Users? currentUser;
+      Restaurant? restaurant;
+      double? restauLat;
+      double? restauLng;
 
-      Users? currentUser = Users.getUsersByUserId(usersList, user_id);
-      Restaurant? restaurant =
-          Restaurant.getRestaurantByRestaurantId(restaurantsList, restau_id);
+      if (nodeToken != null) {
+        currentUser = Users.fromNodeAuth(await NodeAuthService.me(nodeToken));
+        restaurant = await NodeCatalogService.loadRestaurant(
+          restaurantId: restau_id,
+          token: nodeToken,
+        );
+        restauLat = restaurant.latitude;
+        restauLng = restaurant.longitude;
+      } else {
+        final usersList = await Users.fetchUsersFromDB();
+        final restaurantsList = await Restaurant.fetchRestaurantsFromDB();
+        currentUser = Users.getUsersByUserId(usersList, user_id);
+        restaurant = Restaurant.getRestaurantByRestaurantId(
+          restaurantsList,
+          restau_id,
+        );
+      }
 
       if (currentUser == null || restaurant == null) return 'error';
 
@@ -187,29 +208,33 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
 
       // Le contrôle est aussi fait ici afin qu'aucun autre écran ou futur
       // raccourci UI ne puisse ajouter un plat non livrable au panier.
-      final availability = await DeliveryAvailabilityService.forRestaurant(
-        restaurant,
-        userId: user_id,
-      );
-      if (!availability.canOrder) {
-        return availability.hasCustomerAddress
-            ? 'out_of_delivery_zone'
-            : 'delivery_address_required';
+      if (nodeToken == null) {
+        final availability = await DeliveryAvailabilityService.forRestaurant(
+          restaurant,
+          userId: user_id,
+        );
+        if (!availability.canOrder) {
+          return availability.hasCustomerAddress
+              ? 'out_of_delivery_zone'
+              : 'delivery_address_required';
+        }
       }
 
       // Récupérer les coordonnées du restaurant depuis son adresse
-      double? restauLat, restauLng;
-      try {
-        final addresses = await addr.Address.fetchAddressesFromDB();
-        final restauAddr = addresses.cast<addr.Address?>().firstWhere(
-          (a) => a?.object == 'Restaurant' && a?.objectID == restaurant.userID,
-          orElse: () => null,
-        );
-        if (restauAddr != null) {
-          restauLat = double.tryParse(restauAddr.lat ?? '');
-          restauLng = double.tryParse(restauAddr.long ?? '');
-        }
-      } catch (_) {}
+      if (nodeToken == null) {
+        try {
+          final addresses = await addr.Address.fetchAddressesFromDB();
+          final restauAddr = addresses.cast<addr.Address?>().firstWhere(
+            (a) =>
+                a?.object == 'Restaurant' && a?.objectID == restaurant!.userID,
+            orElse: () => null,
+          );
+          if (restauAddr != null) {
+            restauLat = double.tryParse(restauAddr.lat ?? '');
+            restauLng = double.tryParse(restauAddr.long ?? '');
+          }
+        } catch (_) {}
+      }
 
       double finalPrice = price + optionPrice;
 
@@ -323,7 +348,7 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
     final snapshot = List<Map<String, dynamic>>.from(state);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_storageKey(userId), jsonEncode(snapshot));
-    if (syncRemote) {
+    if (syncRemote && !await SessionService.hasNodeSession()) {
       await CartSyncService.saveCart(snapshot);
     }
   }

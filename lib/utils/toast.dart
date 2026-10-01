@@ -14,6 +14,7 @@ void Toast(BuildContext context, String message, bool isSuccess) {
     ..clearSnackBars()
     ..showSnackBar(
       SnackBar(
+        behavior: SnackBarBehavior.floating,
         backgroundColor: backgroundColor,
         margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         duration: const Duration(seconds: 3),

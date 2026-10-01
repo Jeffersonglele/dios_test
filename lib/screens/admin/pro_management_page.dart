@@ -2,7 +2,8 @@ import 'package:dios_delices/l10n/app_localizations.dart';
 import 'package:dios_delices/theme/app_theme.dart';
 import 'package:dios_delices/utils/toast.dart';
 import 'package:flutter/material.dart';
-import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
+import 'package:dios_delices/services/session_service.dart';
+import 'package:dios_delices/services/node_admin_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class ProManagementPage extends StatefulWidget {
@@ -39,18 +40,18 @@ class _ProManagementPageState extends State<ProManagementPage>
   Future<void> _fetch() async {
     setState(() => _loading = true);
     try {
-      final fn = ParseCloudFunction('getAllProDocuments');
-      final res = await fn.execute(parameters: {
-        if (widget.country != null && widget.country!.isNotEmpty)
-          'country': widget.country,
-      });
-      if (res.success && mounted) {
+      final token = await SessionService.readNodeToken();
+      if (token == null) {
+        if (mounted) setState(() => _loading = false);
+        return;
+      }
+
+      final list = await NodeAdminService.getProDocuments(token, country: widget.country);
+      if (mounted) {
         setState(() {
-          _allDocs = List<Map<String, dynamic>>.from(res.result ?? []);
+          _allDocs = list.map((e) => e as Map<String, dynamic>).toList();
           _loading = false;
         });
-      } else {
-        if (mounted) setState(() => _loading = false);
       }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
@@ -93,14 +94,11 @@ class _ProManagementPageState extends State<ProManagementPage>
     if (ok != true || !mounted) return;
 
     try {
-      final fn = ParseCloudFunction('validateRestaurantProDocuments');
-      final res = await fn.execute(parameters: {
-        'userID': doc['userID'],
-        'valid': true,
-        if (remarkController.text.trim().isNotEmpty)
-          'remark': remarkController.text.trim(),
-      });
-      if (res.success && mounted) {
+      final token = await SessionService.readNodeToken();
+      if (token == null) return;
+      
+      await NodeAdminService.validateProDocuments(doc['id'] ?? doc['objectId'] ?? '', 'VALIDATED', token);
+      if (mounted) {
         Toast(context, l10n.admin_pro_validated(doc['userName'] ?? ''), true);
         _fetch();
       }
@@ -147,13 +145,11 @@ class _ProManagementPageState extends State<ProManagementPage>
     if (ok != true || !mounted) return;
 
     try {
-      final fn = ParseCloudFunction('validateRestaurantProDocuments');
-      final res = await fn.execute(parameters: {
-        'userID': doc['userID'],
-        'valid': false,
-        'remark': remarkController.text.trim(),
-      });
-      if (res.success && mounted) {
+      final token = await SessionService.readNodeToken();
+      if (token == null) return;
+
+      await NodeAdminService.validateProDocuments(doc['id'] ?? doc['objectId'] ?? '', 'REJECTED', token);
+      if (mounted) {
         Toast(context, l10n.admin_pro_rejected(doc['userName'] ?? ''), true);
         _fetch();
       }

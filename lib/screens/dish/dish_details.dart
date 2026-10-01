@@ -101,6 +101,20 @@ class _DishDetailsState extends ConsumerState<DishDetails> {
   }
 
   Future<void> _addToCart() async {
+    final l10n = AppLocalizations.of(context)!;
+    final blocked = !isOwner &&
+        _deliveryAvailability != null &&
+        !_deliveryAvailability!.canOrder;
+    final closed =
+        !isOwner && _openingStatus != null && !_openingStatus!.isOpen;
+    if (blocked) {
+      await showDeliveryUnavailableSheet(context);
+      return;
+    }
+    if (closed) {
+      await showRestaurantClosedSheet(context);
+      return;
+    }
     final session = await SessionService.readSession();
     final cartNotifier = ref.read(cartStateProvider.notifier);
     final dish = current_dish!;
@@ -515,7 +529,9 @@ class _DishDetailsState extends ConsumerState<DishDetails> {
                     width: double.infinity,
                     height: 56,
                     child: ElevatedButton.icon(
-                      onPressed: _addToCart,
+                      onPressed: deliveryBlocked || restaurantClosed
+                          ? null
+                          : _addToCart,
                       icon: const Icon(Icons.shopping_cart_rounded, size: 20),
                       label: Text(
                         deliveryBlocked
@@ -531,6 +547,13 @@ class _DishDetailsState extends ConsumerState<DishDetails> {
                                 AppColors.inkMuted, AppDarkColors.inkMuted)
                             : AppColors.resolve(
                                 AppColors.brand, AppDarkColors.brand),
+                        disabledBackgroundColor: AppColors.resolve(
+                          AppColors.inkMuted,
+                          AppDarkColors.inkMuted,
+                        ).withValues(alpha: 0.55),
+                        disabledForegroundColor: AppColors.resolve(
+                                AppColors.card, AppDarkColors.card)
+                            .withValues(alpha: 0.75),
                         textStyle: AppTypography.labelLarge(
                             color: AppColors.resolve(
                                 AppColors.card, AppDarkColors.card)),

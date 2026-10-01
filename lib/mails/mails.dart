@@ -2,6 +2,9 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 
+import '../services/node_auth_service.dart';
+import '../services/session_service.dart';
+
 /// Génère un code numérique à 6 chiffres.
 String generateCode() {
   final rng = Random();
@@ -9,6 +12,17 @@ String generateCode() {
 }
 
 Future<bool> sendVerificationEmail(BuildContext context, String email) async {
+  final nodeToken = await SessionService.readNodeToken();
+  if (nodeToken != null) {
+    try {
+      await NodeAuthService.requestEmailVerification(nodeToken);
+      return true;
+    } on NodeAuthException catch (error) {
+      debugPrint('Node email verification request failed: $error');
+      return false;
+    }
+  }
+
   try {
     final params = <String, dynamic>{'email': email};
     final cloudFunction = ParseCloudFunction('sendVerificationCode');
@@ -63,6 +77,20 @@ Future<bool> verifyEmailCode({
   required String email,
   required String code,
 }) async {
+  final nodeToken = await SessionService.readNodeToken();
+  if (nodeToken != null) {
+    try {
+      await NodeAuthService.confirmEmailVerification(
+        token: nodeToken,
+        code: code,
+      );
+      return true;
+    } on NodeAuthException catch (error) {
+      debugPrint('Node email verification confirmation failed: $error');
+      return false;
+    }
+  }
+
   try {
     final cloudFunction = ParseCloudFunction('verifyCode');
     final response = await cloudFunction.execute(parameters: {

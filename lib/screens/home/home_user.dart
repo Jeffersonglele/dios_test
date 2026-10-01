@@ -21,6 +21,7 @@ import '../../models/restaurant.dart';
 import '../../models/users.dart';
 import '../../services/session_service.dart';
 import '../../services/favorites_service.dart';
+import '../../services/node_home_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/dios_image.dart';
 import '../explore/food_categories.dart';
@@ -45,7 +46,6 @@ class _HomeUserState extends State<HomeUser> {
   List<Restaurant> _restaus = [];
   List<Address> _addresses = [];
 
-  /// Set d'IDs de restaurants qui sont hors du rayon de livraison
   final Set<int> _outOfRangeRestauIds = {};
 
   int _currentUserID = 0;
@@ -54,6 +54,8 @@ class _HomeUserState extends State<HomeUser> {
   int _selectedCategoryIndex = 0;
   bool _isLoading = true;
   String _liveAddress = '';
+  String? _liveCity;
+  String? _liveCountry;
   List<_Category> _categories = [
     _Category(icon: Icons.restaurant_rounded, label: 'Tout'),
   ];
@@ -126,6 +128,41 @@ class _HomeUserState extends State<HomeUser> {
   Future<void> _loadData() async {
     if (mounted) setState(() => _isLoading = true);
     final session = await SessionService.readSession();
+    final nodeToken = await SessionService.readNodeToken();
+
+    NodeHomeSnapshot? nodeHome;
+    try {
+      nodeHome = await NodeHomeService.load(token: nodeToken);
+    } catch (e, stack) {
+      debugPrint('⚠️ NodeHomeService.load() FAILED: $e');
+      debugPrint('$stack');
+      nodeHome = null;
+    }
+
+    if (nodeHome != null && mounted) {
+      final u = nodeHome.user;
+      final restaus = nodeHome.restaurants;
+      final addrs = nodeHome.addresses;
+      final cats = nodeHome.categories;
+      setState(() {
+        _currentUserID = u?.userID ?? session.userId;
+        _currentUserRole = u?.roleID ?? session.role.id;
+        _currentUserRestau = session.restaurantId ?? 0;
+        _users = u == null ? _users : [u];
+        _allRestaus = restaus;
+        _addresses = addrs;
+        _categories = [
+          _Category(icon: Icons.restaurant_rounded, label: 'Tout'),
+          ...cats.map(
+              (c) => _Category(icon: _iconForCategory(c.name), label: c.name)),
+        ];
+        _isLoading = false;
+      });
+      await _tagOutOfRangeAndSort();
+      _detectLiveLocation();
+      return;
+    }
+
     final results = await Future.wait([
       Users.fetchUsersFromDB(),
       Restaurant.fetchRestaurantsFromDB(),
@@ -149,10 +186,10 @@ class _HomeUserState extends State<HomeUser> {
         ...dbCats.map(
             (c) => _Category(icon: _iconForCategory(c.name), label: c.name)),
       ];
+      _isLoading = false;
     });
     await _tagOutOfRangeAndSort();
     _detectLiveLocation();
-    if (mounted) setState(() => _isLoading = false);
   }
 
   Future<void> _tagOutOfRangeAndSort() async {
@@ -162,28 +199,77 @@ class _HomeUserState extends State<HomeUser> {
 
     final userAddress =
         Address.getAddressByObject(_addresses, 'User', _currentUserID) ??
-            Address.getAddressByObject(
-                _addresses, 'Livraison', _currentUserID);
+            Address.getAddressByObject(_addresses, 'Livraison', _currentUserID);
 
-    if (userAddress != null) {
-      double? uLat = double.tryParse(userAddress.lat ?? '');
-      double? uLon = double.tryParse(userAddress.long ?? '');
+    final userCityID = userAddress?.cityID ?? 0;
+    final userCityText = _normalize(_firstNonEmpty([
+      userAddress?.city,
+      _liveCity,
+    ]));
+    final userCountryText = _normalize(_firstNonEmpty([
+      userAddress?.state,
+      _liveCountry,
+    ]));
+    final userLat = double.tryParse(userAddress?.lat ?? '');
+    final userLon = double.tryParse(userAddress?.long ?? '');
 
+    final hasUserLocation = (userCityID > 0) ||
+        (userCityText != null && userCountryText != null) ||
+        (userLat != null && userLon != null);
+
+    if (hasUserLocation) {
       for (final r in _allRestaus) {
         final rAddr =
             Address.getAddressByObject(_addresses, 'Restaurant', r.userID) ??
                 Address.getAddressByObject(_addresses, 'User', r.userID);
         bool isOut = false;
-        if (uLat != null && uLon != null && rAddr != null) {
-          final rLat = double.tryParse(rAddr.lat ?? '');
-          final rLon = double.tryParse(rAddr.long ?? '');
-          if (rLat != null && rLon != null) {
-            final maxKm = r.deliveryRadius > 0 ? r.deliveryRadius : 10.0;
-            if (_haversine(uLat, uLon, rLat, rLon) > maxKm) {
+
+        final rCityID = r.cityID > 0 ? r.cityID : (rAddr?.cityID ?? 0);
+        final rCityText = _normalize(_firstNonEmpty([rAddr?.city, r.location]));
+        final rCountryText = _normalize(_firstNonEmpty([
+          rAddr?.state,
+          r.country,
+        ]));
+
+        // 1) cityID fiable des deux côtés → comparaison stricte
+        if (userCityID > 0 && rCityID > 0) {
+          if (userCityID != rCityID) isOut = true;
+        }
+        // 2) Sinon comparaison texte normalisée (ville + pays)
+        else if ((userCityText != null && userCountryText != null) ||
+            (rCityText != null && rCountryText != null)) {
+          final sameCountry = (userCountryText != null &&
+              rCountryText != null &&
+              userCountryText == rCountryText);
+          final sameCity = sameCountry &&
+              userCityText != null &&
+              rCityText != null &&
+              userCityText == rCityText;
+          if (!sameCity) {
+            // Même pays, ville différente → directement Hors zone
+            if (sameCountry) {
+              isOut = true;
+            } else if (userCountryText != null && rCountryText != null) {
+              // Pays différents → directement Hors zone
               isOut = true;
             }
           }
         }
+
+        // 3) Sinon (ou pour confirmer) : distance à vol d'oiseau vs rayon livraison
+        if (!isOut && userLat != null && userLon != null) {
+          final rLat = r.latitude ??
+              (rAddr != null ? double.tryParse(rAddr.lat ?? '') : null);
+          final rLon = r.longitude ??
+              (rAddr != null ? double.tryParse(rAddr.long ?? '') : null);
+          if (rLat != null && rLon != null) {
+            final maxKm = r.deliveryRadius > 0 ? r.deliveryRadius : 10.0;
+            if (_haversine(userLat, userLon, rLat, rLon) > maxKm) {
+              isOut = true;
+            }
+          }
+        }
+
         if (isOut) {
           outOfRange.add(r);
           _outOfRangeRestauIds.add(r.restaurantID);
@@ -203,9 +289,57 @@ class _HomeUserState extends State<HomeUser> {
     _filterByCategory();
   }
 
+  static String? _firstNonEmpty(List<String?> values) {
+    for (final v in values) {
+      if (v != null && v.trim().isNotEmpty) return v.trim();
+    }
+    return null;
+  }
+
+  static String? _normalize(String? value) {
+    if (value == null) return null;
+    final v = value.trim().toLowerCase();
+    if (v.isEmpty) return null;
+    // Suppression des accents courants (FR/EN/ES/PT)
+    const accents = {
+      'à': 'a',
+      'á': 'a',
+      'â': 'a',
+      'ã': 'a',
+      'ä': 'a',
+      'å': 'a',
+      'è': 'e',
+      'é': 'e',
+      'ê': 'e',
+      'ë': 'e',
+      'ì': 'i',
+      'í': 'i',
+      'î': 'i',
+      'ï': 'i',
+      'ò': 'o',
+      'ó': 'o',
+      'ô': 'o',
+      'õ': 'o',
+      'ö': 'o',
+      'ù': 'u',
+      'ú': 'u',
+      'û': 'u',
+      'ü': 'u',
+      'ý': 'y',
+      'ÿ': 'y',
+      'ç': 'c',
+      'ñ': 'n',
+    };
+    final buf = StringBuffer();
+    for (final r in v.runes) {
+      final ch = String.fromCharCode(r);
+      buf.write(accents[ch] ?? ch);
+    }
+    return buf.toString().replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+
   void _filterByCategory() {
     if (_selectedCategoryIndex == 0) {
-      // "Tout" is selected, show all
       if (mounted) {
         setState(() {
           _restaus = _allRestaus;
@@ -253,7 +387,26 @@ class _HomeUserState extends State<HomeUser> {
         final addr = [p.locality, p.administrativeArea]
             .where((s) => s != null && s.isNotEmpty)
             .join(', ');
-        if (mounted && addr.isNotEmpty) setState(() => _liveAddress = addr);
+        final liveCity = _firstNonEmpty(
+            [p.locality, p.subAdministrativeArea, p.administrativeArea]);
+        final liveCountry = _firstNonEmpty([p.country, p.isoCountryCode]);
+        if (mounted) {
+          bool needsRetag = false;
+          if (addr.isNotEmpty && _liveAddress != addr) {
+            setState(() => _liveAddress = addr);
+          }
+          if (liveCity != null && _liveCity != liveCity) {
+            _liveCity = liveCity;
+            needsRetag = true;
+          }
+          if (liveCountry != null && _liveCountry != liveCountry) {
+            _liveCountry = liveCountry;
+            needsRetag = true;
+          }
+          if (needsRetag) {
+            await _tagOutOfRangeAndSort();
+          }
+        }
       }
     } catch (_) {}
   }
@@ -270,9 +423,26 @@ class _HomeUserState extends State<HomeUser> {
     return r * 2 * atan2(sqrt(a), sqrt(1 - a));
   }
 
+  bool _hasUserAddress() {
+    return _addresses.any((a) =>
+        a.objectID == _currentUserID &&
+        (a.object == 'User' || a.object == 'Livraison'));
+  }
+
+  bool _hasLiveLocation() {
+    final city = _liveCity;
+    final country = _liveCountry;
+    final address = _liveAddress;
+    return ((city != null && city.trim().isNotEmpty) ||
+            (address != null && address.trim().isNotEmpty)) &&
+        (country != null && country.trim().isNotEmpty);
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final showAddressBanner =
+        _currentUserRole == 2 && !_hasUserAddress() && !_hasLiveLocation();
     return WillPopScope(
       onWillPop: () async => false,
       child: GestureDetector(
@@ -289,10 +459,7 @@ class _HomeUserState extends State<HomeUser> {
               physics: const BouncingScrollPhysics(),
               slivers: [
                 // ── Bannière adresse manquante ───────────
-                if (_currentUserRole == 2 &&
-                    !_addresses.any((a) =>
-                        a.objectID == _currentUserID &&
-                        (a.object == 'User' || a.object == 'Livraison')))
+                if (showAddressBanner)
                   SliverToBoxAdapter(
                     child: GestureDetector(
                       onTap: () => _addAddress(),
@@ -345,6 +512,8 @@ class _HomeUserState extends State<HomeUser> {
                       });
                       _filterByCategory();
                     },
+                    onSeeAll: () => Navigator.push(context,
+                        CupertinoPageRoute(builder: (_) => FoodCategories())),
                   ),
                 ),
 
@@ -394,13 +563,6 @@ class _HomeUserState extends State<HomeUser> {
                   ),
                 ),
 
-                SliverToBoxAdapter(
-                  child: _ExploreButton(
-                    onTap: () => Navigator.push(context,
-                        CupertinoPageRoute(builder: (_) => FoodCategories())),
-                  ),
-                ),
-
                 const SliverToBoxAdapter(child: SizedBox(height: 120)),
               ],
             ),
@@ -412,7 +574,7 @@ class _HomeUserState extends State<HomeUser> {
 }
 
 // ═══════════════════════════════════════════════════════════
-// _HomeHeader — SafeArea + padding top généreux
+// _HomeHeader
 // ═══════════════════════════════════════════════════════════
 class _HomeHeader extends StatelessWidget {
   final Users? currentUser;
@@ -464,45 +626,35 @@ class _HomeHeader extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.location_on_rounded,
-                              color: brandColor, size: 16),
-                          const SizedBox(width: 4),
-                          Text(
-                            l10n.home_deliver_to,
-                            style: AppTypography.labelMedium(
-                                color: colorScheme.onSurface.withOpacity(0.6)),
+                  child: GestureDetector(
+                    onTap: onTap,
+                    behavior: HitTestBehavior.opaque,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.location_on_rounded,
+                            color: brandColor, size: 20),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            addressLabel ?? l10n.home_nearby,
+                            style: AppTypography.titleLarge(
+                                    color: colorScheme.onSurface)
+                                .copyWith(
+                                    fontSize: 18, fontWeight: FontWeight.w800),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 2),
-                      GestureDetector(
-                        onTap: onTap,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              addressLabel ?? l10n.home_nearby,
-                              style: AppTypography.titleMedium(
-                                      color: colorScheme.onSurface)
-                                  .copyWith(fontSize: 16),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(width: 4),
-                            Icon(Icons.keyboard_arrow_down_rounded,
-                                color: colorScheme.onSurface.withOpacity(0.6),
-                                size: 18),
-                          ],
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 2),
+                        Icon(Icons.keyboard_arrow_down_rounded,
+                            color: colorScheme.onSurface.withOpacity(0.5),
+                            size: 20),
+                      ],
+                    ),
                   ),
                 ),
+                const SizedBox(width: AppSpacing.sm),
                 Stack(
                   children: [
                     GestureDetector(
@@ -567,8 +719,7 @@ class _HomeHeader extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════
-// _WelcomeBanner — Bannière de bienvenue chaleureuse
-// Fond dégradé brand chaud · visuels food flottants · message accueil
+// _WelcomeBanner
 // ═══════════════════════════════════════════════════════════
 class _WelcomeBanner extends StatelessWidget {
   const _WelcomeBanner();
@@ -605,7 +756,6 @@ class _WelcomeBanner extends StatelessWidget {
         child: Stack(
           clipBehavior: Clip.none,
           children: [
-            // Cercles décoratifs de fond
             Positioned(
               right: -24,
               top: -28,
@@ -642,8 +792,6 @@ class _WelcomeBanner extends StatelessWidget {
                 ),
               ),
             ),
-
-            // Texte bienvenue à gauche
             Padding(
               padding: const EdgeInsets.fromLTRB(
                   AppSpacing.lg, AppSpacing.md, 130, AppSpacing.md),
@@ -685,8 +833,6 @@ class _WelcomeBanner extends StatelessWidget {
                 ],
               ),
             ),
-
-            // Visuels food flottants à droite
             Positioned(
               right: 10,
               bottom: -4,
@@ -719,23 +865,35 @@ class _WelcomeBanner extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════
-// _RoundCategories — Catégories en icônes rondes
+// _RoundCategories
 // ═══════════════════════════════════════════════════════════
 class _RoundCategories extends StatelessWidget {
   const _RoundCategories({
     required this.categories,
     required this.selectedIndex,
     required this.onSelect,
+    required this.onSeeAll,
   });
 
   final List<_Category> categories;
   final int selectedIndex;
   final ValueChanged<int> onSelect;
+  final VoidCallback onSeeAll;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final colorScheme = Theme.of(context).colorScheme;
+    final resolvedBrand =
+        AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+    final card = AppColors.resolve(AppColors.card, AppDarkColors.card);
+    final border = AppColors.resolve(AppColors.border, AppDarkColors.border);
+    final inkMuted =
+        AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
+
+    final visibleCount = categories.length > 7 ? 7 : categories.length;
+    final tileCount = visibleCount + 1;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -745,77 +903,102 @@ class _RoundCategories extends StatelessWidget {
           child: Text(l10n.home_categories,
               style: AppTypography.titleMedium(color: colorScheme.onSurface)),
         ),
-        SizedBox(
-          height: 86,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-            itemCount: categories.length,
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+          child: GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: tileCount,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 4,
+              mainAxisSpacing: AppSpacing.sm,
+              crossAxisSpacing: AppSpacing.sm,
+              childAspectRatio: 0.86,
+            ),
             itemBuilder: (_, i) {
+              final isMore = i == visibleCount;
+
+              if (isMore) {
+                return GestureDetector(
+                  onTap: onSeeAll,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: resolvedBrand,
+                      borderRadius: BorderRadius.circular(AppRadius.lg),
+                      boxShadow: [
+                        BoxShadow(
+                          color: resolvedBrand.withValues(alpha: 0.28),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.grid_view_rounded,
+                            color: Colors.white, size: 22),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Plus',
+                          style: AppTypography.labelMedium(color: Colors.white)
+                              .copyWith(
+                                  fontSize: 11, fontWeight: FontWeight.w700),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
               final selected = i == selectedIndex;
               final cat = categories[i];
-              final resolvedBrand =
-                  AppColors.resolve(AppColors.brand, AppDarkColors.brand);
               return GestureDetector(
                 onTap: () => onSelect(i),
-                child: Container(
-                  width: 68,
-                  margin: const EdgeInsets.only(right: AppSpacing.sm),
+                child: AnimatedContainer(
+                  duration: AppMotion.fast,
+                  curve: AppMotion.standard,
+                  decoration: BoxDecoration(
+                    color: selected ? resolvedBrand : card,
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                    border: Border.all(
+                      color: selected
+                          ? resolvedBrand
+                          : border.withValues(alpha: 0.6),
+                    ),
+                    boxShadow: selected
+                        ? [
+                            BoxShadow(
+                              color: resolvedBrand.withValues(alpha: 0.28),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ]
+                        : [AppShadows.subtle],
+                  ),
                   child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      AnimatedContainer(
-                        duration: AppMotion.fast,
-                        curve: AppMotion.standard,
-                        width: 56,
-                        height: 56,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: selected
-                              ? resolvedBrand
-                              : AppColors.resolve(
-                                  AppColors.card, AppDarkColors.card),
-                          border: Border.all(
-                            color: selected
-                                ? resolvedBrand
-                                : AppColors.resolve(
-                                        AppColors.border, AppDarkColors.border)
-                                    .withValues(alpha: 0.6),
-                          ),
-                          boxShadow: selected
-                              ? [
-                                  BoxShadow(
-                                    color:
-                                        resolvedBrand.withValues(alpha: 0.28),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
-                                  )
-                                ]
-                              : [AppShadows.subtle],
-                        ),
-                        child: Icon(
-                          cat.icon,
-                          size: 24,
-                          color: selected
-                              ? Colors.white
-                              : AppColors.resolve(
-                                  AppColors.inkMuted, AppDarkColors.inkMuted),
-                        ),
+                      Icon(
+                        cat.icon,
+                        size: 22,
+                        color: selected ? Colors.white : inkMuted,
                       ),
                       const SizedBox(height: 6),
-                      Text(
-                        cat.label,
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTypography.labelMedium(
-                          color: selected
-                              ? resolvedBrand
-                              : AppColors.resolve(
-                                  AppColors.inkMuted, AppDarkColors.inkMuted),
-                        ).copyWith(
-                          fontSize: 11,
-                          fontWeight:
-                              selected ? FontWeight.w700 : FontWeight.w500,
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: Text(
+                          cat.label,
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTypography.labelMedium(
+                            color: selected ? Colors.white : inkMuted,
+                          ).copyWith(
+                            fontSize: 11,
+                            fontWeight:
+                                selected ? FontWeight.w700 : FontWeight.w500,
+                          ),
                         ),
                       ),
                     ],
@@ -838,11 +1021,12 @@ class _SectionHeader extends StatelessWidget {
     required this.title,
     this.actionLabel,
     this.onAction,
-  });
+  }) : topPadding = AppSpacing.xl;
 
   final String title;
   final String? actionLabel;
   final VoidCallback? onAction;
+  final double topPadding;
 
   @override
   Widget build(BuildContext context) {
@@ -850,8 +1034,8 @@ class _SectionHeader extends StatelessWidget {
     final resolvedBrand =
         AppColors.resolve(AppColors.brand, AppDarkColors.brand);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-          AppSpacing.lg, AppSpacing.xl, AppSpacing.lg, AppSpacing.md),
+      padding: EdgeInsets.fromLTRB(
+          AppSpacing.lg, topPadding, AppSpacing.lg, AppSpacing.md),
       child: Row(
         children: [
           Expanded(
@@ -882,7 +1066,7 @@ class _SectionHeader extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════
-// _RestaurantCarousel
+// _RestaurantCarousel — REDESIGNÉ
 // ═══════════════════════════════════════════════════════════
 class _RestaurantCarousel extends StatelessWidget {
   const _RestaurantCarousel({
@@ -901,10 +1085,16 @@ class _RestaurantCarousel extends StatelessWidget {
   Widget build(BuildContext context) {
     final count = restaurants.length > 6 ? 6 : restaurants.length;
     return SizedBox(
+      // ── Hauteur augmentée pour accueillir les cards plus grandes ──
       height: 300,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+        // Padding latéral cohérent avec le reste de la page
+        padding: const EdgeInsets.only(
+          left: AppSpacing.lg,
+          right: AppSpacing.lg,
+          bottom: 8,
+        ),
         itemCount: count,
         itemBuilder: (_, i) {
           final restau = restaurants[i];
@@ -922,6 +1112,9 @@ class _RestaurantCarousel extends StatelessWidget {
   }
 }
 
+// ═══════════════════════════════════════════════════════════
+// _RestaurantCard
+// ═══════════════════════════════════════════════════════════
 class _RestaurantCard extends StatefulWidget {
   const _RestaurantCard({
     required this.restaurant,
@@ -951,21 +1144,31 @@ class _RestaurantCardState extends State<_RestaurantCard> {
   Future<void> _loadFavoriteStatus() async {
     final favorite = await FavoritesService.isRestaurantFavorite(
         widget.restaurant.restaurantID);
-    if (mounted) {
-      setState(() {
-        isFavorite = favorite;
-      });
-    }
+    if (mounted) setState(() => isFavorite = favorite);
   }
 
   Future<void> _toggleFavorite() async {
     final newStatus = await FavoritesService.toggleRestaurantFavorite(
         widget.restaurant.restaurantID);
-    if (mounted) {
-      setState(() {
-        isFavorite = newStatus;
-      });
-    }
+    if (mounted) setState(() => isFavorite = newStatus);
+  }
+
+  List<String> _tags() {
+    final raw = widget.restaurant.categories;
+    if (raw.isEmpty) return const [];
+    final parts = raw
+        .split(RegExp(r'[#,]+'))
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .map((s) => s
+            .replaceAll('-', ' ')
+            .split(' ')
+            .map(
+                (w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
+            .join(' '))
+        .toSet()
+        .toList();
+    return parts.take(2).toList();
   }
 
   @override
@@ -976,7 +1179,14 @@ class _RestaurantCardState extends State<_RestaurantCard> {
         AppColors.resolve(AppColors.brand, AppDarkColors.brand);
     final resolvedAccent =
         AppColors.resolve(AppColors.accent, AppDarkColors.accent);
+    final resolvedSuccess =
+        AppColors.resolve(AppColors.success, AppDarkColors.success);
     final inkColor = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
+    final card = AppColors.resolve(AppColors.card, AppDarkColors.card);
+    final surfaceWarm =
+        AppColors.resolve(AppColors.surfaceWarm, AppDarkColors.surfaceWarm);
+    final border = AppColors.resolve(AppColors.border, AppDarkColors.border);
+
     final openingStatus = widget.restaurant.openingStatus;
     final restaurantClosed = !openingStatus.isOpen;
     final openingMessage = openingStatus.isClosedManually
@@ -987,165 +1197,206 @@ class _RestaurantCardState extends State<_RestaurantCard> {
                 ? l10n.restaurant_opens_on(
                     openingStatus.opensOn!, openingStatus.opensAt ?? '')
                 : l10n.restaurant_closed_today;
+
     final titleColor = widget.outOfRange
         ? colorScheme.onSurface.withValues(alpha: 0.7)
         : colorScheme.onSurface;
+    final tags = _tags();
+    final isFreeDelivery = widget.restaurant.deliveryFee <= 0;
 
     return GestureDetector(
       onTap: widget.onTap,
       child: Container(
-        width: 200,
-        margin: const EdgeInsets.only(right: AppSpacing.md),
+        width: 260,
+        margin: const EdgeInsets.only(right: 14),
         decoration: BoxDecoration(
-          color: AppColors.resolve(AppColors.card, AppDarkColors.card),
-          borderRadius: BorderRadius.circular(AppRadius.xl),
+          color: card,
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(
-              color: AppColors.resolve(AppColors.border, AppDarkColors.border),
-              width: 0.5),
+            color: border.withValues(alpha: 0.5),
+            width: 0.8,
+          ),
           boxShadow: [
             BoxShadow(
-              color: AppColors.resolve(AppColors.ink, AppDarkColors.ink)
-                  .withValues(alpha: 0.07),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
+              color: inkColor.withValues(alpha: 0.06),
+              blurRadius: 12,
+              spreadRadius: 0,
+              offset: const Offset(0, 4),
+            ),
+            BoxShadow(
+              color: inkColor.withValues(alpha: 0.03),
+              blurRadius: 4,
+              spreadRadius: 0,
+              offset: const Offset(0, 1),
             ),
           ],
         ),
-        clipBehavior: Clip.antiAlias,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Stack(
-              children: [
-                SizedBox(
-                  height: 180,
-                  width: double.infinity,
-                  child: Opacity(
-                    opacity: widget.outOfRange || restaurantClosed ? 0.75 : 1,
-                    child: DiosImage(
-                      url: widget.restaurant.image,
-                      width: double.infinity,
-                      height: 180,
-                    ),
-                  ),
-                ),
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    height: 70,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          inkColor.withValues(alpha: 0.55),
-                        ],
+            // ════════════════════════════════════════════
+            // BLOC IMAGE — occupe bien toute la largeur
+            // ════════════════════════════════════════════
+            ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
+              ),
+              child: Stack(
+                children: [
+                  // Image principale
+                  SizedBox(
+                    height: 150,
+                    width: double.infinity,
+                    child: Opacity(
+                      opacity: widget.outOfRange
+                          ? 0.55
+                          : (restaurantClosed ? 0.75 : 1.0),
+                      child: ColorFiltered(
+                        colorFilter: widget.outOfRange
+                            ? const ColorFilter.matrix([
+                                0.2126,
+                                0.7152,
+                                0.0722,
+                                0,
+                                0,
+                                0.2126,
+                                0.7152,
+                                0.0722,
+                                0,
+                                0,
+                                0.2126,
+                                0.7152,
+                                0.0722,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                1,
+                                0,
+                              ])
+                            : const ColorFilter.mode(
+                                Colors.transparent, BlendMode.multiply),
+                        child: DiosImage(
+                          url: widget.restaurant.image,
+                          width: double.infinity,
+                          height: 150,
+                          fit: BoxFit.cover,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                if (widget.outOfRange)
-                  Positioned.fill(
+
+                  // Dégradé bas (pour lisibilité des badges)
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
                     child: Container(
-                      alignment: Alignment.center,
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                      color: Colors.black.withValues(alpha: 0.32),
-                      child: const Text(
-                        'Marchand hors de votre zone de livraison',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w800,
-                          height: 1.25,
-                          shadows: [
-                            Shadow(
-                              blurRadius: 4,
-                              color: Color(0x55000000),
-                              offset: Offset(0, 1),
-                            )
+                      height: 60,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter,
+                          colors: [
+                            Colors.black.withValues(alpha: 0.45),
+                            Colors.transparent,
                           ],
                         ),
                       ),
                     ),
                   ),
-                if (!widget.outOfRange && restaurantClosed)
-                  Positioned.fill(
-                    child: Container(
-                      alignment: Alignment.center,
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                      color: Colors.black.withValues(alpha: 0.32),
-                      child: Text(
-                        openingMessage,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          height: 1.25,
+
+                  // Overlay hors zone
+                  if (widget.outOfRange)
+                    Positioned.fill(
+                      child: Container(
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.black.withValues(alpha: 0.25),
+                              Colors.black.withValues(alpha: 0.65),
+                            ],
+                          ),
+                        ),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFBE3A34),
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.35),
+                                blurRadius: 8,
+                                spreadRadius: 0,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.location_off_rounded,
+                                size: 16,
+                                color: Colors.white,
+                              ),
+                              SizedBox(width: 6),
+                              Text(
+                                'Hors zone',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 0.3,
+                                  height: 1.1,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                Positioned(
-                  bottom: AppSpacing.sm,
-                  left: AppSpacing.sm,
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: widget.outOfRange || restaurantClosed
-                          ? inkColor.withValues(alpha: 0.6)
-                          : resolvedBrand,
-                      borderRadius: BorderRadius.circular(AppRadius.sm),
-                    ),
-                    child: Text(
-                      l10n.home_delivery_fee_label(
-                          widget.restaurant.deliveryFee.toStringAsFixed(0)),
-                      style: AppTypography.labelMedium(color: Colors.white)
-                          .copyWith(fontSize: 10, fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                ),
-                if (widget.isPro)
-                  Positioned(
-                    top: AppSpacing.sm,
-                    left: AppSpacing.sm,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: resolvedAccent,
-                        borderRadius: BorderRadius.circular(AppRadius.sm),
-                      ),
-                      child: Text(
-                        'PRO',
-                        style: AppTypography.labelMedium(
-                                color: AppColors.resolve(
-                                    AppColors.ink, AppDarkColors.ink))
-                            .copyWith(
-                                fontSize: 10, fontWeight: FontWeight.w800),
+
+                  // Overlay restaurant fermé
+                  if (!widget.outOfRange && restaurantClosed)
+                    Positioned.fill(
+                      child: Container(
+                        alignment: Alignment.center,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        color: Colors.black.withValues(alpha: 0.32),
+                        child: Text(
+                          openingMessage,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            height: 1.2,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                if (widget.outOfRange)
+
+                  // ── Badge note ──────────────────────────
                   Positioned(
-                    bottom: -6,
-                    right: 12,
+                    top: 10,
+                    left: 10,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
+                          horizontal: 8, vertical: 5),
                       decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(10),
+                        color: Colors.white.withValues(alpha: 0.96),
+                        borderRadius: BorderRadius.circular(999),
                         boxShadow: const [
                           BoxShadow(
-                            color: Color(0x1A000000),
-                            blurRadius: 8,
-                            spreadRadius: 1,
+                            color: Color(0x20000000),
+                            blurRadius: 6,
                             offset: Offset(0, 2),
                           ),
                         ],
@@ -1153,115 +1404,178 @@ class _RestaurantCardState extends State<_RestaurantCard> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
-                            Icons.location_off_rounded,
-                            size: 12,
-                            color: inkColor.withValues(alpha: 0.85),
-                          ),
+                          Icon(Icons.star_rounded,
+                              color: resolvedAccent, size: 13),
                           const SizedBox(width: 3),
-                          const Text(
-                            'Hors de portée',
-                            style: TextStyle(
-                              fontSize: 10.5,
+                          Text(
+                            widget.restaurant.note > 0
+                                ? widget.restaurant.note.toStringAsFixed(1)
+                                : '—',
+                            style: const TextStyle(
+                              fontSize: 11,
                               fontWeight: FontWeight.w800,
-                              color: Color(0xDE000000),
+                              color: Color(0xFF2B211D),
                             ),
                           ),
                         ],
                       ),
                     ),
                   ),
-                Positioned(
-                  top: AppSpacing.sm,
-                  right: AppSpacing.sm,
-                  child: GestureDetector(
-                    onTap: _toggleFavorite,
-                    child: Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: AppColors.resolve(
-                                AppColors.card, AppDarkColors.card)
-                            .withValues(alpha: 0.92),
-                        shape: BoxShape.circle,
-                        boxShadow: [AppShadows.subtle],
-                      ),
-                      child: Icon(
-                        isFavorite
-                            ? Icons.favorite_rounded
-                            : Icons.favorite_border_rounded,
-                        size: 16,
-                        color: widget.outOfRange
-                            ? inkColor.withValues(alpha: 0.55)
-                            : resolvedBrand,
+
+                  // ── Bouton favori ───────────────────────
+                  Positioned(
+                    top: 10,
+                    right: 10,
+                    child: GestureDetector(
+                      onTap: _toggleFavorite,
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.96),
+                          shape: BoxShape.circle,
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x20000000),
+                              blurRadius: 6,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          isFavorite
+                              ? Icons.favorite_rounded
+                              : Icons.favorite_border_rounded,
+                          size: 16,
+                          color: resolvedBrand,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+
+                  // ── Badge PRO ────────────────────────────
+                  if (widget.isPro)
+                    Positioned(
+                      bottom: 10,
+                      left: 10,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: resolvedAccent,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          'PRO',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF2B211D),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
+
+            // ════════════════════════════════════════════
+            // BLOC TEXTE — informations du restaurant
+            // ════════════════════════════════════════════
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Nom du restaurant
                   Text(
                     widget.restaurant.name,
                     style: AppTypography.titleMedium(color: titleColor)
-                        .copyWith(fontSize: 14),
+                        .copyWith(fontSize: 14, fontWeight: FontWeight.w700),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 6),
+
+                  // Horaires + frais de livraison
                   Row(
                     children: [
-                      Icon(Icons.star_rounded,
-                          color: widget.outOfRange
-                              ? colorScheme.onSurface.withValues(alpha: 0.45)
-                              : resolvedAccent,
-                          size: 13),
-                      const SizedBox(width: 3),
-                      Flexible(
-                        child: Text(
-                          widget.restaurant.note > 0
-                              ? widget.restaurant.note.toStringAsFixed(1)
-                              : l10n.home_rated,
-                          style: AppTypography.labelMedium(
-                                  color: titleColor.withValues(alpha: 0.85))
-                              .copyWith(fontSize: 11),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 6),
-                        width: 3,
-                        height: 3,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: colorScheme.onSurface.withOpacity(0.3),
-                        ),
-                      ),
                       Icon(Icons.schedule_rounded,
-                          color: colorScheme.onSurface.withOpacity(0.4),
+                          color: colorScheme.onSurface.withValues(alpha: 0.40),
                           size: 12),
-                      const SizedBox(width: 3),
+                      const SizedBox(width: 4),
                       Flexible(
                         child: Text(
                           restaurantClosed
                               ? openingMessage
                               : widget.restaurant.openingHours.isNotEmpty
-                              ? widget.restaurant.openingHours
-                              : l10n.home_contact,
+                                  ? widget.restaurant.openingHours
+                                  : l10n.home_contact,
                           style: AppTypography.labelMedium(
-                                  color: colorScheme.onSurface.withOpacity(0.5))
-                              .copyWith(fontSize: 11),
+                            color:
+                                colorScheme.onSurface.withValues(alpha: 0.50),
+                          ).copyWith(fontSize: 11),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      const SizedBox(width: 8),
+                      // Pill livraison
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: isFreeDelivery
+                              ? resolvedSuccess.withValues(alpha: 0.12)
+                              : surfaceWarm,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          isFreeDelivery
+                              ? l10n.home_delivery_fee_label('0')
+                              : l10n.home_delivery_fee_label(widget
+                                  .restaurant.deliveryFee
+                                  .toStringAsFixed(0)),
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: isFreeDelivery
+                                ? resolvedSuccess
+                                : inkColor.withValues(alpha: 0.65),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
+
+                  // Tags catégories
+                  if (tags.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: tags
+                          .map(
+                            (t) => Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: surfaceWarm,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                t,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: inkColor.withValues(alpha: 0.55),
+                                ),
+                              ),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -1318,79 +1632,70 @@ class _EmptyRestaurants extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════
-// _ExploreButton
-// ═══════════════════════════════════════════════════════════
-class _ExploreButton extends StatelessWidget {
-  const _ExploreButton({required this.onTap});
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final colorScheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-      child: SizedBox(
-        width: double.infinity,
-        height: 52,
-        child: OutlinedButton.icon(
-          onPressed: onTap,
-          icon: Icon(
-            Icons.grid_view_rounded,
-            size: 20,
-            color: colorScheme.onSurface,
-          ),
-          label: Text(
-            l10n.home_explore_categories,
-            style: AppTypography.titleMedium(color: colorScheme.onSurface),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ═══════════════════════════════════════════════════════════
-// Skeleton + Shimmer
+// _RestaurantSkeleton — REDESIGNÉ (cohérent avec nouvelle card)
 // ═══════════════════════════════════════════════════════════
 class _RestaurantSkeleton extends StatelessWidget {
   const _RestaurantSkeleton();
 
   @override
   Widget build(BuildContext context) {
+    final card = AppColors.resolve(AppColors.card, AppDarkColors.card);
+    final border = AppColors.resolve(AppColors.border, AppDarkColors.border);
+    final surfaceWarm =
+        AppColors.resolve(AppColors.surfaceWarm, AppDarkColors.surfaceWarm);
+
     return SizedBox(
       height: 300,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         physics: const NeverScrollableScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+        padding: const EdgeInsets.only(
+          left: AppSpacing.lg,
+          right: AppSpacing.lg,
+          bottom: 8,
+        ),
         itemCount: 3,
         itemBuilder: (_, __) => Container(
-          width: 200,
-          margin: const EdgeInsets.only(right: AppSpacing.md),
+          width: 220,
+          margin: const EdgeInsets.only(right: 14),
           decoration: BoxDecoration(
-            color: AppColors.resolve(AppColors.card, AppDarkColors.card),
-            borderRadius: BorderRadius.circular(AppRadius.xl),
+            color: card,
+            borderRadius: BorderRadius.circular(20),
             border: Border.all(
-                color:
-                    AppColors.resolve(AppColors.border, AppDarkColors.border),
-                width: 0.5),
+              color: border.withValues(alpha: 0.5),
+              width: 0.8,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.06),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-          clipBehavior: Clip.antiAlias,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                  height: 180,
-                  color: AppColors.resolve(
-                      AppColors.surfaceWarm, AppDarkColors.surfaceWarm)),
-              const Padding(
-                padding: EdgeInsets.all(12),
+              ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
+                child: Container(
+                  height: 150,
+                  width: double.infinity,
+                  color: surfaceWarm,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _ShimmerBar(width: 120, height: 13),
-                    SizedBox(height: 8),
+                  children: const [
+                    _ShimmerBar(width: 140, height: 13),
+                    SizedBox(height: 10),
+                    _ShimmerBar(width: 100, height: 10),
+                    SizedBox(height: 10),
                     _ShimmerBar(width: 80, height: 10),
                   ],
                 ),
@@ -1403,6 +1708,9 @@ class _RestaurantSkeleton extends StatelessWidget {
   }
 }
 
+// ═══════════════════════════════════════════════════════════
+// _ShimmerBar
+// ═══════════════════════════════════════════════════════════
 class _ShimmerBar extends StatefulWidget {
   const _ShimmerBar({required this.width, required this.height});
   final double width;

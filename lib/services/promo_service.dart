@@ -1,5 +1,6 @@
 import 'package:dios_delices/providers/data_version_notifier.dart';
-import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
+import 'package:dios_delices/services/node_auth_service.dart';
+import 'package:dios_delices/services/session_service.dart';
 
 class PromoApplication {
   const PromoApplication({
@@ -23,34 +24,29 @@ class PromoService {
     if (code.isEmpty) return null;
 
     try {
-      final cloudFunction = ParseCloudFunction('validatePromoCode');
-      final response = await cloudFunction.execute(parameters: {
-        'code': code,
-        'subtotal': subtotal,
-        'orderAmount': subtotal,
-        'deliveryFee': deliveryFee,
-      });
+      final token = await SessionService.readNodeToken();
+      if (token == null) return null;
 
-      if (response.success && response.result != null) {
-        final result = response.result as Map<String, dynamic>;
-        if (result['success'] == true) {
-          final serverDiscount =
-              (result['discountAmount'] ?? result['discount']) as num?;
-          final percent =
-              (result['discountPercent'] as num?)?.toDouble() ?? 0.0;
-          final fixed =
-              (result['discountFixed'] as num?)?.toDouble() ?? 0.0;
-          final discountAmount = (serverDiscount?.toDouble() ??
-                  (percent > 0 ? subtotal * percent / 100 : fixed)
-                      .clamp(0.0, subtotal))
-              .toDouble();
-          if (discountAmount <= 0) return null;
-          return PromoApplication(
-            code: result['code']?.toString() ?? code,
-            description: result['description']?.toString() ?? 'Promotion',
-            discountAmount: discountAmount,
-          );
-        }
+      final response = await NodeAuthService.postJson(
+        '/promo-codes/validate',
+        token: token,
+        body: {
+          'code': code,
+          'subtotal': subtotal,
+          'deliveryFee': deliveryFee,
+        },
+      );
+
+      final data = response['data'];
+      if (data != null && data is Map) {
+        final discountAmount = (data['discountAmount'] as num?)?.toDouble() ?? 0.0;
+        if (discountAmount <= 0) return null;
+
+        return PromoApplication(
+          code: data['code']?.toString() ?? code,
+          description: data['description']?.toString() ?? 'Promotion',
+          discountAmount: discountAmount,
+        );
       }
       return null;
     } catch (e) {
@@ -60,12 +56,17 @@ class PromoService {
 
   static Future<List<Map<String, dynamic>>> getAllPromoCodes() async {
     try {
-      final cloudFunction = ParseCloudFunction('getAllPromoCodes');
-      final response = await cloudFunction.execute();
+      final token = await SessionService.readNodeToken();
+      if (token == null) return [];
 
-      if (response.success && response.result != null) {
-        final result = response.result as List<dynamic>;
-        return result.cast<Map<String, dynamic>>();
+      final response = await NodeAuthService.getJson(
+        '/promo-codes',
+        token: token,
+      );
+
+      final data = response['data'];
+      if (data is List) {
+        return data.cast<Map<String, dynamic>>();
       }
       return [];
     } catch (e) {
@@ -84,41 +85,28 @@ class PromoService {
     DateTime? validUntil,
   }) async {
     try {
-      final cloudFunction = ParseCloudFunction('createPromoCode');
-      final params = <String, dynamic>{
+      final token = await SessionService.readNodeToken();
+      if (token == null) return "Erreur : Non authentifié";
+
+      final body = <String, dynamic>{
         'code': code.toUpperCase(),
         'discountPercent': discountPercent,
         'discountFixed': discountFixed,
         'description': description,
         'minOrder': minOrder,
         'maxUses': maxUses,
+        if (validFrom != null) 'validFrom': validFrom.toIso8601String(),
+        if (validUntil != null) 'validUntil': validUntil.toIso8601String(),
       };
 
-      if (validFrom != null) {
-        params['validFrom'] = {
-          '__type': 'Date',
-          'iso': validFrom.toIso8601String(),
-        };
-      }
+      await NodeAuthService.postJson(
+        '/promo-codes',
+        token: token,
+        body: body,
+      );
 
-      if (validUntil != null) {
-        params['validUntil'] = {
-          '__type': 'Date',
-          'iso': validUntil.toIso8601String(),
-        };
-      }
-
-      final response = await cloudFunction.execute(parameters: params);
-
-      if (response.success && response.result != null) {
-        final result = response.result as Map<String, dynamic>;
-        if (result['success'] == false) {
-          return "Erreur : ${result['error']}";
-        }
-        notifyDataChanged();
-        return "success";
-      }
-      return "Erreur lors de l'appel de la fonction cloud";
+      notifyDataChanged();
+      return "success";
     } catch (e) {
       return "Exception : $e";
     }
@@ -126,16 +114,24 @@ class PromoService {
 
   static Future<bool> togglePromoActive(String code) async {
     try {
-      final cloudFunction = ParseCloudFunction('togglePromoCode');
-      final response = await cloudFunction.execute(parameters: {'code': code});
-      if (response.success && response.result != null) {
-        final result = response.result as Map<dynamic, dynamic>;
-        if (result['success'] == true) {
-          notifyDataChanged();
-          return true;
-        }
-      }
-      return false;
+      final token = await SessionService.readNodeToken();
+      if (token == null) return false;
+
+      // Chercher d'abord le promo-code pour l'ID (CRUD REST)
+      final all = await getAllPromoCodes();
+      final promo = all.firstWhere((p) => p['code'] == code, orElse: () => {});
+      if (promo.isEmpty || promo['id'] == null) return false;
+
+      final currentActive = promo['active'] == true;
+
+      await NodeAuthService.patchJson(
+        '/promo-codes/${promo['id']}',
+        token: token,
+        body: {'active': !currentActive},
+      );
+
+      notifyDataChanged();
+      return true;
     } catch (e) {
       return false;
     }
@@ -143,13 +139,20 @@ class PromoService {
 
   static Future<bool> deletePromoCode(String code) async {
     try {
-      final cloudFunction = ParseCloudFunction('deletePromoCode');
-      final response = await cloudFunction.execute(parameters: {'code': code});
-      if (response.success && response.result != null) {
-        notifyDataChanged();
-        return true;
-      }
-      return false;
+      final token = await SessionService.readNodeToken();
+      if (token == null) return false;
+
+      final all = await getAllPromoCodes();
+      final promo = all.firstWhere((p) => p['code'] == code, orElse: () => {});
+      if (promo.isEmpty || promo['id'] == null) return false;
+
+      await NodeAuthService.deleteJson(
+        '/promo-codes/${promo['id']}',
+        token: token,
+      );
+
+      notifyDataChanged();
+      return true;
     } catch (e) {
       return false;
     }
@@ -166,41 +169,32 @@ class PromoService {
     DateTime? validUntil,
   }) async {
     try {
-      final cloudFunction = ParseCloudFunction('updatePromoCode');
-      final params = <String, dynamic>{
+      final token = await SessionService.readNodeToken();
+      if (token == null) return "Erreur : Non authentifié";
+
+      final all = await getAllPromoCodes();
+      final promo = all.firstWhere((p) => p['code'] == code, orElse: () => {});
+      if (promo.isEmpty || promo['id'] == null) return "Code promo introuvable";
+
+      final body = <String, dynamic>{
         'code': code.toUpperCase(),
         'discountPercent': discountPercent,
         'discountFixed': discountFixed,
         'description': description,
         'minOrder': minOrder,
         'maxUses': maxUses,
+        if (validFrom != null) 'validFrom': validFrom.toIso8601String(),
+        if (validUntil != null) 'validUntil': validUntil.toIso8601String(),
       };
 
-      if (validFrom != null) {
-        params['validFrom'] = {
-          '__type': 'Date',
-          'iso': validFrom.toIso8601String(),
-        };
-      }
+      await NodeAuthService.patchJson(
+        '/promo-codes/${promo['id']}',
+        token: token,
+        body: body,
+      );
 
-      if (validUntil != null) {
-        params['validUntil'] = {
-          '__type': 'Date',
-          'iso': validUntil.toIso8601String(),
-        };
-      }
-
-      final response = await cloudFunction.execute(parameters: params);
-
-      if (response.success && response.result != null) {
-        final result = response.result as Map<String, dynamic>;
-        if (result['success'] == false) {
-          return "Erreur : ${result['error']}";
-        }
-        notifyDataChanged();
-        return "success";
-      }
-      return "Erreur lors de l'appel de la fonction cloud";
+      notifyDataChanged();
+      return "success";
     } catch (e) {
       return "Exception : $e";
     }
@@ -208,15 +202,16 @@ class PromoService {
 
   static Future<dynamic> createReferralCode(int userID) async {
     try {
-      final cloudFunction = ParseCloudFunction('createReferralCode');
-      final response = await cloudFunction.execute(parameters: {
-        'userID': userID,
-      });
+      final token = await SessionService.readNodeToken();
+      if (token == null) return null;
 
-      if (response.success && response.result != null) {
-        return response.result;
-      }
-      return null;
+      final response = await NodeAuthService.postJson(
+        '/promo-codes/referral/create',
+        token: token,
+        body: {'userID': userID},
+      );
+      
+      return response['data'];
     } catch (e) {
       return null;
     }
@@ -224,16 +219,19 @@ class PromoService {
 
   static Future<dynamic> applyReferralCode(String code, int newUserID) async {
     try {
-      final cloudFunction = ParseCloudFunction('applyReferralCode');
-      final response = await cloudFunction.execute(parameters: {
-        'code': code,
-        'newUserID': newUserID,
-      });
+      final token = await SessionService.readNodeToken();
+      if (token == null) return null;
 
-      if (response.success && response.result != null) {
-        return response.result;
-      }
-      return null;
+      final response = await NodeAuthService.postJson(
+        '/promo-codes/referral/apply',
+        token: token,
+        body: {
+          'code': code,
+          'newUserID': newUserID,
+        },
+      );
+
+      return response['data'];
     } catch (e) {
       return null;
     }

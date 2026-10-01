@@ -31,7 +31,7 @@ class _EmailInputScreenState extends State<EmailInputScreen> {
       if (mounted) setState(() => isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         backgroundColor: AppColors.error,
-        behavior: SnackBarBehavior.floating,
+        behavior: SnackBarBehavior.fixed,
         content: Text(AppLocalizations.of(context)!.no_account_for_email)));
       return;
     }
@@ -42,7 +42,7 @@ class _EmailInputScreenState extends State<EmailInputScreen> {
     if (sent == null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         backgroundColor: AppColors.error,
-        behavior: SnackBarBehavior.floating,
+        behavior: SnackBarBehavior.fixed,
         content: Text(AppLocalizations.of(context)!.reset_code_send_failed)));
       return;
     }

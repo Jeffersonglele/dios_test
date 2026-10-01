@@ -12,6 +12,8 @@ import '../../models/users.dart';
 import '../../providers/users_provider.dart';
 import '../../utils/hashtag_text_input_formatter.dart';
 import '../../utils/phone_number.dart';
+import '../../services/node_admin_service.dart';
+import '../../services/session_service.dart';
 import '../../utils/toast.dart';
 import '../../widgets/brand_avatar_logo.dart';
 import '../../widgets/dios_image.dart';
@@ -55,15 +57,14 @@ class _RestaurantUpdateFormPageState
   // Fonction pour envoyer un email à l'admin avec les infos du restaurant
   Future<void> _sendEmailToAdmin(
       String name, String address, String phone) async {
-    final cloudFunction = ParseCloudFunction('sendEmail');
-    try {
-      await cloudFunction.execute(parameters: {
-        'to': 'blandinedupont087@gmail.com',
-        'subject': 'Nouvelle demande de Restaurant',
-        'text': 'Nom du restaurant: $name\nAdresse: $address\nTéléphone: $phone',
-      });
-    } catch (e) {
-    }
+    final token = await SessionService.readNodeToken();
+    if (token == null) return;
+    await NodeAdminService.sendEmail(
+      to: 'blandinedupont087@gmail.com',
+      subject: 'Nouvelle demande de Restaurant',
+      text: 'Nom du restaurant: $name\nAdresse: $address\nTéléphone: $phone',
+      token: token,
+    );
   }
 
   @override

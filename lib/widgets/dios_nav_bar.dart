@@ -12,12 +12,14 @@ class DiosNavBar extends StatefulWidget {
     required this.currentIndex,
     required this.onTap,
     this.prominentIndex,
+    this.badges = const <int, int>{},
   });
 
   final List<DiosNavItem> items;
   final int currentIndex;
   final ValueChanged<int> onTap;
   final int? prominentIndex;
+  final Map<int, int> badges;
 
   @override
   State<DiosNavBar> createState() => _DiosNavBarState();
@@ -121,12 +123,14 @@ class _DiosNavBarState extends State<DiosNavBar>
             if (isProminent) {
               return _ProminentButton(
                 item: widget.items[index],
+                badgeCount: widget.badges[index] ?? 0,
                 onTap: () => widget.onTap(index),
               );
             }
 
             return _NavBarItem(
               item: widget.items[index],
+              badgeCount: widget.badges[index] ?? 0,
               isSelected: isSelected,
               animation: _indicatorController,
               isPrevious: index == _previousIndex,
@@ -173,6 +177,7 @@ class _NavBarItem extends StatelessWidget {
     required this.animation,
     required this.isPrevious,
     required this.onTap,
+    required this.badgeCount,
   });
 
   final DiosNavItem item;
@@ -180,6 +185,7 @@ class _NavBarItem extends StatelessWidget {
   final Animation<double> animation;
   final bool isPrevious;
   final VoidCallback onTap;
+  final int badgeCount;
 
   @override
   Widget build(BuildContext context) {
@@ -216,16 +222,27 @@ class _NavBarItem extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     // Icône
-                    IconTheme(
-                      data: IconThemeData(
-                        color: isSelected
-                            ? AppColors.resolve(
-                                AppColors.brand, AppDarkColors.brand)
-                            : AppColors.resolve(
-                                AppColors.inkMuted, AppDarkColors.inkMuted),
-                        size: 24,
-                      ),
-                      child: isSelected ? item.activeIcon : item.icon,
+                    Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        IconTheme(
+                          data: IconThemeData(
+                            color: isSelected
+                                ? AppColors.resolve(
+                                    AppColors.brand, AppDarkColors.brand)
+                                : AppColors.resolve(AppColors.inkMuted,
+                                    AppDarkColors.inkMuted),
+                            size: 24,
+                          ),
+                          child: isSelected ? item.activeIcon : item.icon,
+                        ),
+                        if (badgeCount > 0)
+                          Positioned(
+                            top: -9,
+                            right: -13,
+                            child: _NavBadge(count: badgeCount),
+                          ),
+                      ],
                     ),
                     const SizedBox(height: 2),
                     // Label
@@ -259,10 +276,12 @@ class _ProminentButton extends StatelessWidget {
   const _ProminentButton({
     required this.item,
     required this.onTap,
+    required this.badgeCount,
   });
 
   final DiosNavItem item;
   final VoidCallback onTap;
+  final int badgeCount;
 
   @override
   Widget build(BuildContext context) {
@@ -284,9 +303,17 @@ class _ProminentButton extends StatelessWidget {
             ),
           ],
         ),
-        child: IconTheme(
-          data: const IconThemeData(color: Colors.white, size: 26),
-          child: item.activeIcon,
+        child: Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.center,
+          children: [
+            IconTheme(
+              data: const IconThemeData(color: Colors.white, size: 26),
+              child: item.activeIcon,
+            ),
+            if (badgeCount > 0)
+              Positioned(top: -8, right: -10, child: _NavBadge(count: badgeCount)),
+          ],
         ),
       ),
     );
@@ -306,4 +333,34 @@ class DiosNavItem {
   final Widget activeIcon;
   final String label;
   final String? iosSystemName;
+}
+
+class _NavBadge extends StatelessWidget {
+  const _NavBadge({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = count > 99 ? '99+' : '$count';
+    return Container(
+      constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+      padding: const EdgeInsets.symmetric(horizontal: 5),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: AppColors.error,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.card, width: 1.5),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+          height: 1,
+        ),
+      ),
+    );
+  }
 }

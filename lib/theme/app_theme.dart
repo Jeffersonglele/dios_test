@@ -377,11 +377,12 @@ class AppTheme {
         prefixIconColor: AppColors.brandDark,
       ),
       snackBarTheme: SnackBarThemeData(
-        behavior: SnackBarBehavior.floating,
+        behavior: SnackBarBehavior.fixed,
         backgroundColor: AppColors.ink,
         contentTextStyle: AppTypography.bodyMedium(color: Colors.white),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
+          borderRadius:
+              BorderRadius.vertical(top: Radius.circular(AppRadius.md)),
         ),
       ),
       progressIndicatorTheme: const ProgressIndicatorThemeData(
@@ -554,12 +555,13 @@ class AppTheme {
         prefixIconColor: AppDarkColors.brand,
       ),
       snackBarTheme: SnackBarThemeData(
-        behavior: SnackBarBehavior.floating,
+        behavior: SnackBarBehavior.fixed,
         backgroundColor: AppDarkColors.ink,
         contentTextStyle:
             AppTypography.bodyMedium(color: AppDarkColors.surface),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
+          borderRadius:
+              BorderRadius.vertical(top: Radius.circular(AppRadius.md)),
         ),
       ),
       progressIndicatorTheme: const ProgressIndicatorThemeData(

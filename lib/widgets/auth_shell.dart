@@ -37,12 +37,10 @@ class AuthShell extends StatelessWidget {
           if (isWide) {
             return Row(
               children: [
-                // Gauche : uniquement l'image, aucun texte dessus
                 Expanded(
                   flex: 5,
                   child: Image(image: defaultImage, fit: BoxFit.cover),
                 ),
-                // Droite : Titre (centré) + Formulaire
                 Expanded(
                   flex: 6,
                   child: Center(
@@ -98,13 +96,6 @@ class AuthShell extends StatelessWidget {
             );
           }
 
-          // ══════════════════════════════════════════════════════════
-          // DESIGN MOBILE : l'image reste fixe en fond ; la carte est
-          // dans le SEUL scroll de l'écran, donc au défilement elle
-          // remonte et finit par couvrir entièrement l'image. Titre
-          // et sous-titre sont centrés, le formulaire reste aligné
-          // à gauche pour rester lisible.
-          // ══════════════════════════════════════════════════════════
           final size = MediaQuery.of(context).size;
           final imageHeight = size.height * 0.46;
           final cardTop = size.height * 0.30;
@@ -120,9 +111,6 @@ class AuthShell extends StatelessWidget {
                 child: Image(image: defaultImage, fit: BoxFit.cover),
               ),
 
-              // 2. Un seul scroll pour tout l'écran : un espace transparent
-              // (qui laisse voir l'image) puis la carte, qui remonte et
-              // couvre progressivement l'image quand on défile.
               Positioned.fill(
                 child: SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),

@@ -1,4 +1,3 @@
-
 import 'package:dios_delices/l10n/app_localizations.dart';
 import 'package:dios_delices/screens/onboarding/identity_created.dart';
 import 'package:dios_delices/models/users.dart';
@@ -9,6 +8,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:dios_delices/services/session_service.dart';
+import 'package:dios_delices/services/node_admin_service.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
@@ -100,8 +101,7 @@ class _UserIdentityRejectedState extends ConsumerState<UserIdentityRejected> {
 
       final XFile? image = await picker.pickImage(source: ImageSource.camera);
       if (image != null && mounted) {
-        final confirmed =
-            await showImageConfirmDialog(context, image);
+        final confirmed = await showImageConfirmDialog(context, image);
         if (confirmed != null && mounted) {
           setState(() => _userPhoto = confirmed);
         }
@@ -119,8 +119,7 @@ class _UserIdentityRejectedState extends ConsumerState<UserIdentityRejected> {
       final XFile? image = await picker.pickImage(source: ImageSource.gallery);
 
       if (image != null && mounted) {
-        final confirmed =
-            await showImageConfirmDialog(context, image);
+        final confirmed = await showImageConfirmDialog(context, image);
         if (confirmed != null && mounted) {
           setState(() => _userPhoto = confirmed);
         }
@@ -188,8 +187,7 @@ class _UserIdentityRejectedState extends ConsumerState<UserIdentityRejected> {
       final XFile? image = await picker.pickImage(source: ImageSource.gallery);
 
       if (image != null && mounted) {
-        final confirmed =
-            await showImageConfirmDialog(context, image);
+        final confirmed = await showImageConfirmDialog(context, image);
         if (confirmed != null && mounted) {
           setState(() => _identityFile = confirmed);
         }
@@ -277,14 +275,14 @@ class _UserIdentityRejectedState extends ConsumerState<UserIdentityRejected> {
 
   // Fonction pour envoyer un email à l'admin avec les infos du restaurant
   Future<void> _sendEmailToAdmin() async {
-    final cloudFunction = ParseCloudFunction('sendEmail');
-    try {
-      await cloudFunction.execute(parameters: {
-        'to': 'blandinedupont087@gmail.com',
-        'subject': 'Nouvelle identité en attente de vérification',
-        'text': "Connectez-vous pour valider ou non l'utilisateur.",
-      });
-    } catch (e) {}
+    final token = await SessionService.readNodeToken();
+    if (token == null) return;
+    await NodeAdminService.sendEmail(
+      to: 'blandinedupont087@gmail.com',
+      subject: 'Nouvelle identité en attente de vérification',
+      text: "Connectez-vous pour valider ou non l'utilisateur.",
+      token: token,
+    );
   }
 
   @override
@@ -437,7 +435,7 @@ class _UserIdentityRejectedState extends ConsumerState<UserIdentityRejected> {
 
                 SizedBox(height: 40),
 
-                // 🔘 Valider
+                //Valider
                 isLoading
                     ? Center(child: CircularProgressIndicator())
                     : Center(
@@ -477,8 +475,7 @@ class _UserIdentityRejectedState extends ConsumerState<UserIdentityRejected> {
                                 userPhoto_newFileName =
                                     "$nom_userPhoto$extension_userPhoto";
 
-                                parseFile_userPhoto = ParseXFile(
-                                    _userPhoto!,
+                                parseFile_userPhoto = ParseXFile(_userPhoto!,
                                     name: userPhoto_newFileName);
                               }
 

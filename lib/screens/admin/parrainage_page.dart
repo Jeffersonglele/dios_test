@@ -1,10 +1,11 @@
 import 'package:dios_delices/l10n/app_localizations.dart';
 import 'package:dios_delices/services/session_service.dart';
+import 'package:dios_delices/services/node_admin_service.dart';
+import 'package:dios_delices/services/promo_service.dart';
 import 'package:dios_delices/theme/app_theme.dart';
 import 'package:dios_delices/utils/currency_util.dart';
 import 'package:dios_delices/utils/toast.dart';
 import 'package:flutter/material.dart';
-import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 
 class ParrainagePage extends StatefulWidget {
   const ParrainagePage({super.key});
@@ -37,40 +38,33 @@ class _ParrainagePageState extends State<ParrainagePage> {
 
   Future<void> _loadStats() async {
     try {
-      final fn = ParseCloudFunction('getReferralStats');
-      final response = await fn.execute();
-      if (response.success && response.result != null) {
-        final data = response.result as Map<String, dynamic>;
-        if (mounted) {
-          setState(() {
-            _totalReferrals =
-                (data['totalReferrals'] as num?)?.toInt() ?? 0;
-            _activeCodes = (data['activeCodes'] as num?)?.toInt() ?? 0;
-            _rewardsGiven =
-                (data['rewardsGiven'] as num?)?.toInt() ?? 0;
-          });
-        }
+      final token = await SessionService.readNodeToken();
+      if (token == null) return;
+
+      final data = await NodeAdminService.getReferralStats(token);
+      if (mounted) {
+        setState(() {
+          _totalReferrals =
+              (data['totalReferrals'] as num?)?.toInt() ?? 0;
+          _activeCodes = (data['activeCodes'] as num?)?.toInt() ?? 0;
+          _rewardsGiven =
+              (data['rewardsGiven'] as num?)?.toInt() ?? 0;
+        });
       }
     } catch (_) {}
   }
 
   Future<void> _loadCodes() async {
     try {
-      final fn = ParseCloudFunction('getAllReferralCodes');
-      final response = await fn.execute();
-      if (response.success && response.result != null) {
-        final result = response.result;
-        if (result is List) {
-          if (mounted) {
-            setState(() {
-              _referralCodes = result
-                  .map((e) => e is Map<String, dynamic>
-                      ? e
-                      : <String, dynamic>{})
-                  .toList();
-            });
-          }
-        }
+      final allPromos = await PromoService.getAllPromoCodes();
+      final result = allPromos
+          .where((p) => p['description'] == 'Code de parrainage')
+          .toList();
+
+      if (mounted) {
+        setState(() {
+          _referralCodes = result;
+        });
       }
     } catch (_) {}
   }
@@ -264,7 +258,7 @@ class _ParrainagePageState extends State<ParrainagePage> {
                                           BorderRadius.circular(999),
                                     ),
                                     child: Text(
-                                      '${rc['usageCount'] ?? rc['uses'] ?? 0} utilisé${(rc['usageCount'] ?? rc['uses'] ?? 0) > 1 ? 's' : ''}',
+                                      '${rc['usageCount'] ?? rc['usedCount'] ?? rc['uses'] ?? 0} utilisé${(rc['usageCount'] ?? rc['usedCount'] ?? rc['uses'] ?? 0) > 1 ? 's' : ''}',
                                       style: AppTypography.labelMedium(
                                               color: AppColors.brand)
                                           .copyWith(fontSize: 11),
@@ -288,7 +282,8 @@ class _ParrainagePageState extends State<ParrainagePage> {
                                     ),
                                   ),
                                   if (rc['discount'] != null ||
-                                      rc['discountAmount'] != null) ...[
+                                      rc['discountAmount'] != null ||
+                                      rc['discountFixed'] != null) ...[
                                     const SizedBox(width: AppSpacing.sm),
                                     Container(
                                       padding: const EdgeInsets.symmetric(
@@ -301,7 +296,7 @@ class _ParrainagePageState extends State<ParrainagePage> {
                                             BorderRadius.circular(999),
                                       ),
                                       child: Text(
-                                        CurrencyUtil.formatPrice(((rc['discount'] ?? rc['discountAmount']) as num?)?.toDouble() ?? 0, _country),
+                                        CurrencyUtil.formatPrice(((rc['discount'] ?? rc['discountAmount'] ?? rc['discountFixed']) as num?)?.toDouble() ?? 0, _country),
                                         style: AppTypography.labelMedium(
                                                 color: AppColors.success)
                                             .copyWith(fontSize: 11),

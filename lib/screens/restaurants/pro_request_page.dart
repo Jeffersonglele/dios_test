@@ -7,7 +7,6 @@ import 'package:dios_delices/utils/toast.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:path/path.dart' as p;
 
 class ProRequestPage extends StatefulWidget {
@@ -106,23 +105,11 @@ class _ProRequestPageState extends State<ProRequestPage> {
     try {
       final session = await SessionService.readSession();
 
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final identityFile = ParseXFile(
-        _identityFile!,
-        name: _safeDocumentName(
-            'identity', session.userId, timestamp, _identityFile!),
-      );
-      final proDocFile = ParseXFile(
-        _proDocFile!,
-        name: _safeDocumentName(
-            'prodoc', session.userId, timestamp, _proDocFile!),
-      );
-
       final result = await ProDocument.submitDocuments(
         userID: session.userId,
         restaurantID: session.restaurantId ?? 0,
-        pieceIdentite: identityFile,
-        kbis: proDocFile,
+        pieceIdentitePath: _identityFile!.path,
+        kbisPath: _proDocFile!.path,
         description: _descriptionController.text.trim(),
       );
 

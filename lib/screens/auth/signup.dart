@@ -9,18 +9,20 @@ import '../../controllers/ui_controller.dart';
 import '../../core/app_role.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/users.dart';
+import '../../db/database_helper.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/phone_number.dart';
 import '../../utils/country_util.dart';
 import '../../utils/toast.dart';
 import '../legal/cgv_page.dart';
 import '../../services/session_service.dart';
+import '../../services/node_auth_service.dart';
 import '../../widgets/auth_shell.dart';
 import '../onboarding/verification_page.dart';
 import 'login.dart';
 
 // ═══════════════════════════════════════════════════════════
-// SignUpView — Inscription en 3 étapes (Design Moderne + Identité)
+// SignUpView — Inscription en 3 étapes
 // ═══════════════════════════════════════════════════════════
 
 class SignUpView extends StatefulWidget {
@@ -271,7 +273,8 @@ class _SignUpViewState extends State<SignUpView> {
                   textInputAction: TextInputAction.next,
                   onFieldSubmitted: (_) => _lastnameFocus.requestFocus(),
                   style: _fieldTextStyle(context),
-                  decoration: _decoration(context, hint: l10n.signup_first_name),
+                  decoration:
+                      _decoration(context, hint: l10n.signup_first_name),
                   validator: _minValidator(2, l10n.signup_min_chars(2)),
                 ),
               ),
@@ -522,77 +525,162 @@ class _SignUpViewState extends State<SignUpView> {
 
     setState(() => _isLoading = true);
 
+    NodeAuthSession? auth;
     try {
       final encrypted = await Users.encryptPassword(_passwordCtrl.text);
 
-      final result = await Users.manageUser(
-        roleID: _signupRole,
-        permisType: _signupRole == AppRole.livreur.id ? _permisType : null,
-        password: _passwordCtrl.text,
-        password_crypte: encrypted,
-        firstname: _firstnameCtrl.text,
-        lastname: _lastnameCtrl.text,
-        username: _usernameCtrl.text,
-        email: _emailCtrl.text,
-        telephone: phoneStorageFormatForCountry(
-          phone: _telephoneCtrl.text,
-          country: _selectedCountry,
-        ),
+      final telephoneLocal = phoneStorageFormatForCountry(
+        phone: _telephoneCtrl.text,
         country: _selectedCountry,
-        status: '',
-        identity: '',
-        addressID: 0,
-        ageConfirmed: _ageConfirmed,
       );
+      final telephoneE164 = phoneE164ForCountry(
+        phone: _telephoneCtrl.text,
+        country: _selectedCountry,
+      );
+      try {
+        auth = await NodeAuthService.register(
+          username: _usernameCtrl.text,
+          email: _emailCtrl.text,
+          password: _passwordCtrl.text,
+          firstname: _firstnameCtrl.text,
+          lastname: _lastnameCtrl.text,
+          telephone: telephoneLocal,
+          telephoneLocal: telephoneLocal,
+          telephoneE164: telephoneE164,
+          country: _selectedCountry,
+          accountType: _signupRole == AppRole.livreur.id ? 'livreur' : 'client',
+          ageConfirmed: _ageConfirmed,
+        );
+      } on NodeAuthException catch (error) {
+        // Une première requête peut avoir créé le compte alors que la réponse
+        // ou la navigation a été interrompue. Dans ce cas, le nouvel essai
+        // reçoit 409. On reprend uniquement le même compte, jamais un compte
+        // qui ne correspondrait qu'à l'e-mail ou au pseudo.
+        if (error.statusCode != 409) rethrow;
+
+        NodeAuthSession? resumedAuth;
+        for (final identifier in <String>[
+          _usernameCtrl.text.trim(),
+          _emailCtrl.text.trim(),
+        ]) {
+          try {
+            final candidate = await NodeAuthService.login(
+              identifier: identifier,
+              password: _passwordCtrl.text,
+            );
+            final candidateUsername =
+                candidate.user['username']?.toString().trim().toLowerCase();
+            final candidateEmail =
+                candidate.user['email']?.toString().trim().toLowerCase();
+            final requestedUsername =
+                _usernameCtrl.text.trim().toLowerCase();
+            final requestedEmail = _emailCtrl.text.trim().toLowerCase();
+
+            if (candidateUsername == requestedUsername &&
+                candidateEmail == requestedEmail) {
+              resumedAuth = candidate;
+              break;
+            }
+          } on NodeAuthException catch (loginError) {
+            // Un profil métier manquant correspond au même compte orphelin
+            // que le 409 initial. On conserve donc l'erreur d'inscription,
+            // au lieu d'afficher le 404 secondaire renvoyé par le login.
+            if (loginError.statusCode != 401 &&
+                loginError.statusCode != 404) {
+              rethrow;
+            }
+          }
+        }
+
+        if (resumedAuth == null) rethrow;
+        auth = resumedAuth;
+      }
 
       if (!mounted) return;
 
-      final createdUserId =
-          result is num ? result.toInt() : int.tryParse(result.toString());
+      final authSession = auth;
+      if (authSession == null) {
+        throw const NodeAuthException('Session d’inscription introuvable.');
+      }
 
-      if (createdUserId != null && createdUserId > 0) {
+      final user = Users.fromNodeAuth(authSession.user);
+      final createdUserId = user.userID;
+
+      final hasToken = authSession.token.isNotEmpty;
+      final userIdValid = createdUserId > 0;
+
+      if (!userIdValid && !hasToken) {
+        final fields = <String>[
+          if (authSession.user['userId'] != null)
+            'userId=${authSession.user['userId']}',
+          if (authSession.user['id'] != null) 'id=${authSession.user['id']}',
+          if (authSession.user['userID'] != null)
+            'userID=${authSession.user['userID']}',
+        ];
+        final detail = fields.isEmpty ? 'champ ID absent' : fields.join(', ');
+        Toast(
+          context,
+          l10n.signup_create_error('Compte non créé côté serveur ($detail).'),
+          false,
+        );
+        return;
+      }
+
+      int effectiveUserId = createdUserId;
+      try {
+        if (userIdValid) {
+          await DatabaseHelper.createUser(user);
+        }
         try {
-          final authenticatedUser =
-              await Users.loginUser(_usernameCtrl.text, _passwordCtrl.text);
-          if (authenticatedUser != null) {
-            await SessionService.saveUserSession(
-              userId: createdUserId,
-              role: AppRole.fromId(_signupRole),
-              country: _selectedCountry,
-              email: _emailCtrl.text,
+          if (userIdValid) {
+            await SessionService.saveNodeSession(
+              token: authSession.token,
+              userId: effectiveUserId,
+              role: AppRole.fromId(user.roleID),
+              country: user.country.isEmpty ? _selectedCountry : user.country,
+              email: user.email.isEmpty ? _emailCtrl.text.trim() : user.email,
             );
           }
         } catch (_) {}
+      } catch (_) {
+        if (!userIdValid) effectiveUserId = 0;
+      }
 
-        if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) => VerificationPage(
-                email: _emailCtrl.text,
-                username: _usernameCtrl.text,
-                userID: createdUserId,
-                roleID: _signupRole,
-                telephone: phoneStorageFormatForCountry(
-                  phone: _telephoneCtrl.text,
-                  country: _selectedCountry,
-                ),
-                password_crypte: encrypted,
-                firstname: _firstnameCtrl.text,
-                country: _selectedCountry,
-                indicatif: _countryCodes[_selectedCountry] ?? '+243',
-                lastname: _lastnameCtrl.text,
-              ),
-            ),
-          );
-        }
-      } else {
-        Toast(context, l10n.signup_create_error(result.toString()), false);
-      }
+      if (!mounted) return;
+
+      final navigatorUserId = effectiveUserId > 0
+          ? effectiveUserId
+          : (int.tryParse(authSession.user['userId']?.toString() ??
+                  authSession.user['id']?.toString() ??
+                  '') ??
+              0);
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => VerificationPage(
+            email: _emailCtrl.text.trim(),
+            username: _usernameCtrl.text.trim(),
+            userID: navigatorUserId,
+            roleID: user.roleID,
+            telephone: telephoneLocal,
+            password_crypte: encrypted,
+            firstname: _firstnameCtrl.text.trim(),
+            country: _selectedCountry,
+            indicatif: _countryCodes[_selectedCountry] ?? '+243',
+            lastname: _lastnameCtrl.text.trim(),
+          ),
+        ),
+      );
     } catch (e) {
-      if (mounted) {
-        Toast(context, l10n.error_generic, false);
-      }
+      if (!mounted) return;
+      final isAuthEx = e is NodeAuthException;
+      final baseMessage = isAuthEx ? e.message : e.toString();
+      final statusHint =
+          isAuthEx && e.statusCode != null ? ' (HTTP ${e.statusCode})' : '';
+      final userMessage =
+          auth == null ? '$baseMessage$statusHint' : baseMessage;
+      Toast(context, userMessage, false);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

@@ -3,10 +3,11 @@ import 'package:dios_delices/l10n/app_localizations.dart';
 import 'package:dios_delices/providers/data_version_notifier.dart';
 import 'package:dios_delices/theme/app_theme.dart';
 import 'package:flutter/material.dart';
-import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import '../../models/restaurant.dart';
 import '../../models/users.dart';
 import '../../widgets/dios_image.dart';
+import '../../services/node_admin_service.dart';
+import '../../services/session_service.dart';
 import '../../utils/toast.dart';
 import 'restaurant_details.dart';
 
@@ -50,17 +51,14 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
             'Pour plus d’informations, n’hésitez pas à nous contacter.\n\n'
             'Cordialement,\nL’équipe Dios Délices';
 
-    final cloudFunction = ParseCloudFunction('sendEmail');
-    try {
-      await cloudFunction.execute(parameters: {
-        'to': recipientEmail,
-        'subject': subject,
-        'text': messageText,
-      });
-      return true;
-    } catch (e) {
-      return false;
-    }
+    final token = await SessionService.readNodeToken();
+    if (token == null) return false;
+    return await NodeAdminService.sendEmail(
+      to: recipientEmail,
+      subject: subject,
+      text: messageText,
+      token: token,
+    );
   }
 
   @override
@@ -82,16 +80,47 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
   }
 
   Future<void> loadData() async {
-    List<Users> usersList = await Users.fetchUsersFromDB();
-    List<Restaurant> restausList = await Restaurant.fetchRestaurantsFromDB();
+    final nodeToken = await SessionService.readNodeToken();
 
+    // En session Node, la source de vérité est l'API Node, pas le cache
+    // historique alimenté par Parse/Hive.
+    if (nodeToken?.trim().isNotEmpty == true) {
+      try {
+        final results = await Future.wait<dynamic>([
+          NodeAdminService.getUsers(token: nodeToken!, country: widget.country),
+          NodeAdminService.getRestaurants(token: nodeToken, country: widget.country),
+        ]);
+        final usersList = results[0] as List<Users>;
+        final restausList = results[1] as List<Restaurant>;
+        if (!mounted) return;
+        setState(() {
+          users = usersList;
+          restaus = restausList;
+          filteredRestaurants = [];
+          isLoading = true;
+        });
+        await _fetchRestaurantsByCountry();
+      } catch (error) {
+        if (!mounted) return;
+        setState(() {
+          users = [];
+          restaus = [];
+          filteredRestaurants = [];
+          isLoading = false;
+        });
+        Toast(context, 'Erreur : chargement Node impossible ($error)', false);
+      }
+      return;
+    }
+
+    if (!mounted) return;
     setState(() {
-      users = usersList;
-      restaus = restausList;
+      users = [];
+      restaus = [];
       filteredRestaurants = [];
-      isLoading = true;
+      isLoading = false;
     });
-    await _fetchRestaurantsByCountry();
+    Toast(context, 'Session Node.js administrateur introuvable.', false);
   }
 
   Future<void> _fetchRestaurantsByCountry() async {
@@ -656,11 +685,12 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
   }
 
   Future<void> _validateRestaurant(Restaurant restaurant) async {
-    final updateResult =
-        await Restaurant.updateRestaurantStatus(restaurant.restaurantID, 1);
-    if (updateResult == "success") {
-      final emailSent = await _sendEmailToUser(restaurant, true);
-      if (mounted) {
+    final token = await SessionService.readNodeToken();
+    if (token?.trim().isNotEmpty == true) {
+      try {
+        await NodeAdminService.validateRestaurant(restaurant.restaurantID, token!);
+        final emailSent = await _sendEmailToUser(restaurant, true);
+        if (!mounted) return;
         setState(() => restaurant.valid = 1);
         Toast(
             context,
@@ -668,18 +698,25 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
                 emailSent ? ' et un email a été envoyé.' : '.',
                 restaurant.name),
             emailSent);
+      } catch (error) {
+        if (mounted) Toast(context, 'Erreur Node : $error', false);
       }
-    } else {
-      if (mounted) Toast(context, "Erreur : $updateResult", false);
+      return;
+    }
+
+    if (mounted) {
+      Toast(context, 'Session Node.js administrateur introuvable.', false);
     }
   }
 
   Future<void> _rejectRestaurant(Restaurant restaurant, String remark) async {
-    final updateResult =
-        await Restaurant.updateRestaurantStatus(restaurant.restaurantID, 2);
-    if (updateResult == "success") {
-      final emailSent = await _sendEmailToUser(restaurant, false, remark);
-      if (mounted) {
+    final token = await SessionService.readNodeToken();
+    if (token?.trim().isNotEmpty == true) {
+      try {
+        await NodeAdminService.rejectRestaurant(
+            restaurant.restaurantID, remark, token!);
+        final emailSent = await _sendEmailToUser(restaurant, false, remark);
+        if (!mounted) return;
         setState(() => restaurant.valid = 2);
         Toast(
             context,
@@ -687,9 +724,14 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
                 emailSent ? ' et un email a été envoyé.' : '.',
                 restaurant.name),
             false);
+      } catch (error) {
+        if (mounted) Toast(context, 'Erreur Node : $error', false);
       }
-    } else {
-      if (mounted) Toast(context, "Erreur : $updateResult", false);
+      return;
+    }
+
+    if (mounted) {
+      Toast(context, 'Session Node.js administrateur introuvable.', false);
     }
   }
 }

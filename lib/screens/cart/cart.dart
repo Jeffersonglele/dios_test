@@ -18,6 +18,10 @@ import '../../providers/selected_delivery.dart';
 import '../../services/commande_api.dart';
 import '../../services/delivery_availability_service.dart';
 import '../../services/notification_service.dart';
+import '../../services/node_home_service.dart';
+import '../../services/node_order_service.dart';
+import '../../services/node_auth_service.dart';
+import '../../services/node_catalog_service.dart';
 import '../../services/promo_service.dart';
 import '../../services/restaurant_opening_hours_service.dart';
 import '../../services/session_service.dart';
@@ -101,7 +105,18 @@ class _CartState extends ConsumerState<Cart> {
     await ref
         .read(cartStateProvider.notifier)
         .activateUser(session.userId, refreshRemote: true);
-    final addressesList = await delivery.Address.fetchAddressesFromDB();
+    var addressesList = await delivery.Address.fetchAddressesFromDB();
+    Users? nodeUser;
+    final nodeToken = await SessionService.readNodeToken();
+    if (nodeToken != null) {
+      try {
+        final snapshot = await NodeHomeService.load(token: nodeToken);
+        addressesList = snapshot.addresses;
+        nodeUser = snapshot.user;
+      } catch (_) {
+        // Le cache local reste utilisable si le backend est momentanément indisponible.
+      }
+    }
     if (!mounted) return;
     setState(() {
       addresses = addressesList;
@@ -111,7 +126,7 @@ class _CartState extends ConsumerState<Cart> {
     });
     final user = await DatabaseHelper.getUser(current_userID);
     if (!mounted) return;
-    _cityID = user?.cityID ?? 1;
+    _cityID = nodeUser?.cityID ?? user?.cityID ?? 1;
     await _filterAddresses();
     await _refreshCartDeliveryAvailability(
         _itemsForRestaurant(ref.read(cartStateProvider)));
@@ -131,9 +146,20 @@ class _CartState extends ConsumerState<Cart> {
     final restaurantId =
         (cartItems.first['restaurant'] as Map<String, dynamic>?)?['restau_id'];
     if (restaurantId == null) return;
-    final restaurants = await Restaurant.fetchRestaurantsFromDB();
-    final restaurant = Restaurant.getRestaurantByRestaurantId(
-        restaurants, int.tryParse(restaurantId.toString()) ?? 0);
+    Restaurant? restaurant;
+    final nodeToken = await SessionService.readNodeToken();
+    if (nodeToken != null) {
+      try {
+        restaurant = await NodeCatalogService.loadRestaurant(
+          restaurantId: int.tryParse(restaurantId.toString()) ?? 0,
+          token: nodeToken,
+        );
+      } catch (_) {}
+    } else {
+      final restaurants = await Restaurant.fetchRestaurantsFromDB();
+      restaurant = Restaurant.getRestaurantByRestaurantId(
+          restaurants, int.tryParse(restaurantId.toString()) ?? 0);
+    }
     if (restaurant == null) return;
     final availability = await DeliveryAvailabilityService.forRestaurant(
       restaurant,
@@ -142,7 +168,7 @@ class _CartState extends ConsumerState<Cart> {
     if (mounted) {
       setState(() {
         _cartDeliveryAvailability = availability;
-        _cartOpeningStatus = restaurant.openingStatus;
+        _cartOpeningStatus = restaurant?.openingStatus;
       });
     }
   }
@@ -159,7 +185,13 @@ class _CartState extends ConsumerState<Cart> {
   }
 
   Future<void> refreshAddresses() async {
-    final list = await delivery.Address.fetchAddressesFromDB();
+    var list = await delivery.Address.fetchAddressesFromDB();
+    final nodeToken = await SessionService.readNodeToken();
+    if (nodeToken != null) {
+      try {
+        list = (await NodeHomeService.load(token: nodeToken)).addresses;
+      } catch (_) {}
+    }
     setState(() => addresses = list);
     await _filterAddresses();
   }
@@ -440,15 +472,16 @@ class _CartState extends ConsumerState<Cart> {
       if (response.success && response.result is Map) {
         final data = Map<String, dynamic>.from(response.result as Map);
         final baseFee = (data['baseFee'] as num?)?.toDouble() ?? 2000;
-        final increment =
-            (data['roundingIncrement'] as num?)?.toDouble() ?? 50;
+        final increment = (data['roundingIncrement'] as num?)?.toDouble() ?? 50;
         final minFee = (data['minFee'] as num?)?.toDouble() ?? 0;
-        final roundedBase = (baseFee / math.max(1, increment)).ceil() *
-            math.max(1, increment);
-        return math.max(
-          roundedBase,
-          minFee > 0 ? minFee : baseFee,
-        ).toDouble();
+        final roundedBase =
+            (baseFee / math.max(1, increment)).ceil() * math.max(1, increment);
+        return math
+            .max(
+              roundedBase,
+              minFee > 0 ? minFee : baseFee,
+            )
+            .toDouble();
       }
     } catch (_) {}
 
@@ -460,6 +493,24 @@ class _CartState extends ConsumerState<Cart> {
   Future<double> calculateDeliveryFee(
       List<Map<String, dynamic>> cartItems) async {
     if (cartItems.isEmpty) return _staticDeliveryFee(cartItems);
+    final nodeToken = await SessionService.readNodeToken();
+    if (nodeToken != null && selectedAddress?.addressID != null) {
+      final restaurant = cartItems.first['restaurant'] as Map<String, dynamic>?;
+      final restaurantId =
+          int.tryParse(restaurant?['restau_id']?.toString() ?? '');
+      if (restaurantId != null) {
+        try {
+          final quote = await NodeOrderService.quoteDelivery(
+            token: nodeToken,
+            restaurantId: restaurantId,
+            addressId: selectedAddress!.addressID!,
+          );
+          if (quote['available'] == true) {
+            return (quote['deliveryFee'] as num?)?.toDouble() ?? 0;
+          }
+        } catch (_) {}
+      }
+    }
     if (selectedAddress == null) {
       return _configuredDeliveryFeeFallback(cartItems);
     }
@@ -509,8 +560,8 @@ class _CartState extends ConsumerState<Cart> {
     ].join('|');
   }
 
-  void _ensureDisplayedDeliveryFee(List<Map<String, dynamic>> cartItems,
-      String deliveryMode) {
+  void _ensureDisplayedDeliveryFee(
+      List<Map<String, dynamic>> cartItems, String deliveryMode) {
     if (deliveryMode != kDeliveryOptionLivraison || cartItems.isEmpty) {
       _deliveryFeeKey = null;
       _calculatedDeliveryFee = null;
@@ -524,7 +575,8 @@ class _CartState extends ConsumerState<Cart> {
     _calculatedDeliveryFee = null;
     final requestId = ++_deliveryFeeRequestId;
     calculateDeliveryFee(cartItems).then((fee) {
-      if (!mounted || requestId != _deliveryFeeRequestId ||
+      if (!mounted ||
+          requestId != _deliveryFeeRequestId ||
           _deliveryFeeKey != key) {
         return;
       }
@@ -1122,6 +1174,11 @@ class _CartState extends ConsumerState<Cart> {
   // ── Logique métier (inchangée) ──────────────────────────
   Future<bool> _checkAddressInZone(delivery.Address address) async {
     final l10n = AppLocalizations.of(context)!;
+    if (await SessionService.hasNodeSession()) {
+      // Le devis Node est la source de vérité et revalidera l'adresse dans
+      // createOrder. Cela évite de consulter l'ancien Cloud Code Parse.
+      return true;
+    }
     final lat = double.tryParse(address.lat ?? '');
     final lng = double.tryParse(address.long ?? '');
     if (lat == null || lng == null) {
@@ -1278,40 +1335,65 @@ class _CartState extends ConsumerState<Cart> {
         Toast(context, AppLocalizations.of(context)!.cart_order_failed, false);
         return;
       }
-      final session = await SessionService.readSession();
-      final usersList = await Users.fetchUsersFromDB();
-      final currentUser = Users.getUsersByUserId(usersList, session.userId);
-
-      final response = await ParseCloudFunction('createNyoleCheckout')
-          .execute(parameters: {
-        'commandeID': int.tryParse(commandeId),
-        'customerName':
-            '${currentUser?.firstname ?? ""} ${currentUser?.lastname ?? ""}',
-        'customerEmail': currentUser?.email ?? '',
-        'customerPhone': currentUser?.telephone?.toString() ?? '',
-      });
-      if (response.success && response.result is Map) {
-        final data = Map<String, dynamic>.from(response.result as Map);
+      Map<String, dynamic>? data;
+      final nodeToken = await SessionService.readNodeToken();
+      if (nodeToken != null) {
+        final orders = await NodeOrderService.listMine(
+          token: nodeToken,
+          userId: current_userID,
+        );
+        Map<String, dynamic>? nodeOrder;
+        for (final order in orders) {
+          if (order['orderId']?.toString() == commandeId) {
+            nodeOrder = order;
+            break;
+          }
+        }
+        final orderUuid = nodeOrder?['id']?.toString();
+        if (orderUuid == null || orderUuid.isEmpty) {
+          throw const NodeAuthException('Commande Node introuvable.');
+        }
+        data = await NodeOrderService.initializeNyole(
+          token: nodeToken,
+          orderUuid: orderUuid,
+        );
+      } else {
+        final session = await SessionService.readSession();
+        final usersList = await Users.fetchUsersFromDB();
+        final currentUser = Users.getUsersByUserId(usersList, session.userId);
+        final response = await ParseCloudFunction('createNyoleCheckout')
+            .execute(parameters: {
+          'commandeID': int.tryParse(commandeId),
+          'customerName':
+              '${currentUser?.firstname ?? ""} ${currentUser?.lastname ?? ""}',
+          'customerEmail': currentUser?.email ?? '',
+          'customerPhone': currentUser?.telephone?.toString() ?? '',
+        });
+        if (response.success && response.result is Map) {
+          data = Map<String, dynamic>.from(response.result as Map);
+        }
+      }
+      if (data != null) {
         final paymentUrl = data['paymentUrl']?.toString();
         if (paymentUrl != null && paymentUrl.isNotEmpty) {
-           final uri = Uri.parse(paymentUrl);
-           if (!await canLaunchUrl(uri)) {
-             throw Exception('Impossible d’ouvrir la page de paiement Nyole.');
-           }
-           await launchUrl(uri, mode: LaunchMode.externalApplication);
-           final restaurantId = int.tryParse(
-                   cartItems.first['restaurant']['restau_id'].toString()) ??
-               0;
-           await cartNotifier.clearRestaurantCart(restaurantId);
-           if (mounted) {
-             Navigator.pushReplacement(
-                 context,
-                 MaterialPageRoute(
-                     builder: (_) => OrderConfirmationPage(
-                           commandeId: commandeId,
-                           paymentPending: true,
-                         )));
-           }
+          final uri = Uri.parse(paymentUrl);
+          if (!await canLaunchUrl(uri)) {
+            throw Exception('Impossible d’ouvrir la page de paiement Nyole.');
+          }
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+          final restaurantId = int.tryParse(
+                  cartItems.first['restaurant']['restau_id'].toString()) ??
+              0;
+          await cartNotifier.clearRestaurantCart(restaurantId);
+          if (mounted) {
+            Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => OrderConfirmationPage(
+                          commandeId: commandeId,
+                          paymentPending: true,
+                        )));
+          }
         } else {
           Toast(context, AppLocalizations.of(context)!.cart_payment_url_error,
               false);
@@ -1342,6 +1424,43 @@ class _CartState extends ConsumerState<Cart> {
     String? promoCode,
     int cityID = 1,
   }) async {
+    final nodeToken = await SessionService.readNodeToken();
+    if (nodeToken != null) {
+      final restaurantId = int.tryParse(
+        (cartItems.first['restaurant'] as Map)['restau_id'].toString(),
+      );
+      if (restaurantId == null) return null;
+      final lines = cartItems.map<Map<String, dynamic>>((item) {
+        final meal = Map<String, dynamic>.from(item['meal'] as Map);
+        final order = Map<String, dynamic>.from(item['order'] as Map);
+        return {
+          'dishId': meal['mealID'],
+          'quantity': order['quantity'],
+          if (item['optionDetails'] is Map) 'options': item['optionDetails'],
+        };
+      }).toList();
+      final result = await NodeOrderService.create(
+        token: nodeToken,
+        userId: current_userID,
+        restaurantId: restaurantId,
+        lines: lines,
+        deliveryMode: deliveryMode,
+        addressId: idAdresse,
+        paymentMethod: idPaiement ?? (_payOnline ? 'NYOLE' : 'CASH'),
+        reduction: reduction,
+        promoCode: promoCode,
+        cityId: cityID,
+      );
+      final order = result['order'];
+      if (order is! Map) return null;
+      final normalizedOrder = Map<String, dynamic>.from(order);
+      await DatabaseHelper.createCommande(
+        NodeOrderService.toLegacyCommande(normalizedOrder),
+      );
+      return (normalizedOrder['orderId'] ?? normalizedOrder['commandeID'] ?? '')
+          .toString();
+    }
+
     final restaurantsList = await Restaurant.fetchRestaurantsFromDB();
     final restaurantId = cartItems.first['restaurant']['restau_id'];
     final currentRestaurant =
@@ -1649,62 +1768,59 @@ class OrderConfirmationPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final content = SafeArea(
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    paymentPending
-                        ? const Icon(Icons.hourglass_top_rounded,
-                            size: 76, color: Colors.orange)
-                        : const AnimatedSuccessCheck(),
-                    const SizedBox(height: 28),
-                    Text(paymentPending
-                        ? l10n.pending
-                        : l10n.cart_order_confirm_message,
-                        style: AppTypography.headlineMedium(
-                          color: AppColors.resolve(
-                              AppColors.ink, AppDarkColors.ink),
-                        ),
-                        textAlign: TextAlign.center),
-                    const SizedBox(height: 12),
-                    Text(
-                      paymentPending
-                          ? l10n.tracking_pending_label
-                          : l10n.cart_order_confirmed_message(commandeId),
-                      style: AppTypography.bodyLarge(
-                        color:
-                            AppColors.resolve(AppColors.ink, AppDarkColors.ink),
-                      ),
-                      textAlign: TextAlign.center,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              paymentPending
+                  ? const Icon(Icons.hourglass_top_rounded,
+                      size: 76, color: Colors.orange)
+                  : const AnimatedSuccessCheck(),
+              const SizedBox(height: 28),
+              Text(
+                  paymentPending
+                      ? l10n.pending
+                      : l10n.cart_order_confirm_message,
+                  style: AppTypography.headlineMedium(
+                    color: AppColors.resolve(AppColors.ink, AppDarkColors.ink),
+                  ),
+                  textAlign: TextAlign.center),
+              const SizedBox(height: 12),
+              Text(
+                paymentPending
+                    ? l10n.tracking_pending_label
+                    : l10n.cart_order_confirmed_message(commandeId),
+                style: AppTypography.bodyLarge(
+                  color: AppColors.resolve(AppColors.ink, AppDarkColors.ink),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 32),
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          OrderTrackingPage(highlightedCommandeId: commandeId),
                     ),
-                    const SizedBox(height: 32),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 56,
-                      child: ElevatedButton(
-                        onPressed: () => Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => OrderTrackingPage(
-                                highlightedCommandeId: commandeId),
-                          ),
-                        ),
-                        child: Text(l10n.cart_track_order),
-                      ),
-                    ),
-                  ],
+                  ),
+                  child: Text(l10n.cart_track_order),
                 ),
               ),
-            ),
-          );
+            ],
+          ),
+        ),
+      ),
+    );
     return Scaffold(
       backgroundColor:
           AppColors.resolve(AppColors.surface, AppDarkColors.surface),
-      body: paymentPending
-          ? content
-          : OrderConfettiCelebration(child: content),
+      body: paymentPending ? content : OrderConfettiCelebration(child: content),
     );
   }
 }

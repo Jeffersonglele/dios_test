@@ -1,7 +1,8 @@
 import 'package:hive/hive.dart';
-import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 
 import '../db/database_helper.dart';
+import '../services/node_auth_service.dart';
+import '../services/session_service.dart';
 
 part 'pro_document.g.dart';
 
@@ -62,133 +63,143 @@ class ProDocument extends HiveObject {
 
   factory ProDocument.fromMap(Map<String, dynamic> map) {
     return ProDocument(
-      documentID: int.tryParse(map['documentID']?.toString() ?? '0') ?? 0,
-      userID: int.tryParse(map['userID']?.toString() ?? '0') ?? 0,
-      restaurantID: int.tryParse(map['restaurantID']?.toString() ?? '0') ?? 0,
+      documentID: int.tryParse(map['documentID']?.toString() ?? map['documentId']?.toString() ?? '0') ?? 0,
+      userID: int.tryParse(map['userID']?.toString() ?? map['userId']?.toString() ?? '0') ?? 0,
+      restaurantID: int.tryParse(map['restaurantID']?.toString() ?? map['restaurantId']?.toString() ?? '0') ?? 0,
       siretUrl: map['siretUrl']?.toString() ?? '',
       kbisUrl: map['kbisUrl']?.toString() ?? '',
-      pieceIdentiteUrl: map['pieceIdentiteUrl']?.toString() ?? '',
+      pieceIdentiteUrl: map['pieceIdentiteUrl']?.toString() ?? map['identityDocumentUrl']?.toString() ?? '',
       status: map['status']?.toString() ?? 'pending',
       remark: map['remark']?.toString() ?? '',
       description: map['description']?.toString() ?? '',
     );
   }
 
+  /// Upload a single file to the Node.js backend, returns the URL.
+  static Future<String?> _uploadFile(String filePath, String token) async {
+    try {
+      final response = await NodeAuthService.uploadFile(
+        '/uploads/image',
+        token: token,
+        filePath: filePath,
+        scope: 'pro-documents',
+      );
+      final data = response['data'];
+      if (data is Map) {
+        return data['url']?.toString();
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
   static Future<String> submitDocuments({
     int? documentID,
     required int userID,
     required int restaurantID,
-    ParseFileBase? siret,
-    ParseFileBase? kbis,
-    ParseFileBase? pieceIdentite,
+    String? siretPath,
+    String? kbisPath,
+    String? pieceIdentitePath,
     String? description,
   }) async {
-    String functionName = documentID == null
-        ? 'submitRestaurantProDocuments'
-        : 'updateRestaurantProDocuments';
-    var cloudFunction = ParseCloudFunction(functionName);
-    String? uploadError;
+    final token = await SessionService.readNodeToken();
+    if (token == null) return "Erreur : session expirée, veuillez vous reconnecter.";
 
-    Future<String?> uploadFile(ParseFileBase file) async {
-      try {
-        final response = await file.save();
-        if (response.success && response.result != null) {
-          return (response.result as ParseFileBase).url ?? '';
-        }
-        uploadError = response.error?.message;
-      } catch (e) {
-        uploadError = e.toString();
-      }
-      return null;
-    }
-
+    // Upload files if provided
     String? siretUrl;
-    if (siret != null) {
-      siretUrl = await uploadFile(siret);
-      if (siretUrl == null) {
-        return "Erreur : l'upload du SIRET a échoué.";
-      }
+    if (siretPath != null) {
+      siretUrl = await _uploadFile(siretPath, token);
+      if (siretUrl == null) return "Erreur : l'upload du SIRET a échoué.";
     }
 
     String? kbisUrl;
-    if (kbis != null) {
-      kbisUrl = await uploadFile(kbis);
-      if (kbisUrl == null) {
-        final detail = uploadError == null ? '' : ' ($uploadError)';
-        return "Erreur : l'upload du KBIS a échoué$detail";
-      }
+    if (kbisPath != null) {
+      kbisUrl = await _uploadFile(kbisPath, token);
+      if (kbisUrl == null) return "Erreur : l'upload du KBIS a échoué.";
     }
 
     String? pieceIdentiteUrl;
-    if (pieceIdentite != null) {
-      pieceIdentiteUrl = await uploadFile(pieceIdentite);
-      if (pieceIdentiteUrl == null) {
-        return "Erreur : l'upload de la pièce d'identité a échoué.";
-      }
+    if (pieceIdentitePath != null) {
+      pieceIdentiteUrl = await _uploadFile(pieceIdentitePath, token);
+      if (pieceIdentiteUrl == null) return "Erreur : l'upload de la pièce d'identité a échoué.";
     }
 
-    var params = <String, dynamic>{
-      if (documentID != null) 'documentID': documentID,
-      'userID': userID,
-      'restaurantID': restaurantID,
+    final body = <String, dynamic>{
+      'userId': userID,
+      'restaurantId': restaurantID,
       if (siretUrl != null) 'siretUrl': siretUrl,
       if (kbisUrl != null) 'kbisUrl': kbisUrl,
-      if (pieceIdentiteUrl != null) 'pieceIdentiteUrl': pieceIdentiteUrl,
+      if (pieceIdentiteUrl != null) 'identityDocumentUrl': pieceIdentiteUrl,
       if (description != null && description.isNotEmpty) 'description': description,
+      'status': 'pending',
     };
 
     try {
-      final ParseResponse parseResponse =
-          await cloudFunction.execute(parameters: params);
-
-      if (parseResponse.success && parseResponse.result != null) {
-        var response = parseResponse.result as Map<String, dynamic>;
-        if (response['success'] == false) {
-          return "Erreur : ${response['error']}";
-        } else {
-          int updatedDocumentID =
-              documentID ??
-              (int.tryParse(response['documentID']?.toString() ?? '0') ?? 0);
-
-          ProDocument doc = ProDocument(
-            documentID: updatedDocumentID,
-            userID: userID,
-            restaurantID: restaurantID,
-            siretUrl: siretUrl ?? '',
-            kbisUrl: kbisUrl ?? '',
-            pieceIdentiteUrl: pieceIdentiteUrl ?? '',
-          );
-
-          if (documentID == null) {
-            await DatabaseHelper.createProDocument(doc);
-          }
-
-          return "success";
-        }
+      final Map<String, dynamic> response;
+      if (documentID == null) {
+        // Create
+        response = await NodeAuthService.postJson(
+          '/verification/pro-documents',
+          token: token,
+          body: body,
+        );
       } else {
-        return "Erreur lors de l'appel de la fonction cloud : ${parseResponse.error?.message}";
+        // Update
+        response = await NodeAuthService.patchJson(
+          '/verification/pro-documents/$documentID',
+          token: token,
+          body: body,
+        );
+      }
+
+      final data = response['data'];
+      if (data is Map<String, dynamic>) {
+        int updatedDocumentID = documentID ??
+            (int.tryParse(data['documentId']?.toString() ?? '0') ?? 0);
+
+        ProDocument doc = ProDocument(
+          documentID: updatedDocumentID,
+          userID: userID,
+          restaurantID: restaurantID,
+          siretUrl: siretUrl ?? '',
+          kbisUrl: kbisUrl ?? '',
+          pieceIdentiteUrl: pieceIdentiteUrl ?? '',
+          description: description ?? '',
+        );
+
+        if (documentID == null) {
+          await DatabaseHelper.createProDocument(doc);
+        }
+
+        return "success";
+      } else {
+        return "Erreur : réponse inattendue du serveur.";
       }
     } catch (e) {
-      return "Exception lors de l'appel de la fonction cloud : $e";
+      return "Exception lors de l'envoi des documents : $e";
     }
   }
 
   static Future<bool> getAllProDocuments() async {
-    var cloudFunction = ParseCloudFunction('getAllProDocuments');
+    final token = await SessionService.readNodeToken();
+    if (token == null) return false;
 
     try {
-      var response = await cloudFunction.execute();
+      final response = await NodeAuthService.getJson(
+        '/verification/pro-documents',
+        token: token,
+      );
 
-      if (response.success) {
-        List<dynamic> dataList = response.result;
+      final dataList = response['data'];
+      if (dataList is List) {
         for (var data in dataList) {
-          ProDocument doc = ProDocument.fromMap(data);
+          ProDocument doc = ProDocument.fromMap(data as Map<String, dynamic>);
           await DatabaseHelper.createProDocument(doc);
         }
         return true;
-      } else {
-        return false;
       }
+      return false;
     } catch (e) {
       return false;
     }
@@ -198,3 +209,4 @@ class ProDocument extends HiveObject {
     return await DatabaseHelper.readAllProDocuments();
   }
 }
+

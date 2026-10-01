@@ -719,6 +719,14 @@
     }
   },
   "verification_spam_hint": "Si vous ne trouvez pas l'email, vérifiez dans vos spams.",
+  "verification_verifying": "Vérification en cours…",
+  "@verification_verifying": {
+    "description": "Titre affiché dans l'overlay de chargement pendant la soumission du code de vérification."
+  },
+  "verification_patience": "Merci de patienter quelques instants.",
+  "@verification_patience": {
+    "description": "Sous-titre affiché sous le spinner pendant la vérification du code."
+  },
   "verification_enter_code": "Veuillez entrer le code.",
   "verification_account_error": "Erreur lors de la validation du compte.",
   "verification_code_invalid": "Erreur : code email non valide.",

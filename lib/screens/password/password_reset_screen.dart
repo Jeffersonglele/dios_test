@@ -85,13 +85,13 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
       _startResendCooldown();
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         backgroundColor: AppColors.success,
-        behavior: SnackBarBehavior.floating,
+        behavior: SnackBarBehavior.fixed,
         content: Text(AppLocalizations.of(context)!.reset_code_sent)));
     } else {
       setState(() => isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         backgroundColor: AppColors.error,
-        behavior: SnackBarBehavior.floating,
+        behavior: SnackBarBehavior.fixed,
         content: Text(AppLocalizations.of(context)!.reset_code_send_failed)));
     }
   }
@@ -105,7 +105,7 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
     if (code.length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         backgroundColor: AppColors.error,
-        behavior: SnackBarBehavior.floating,
+        behavior: SnackBarBehavior.fixed,
         content: Text(AppLocalizations.of(context)!.password_reset_code_hint)));
       return;
     }
@@ -118,7 +118,7 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
     if (!valid) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         backgroundColor: AppColors.error,
-        behavior: SnackBarBehavior.floating,
+        behavior: SnackBarBehavior.fixed,
         content: Text(AppLocalizations.of(context)!.invalid_or_expired_code)));
       return;
     }
@@ -141,7 +141,7 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         backgroundColor: AppColors.error,
-        behavior: SnackBarBehavior.floating,
+        behavior: SnackBarBehavior.fixed,
         content: Text(AppLocalizations.of(context)!.user_not_found)));
       setState(() => isLoading = false); return;
     }

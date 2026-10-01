@@ -220,9 +220,9 @@ class _ProfilePageState extends State<ProfilePage> {
                 content: Text(result == 'success'
                     ? AppLocalizations.of(context)!.profileUpdated
                     : result.toString()),
-                behavior: SnackBarBehavior.floating,
+                behavior: SnackBarBehavior.fixed,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppRadius.md)),
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.md))),
               ));
             },
             child: Text(AppLocalizations.of(context)!.save_profile),

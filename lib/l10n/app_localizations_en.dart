@@ -1715,6 +1715,12 @@ class AppLocalizationsEn extends AppLocalizations {
       'If you can\'t find the email, check your spam folder.';
 
   @override
+  String get verification_verifying => 'Verification in progress…';
+
+  @override
+  String get verification_patience => 'Please wait a few moments.';
+
+  @override
   String get verification_enter_code => 'Please enter the code.';
 
   @override

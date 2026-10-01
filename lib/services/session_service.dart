@@ -83,6 +83,7 @@ class SessionService {
   static const _currentUserCountryKey = 'currentUser_country';
   static const _currentUserEmailKey = 'currentUser_email';
   static const _currentUserRestaurantKey = 'currentUser_restau';
+  static const _nodeTokenKey = 'node_auth_token';
 
   static Future<UserSession> readSession() async {
     final prefs = await SharedPreferences.getInstance();
@@ -93,7 +94,8 @@ class SessionService {
       country: prefs.getString(_currentUserCountryKey) ?? 'RDC',
       email: prefs.getString(_currentUserEmailKey),
       restaurantId: prefs.getInt(_currentUserRestaurantKey),
-      isLoggedIn: prefLoggedIn && await hasParseSession(),
+      isLoggedIn: prefLoggedIn &&
+          (await hasNodeSession() || await hasParseSession()),
     );
   }
 
@@ -142,6 +144,38 @@ class SessionService {
       return false;
     }
   }
+
+  /// Enregistre la session JWT renvoyée par le backend Node.js.
+  ///
+  /// Le profil est conservé dans les mêmes préférences que l'ancien flux
+  /// Parse afin que les écrans de navigation existants restent compatibles.
+  static Future<void> saveNodeSession({
+    required String token,
+    required int userId,
+    required AppRole role,
+    required String country,
+    String? email,
+    int? restaurantId,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_nodeTokenKey, token);
+    await saveUserSession(
+      userId: userId,
+      role: role,
+      country: country,
+      email: email,
+      restaurantId: restaurantId,
+    );
+  }
+
+  static Future<String?> readNodeToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(_nodeTokenKey)?.trim();
+    return token == null || token.isEmpty ? null : token;
+  }
+
+  static Future<bool> hasNodeSession() async =>
+      (await readNodeToken())?.isNotEmpty == true;
 
   /// Ouvre une session avec le système d'authentification natif de Parse.
   ///
@@ -242,6 +276,7 @@ class SessionService {
     await prefs.remove(_currentUserCountryKey);
     await prefs.remove(_currentUserEmailKey);
     await prefs.remove(_currentUserRestaurantKey);
+    await prefs.remove(_nodeTokenKey);
   }
 
   static Future<void> clearAll() async {

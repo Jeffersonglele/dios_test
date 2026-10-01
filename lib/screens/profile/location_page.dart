@@ -5,10 +5,12 @@ import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/address.dart';
+import '../../db/database_helper.dart';
 import '../../widgets/brand_avatar_logo.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/session_service.dart';
+import '../../services/node_auth_service.dart';
 import '../../utils/country_util.dart';
 
 class LocationPage extends ConsumerStatefulWidget {
@@ -194,6 +196,47 @@ class _LocationPageState extends ConsumerState<LocationPage> {
       'Position GPS : ${gpsPosition.latitude.toStringAsFixed(6)}, '
       '${gpsPosition.longitude.toStringAsFixed(6)}';
 
+  Future<dynamic> _saveAddress({
+    required String city,
+    required String state,
+    required String fullAddress,
+    required String lat,
+    required String long,
+    required String country,
+  }) async {
+    final nodeToken = await SessionService.readNodeToken();
+    if (nodeToken != null) {
+      final response = await NodeAuthService.postJson(
+        '/addresses',
+        token: nodeToken,
+        body: {
+          'city': city,
+          'state': state,
+          'fullAddress': fullAddress,
+          'latitude': double.tryParse(lat),
+          'longitude': double.tryParse(long),
+          'country': country,
+        },
+      );
+      final data = response['data'];
+      if (data is Map && data['addressId'] != null) {
+        return int.tryParse(data['addressId'].toString());
+      }
+      return 'Adresse enregistrée.';
+    }
+
+    return Address.manageAddress(
+      city: city,
+      state: state,
+      fullAddress: fullAddress,
+      lat: lat,
+      object: 'User',
+      objectID: widget.objectID,
+      long: long,
+      user_roleID: widget.user_roleID,
+    );
+  }
+
   void _setGpsAddress(Position gpsPosition) {
     _detectedCity = null;
     _detectedCountry = null;
@@ -203,7 +246,13 @@ class _LocationPageState extends ConsumerState<LocationPage> {
 
   void saveDetectedAddress() async {
     final session = await SessionService.readSession();
-    final userCountry = CountryUtil.canonical(session.country);
+    final sessionCountry = CountryUtil.canonical(session.country);
+    final detectedCanonical = CountryUtil.canonical(_detectedCountry);
+
+    final effectiveCountry = detectedCanonical.isNotEmpty
+        ? detectedCanonical
+        : (sessionCountry.isNotEmpty ? sessionCountry : 'RDC');
+
     final city = _firstNonEmpty([
           _detectedCity,
           _extractCity(),
@@ -214,12 +263,14 @@ class _LocationPageState extends ConsumerState<LocationPage> {
           _detectedCountry,
           _extractState(),
           stateController.text,
-        session.country,
-      ]) ??
+          session.country,
+        ]) ??
         '';
-    final canonicalState = CountryUtil.canonical(state).isNotEmpty
-        ? CountryUtil.canonical(state)
-        : state;
+    final canonicalState = detectedCanonical.isNotEmpty
+        ? detectedCanonical
+        : (CountryUtil.canonical(state).isNotEmpty
+            ? CountryUtil.canonical(state)
+            : state);
     final fullAddress = locationController.text.isNotEmpty
         ? locationController.text
         : position == null
@@ -228,51 +279,58 @@ class _LocationPageState extends ConsumerState<LocationPage> {
     final lat = position?.latitude.toString();
     final long = position?.longitude.toString();
 
-    // Vérifier que le pays détecté correspond au pays de l'utilisateur
-    if (_detectedCountry != null &&
-        state.trim().isNotEmpty &&
-        userCountry.isNotEmpty) {
-      final detectedCountry = CountryUtil.canonical(state);
-      if (userCountry.isNotEmpty &&
-          detectedCountry.isNotEmpty &&
-          detectedCountry != userCountry) {
-        Toast(
-            context,
-            AppLocalizations.of(context)!
-                .address_not_match_country(state.trim()),
-            false);
-        setState(() => _isSaving = false);
-        return;
-      }
+    if (city.trim().isEmpty) {
+      Toast(context,
+          AppLocalizations.of(context)!.address_fill_city_and_address, false);
+      return;
     }
 
     setState(() => _isSaving = true);
     try {
-      dynamic validationResult = await Address.manageAddress(
+      dynamic validationResult = await _saveAddress(
         city: city,
         state: canonicalState,
         fullAddress: fullAddress,
-        lat: lat ?? "",
-        object: "User",
-        objectID: widget.objectID,
-        long: long ?? "",
-        user_roleID: widget.user_roleID,
+        lat: lat ?? '',
+        long: long ?? '',
+        country: effectiveCountry,
       );
 
       if (validationResult == "EXISTING_ADDRESS") {
         setState(() => addressExists = true);
         Toast(
             context, AppLocalizations.of(context)!.address_already_saved, true);
+        if (mounted) Navigator.pop(context);
         return;
       }
 
       if (validationResult is int) {
         SharedPreferences prefs = await SharedPreferences.getInstance();
         await prefs.setBool('userVerified', true);
+        await _persistAddressLocally(
+          addressId: validationResult,
+          city: city,
+          state: canonicalState,
+          fullAddress: fullAddress,
+          lat: lat ?? '',
+          long: long ?? '',
+          country: effectiveCountry,
+        );
+        if (detectedCanonical.isNotEmpty &&
+            detectedCanonical != sessionCountry &&
+            sessionCountry.isNotEmpty) {
+          await SessionService.saveUserSession(
+            userId: session.userId,
+            role: session.role,
+            country: effectiveCountry,
+            email: session.email,
+            restaurantId: session.restaurantId,
+          );
+        }
         Toast(
             context, AppLocalizations.of(context)!.address_saved_success, true);
         if (mounted) {
-          Navigator.pop(context);
+          Navigator.pop(context, true);
         }
       } else {
         Toast(context, validationResult, false);
@@ -280,6 +338,40 @@ class _LocationPageState extends ConsumerState<LocationPage> {
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
+  }
+
+  Future<void> _persistAddressLocally({
+    required int addressId,
+    required String city,
+    required String state,
+    required String fullAddress,
+    required String lat,
+    required String long,
+    required String country,
+  }) async {
+    final address = Address(
+      addressID: addressId,
+      object: 'User',
+      objectID: widget.objectID,
+      city: city,
+      state: state,
+      fullAddress: fullAddress,
+      lat: lat,
+      long: long,
+      cityID: 0,
+    );
+    final all = await Address.fetchAddressesFromDB();
+    final replaced = <Address>[];
+    for (final a in all) {
+      final isUserAddress = (a.object?.trim().toLowerCase() == 'user' ||
+              a.object?.trim().toLowerCase() == 'livraison') &&
+          a.objectID == widget.objectID;
+      if (isUserAddress) replaced.add(a);
+    }
+    for (final a in replaced) {
+      await DatabaseHelper.deleteAddress(a.addressID ?? 0);
+    }
+    await DatabaseHelper.addAddress(address);
   }
 
   void saveManualAddress() async {
@@ -318,31 +410,44 @@ class _LocationPageState extends ConsumerState<LocationPage> {
       double lat = locations.first.latitude;
       double long = locations.first.longitude;
 
-      dynamic validationResult = await Address.manageAddress(
+      final effectiveState = quarter.isNotEmpty ? quarter : userCountry;
+      final effectiveCountry = CountryUtil.canonical(quarter).isNotEmpty
+          ? CountryUtil.canonical(quarter)
+          : userCountry;
+
+      dynamic validationResult = await _saveAddress(
         city: city,
-        state: quarter.isNotEmpty ? quarter : userCountry,
+        state: effectiveState,
         fullAddress: fullAddress,
         lat: lat.toString(),
-        object: "User",
-        objectID: widget.objectID,
         long: long.toString(),
-        user_roleID: widget.user_roleID,
+        country: effectiveCountry.isNotEmpty ? effectiveCountry : 'RDC',
       );
 
       if (validationResult == "EXISTING_ADDRESS") {
         setState(() => addressExists = true);
         Toast(
             context, AppLocalizations.of(context)!.address_already_saved, true);
+        if (mounted) Navigator.pop(context);
         return;
       }
 
       if (validationResult is int) {
         SharedPreferences prefs = await SharedPreferences.getInstance();
         await prefs.setBool('userVerified', true);
+        await _persistAddressLocally(
+          addressId: validationResult,
+          city: city,
+          state: effectiveState,
+          fullAddress: fullAddress,
+          lat: lat.toString(),
+          long: long.toString(),
+          country: effectiveCountry.isNotEmpty ? effectiveCountry : 'RDC',
+        );
         Toast(
             context, AppLocalizations.of(context)!.address_saved_success, true);
         if (mounted) {
-          Navigator.pop(context);
+          Navigator.pop(context, true);
         }
       } else {
         Toast(context, validationResult, false);

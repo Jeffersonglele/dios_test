@@ -11,6 +11,7 @@ import '../screens/navigation/curved_navigation_user.dart';
 import '../screens/navigation/curved_navigation_livreur.dart';
 import '../db/database_helper.dart';
 import '../services/session_service.dart';
+import '../services/node_admin_service.dart';
 
 part 'users.g.dart';
 
@@ -175,7 +176,8 @@ class Users extends HiveObject {
       identityStatus: map['identityStatus']?.toString(),
       addressID: int.tryParse(map['addressID']?.toString() ?? '0') ?? 0,
       cityID: int.tryParse(map['cityID']?.toString() ?? '1') ?? 1,
-      ageConfirmed: map['ageConfirmed'] == true || map['ageConfirmed']?.toString() == 'true',
+      ageConfirmed: map['ageConfirmed'] == true ||
+          map['ageConfirmed']?.toString() == 'true',
       last_login: map['last_login'] != null
           ? (map['last_login'] is String
               ? DateTime.tryParse(map['last_login'])
@@ -200,8 +202,10 @@ class Users extends HiveObject {
           : null,
       parrain: map['parrain']?.toString(),
       // Phase 1
-      isPhoneVerified: map['isPhoneVerified'] == true || map['isPhoneVerified']?.toString() == 'true',
-      isSimplified: map['isSimplified'] == true || map['isSimplified']?.toString() == 'true',
+      isPhoneVerified: map['isPhoneVerified'] == true ||
+          map['isPhoneVerified']?.toString() == 'true',
+      isSimplified: map['isSimplified'] == true ||
+          map['isSimplified']?.toString() == 'true',
       lastVerificationDate: map['lastVerificationDate'] != null
           ? (map['lastVerificationDate'] is String
               ? DateTime.tryParse(map['lastVerificationDate'])
@@ -210,6 +214,75 @@ class Users extends HiveObject {
                   : null))
           : null,
     );
+  }
+
+  /// Adapte le profil JSON du backend Node.js au modèle métier historique de
+  /// l'application Flutter. Les deux systèmes utilisent encore le même
+  /// `userId` legacy, ce qui permet de conserver la base Hive et les écrans
+  /// existants pendant la migration.
+  static Users fromNodeAuth(Map<String, dynamic> map) {
+    final rawUserId = map['userId'] ?? map['userID'] ?? map['id'];
+    int? parsedUserId;
+    if (rawUserId is int) {
+      parsedUserId = rawUserId;
+    } else if (rawUserId != null) {
+      parsedUserId = int.tryParse(rawUserId.toString());
+    }
+    final backendRoleId = int.tryParse(
+          (map['roleId'] ?? map['roleID'] ?? '').toString(),
+        ) ??
+        2;
+    final flutterRoleId = backendRoleId;
+    final rawIdentity =
+        (map['identity'] ?? map['identityStatus'])?.toString().trim();
+    final identityValue = rawIdentity?.toLowerCase();
+    String normalizedIdentity = rawIdentity ?? '';
+    if (identityValue == 'verified' ||
+        identityValue == 'valid' ||
+        identityValue == 'validated' ||
+        identityValue == 'approved') {
+      normalizedIdentity = 'Verified';
+    } else if (identityValue == 'rejected' || identityValue == 'refused') {
+      normalizedIdentity = 'Rejected';
+    } else if (identityValue == 'pending' ||
+        identityValue == 'waiting' ||
+        identityValue == 'en attente') {
+      normalizedIdentity = 'Pending';
+    }
+    final normalized = <String, dynamic>{
+      'userID': parsedUserId,
+      'roleID': flutterRoleId,
+      'firstname': map['firstname'],
+      'lastname': map['lastname'],
+      'username': map['username'],
+      'email': map['email'],
+      'telephone': map['telephone'] ??
+          map['telephoneE164'] ??
+          map['telephoneLocal'] ??
+          '',
+      'country': map['country'],
+      'status': map['status'],
+      'identity': normalizedIdentity,
+      'addressID': map['addressId'] ?? map['addressID'],
+      'cityID': map['cityId'] ?? map['cityID'],
+      'image': map['image'],
+      'last_login': map['lastLogin'] ?? map['last_login'],
+      'ageConfirmed': map['ageConfirmed'],
+      'phoneVerified': map['phoneVerified'],
+      'isPhoneVerified': map['phoneVerified'] ?? map['isPhoneVerified'],
+      'mustChangePassword': map['mustChangePassword'],
+      'permisType': map['permisType'],
+      'permisVerified': map['permisVerified'],
+      'isOnline': map['isOnline'],
+      'identityStatus': map['identityStatus'],
+      'birthDate': map['birthDate'],
+      'consentRGPD': map['consentRGPD'],
+      'consentDate': map['consentDate'],
+      'isSimplified': map['isSimplified'],
+      'lastVerificationDate': map['lastVerificationDate'],
+      'password': '',
+    };
+    return Users.fromMap(normalized);
   }
 
   Users copy({
@@ -392,35 +465,19 @@ class Users extends HiveObject {
   }
 
   static Future<String> updateIdentity(int userID, String identity) async {
-    // Déterminer le nom de la fonction cloud en fonction de l'opération
-    String functionName = 'update1User';
-    var cloudFunction = ParseCloudFunction(functionName);
-
-    // Construire les paramètres, y compris userID pour la mise à jour
-    var params = <String, dynamic>{
-      if (userID != null) 'userID': userID,
-      'identity': identity
-    };
-
     try {
-      final ParseResponse parseResponse =
-          await cloudFunction.execute(parameters: params);
-
-      if (parseResponse.success && parseResponse.result != null) {
-        var response = parseResponse.result as Map<String, dynamic>;
-        if (response['success'] == false) {
-          return "Erreur : ${response['error']}";
-        } else {
-          await DatabaseHelper.updateUserIdentity(userID, identity);
-
-          notifyDataChanged();
-          return "success";
-        }
-      } else {
-        return "Erreur lors de l'appel de la fonction cloud : ${parseResponse.error?.message}";
+      final token = await SessionService.readNodeToken();
+      if (token == null) {
+        return "Erreur : Jeton d'authentification manquant.";
       }
+      
+      await NodeAdminService.setIdentityStatus(userID, identity, token);
+      await DatabaseHelper.updateUserIdentity(userID, identity);
+      
+      notifyDataChanged();
+      return "success";
     } catch (e) {
-      return "Exception lors de l'appel de la fonction cloud : $e";
+      return "Erreur lors de l'appel de l'API Node : $e";
     }
   }
 
@@ -461,8 +518,8 @@ class Users extends HiveObject {
 
   static Future<String> updatePassword(int userID, String newPassword,
       {bool? mustChangePassword, String? plainPassword}) async {
-    final hasNativeSession = plainPassword != null &&
-        await SessionService.hasParseSession();
+    final hasNativeSession =
+        plainPassword != null && await SessionService.hasParseSession();
     String functionName = hasNativeSession ? 'changePassword' : 'update1User';
     var cloudFunction = ParseCloudFunction(functionName);
 
@@ -509,6 +566,27 @@ class Users extends HiveObject {
     required String telephone,
     String? image,
   }) async {
+    try {
+      final token = await SessionService.readNodeToken();
+      if (token != null) {
+        await NodeAdminService.updateUserProfile(
+          userId: userID,
+          token: token,
+          firstname: firstname,
+          lastname: lastname,
+          email: email,
+          telephone: telephone,
+          image: image,
+        );
+        await DatabaseHelper.updateUserProfile(
+            userID, firstname, lastname, email, telephone,
+            image: image);
+        notifyDataChanged();
+        return "success";
+      }
+    } catch (e) {
+      // Fallback to Parse Cloud Function if Node API fails
+    }
     var cloudFunction = ParseCloudFunction('update1User');
     var params = <String, dynamic>{
       'userID': userID,

@@ -315,16 +315,16 @@ class _SettingsState extends ConsumerState<Settings> {
                 }
 
                 final encrypted = await Users.encryptPassword(newPwd);
-                final result =
-                    await Users.updatePassword(currentUser.userID, encrypted,
-                        plainPassword: newPwd);
+                final result = await Users.updatePassword(
+                    currentUser.userID, encrypted,
+                    plainPassword: newPwd);
                 if (!mounted) return;
                 Navigator.pop(ctx);
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                   content: Text(result == 'success'
                       ? l10n.passwordChangedSuccess
                       : result.toString()),
-                  behavior: SnackBarBehavior.floating,
+                  behavior: SnackBarBehavior.fixed,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(AppRadius.md)),
                 ));
@@ -569,9 +569,10 @@ class _SettingsState extends ConsumerState<Settings> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(result.toString()),
-        behavior: SnackBarBehavior.floating,
+        behavior: SnackBarBehavior.fixed,
         shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.md)),
+            borderRadius:
+                BorderRadius.vertical(top: Radius.circular(AppRadius.md))),
       ));
     }
   }

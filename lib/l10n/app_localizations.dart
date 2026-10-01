@@ -3308,6 +3308,18 @@ abstract class AppLocalizations {
   /// **'If you can\'t find the email, check your spam folder.'**
   String get verification_spam_hint;
 
+  /// Title shown in the loading overlay while submitting the email verification code.
+  ///
+  /// In en, this message translates to:
+  /// **'Verification in progress…'**
+  String get verification_verifying;
+
+  /// Subtitle shown under the spinner while the verification code is being checked.
+  ///
+  /// In en, this message translates to:
+  /// **'Please wait a few moments.'**
+  String get verification_patience;
+
   /// No description provided for @verification_enter_code.
   ///
   /// In en, this message translates to:
