@@ -48,14 +48,7 @@ function registrationRoleId() {
   return Number.isInteger(configured) ? configured : 2;
 }
 
-async function nextLegacyUserId(tx) {
-  const lastUser = await tx.user.findFirst({
-    where: { userId: { not: null } },
-    orderBy: { userId: 'desc' },
-    select: { userId: true },
-  });
-  return (lastUser?.userId || 0) + 1;
-}
+
 
 async function recoverOrphanedRegistration(existing, req, normalizedUsername, normalizedEmail, password) {
   const sameUsername = existing.username?.trim().toLowerCase() === normalizedUsername.toLowerCase();
@@ -141,7 +134,6 @@ async function register(req, res, next) {
 
     const passwordHash = await bcrypt.hash(password, 12);
     const user = await prisma.$transaction(async (tx) => {
-      const userId = await nextLegacyUserId(tx);
       // Role, verification and account status are server-controlled fields.
       const profileData = pick(req.body, REGISTRATION_FIELDS);
 
@@ -150,7 +142,6 @@ async function register(req, res, next) {
           username: normalizedUsername,
           email: normalizedEmail,
           password: passwordHash,
-          legacyUserId: userId,
           firstname: profileData.firstname,
           lastname: profileData.lastname,
           telephone: profileData.telephone,
@@ -166,7 +157,7 @@ async function register(req, res, next) {
           // Un compte public commence avec le rôle client. Les rôles
           // sensibles restent attribués par le serveur après validation.
           roleId: registrationRoleId(),
-          userId,
+
           username: normalizedUsername,
           email: normalizedEmail,
           password: passwordHash,
