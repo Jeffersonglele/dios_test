@@ -131,7 +131,8 @@ async function manageRestaurantLegacy(req, res, next) {
     const raw = req.body;
     const data = {};
     const fieldMap = {
-      userID: 'userId', categories: 'categories', description: 'description',
+      userID: 'userId', userId: 'userId',
+      categories: 'categories', description: 'description',
       adress: 'address', address: 'address', location: 'address',
       name: 'name', note: 'rating', rating: 'rating',
       nb_orders: 'orderCount', orderCount: 'orderCount',
@@ -145,10 +146,17 @@ async function manageRestaurantLegacy(req, res, next) {
       paymentMethod: 'paymentMethod', mobileMoneyPhone: 'mobileMoneyPhone',
       iban: 'iban', bankName: 'bankName', accountHolder: 'accountHolder',
       rccm: 'rccm', addressID: 'addressId', addressId: 'addressId',
+      latitude: 'latitude', longitude: 'longitude',
     };
     for (const [k, target] of Object.entries(fieldMap)) {
       if (raw[k] !== undefined) data[target] = raw[k];
     }
+    if (raw.date_creation && !data.dateCreation) {
+      const dc = raw.date_creation;
+      if (typeof dc === 'object' && dc.iso) data.dateCreation = new Date(dc.iso);
+      else if (typeof dc === 'string' || typeof dc === 'number') data.dateCreation = new Date(dc);
+    }
+    if (raw.dateCreation && !data.dateCreation) data.dateCreation = new Date(raw.dateCreation);
     if (raw.country) data.country = canonicalCountry(raw.country);
     let record;
     let mode = 'created';
