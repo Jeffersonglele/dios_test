@@ -72,7 +72,7 @@ async function getRestaurantMenu(req, res, next) {
 async function listRestaurants(req, res, next) {
   try {
     const pageInfo = pagination(req.query);
-    const where = { deletedAt: null };git 
+    const where = { deletedAt: null };
     // Par défaut, seuls les restaurants validés par un admin sont affichés.
     // Les admins peuvent passer ?showAll=true pour voir les non-validés.
     if (req.query.showAll !== 'true') {
