@@ -46,11 +46,19 @@ async function getRestaurantMenu(req, res, next) {
     });
     if (!restaurant) throw notFound('Restaurant');
 
+    const authUserId = req.auth?.userId !== undefined ? Number(req.auth.userId) : null;
+    const isOwner = authUserId !== null
+      && restaurant.userId !== undefined
+      && restaurant.userId !== null
+      && Number(restaurant.userId) === authUserId;
+
+    if (!isOwner && Number(restaurant.valid) !== 1) throw notFound('Restaurant');
+
     const pageInfo = pagination(req.query);
-    const where = { restaurantId, deletedAt: null };
+    const dishesWhere = { restaurantId, deletedAt: null };
     const [dishesList, total] = await prisma.$transaction([
-      prisma.dish.findMany({ where, skip: pageInfo.skip, take: pageInfo.take, orderBy: { createdAt: 'desc' } }),
-      prisma.dish.count({ where }),
+      prisma.dish.findMany({ where: dishesWhere, skip: pageInfo.skip, take: pageInfo.take, orderBy: { createdAt: 'desc' } }),
+      prisma.dish.count({ where: dishesWhere }),
     ]);
     return res.status(200).json({
       data: { restaurant, dishes: dishesList },
@@ -193,12 +201,50 @@ async function manageRestaurantLegacy(req, res, next) {
   }
 }
 
+async function getRestaurantById(req, res, next) {
+  try {
+    const where = { id: req.params.id, deletedAt: null };
+    const restaurant = await prisma.restaurant.findFirst({ where });
+    if (!restaurant) throw notFound('Restaurant');
+
+    const authUserId = req.auth?.userId !== undefined ? Number(req.auth.userId) : null;
+    const isOwner = authUserId !== null
+      && restaurant.userId !== undefined
+      && restaurant.userId !== null
+      && Number(restaurant.userId) === authUserId;
+
+    if (!isOwner && Number(restaurant.valid) !== 1) throw notFound('Restaurant');
+    return res.status(200).json({ data: restaurant });
+  } catch (error) {
+    return handleControllerError(error, next);
+  }
+}
+
+async function createRestaurant(req, res, next) {
+  try {
+    const data = { ...pick(req.body, RESTAURANT_FIELDS) };
+    if (data.valid === undefined || data.valid === null) data.valid = 0;
+    const record = await prisma.restaurant.create({ data });
+    return res.status(201).json({ data: record });
+  } catch (error) {
+    return handleControllerError(error, next);
+  }
+}
+
 async function getRestaurantByLegacy(req, res, next) {
   try {
     const legacyId = Number.parseInt(req.params.restaurantId, 10);
     if (!Number.isInteger(legacyId)) throw badRequest('restaurantId doit être un entier.');
     const restaurant = await prisma.restaurant.findFirst({ where: { restaurantId: legacyId, deletedAt: null } });
     if (!restaurant) throw notFound('Restaurant');
+
+    const authUserId = req.auth?.userId !== undefined ? Number(req.auth.userId) : null;
+    const isOwner = authUserId !== null
+      && restaurant.userId !== undefined
+      && restaurant.userId !== null
+      && Number(restaurant.userId) === authUserId;
+
+    if (!isOwner && Number(restaurant.valid) !== 1) throw notFound('Restaurant');
     return res.status(200).json({ data: restaurant });
   } catch (error) {
     return handleControllerError(error, next);
@@ -222,8 +268,15 @@ async function deleteRestaurantByLegacy(req, res, next) {
 
 module.exports = {
   restaurant: {
-    ...restaurants, list: listRestaurants, getMenu: getRestaurantMenu, setAvailability: setRestaurantAvailability,
-    manageLegacy: manageRestaurantLegacy, getByLegacy: getRestaurantByLegacy, deleteByLegacy: deleteRestaurantByLegacy,
+    ...restaurants,
+    list: listRestaurants,
+    getById: getRestaurantById,
+    create: createRestaurant,
+    getMenu: getRestaurantMenu,
+    setAvailability: setRestaurantAvailability,
+    manageLegacy: manageRestaurantLegacy,
+    getByLegacy: getRestaurantByLegacy,
+    deleteByLegacy: deleteRestaurantByLegacy,
   },
   dish: { ...dishes, list: listDishes },
   category: categories,
