@@ -416,7 +416,7 @@ async function getAvailableCountries(req, res, next) {
     const m = _model();
     // Récupère les valeurs distinctes du champ country dans la table users
     const rows = await m.user.findMany({
-      where: { deletedAt: null, country: { not: null } },
+      where: { deletedAt: null, country: { isNotNull: true } },
       select: { country: true },
       distinct: ['country'],
     });

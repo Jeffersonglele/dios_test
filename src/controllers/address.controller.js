@@ -8,7 +8,7 @@ const fields = [
 
 async function nextAddressId(tx) {
   const last = await tx.address.findFirst({
-    where: { addressId: { not: null } }, orderBy: { addressId: 'desc' }, select: { addressId: true },
+    orderBy: { addressId: 'desc' }, select: { addressId: true },
   });
   return (last?.addressId || 0) + 1;
 }

@@ -32,7 +32,7 @@ const orderLineCrud = createCrudController({
 
 async function nextOrderId(tx) {
   const last = await tx.order.findFirst({
-    where: { orderId: { not: null } }, orderBy: { orderId: 'desc' }, select: { orderId: true },
+    orderBy: { orderId: 'desc' }, select: { orderId: true },
   });
   return (last?.orderId || 0) + 1;
 }
