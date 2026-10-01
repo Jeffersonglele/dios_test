@@ -81,34 +81,72 @@ async function cachedOrFetch(kind, payload, request) {
   return { result: raw, cached: false };
 }
 
-async function searchRdc(query, limit = 5) {
+function normalizeCountryCodes(countryCodes) {
+  if (countryCodes == null) return null;
+  if (Array.isArray(countryCodes)) {
+    const codes = countryCodes
+      .map((c) => String(c || '').trim())
+      .filter(Boolean)
+      .map((c) => c.toLowerCase());
+    return codes.length > 0 ? codes : null;
+  }
+  const codes = String(countryCodes)
+    .split(/[,\s]+/)
+    .map((c) => c.trim())
+    .filter(Boolean)
+    .map((c) => c.toLowerCase());
+  return codes.length > 0 ? codes : null;
+}
+
+async function searchAddress(query, { limit = 5, countryCodes } = {}) {
   const term = String(query || '').trim();
   if (term.length < 3 || term.length > 200) throw badRequest('La recherche d’adresse doit contenir entre 3 et 200 caractères.');
   const safeLimit = Math.min(10, Math.max(1, Number.parseInt(limit, 10) || 5));
-  const response = await cachedOrFetch('search', { query: term, limit: safeLimit, countryCode: 'cd' }, {
-    path: '/search',
-    params: { q: term, countrycodes: 'cd', format: 'jsonv2', addressdetails: 1, limit: safeLimit },
-  });
+  const codes = normalizeCountryCodes(countryCodes);
+  const params = { q: term, format: 'jsonv2', addressdetails: 1, limit: safeLimit };
+  if (codes && codes.length > 0) params.countrycodes = codes.join(',');
+  const response = await cachedOrFetch(
+    'search',
+    { query: term, limit: safeLimit, countryCode: codes?.join(',') || null },
+    { path: '/search', params },
+  );
   const records = Array.isArray(response.result) ? response.result : [];
   return { cached: response.cached, results: records.map(normalizeResult).filter(Boolean) };
 }
 
-async function reverseRdc(latitude, longitude) {
+async function reverseGeocode(latitude, longitude, { countryCodes } = {}) {
   const lat = Number(latitude);
   const lng = Number(longitude);
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
     throw badRequest('Les coordonnées GPS sont invalides.');
   }
-  const response = await cachedOrFetch('reverse', { latitude: lat, longitude: lng, countryCode: 'cd' }, {
-    path: '/reverse',
-    params: { lat, lon: lng, format: 'jsonv2', addressdetails: 1, zoom: 18 },
-  });
+  const codes = normalizeCountryCodes(countryCodes);
+  const params = { lat, lon: lng, format: 'jsonv2', addressdetails: 1, zoom: 18 };
+  const response = await cachedOrFetch(
+    'reverse',
+    { latitude: lat, longitude: lng, countryCode: codes?.join(',') || null },
+    { path: '/reverse', params },
+  );
   const normalized = response.result ? normalizeResult(response.result) : null;
-  const countryCode = String(normalized?.address?.country_code || '').toLowerCase();
-  if (normalized && countryCode && countryCode !== 'cd') {
-    throw badRequest('Cette position ne se trouve pas en République démocratique du Congo.');
-  }
   return { cached: response.cached, result: normalized };
 }
 
-module.exports = { reverseRdc, searchRdc };
+async function searchRdc(query, limit = 5) {
+  return searchAddress(query, { limit, countryCodes: ['cd'] });
+}
+
+async function reverseRdc(latitude, longitude) {
+  const res = await reverseGeocode(latitude, longitude, { countryCodes: ['cd'] });
+  const countryCode = String(res.result?.address?.country_code || '').toLowerCase();
+  if (res.result && countryCode && countryCode !== 'cd') {
+    throw badRequest('Cette position ne se trouve pas en République démocratique du Congo.');
+  }
+  return res;
+}
+
+module.exports = {
+  reverseGeocode,
+  searchAddress,
+  reverseRdc,
+  searchRdc,
+};

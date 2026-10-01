@@ -18,19 +18,43 @@ function pointSql(latitude, longitude) {
 
 async function resolveCoveredCity(latitude, longitude, client = prisma) {
   const point = pointSql(latitude, longitude);
-  const cities = await client.$queryRaw(Prisma.sql`
+  const p = prisma ?? client;
+  const exactMatches = await p.$queryRaw(Prisma.sql`
     SELECT "cityId", "name", "country", "country_code" AS "countryCode"
     FROM "cities"
     WHERE "deletedAt" IS NULL
       AND "active" = true
       AND "delivery_enabled" = true
-      AND "country_code" = 'CD'
       AND "boundary" IS NOT NULL
       AND ST_Covers("boundary", ${point})
     ORDER BY "updatedAt" DESC
+    LIMIT 5
+  `);
+  if (exactMatches && exactMatches.length > 0) return exactMatches[0];
+
+  const closest = await p.$queryRaw(Prisma.sql`
+    SELECT "cityId", "name", "country", "country_code" AS "countryCode",
+           ST_Distance("boundary"::geography, ${point}::geography) AS "distanceM"
+    FROM "cities"
+    WHERE "deletedAt" IS NULL
+      AND "active" = true
+      AND "delivery_enabled" = true
+      AND "boundary" IS NOT NULL
+    ORDER BY "distanceM" ASC
     LIMIT 1
   `);
-  return cities[0] || null;
+  if (!closest || closest.length === 0) return null;
+  const candidate = closest[0];
+  const proximityToleranceM = Number(process.env.CITY_PROXIMITY_TOLERANCE_M || '5000');
+  if (Number(candidate.distanceM) <= proximityToleranceM) {
+    return {
+      cityId: candidate.cityId,
+      name: candidate.name,
+      country: candidate.country,
+      countryCode: candidate.countryCode,
+    };
+  }
+  return null;
 }
 
 function normalizeGeoJson(geoJson) {
@@ -70,7 +94,7 @@ async function updateCustomerAddressLocation({ addressId, userId, latitude, long
   if (!address) throw notFound('Adresse cliente');
 
   const city = await resolveCoveredCity(point.latitude, point.longitude);
-  if (!city) throw badRequest('Cette position ne se trouve dans aucune ville couverte en RDC.');
+  if (!city) throw badRequest('Cette position ne se trouve dans aucune ville couverte.');
 
   await prisma.$transaction(async (tx) => {
     await tx.address.update({
@@ -79,7 +103,7 @@ async function updateCustomerAddressLocation({ addressId, userId, latitude, long
         latitude: point.latitude,
         longitude: point.longitude,
         cityId: city.cityId,
-        country: city.country || 'RDC',
+        country: city.country || address.country || req.body?.country || 'RDC',
         ...(fullAddress ? { fullAddress: String(fullAddress).trim() } : {}),
         ...(nominatimPlaceId ? { nominatimPlaceId: String(nominatimPlaceId) } : {}),
         locationSource: 'DEVICE_GPS',
@@ -104,7 +128,7 @@ async function updateRestaurantLocation({ restaurantId, ownerId, latitude, longi
   });
   if (!restaurant) throw notFound('Restaurant');
   const city = await resolveCoveredCity(point.latitude, point.longitude);
-  if (!city) throw badRequest('Le point de vente doit être situé dans une ville couverte en RDC.');
+  if (!city) throw badRequest('Le point de vente doit être situé dans une ville couverte.');
 
   await prisma.$transaction(async (tx) => {
     await tx.restaurant.update({
@@ -113,7 +137,7 @@ async function updateRestaurantLocation({ restaurantId, ownerId, latitude, longi
         latitude: point.latitude,
         longitude: point.longitude,
         cityId: city.cityId,
-        country: city.country || 'RDC',
+        country: city.country || restaurant.country || address?.country || 'RDC',
         ...(address ? { address: String(address).trim() } : {}),
         locationUpdatedAt: new Date(),
       },

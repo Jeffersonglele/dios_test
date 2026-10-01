@@ -52,7 +52,7 @@ async function create(req, res, next) {
         addressId: await nextAddressId(tx),
         objectType: 'USER',
         objectId: req.auth.userId,
-        country: req.body.country || 'RDC',
+        country: req.body.country || req.auth?.country || 'RDC',
       },
     }));
     return res.status(201).json({ data: address });
