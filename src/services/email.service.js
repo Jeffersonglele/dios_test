@@ -521,6 +521,378 @@ async function sendPasswordResetCodeEmail({ to, code }) {
   });
 }
 
+function _sellerLayout({ title, intro, mainBlock, outro }) {
+  const brand = '#E1502F';
+  const brandDark = '#C7431F';
+  const ink = '#2B211D';
+  const inkMuted = '#8A7A72';
+  const surfaceWarm = '#FBEFE6';
+  const border = '#F0DDD0';
+  const success = '#1B8A5A';
+  const danger = '#C0392B';
+  const html = `
+  <!DOCTYPE html>
+  <html lang="fr">
+    <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <title>${escapeHtml(title)}</title>
+    </head>
+    <body style="margin:0; padding:0; background-color:${surfaceWarm}; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:${surfaceWarm}; padding:32px 16px;">
+        <tr>
+          <td align="center">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px; background-color:#ffffff; border-radius:24px; border:1px solid ${border}; overflow:hidden;">
+              <tr>
+                <td style="padding:32px 32px 0 32px;" align="center">
+                  <table role="presentation" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td style="width:8px; height:8px; border-radius:99px; background-color:${brand};"></td>
+                      <td style="width:8px;"></td>
+                      <td style="font-size:12px; font-weight:700; letter-spacing:2px; color:${brand}; text-transform:uppercase;">
+                        Dios Délices
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:20px 32px 0 32px;" align="center">
+                  <h1 style="margin:0; font-size:22px; line-height:1.3; font-weight:800; color:${ink};">
+                    ${title}
+                  </h1>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:16px 32px 0 32px;">
+                  <p style="margin:0; font-size:15px; line-height:1.65; color:${inkMuted}; text-align:left;">
+                    ${intro}
+                  </p>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:20px 32px 0 32px;">
+                  ${mainBlock}
+                </td>
+              </tr>
+              ${outro ? `
+              <tr>
+                <td style="padding:16px 32px 0 32px;">
+                  <p style="margin:0; font-size:14px; line-height:1.6; color:${inkMuted};">
+                    ${outro}
+                  </p>
+                </td>
+              </tr>` : ''}
+              <tr>
+                <td style="padding:28px 32px 0 32px;">
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td style="height:1px; line-height:1px; font-size:1px; background-color:${border};">&nbsp;</td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:20px 32px 32px 32px;" align="center">
+                  <p style="margin:0; font-size:12px; line-height:1.6; color:${inkMuted};">
+                    Une question&nbsp;? Contactez-nous directement depuis l’application.<br />
+                    Merci de votre confiance, l’équipe Dios Délices.
+                  </p>
+                </td>
+              </tr>
+            </table>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px; margin-top:20px;">
+              <tr>
+                <td align="center">
+                  <p style="margin:0; font-size:12px; color:${inkMuted};">
+                    © ${new Date().getFullYear()} Dios Délices. Tous droits réservés.
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+  </html>
+  `;
+  return { html, success, danger, brand, brandDark, ink, inkMuted, surfaceWarm, border };
+}
+
+async function sendSellerApprovedEmail({ to, firstname }) {
+  const name = firstname ? escapeHtml(firstname) : '';
+  const hello = name ? `Bonjour ${name},` : 'Bonjour,';
+  const intro = `
+    ${hello}<br /><br />
+    Nous avons le plaisir de vous annoncer que <strong style="color:#1B8A5A">votre demande de statut vendeur / restaurateur a été validée</strong> par notre équipe.
+  `;
+  const { html, success, brandDark } = _sellerLayout({
+    title: 'Demande vendeur acceptée',
+    intro,
+    mainBlock: `
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#EAF7EF; border:1.5px solid #BEE3CE; border-radius:16px; padding:18px 20px;">
+        <tr>
+          <td style="font-size:16px; font-weight:700; color:${success};">
+            ✔ Votre compte est désormais un compte Restaurateur / Vendeur
+          </td>
+        </tr>
+        <tr>
+          <td style="padding-top:10px; font-size:14px; line-height:1.6; color:#2B211D;">
+            Vous pouvez dès à présent :
+            <ul style="margin:8px 0 0 20px; padding:0;">
+              <li>Créer et gérer votre restaurant sur l’application</li>
+              <li>Ajouter vos plats et gérer votre carte</li>
+              <li>Recevoir et traiter les commandes clients</li>
+            </ul>
+          </td>
+        </tr>
+      </table>
+      <p style="margin:18px 0 0 0; font-size:14px; line-height:1.6; color:#2B211D;">
+        ⚠️ Pour activer vos accès vendeur, <strong>veuillez vous déconnecter puis reconnecter</strong> à l’application Dios Délices. Votre rôle sera alors automatiquement mis à jour.
+      </p>
+    `,
+  });
+  const text = `Bonjour${firstname ? ' ' + firstname : ''},
+
+Votre demande de statut vendeur / restaurateur a été validée par l'équipe Dios Délices.
+
+Votre compte est désormais un compte Restaurateur / Vendeur.
+Vous pouvez créer et gérer votre restaurant, ajouter vos plats et recevoir des commandes.
+
+⚠️ IMPORTANT : Déconnectez-vous puis reconnectez-vous pour que votre nouveau rôle soit pris en compte.
+
+Merci de votre confiance.
+— L’équipe Dios Délices`;
+
+  return sendEmail({
+    to,
+    subject: 'Dios Délices — Votre statut vendeur a été validé',
+    text,
+    html,
+  });
+}
+
+async function sendSellerRejectedEmail({ to, firstname, reason }) {
+  const name = firstname ? escapeHtml(firstname) : '';
+  const hello = name ? `Bonjour ${name},` : 'Bonjour,';
+  const safeReason = reason && String(reason).trim() ? escapeHtml(String(reason).trim()) : null;
+  const intro = `
+    ${hello}<br /><br />
+    Nous avons étudié votre demande de statut vendeur / restaurateur et regrettons de vous informer qu’elle n’a pas été retenue à ce stade.
+  `;
+  const { html, danger } = _sellerLayout({
+    title: 'Demande vendeur — Réponse de l’équipe',
+    intro,
+    mainBlock: `
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#FDECEA; border:1.5px solid #F2C2BE; border-radius:16px; padding:18px 20px;">
+        <tr>
+          <td style="font-size:16px; font-weight:700; color:${danger};">
+            ✕ Demande non validée
+          </td>
+        </tr>
+        ${safeReason ? `
+        <tr>
+          <td style="padding-top:10px; font-size:14px; line-height:1.6; color:#2B211D;">
+            <strong>Motif&nbsp;:</strong><br />
+            ${safeReason}
+          </td>
+        </tr>` : ''}
+      </table>
+      <p style="margin:18px 0 0 0; font-size:14px; line-height:1.6; color:#2B211D;">
+        Vous pouvez soumettre une nouvelle demande en complétant les documents demandés, ou nous contacter depuis l’application pour obtenir plus de précisions.
+      </p>
+    `,
+  });
+  const text = `Bonjour${firstname ? ' ' + firstname : ''},
+
+Votre demande de statut vendeur / restaurateur n'a pas été validée à ce stade.
+${safeReason ? `\nMotif :\n${safeReason}\n` : ''}
+Vous pouvez soumettre une nouvelle demande ou contacter l'équipe depuis l'application Dios Délices.
+
+— L’équipe Dios Délices`;
+
+  return sendEmail({
+    to,
+    subject: 'Dios Délices — Demande vendeur — Réponse de l’équipe',
+    text,
+    html,
+  });
+}
+
+async function sendRestaurantApprovedEmail({ to, firstname, restaurantName }) {
+  const name = firstname ? escapeHtml(firstname) : '';
+  const hello = name ? `Bonjour ${name},` : 'Bonjour,';
+  const resto = restaurantName ? ` <strong>« ${escapeHtml(restaurantName)} »</strong>` : ' votre établissement';
+  const intro = `
+    ${hello}<br /><br />
+    Excellente nouvelle&nbsp;:${resto} a été <strong style="color:#1B8A5A">validé et est désormais visible publiquement</strong> sur Dios Délices&nbsp;!
+  `;
+  const { html, success } = _sellerLayout({
+    title: 'Restaurant validé ✔',
+    intro,
+    mainBlock: `
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#EAF7EF; border:1.5px solid #BEE3CE; border-radius:16px; padding:18px 20px;">
+        <tr>
+          <td style="font-size:16px; font-weight:700; color:${success};">
+            🍽 Votre restaurant est en ligne
+          </td>
+        </tr>
+        <tr>
+          <td style="padding-top:10px; font-size:14px; line-height:1.6; color:#2B211D;">
+            Les clients peuvent désormais découvrir votre carte et passer commande. Pensez à vérifier vos horaires, vos informations de contact et à activer les notifications pour ne manquer aucune commande.
+          </td>
+        </tr>
+      </table>
+    `,
+  });
+  const text = `Bonjour${firstname ? ' ' + firstname : ''},
+
+Votre restaurant ${restaurantName ? '« ' + restaurantName + ' »' : ''} a été validé et est désormais visible sur Dios Délices.
+
+Les clients peuvent découvrir votre carte et passer commande.
+Vérifiez régulièrement vos commandes et gérez votre activité depuis l'application.
+
+— L’équipe Dios Délices`;
+
+  return sendEmail({
+    to,
+    subject: `Dios Délices — ${restaurantName ? restaurantName + ' est en ligne' : 'Votre restaurant est validé'}`,
+    text,
+    html,
+  });
+}
+
+async function sendRestaurantRejectedEmail({ to, firstname, restaurantName, reason }) {
+  const name = firstname ? escapeHtml(firstname) : '';
+  const hello = name ? `Bonjour ${name},` : 'Bonjour,';
+  const resto = restaurantName ? ` <strong>« ${escapeHtml(restaurantName)} »</strong>` : ' votre établissement';
+  const safeReason = reason && String(reason).trim() ? escapeHtml(String(reason).trim()) : null;
+  const intro = `
+    ${hello}<br /><br />
+    Nous avons étudié la fiche de${resto} et regrettons de vous informer qu’elle n’a pas été validée dans sa version actuelle.
+  `;
+  const { html, danger } = _sellerLayout({
+    title: 'Restaurant — Avis de l’équipe',
+    intro,
+    mainBlock: `
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#FDECEA; border:1.5px solid #F2C2BE; border-radius:16px; padding:18px 20px;">
+        <tr>
+          <td style="font-size:16px; font-weight:700; color:${danger};">
+            ✕ Fiche restaurant non validée
+          </td>
+        </tr>
+        ${safeReason ? `
+        <tr>
+          <td style="padding-top:10px; font-size:14px; line-height:1.6; color:#2B211D;">
+            <strong>Motif&nbsp;:</strong><br />
+            ${safeReason}
+          </td>
+        </tr>` : ''}
+      </table>
+    `,
+  });
+  const text = `Bonjour${firstname ? ' ' + firstname : ''},
+
+Votre fiche restaurant ${restaurantName ? '« ' + restaurantName + ' »' : ''} n'a pas été validée dans sa version actuelle.
+${safeReason ? `\nMotif :\n${safeReason}\n` : ''}
+Vous pouvez la modifier et la soumettre à nouveau, ou contacter l'équipe depuis l'application.
+
+— L’équipe Dios Délices`;
+
+  return sendEmail({
+    to,
+    subject: 'Dios Délices — Votre fiche restaurant',
+    text,
+    html,
+  });
+}
+
+async function sendCourierApprovedEmail({ to, firstname }) {
+  const name = firstname ? escapeHtml(firstname) : '';
+  const hello = name ? `Bonjour ${name},` : 'Bonjour,';
+  const intro = `
+    ${hello}<br /><br />
+    Bonne nouvelle&nbsp;: <strong style="color:#1B8A5A">votre dossier livreur a été validé</strong>. Vous pouvez dès à présent prendre en charge des livraisons sur Dios Délices.
+  `;
+  const { html, success } = _sellerLayout({
+    title: 'Dossier livreur validé ✔',
+    intro,
+    mainBlock: `
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#EAF7EF; border:1.5px solid #BEE3CE; border-radius:16px; padding:18px 20px;">
+        <tr>
+          <td style="font-size:16px; font-weight:700; color:${success};">
+            🛵 Vous êtes désormais livreur Dios Délices
+          </td>
+        </tr>
+        <tr>
+          <td style="padding-top:10px; font-size:14px; line-height:1.6; color:#2B211D;">
+            ⚠️ <strong>Veuillez vous déconnecter puis reconnecter</strong> pour que votre nouveau statut soit pris en compte. Passez ensuite en mode « disponible » pour recevoir des propositions de courses.
+          </td>
+        </tr>
+      </table>
+    `,
+  });
+  const text = `Bonjour${firstname ? ' ' + firstname : ''},
+
+Votre dossier livreur a été validé. Vous pouvez désormais prendre en charge des livraisons sur Dios Délices.
+
+⚠️ IMPORTANT : Déconnectez-vous puis reconnectez-vous pour que votre nouveau rôle soit pris en compte.
+
+Bonnes courses !
+— L’équipe Dios Délices`;
+
+  return sendEmail({
+    to,
+    subject: 'Dios Délices — Votre dossier livreur est validé',
+    text,
+    html,
+  });
+}
+
+async function sendCourierRejectedEmail({ to, firstname, reason }) {
+  const name = firstname ? escapeHtml(firstname) : '';
+  const hello = name ? `Bonjour ${name},` : 'Bonjour,';
+  const safeReason = reason && String(reason).trim() ? escapeHtml(String(reason).trim()) : null;
+  const intro = `
+    ${hello}<br /><br />
+    Nous avons étudié votre dossier livreur et regrettons de vous informer qu’il n’a pas été retenu à ce stade.
+  `;
+  const { html, danger } = _sellerLayout({
+    title: 'Dossier livreur — Réponse de l’équipe',
+    intro,
+    mainBlock: `
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#FDECEA; border:1.5px solid #F2C2BE; border-radius:16px; padding:18px 20px;">
+        <tr>
+          <td style="font-size:16px; font-weight:700; color:${danger};">
+            ✕ Dossier non validé
+          </td>
+        </tr>
+        ${safeReason ? `
+        <tr>
+          <td style="padding-top:10px; font-size:14px; line-height:1.6; color:#2B211D;">
+            <strong>Motif&nbsp;:</strong><br />
+            ${safeReason}
+          </td>
+        </tr>` : ''}
+      </table>
+    `,
+  });
+  const text = `Bonjour${firstname ? ' ' + firstname : ''},
+
+Votre dossier livreur n'a pas été validé à ce stade.
+${safeReason ? `\nMotif :\n${safeReason}\n` : ''}
+Vous pouvez soumettre à nouveau ou contacter l'équipe depuis l'application.
+
+— L’équipe Dios Délices`;
+
+  return sendEmail({
+    to,
+    subject: 'Dios Délices — Votre dossier livreur',
+    text,
+    html,
+  });
+}
+
 module.exports = {
   EMAIL_PROVIDERS,
   emailConfig,
@@ -535,4 +907,10 @@ module.exports = {
   sendEmail,
   sendPasswordResetCodeEmail,
   sendVerificationCodeEmail,
+  sendSellerApprovedEmail,
+  sendSellerRejectedEmail,
+  sendRestaurantApprovedEmail,
+  sendRestaurantRejectedEmail,
+  sendCourierApprovedEmail,
+  sendCourierRejectedEmail,
 };

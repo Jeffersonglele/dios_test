@@ -1,5 +1,39 @@
-const { handleControllerError, canonicalCountry } = require('./controller.utils');
+const { handleControllerError, canonicalCountry, notFound } = require('./controller.utils');
 const prisma = require('../config/prisma');
+const {
+  sendSellerApprovedEmail,
+  sendSellerRejectedEmail,
+  sendRestaurantApprovedEmail,
+  sendRestaurantRejectedEmail,
+  sendCourierApprovedEmail,
+  sendCourierRejectedEmail,
+} = require('../services/email.service');
+
+function restaurateurRoleId() {
+  const configured = Number.parseInt(process.env.RESTAURATEUR_ROLE_ID || '3', 10);
+  return Number.isInteger(configured) ? configured : 3;
+}
+function courierRoleId() {
+  const configured = Number.parseInt(process.env.COURIER_ROLE_ID || '5', 10);
+  return Number.isInteger(configured) ? configured : 5;
+}
+function adminRoleIds() {
+  return String(process.env.ADMIN_ROLE_IDS || '1,4')
+    .split(',')
+    .map((s) => Number.parseInt(s.trim(), 10))
+    .filter((n) => Number.isInteger(n));
+}
+
+function _notifyAsync(fn) {
+  setImmediate(() => {
+    Promise.resolve(fn()).catch((err) => {
+      console.error('[admin] Échec envoi email notification', {
+        message: err?.message,
+        cause: err?.cause?.message,
+      });
+    });
+  });
+}
 
 function _model() {
   return {
@@ -203,7 +237,7 @@ async function getProDocuments(req, res, next) {
 async function validateProDocuments(req, res, next) {
   try {
     const m = _model();
-    const { documentId, status } = req.body;
+    const { documentId, status, remark } = req.body;
     let whereClause;
     try {
       whereClause = { id: documentId };
@@ -212,11 +246,87 @@ async function validateProDocuments(req, res, next) {
       const docIdNum = Number(documentId);
       if (Number.isInteger(docIdNum)) whereClause = { documentId: docIdNum };
     }
-    const document = await m.proDocument.update({
-      where: whereClause,
-      data: { status },
+    const previous = await m.proDocument.findFirst({ where: whereClause });
+    if (!previous) throw notFound('Document professionnel');
+
+    const normalizedStatus = String(status || '').trim();
+    const isApproved = normalizedStatus === 'approved';
+    const isRejected = normalizedStatus === 'rejected';
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const docPromise = tx.proDocument.update({
+        where: whereClause,
+        data: { status: normalizedStatus, ...(remark ? { remark } : {}) },
+      });
+
+      let targetUser = null;
+      let targetRestaurant = null;
+      const legacyUserId = previous.userId;
+      const legacyRestoId = previous.restaurantId;
+
+      if (legacyUserId !== null && legacyUserId !== undefined) {
+        const found = await tx.user.findFirst({ where: { userId: legacyUserId, deletedAt: null } });
+        if (found) targetUser = found;
+      }
+      if (!targetUser && legacyRestoId !== null && legacyRestoId !== undefined) {
+        const resto = await tx.restaurant.findFirst({ where: { restaurantId: legacyRestoId } });
+        if (resto) {
+          targetRestaurant = resto;
+          if (resto.userId !== null && resto.userId !== undefined) {
+            const u = await tx.user.findFirst({ where: { userId: resto.userId, deletedAt: null } });
+            if (u) targetUser = u;
+          }
+        }
+      }
+
+      if (isApproved) {
+        const newRole = restaurateurRoleId();
+        const adminIds = adminRoleIds();
+        if (targetUser && targetUser.roleId !== newRole && !adminIds.includes(Number(targetUser.roleId))) {
+          await tx.user.update({
+            where: { id: targetUser.id },
+            data: { roleId: newRole, accountType: 'RESTAURATEUR' },
+          });
+        }
+        if (targetRestaurant) {
+          await tx.restaurant.update({
+            where: { id: targetRestaurant.id },
+            data: { isPro: true },
+          });
+        } else if (legacyRestoId !== null && legacyRestoId !== undefined) {
+          const found = await tx.restaurant.findFirst({ where: { restaurantId: legacyRestoId } });
+          if (found) {
+            await tx.restaurant.update({
+              where: { id: found.id },
+              data: { isPro: true },
+            });
+            targetRestaurant = found;
+          }
+        }
+      }
+
+      const doc = await docPromise;
+      return { doc, targetUser, targetRestaurant, isApproved, isRejected };
     });
-    return res.status(200).json({ data: document });
+
+    const { doc, targetUser, targetRestaurant, isApproved: approved, isRejected: rejected } = updated;
+    const safeRemark = remark || previous.remark;
+
+    if (targetUser?.email && (approved || rejected)) {
+      _notifyAsync(() => approved
+        ? sendSellerApprovedEmail({ to: targetUser.email, firstname: targetUser.firstname })
+        : sendSellerRejectedEmail({ to: targetUser.email, firstname: targetUser.firstname, reason: safeRemark })
+      );
+    } else if (!targetUser?.email && (approved || rejected)) {
+      console.warn('[admin][validateProDocuments] Aucun email pour notifier l’utilisateur', {
+        documentId: doc.id,
+        docUserId: previous.userId,
+        docRestaurantId: previous.restaurantId,
+        status: normalizedStatus,
+      });
+    }
+
+    return res.status(200).json({ data: doc });
   } catch (error) {
     return handleControllerError(error, next);
   }
@@ -268,7 +378,7 @@ async function getDeliveryDocuments(req, res, next) {
 async function validateDeliveryDocuments(req, res, next) {
   try {
     const m = _model();
-    const { documentId, status } = req.body;
+    const { documentId, status, remark } = req.body;
     let whereClause;
     try {
       whereClause = { id: documentId };
@@ -277,11 +387,70 @@ async function validateDeliveryDocuments(req, res, next) {
       const docIdNum = Number(documentId);
       if (Number.isInteger(docIdNum)) whereClause = { identityId: docIdNum };
     }
-    const document = await m.identity.update({
-      where: whereClause,
-      data: { status },
+    const previous = await m.identity.findFirst({ where: whereClause });
+    if (!previous) throw notFound('Vérification d’identité');
+
+    const normalizedStatus = String(status || '').trim();
+    const isApproved = normalizedStatus === 'approved';
+    const isRejected = normalizedStatus === 'rejected';
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const docPromise = tx.identity.update({
+        where: whereClause,
+        data: { status: normalizedStatus, ...(remark ? { remark } : {}) },
+      });
+
+      let targetUser = null;
+      const legacyUserId = previous.userId;
+      if (legacyUserId !== null && legacyUserId !== undefined) {
+        const found = await tx.user.findFirst({ where: { userId: legacyUserId, deletedAt: null } });
+        if (found) targetUser = found;
+      }
+
+      if (isApproved && targetUser) {
+        const newRole = courierRoleId();
+        const adminIds = adminRoleIds();
+        if (targetUser.roleId !== newRole && !adminIds.includes(Number(targetUser.roleId))) {
+          targetUser = await tx.user.update({
+            where: { id: targetUser.id },
+            data: { roleId: newRole, accountType: 'LIVREUR', identity: 'Vérifiée' },
+          });
+        } else if (targetUser.identity !== 'Vérifiée') {
+          targetUser = await tx.user.update({
+            where: { id: targetUser.id },
+            data: { identity: 'Vérifiée' },
+          });
+        }
+      } else if (isRejected && targetUser) {
+        if (targetUser.identity === 'Vérifiée') {
+          targetUser = await tx.user.update({
+            where: { id: targetUser.id },
+            data: { identity: 'rejected' },
+          });
+        }
+      }
+
+      const doc = await docPromise;
+      return { doc, targetUser, isApproved, isRejected };
     });
-    return res.status(200).json({ data: document });
+
+    const { doc, targetUser, isApproved: approved, isRejected: rejected } = updated;
+    const safeRemark = remark || previous.remark;
+
+    if (targetUser?.email && (approved || rejected)) {
+      _notifyAsync(() => approved
+        ? sendCourierApprovedEmail({ to: targetUser.email, firstname: targetUser.firstname })
+        : sendCourierRejectedEmail({ to: targetUser.email, firstname: targetUser.firstname, reason: safeRemark })
+      );
+    } else if (!targetUser?.email && (approved || rejected)) {
+      console.warn('[admin][validateDeliveryDocuments] Aucun email pour notifier l’utilisateur', {
+        documentId: doc.id,
+        docUserId: previous.userId,
+        status: normalizedStatus,
+      });
+    }
+
+    return res.status(200).json({ data: doc });
   } catch (error) {
     return handleControllerError(error, next);
   }
@@ -367,16 +536,60 @@ async function validateRestaurant(req, res, next) {
     if (!resto) {
       resto = await m.restaurant.findFirst({ where: { id: restaurantId } });
     }
-    if (!resto) {
-      const err = new Error('Restaurant introuvable.');
-      err.statusCode = 404;
-      throw err;
-    }
-    const data = await m.restaurant.update({
-      where: { id: resto.id },
-      data: { valid: Number(valid), ...(reviewRemark ? { reviewRemark } : {}) },
+    if (!resto) throw notFound('Restaurant');
+
+    const newValid = Number(valid);
+    const nowApproved = newValid === 1 && Number(resto.valid || 0) !== 1;
+    const nowRejected = newValid === 0 && Number(resto.valid || 0) !== 0 && reviewRemark;
+
+    const result = await prisma.$transaction(async (tx) => {
+      const data = { valid: newValid, ...(reviewRemark ? { reviewRemark } : {}) };
+      if (nowApproved) data.isPro = true;
+
+      const updatedResto = await tx.restaurant.update({ where: { id: resto.id }, data });
+      let owner = null;
+      const legacyOwnerId = updatedResto.userId ?? resto.userId;
+      if (legacyOwnerId !== null && legacyOwnerId !== undefined) {
+        owner = await tx.user.findFirst({ where: { userId: legacyOwnerId, deletedAt: null } });
+      }
+      if (nowApproved && owner) {
+        const newRole = restaurateurRoleId();
+        const adminIds = adminRoleIds();
+        if (owner.roleId !== newRole && !adminIds.includes(Number(owner.roleId))) {
+          owner = await tx.user.update({
+            where: { id: owner.id },
+            data: { roleId: newRole, accountType: 'RESTAURATEUR' },
+          });
+        }
+      }
+      return { updatedResto, owner, remark: reviewRemark || resto.reviewRemark };
     });
-    return res.status(200).json({ data });
+
+    const { updatedResto, owner, remark } = result;
+
+    if (owner?.email && (nowApproved || nowRejected)) {
+      _notifyAsync(() => nowApproved
+        ? sendRestaurantApprovedEmail({
+            to: owner.email,
+            firstname: owner.firstname,
+            restaurantName: updatedResto.name,
+          })
+        : sendRestaurantRejectedEmail({
+            to: owner.email,
+            firstname: owner.firstname,
+            restaurantName: updatedResto.name,
+            reason: remark,
+          })
+      );
+    } else if (!owner?.email && (nowApproved || nowRejected)) {
+      console.warn('[admin][validateRestaurant] Aucun email pour notifier le propriétaire', {
+        restaurantId: updatedResto.id,
+        restoUserId: resto.userId,
+        valid: newValid,
+      });
+    }
+
+    return res.status(200).json({ data: updatedResto });
   } catch (error) {
     return handleControllerError(error, next);
   }

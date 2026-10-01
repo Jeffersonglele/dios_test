@@ -1,6 +1,12 @@
 const prisma = require('../config/prisma');
 const { createCrudController } = require('./crud.controller');
 const { badRequest, handleControllerError, notFound } = require('./controller.utils');
+const {
+  sendSellerApprovedEmail,
+  sendSellerRejectedEmail,
+  sendCourierApprovedEmail,
+  sendCourierRejectedEmail,
+} = require('../services/email.service');
 
 const IDENTITY_FIELDS = ['identityId', 'userId', 'identityFileUrl', 'photoUrl', 'status', 'remark'];
 const DOCUMENT_FIELDS = [
@@ -22,6 +28,32 @@ const verificationCode = createCrudController({
   hasSoftDelete: false, filterFields: ['email', 'phone', 'purpose', 'verified'],
 });
 
+function restaurateurRoleId() {
+  const configured = Number.parseInt(process.env.RESTAURATEUR_ROLE_ID || '3', 10);
+  return Number.isInteger(configured) ? configured : 3;
+}
+function courierRoleId() {
+  const configured = Number.parseInt(process.env.COURIER_ROLE_ID || '5', 10);
+  return Number.isInteger(configured) ? configured : 5;
+}
+function adminRoleIds() {
+  return String(process.env.ADMIN_ROLE_IDS || '1,4')
+    .split(',')
+    .map((s) => Number.parseInt(s.trim(), 10))
+    .filter((n) => Number.isInteger(n));
+}
+
+function _notifyAsync(fn) {
+  setImmediate(() => {
+    Promise.resolve(fn()).catch((err) => {
+      console.error('[verification] Échec envoi email notification', {
+        message: err?.message,
+        cause: err?.cause?.message,
+      });
+    });
+  });
+}
+
 async function reviewIdentity(req, res, next) {
   try {
     const identityRecord = await prisma.identity.findFirst({ where: { id: req.params.id, deletedAt: null } });
@@ -29,17 +61,59 @@ async function reviewIdentity(req, res, next) {
     if (!['approved', 'rejected', 'pending'].includes(req.body.status)) {
       throw badRequest('Le statut doit être approved, rejected ou pending.');
     }
-    const updated = await prisma.$transaction(async (tx) => {
+    const normalizedStatus = String(req.body.status || '').trim();
+    const isApproved = normalizedStatus === 'approved';
+    const isRejected = normalizedStatus === 'rejected';
+
+    const result = await prisma.$transaction(async (tx) => {
       const record = await tx.identity.update({
-        where: { id: identityRecord.id }, data: { status: req.body.status, remark: req.body.remark },
+        where: { id: identityRecord.id },
+        data: { status: normalizedStatus, remark: req.body.remark ?? identityRecord.remark },
       });
-      await tx.user.updateMany({
-        where: { userId: identityRecord.userId },
-        data: { identity: req.body.status === 'approved' ? 'Vérifiée' : req.body.status },
-      });
-      return record;
+
+      let targetUser = null;
+      if (identityRecord.userId !== null && identityRecord.userId !== undefined) {
+        targetUser = await tx.user.findFirst({ where: { userId: identityRecord.userId, deletedAt: null } });
+      }
+
+      if (targetUser) {
+        const userPatch = {};
+        if (isApproved) userPatch.identity = 'Vérifiée';
+        else if (isRejected) userPatch.identity = normalizedStatus;
+
+        if (isApproved) {
+          const newRole = courierRoleId();
+          const adminIds = adminRoleIds();
+          if (targetUser.roleId !== newRole && !adminIds.includes(Number(targetUser.roleId))) {
+            userPatch.roleId = newRole;
+            userPatch.accountType = 'LIVREUR';
+          }
+        }
+
+        if (Object.keys(userPatch).length > 0) {
+          targetUser = await tx.user.update({ where: { id: targetUser.id }, data: userPatch });
+        }
+      }
+
+      return { record, targetUser, isApproved, isRejected };
     });
-    return res.status(200).json({ data: updated });
+
+    const { record, targetUser, isApproved: approved, isRejected: rejected } = result;
+    const remark = req.body.remark ?? identityRecord.remark;
+
+    if (targetUser?.email && (approved || rejected)) {
+      _notifyAsync(() => approved
+        ? sendCourierApprovedEmail({ to: targetUser.email, firstname: targetUser.firstname })
+        : sendCourierRejectedEmail({ to: targetUser.email, firstname: targetUser.firstname, reason: remark })
+      );
+    } else if (!targetUser?.email && (approved || rejected)) {
+      console.warn('[verification][reviewIdentity] Aucun email pour notifier l’utilisateur', {
+        identityId: record.id,
+        userId: identityRecord.userId,
+      });
+    }
+
+    return res.status(200).json({ data: record });
   } catch (error) {
     return handleControllerError(error, next);
   }
@@ -52,9 +126,71 @@ async function reviewProDocument(req, res, next) {
     if (!['approved', 'rejected', 'pending'].includes(req.body.status)) {
       throw badRequest('Le statut doit être approved, rejected ou pending.');
     }
-    const updated = await prisma.proDocument.update({
-      where: { id: document.id }, data: { status: req.body.status, remark: req.body.remark },
+    const normalizedStatus = String(req.body.status || '').trim();
+    const isApproved = normalizedStatus === 'approved';
+    const isRejected = normalizedStatus === 'rejected';
+
+    const result = await prisma.$transaction(async (tx) => {
+      const updated = await tx.proDocument.update({
+        where: { id: document.id },
+        data: { status: normalizedStatus, remark: req.body.remark ?? document.remark },
+      });
+
+      let targetUser = null;
+      let targetRestaurant = null;
+
+      if (document.userId !== null && document.userId !== undefined) {
+        targetUser = await tx.user.findFirst({ where: { userId: document.userId, deletedAt: null } });
+      }
+      if (!targetUser && document.restaurantId !== null && document.restaurantId !== undefined) {
+        targetRestaurant = await tx.restaurant.findFirst({ where: { restaurantId: document.restaurantId } });
+        if (targetRestaurant && targetRestaurant.userId !== null && targetRestaurant.userId !== undefined) {
+          targetUser = await tx.user.findFirst({ where: { userId: targetRestaurant.userId, deletedAt: null } });
+        }
+      }
+
+      if (isApproved) {
+        const newRole = restaurateurRoleId();
+        const adminIds = adminRoleIds();
+        if (targetUser && targetUser.roleId !== newRole && !adminIds.includes(Number(targetUser.roleId))) {
+          targetUser = await tx.user.update({
+            where: { id: targetUser.id },
+            data: { roleId: newRole, accountType: 'RESTAURATEUR' },
+          });
+        }
+        if (targetRestaurant) {
+          await tx.restaurant.update({
+            where: { id: targetRestaurant.id },
+            data: { isPro: true },
+          });
+        } else if (document.restaurantId !== null && document.restaurantId !== undefined) {
+          const found = await tx.restaurant.findFirst({ where: { restaurantId: document.restaurantId } });
+          if (found) {
+            await tx.restaurant.update({ where: { id: found.id }, data: { isPro: true } });
+            targetRestaurant = found;
+          }
+        }
+      }
+
+      return { updated, targetUser, isApproved, isRejected };
     });
+
+    const { updated, targetUser, isApproved: approved, isRejected: rejected } = result;
+    const remark = req.body.remark ?? document.remark;
+
+    if (targetUser?.email && (approved || rejected)) {
+      _notifyAsync(() => approved
+        ? sendSellerApprovedEmail({ to: targetUser.email, firstname: targetUser.firstname })
+        : sendSellerRejectedEmail({ to: targetUser.email, firstname: targetUser.firstname, reason: remark })
+      );
+    } else if (!targetUser?.email && (approved || rejected)) {
+      console.warn('[verification][reviewProDocument] Aucun email pour notifier l’utilisateur', {
+        documentId: updated.id,
+        userId: document.userId,
+        restaurantId: document.restaurantId,
+      });
+    }
+
     return res.status(200).json({ data: updated });
   } catch (error) {
     return handleControllerError(error, next);
