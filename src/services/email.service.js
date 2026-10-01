@@ -521,15 +521,20 @@ async function sendPasswordResetCodeEmail({ to, code }) {
   });
 }
 
+const _EMAIL_BRAND = '#E1502F';
+const _EMAIL_BRAND_DARK = '#C7431F';
+const _EMAIL_INK = '#2B211D';
+const _EMAIL_INK_MUTED = '#8A7A72';
+const _EMAIL_SURFACE_WARM = '#FBEFE6';
+const _EMAIL_BORDER = '#F0DDD0';
+const _EMAIL_SUCCESS = '#1B8A5A';
+const _EMAIL_SUCCESS_BG = '#EAF7EF';
+const _EMAIL_SUCCESS_BORDER = '#BEE3CE';
+const _EMAIL_DANGER = '#C0392B';
+const _EMAIL_DANGER_BG = '#FDECEA';
+const _EMAIL_DANGER_BORDER = '#F2C2BE';
+
 function _sellerLayout({ title, intro, mainBlock, outro }) {
-  const brand = '#E1502F';
-  const brandDark = '#C7431F';
-  const ink = '#2B211D';
-  const inkMuted = '#8A7A72';
-  const surfaceWarm = '#FBEFE6';
-  const border = '#F0DDD0';
-  const success = '#1B8A5A';
-  const danger = '#C0392B';
   const html = `
   <!DOCTYPE html>
   <html lang="fr">
@@ -538,18 +543,18 @@ function _sellerLayout({ title, intro, mainBlock, outro }) {
       <meta name="viewport" content="width=device-width, initial-scale=1" />
       <title>${escapeHtml(title)}</title>
     </head>
-    <body style="margin:0; padding:0; background-color:${surfaceWarm}; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:${surfaceWarm}; padding:32px 16px;">
+    <body style="margin:0; padding:0; background-color:${_EMAIL_SURFACE_WARM}; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:${_EMAIL_SURFACE_WARM}; padding:32px 16px;">
         <tr>
           <td align="center">
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px; background-color:#ffffff; border-radius:24px; border:1px solid ${border}; overflow:hidden;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px; background-color:#ffffff; border-radius:24px; border:1px solid ${_EMAIL_BORDER}; overflow:hidden;">
               <tr>
                 <td style="padding:32px 32px 0 32px;" align="center">
                   <table role="presentation" cellpadding="0" cellspacing="0">
                     <tr>
-                      <td style="width:8px; height:8px; border-radius:99px; background-color:${brand};"></td>
+                      <td style="width:8px; height:8px; border-radius:99px; background-color:${_EMAIL_BRAND};"></td>
                       <td style="width:8px;"></td>
-                      <td style="font-size:12px; font-weight:700; letter-spacing:2px; color:${brand}; text-transform:uppercase;">
+                      <td style="font-size:12px; font-weight:700; letter-spacing:2px; color:${_EMAIL_BRAND}; text-transform:uppercase;">
                         Dios Délices
                       </td>
                     </tr>
@@ -558,14 +563,14 @@ function _sellerLayout({ title, intro, mainBlock, outro }) {
               </tr>
               <tr>
                 <td style="padding:20px 32px 0 32px;" align="center">
-                  <h1 style="margin:0; font-size:22px; line-height:1.3; font-weight:800; color:${ink};">
+                  <h1 style="margin:0; font-size:22px; line-height:1.3; font-weight:800; color:${_EMAIL_INK};">
                     ${title}
                   </h1>
                 </td>
               </tr>
               <tr>
                 <td style="padding:16px 32px 0 32px;">
-                  <p style="margin:0; font-size:15px; line-height:1.65; color:${inkMuted}; text-align:left;">
+                  <p style="margin:0; font-size:15px; line-height:1.65; color:${_EMAIL_INK_MUTED}; text-align:left;">
                     ${intro}
                   </p>
                 </td>
@@ -578,7 +583,7 @@ function _sellerLayout({ title, intro, mainBlock, outro }) {
               ${outro ? `
               <tr>
                 <td style="padding:16px 32px 0 32px;">
-                  <p style="margin:0; font-size:14px; line-height:1.6; color:${inkMuted};">
+                  <p style="margin:0; font-size:14px; line-height:1.6; color:${_EMAIL_INK_MUTED};">
                     ${outro}
                   </p>
                 </td>
@@ -587,14 +592,14 @@ function _sellerLayout({ title, intro, mainBlock, outro }) {
                 <td style="padding:28px 32px 0 32px;">
                   <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                     <tr>
-                      <td style="height:1px; line-height:1px; font-size:1px; background-color:${border};">&nbsp;</td>
+                      <td style="height:1px; line-height:1px; font-size:1px; background-color:${_EMAIL_BORDER};">&nbsp;</td>
                     </tr>
                   </table>
                 </td>
               </tr>
               <tr>
                 <td style="padding:20px 32px 32px 32px;" align="center">
-                  <p style="margin:0; font-size:12px; line-height:1.6; color:${inkMuted};">
+                  <p style="margin:0; font-size:12px; line-height:1.6; color:${_EMAIL_INK_MUTED};">
                     Une question&nbsp;? Contactez-nous directement depuis l’application.<br />
                     Merci de votre confiance, l’équipe Dios Délices.
                   </p>
@@ -604,7 +609,7 @@ function _sellerLayout({ title, intro, mainBlock, outro }) {
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px; margin-top:20px;">
               <tr>
                 <td align="center">
-                  <p style="margin:0; font-size:12px; color:${inkMuted};">
+                  <p style="margin:0; font-size:12px; color:${_EMAIL_INK_MUTED};">
                     © ${new Date().getFullYear()} Dios Délices. Tous droits réservés.
                   </p>
                 </td>
@@ -616,7 +621,7 @@ function _sellerLayout({ title, intro, mainBlock, outro }) {
     </body>
   </html>
   `;
-  return { html, success, danger, brand, brandDark, ink, inkMuted, surfaceWarm, border };
+  return html;
 }
 
 async function sendSellerApprovedEmail({ to, firstname }) {
@@ -624,20 +629,20 @@ async function sendSellerApprovedEmail({ to, firstname }) {
   const hello = name ? `Bonjour ${name},` : 'Bonjour,';
   const intro = `
     ${hello}<br /><br />
-    Nous avons le plaisir de vous annoncer que <strong style="color:#1B8A5A">votre demande de statut vendeur / restaurateur a été validée</strong> par notre équipe.
+    Nous avons le plaisir de vous annoncer que <strong style="color:${_EMAIL_SUCCESS}">votre demande de statut vendeur / restaurateur a été validée</strong> par notre équipe.
   `;
-  const { html, success, brandDark } = _sellerLayout({
+  const html = _sellerLayout({
     title: 'Demande vendeur acceptée',
     intro,
     mainBlock: `
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#EAF7EF; border:1.5px solid #BEE3CE; border-radius:16px; padding:18px 20px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:${_EMAIL_SUCCESS_BG}; border:1.5px solid ${_EMAIL_SUCCESS_BORDER}; border-radius:16px; padding:18px 20px;">
         <tr>
-          <td style="font-size:16px; font-weight:700; color:${success};">
+          <td style="font-size:16px; font-weight:700; color:${_EMAIL_SUCCESS};">
             ✔ Votre compte est désormais un compte Restaurateur / Vendeur
           </td>
         </tr>
         <tr>
-          <td style="padding-top:10px; font-size:14px; line-height:1.6; color:#2B211D;">
+          <td style="padding-top:10px; font-size:14px; line-height:1.6; color:${_EMAIL_INK};">
             Vous pouvez dès à présent :
             <ul style="margin:8px 0 0 20px; padding:0;">
               <li>Créer et gérer votre restaurant sur l’application</li>
@@ -647,7 +652,7 @@ async function sendSellerApprovedEmail({ to, firstname }) {
           </td>
         </tr>
       </table>
-      <p style="margin:18px 0 0 0; font-size:14px; line-height:1.6; color:#2B211D;">
+      <p style="margin:18px 0 0 0; font-size:14px; line-height:1.6; color:${_EMAIL_INK};">
         ⚠️ Pour activer vos accès vendeur, <strong>veuillez vous déconnecter puis reconnecter</strong> à l’application Dios Délices. Votre rôle sera alors automatiquement mis à jour.
       </p>
     `,
@@ -680,25 +685,25 @@ async function sendSellerRejectedEmail({ to, firstname, reason }) {
     ${hello}<br /><br />
     Nous avons étudié votre demande de statut vendeur / restaurateur et regrettons de vous informer qu’elle n’a pas été retenue à ce stade.
   `;
-  const { html, danger } = _sellerLayout({
+  const html = _sellerLayout({
     title: 'Demande vendeur — Réponse de l’équipe',
     intro,
     mainBlock: `
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#FDECEA; border:1.5px solid #F2C2BE; border-radius:16px; padding:18px 20px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:${_EMAIL_DANGER_BG}; border:1.5px solid ${_EMAIL_DANGER_BORDER}; border-radius:16px; padding:18px 20px;">
         <tr>
-          <td style="font-size:16px; font-weight:700; color:${danger};">
+          <td style="font-size:16px; font-weight:700; color:${_EMAIL_DANGER};">
             ✕ Demande non validée
           </td>
         </tr>
         ${safeReason ? `
         <tr>
-          <td style="padding-top:10px; font-size:14px; line-height:1.6; color:#2B211D;">
+          <td style="padding-top:10px; font-size:14px; line-height:1.6; color:${_EMAIL_INK};">
             <strong>Motif&nbsp;:</strong><br />
             ${safeReason}
           </td>
         </tr>` : ''}
       </table>
-      <p style="margin:18px 0 0 0; font-size:14px; line-height:1.6; color:#2B211D;">
+      <p style="margin:18px 0 0 0; font-size:14px; line-height:1.6; color:${_EMAIL_INK};">
         Vous pouvez soumettre une nouvelle demande en complétant les documents demandés, ou nous contacter depuis l’application pour obtenir plus de précisions.
       </p>
     `,
@@ -725,20 +730,20 @@ async function sendRestaurantApprovedEmail({ to, firstname, restaurantName }) {
   const resto = restaurantName ? ` <strong>« ${escapeHtml(restaurantName)} »</strong>` : ' votre établissement';
   const intro = `
     ${hello}<br /><br />
-    Excellente nouvelle&nbsp;:${resto} a été <strong style="color:#1B8A5A">validé et est désormais visible publiquement</strong> sur Dios Délices&nbsp;!
+    Excellente nouvelle&nbsp;:${resto} a été <strong style="color:${_EMAIL_SUCCESS}">validé et est désormais visible publiquement</strong> sur Dios Délices&nbsp;!
   `;
-  const { html, success } = _sellerLayout({
+  const html = _sellerLayout({
     title: 'Restaurant validé ✔',
     intro,
     mainBlock: `
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#EAF7EF; border:1.5px solid #BEE3CE; border-radius:16px; padding:18px 20px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:${_EMAIL_SUCCESS_BG}; border:1.5px solid ${_EMAIL_SUCCESS_BORDER}; border-radius:16px; padding:18px 20px;">
         <tr>
-          <td style="font-size:16px; font-weight:700; color:${success};">
+          <td style="font-size:16px; font-weight:700; color:${_EMAIL_SUCCESS};">
             🍽 Votre restaurant est en ligne
           </td>
         </tr>
         <tr>
-          <td style="padding-top:10px; font-size:14px; line-height:1.6; color:#2B211D;">
+          <td style="padding-top:10px; font-size:14px; line-height:1.6; color:${_EMAIL_INK};">
             Les clients peuvent désormais découvrir votre carte et passer commande. Pensez à vérifier vos horaires, vos informations de contact et à activer les notifications pour ne manquer aucune commande.
           </td>
         </tr>
@@ -771,19 +776,19 @@ async function sendRestaurantRejectedEmail({ to, firstname, restaurantName, reas
     ${hello}<br /><br />
     Nous avons étudié la fiche de${resto} et regrettons de vous informer qu’elle n’a pas été validée dans sa version actuelle.
   `;
-  const { html, danger } = _sellerLayout({
+  const html = _sellerLayout({
     title: 'Restaurant — Avis de l’équipe',
     intro,
     mainBlock: `
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#FDECEA; border:1.5px solid #F2C2BE; border-radius:16px; padding:18px 20px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:${_EMAIL_DANGER_BG}; border:1.5px solid ${_EMAIL_DANGER_BORDER}; border-radius:16px; padding:18px 20px;">
         <tr>
-          <td style="font-size:16px; font-weight:700; color:${danger};">
+          <td style="font-size:16px; font-weight:700; color:${_EMAIL_DANGER};">
             ✕ Fiche restaurant non validée
           </td>
         </tr>
         ${safeReason ? `
         <tr>
-          <td style="padding-top:10px; font-size:14px; line-height:1.6; color:#2B211D;">
+          <td style="padding-top:10px; font-size:14px; line-height:1.6; color:${_EMAIL_INK};">
             <strong>Motif&nbsp;:</strong><br />
             ${safeReason}
           </td>
@@ -812,20 +817,20 @@ async function sendCourierApprovedEmail({ to, firstname }) {
   const hello = name ? `Bonjour ${name},` : 'Bonjour,';
   const intro = `
     ${hello}<br /><br />
-    Bonne nouvelle&nbsp;: <strong style="color:#1B8A5A">votre dossier livreur a été validé</strong>. Vous pouvez dès à présent prendre en charge des livraisons sur Dios Délices.
+    Bonne nouvelle&nbsp;: <strong style="color:${_EMAIL_SUCCESS}">votre dossier livreur a été validé</strong>. Vous pouvez dès à présent prendre en charge des livraisons sur Dios Délices.
   `;
-  const { html, success } = _sellerLayout({
+  const html = _sellerLayout({
     title: 'Dossier livreur validé ✔',
     intro,
     mainBlock: `
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#EAF7EF; border:1.5px solid #BEE3CE; border-radius:16px; padding:18px 20px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:${_EMAIL_SUCCESS_BG}; border:1.5px solid ${_EMAIL_SUCCESS_BORDER}; border-radius:16px; padding:18px 20px;">
         <tr>
-          <td style="font-size:16px; font-weight:700; color:${success};">
+          <td style="font-size:16px; font-weight:700; color:${_EMAIL_SUCCESS};">
             🛵 Vous êtes désormais livreur Dios Délices
           </td>
         </tr>
         <tr>
-          <td style="padding-top:10px; font-size:14px; line-height:1.6; color:#2B211D;">
+          <td style="padding-top:10px; font-size:14px; line-height:1.6; color:${_EMAIL_INK};">
             ⚠️ <strong>Veuillez vous déconnecter puis reconnecter</strong> pour que votre nouveau statut soit pris en compte. Passez ensuite en mode « disponible » pour recevoir des propositions de courses.
           </td>
         </tr>
@@ -857,19 +862,19 @@ async function sendCourierRejectedEmail({ to, firstname, reason }) {
     ${hello}<br /><br />
     Nous avons étudié votre dossier livreur et regrettons de vous informer qu’il n’a pas été retenu à ce stade.
   `;
-  const { html, danger } = _sellerLayout({
+  const html = _sellerLayout({
     title: 'Dossier livreur — Réponse de l’équipe',
     intro,
     mainBlock: `
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#FDECEA; border:1.5px solid #F2C2BE; border-radius:16px; padding:18px 20px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:${_EMAIL_DANGER_BG}; border:1.5px solid ${_EMAIL_DANGER_BORDER}; border-radius:16px; padding:18px 20px;">
         <tr>
-          <td style="font-size:16px; font-weight:700; color:${danger};">
+          <td style="font-size:16px; font-weight:700; color:${_EMAIL_DANGER};">
             ✕ Dossier non validé
           </td>
         </tr>
         ${safeReason ? `
         <tr>
-          <td style="padding-top:10px; font-size:14px; line-height:1.6; color:#2B211D;">
+          <td style="padding-top:10px; font-size:14px; line-height:1.6; color:${_EMAIL_INK};">
             <strong>Motif&nbsp;:</strong><br />
             ${safeReason}
           </td>
