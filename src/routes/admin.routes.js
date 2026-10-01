@@ -27,5 +27,7 @@ router.get('/countries', adminController.getAvailableCountries);
 
 router.patch('/restaurants/:restaurantId', adminController.validateRestaurant);
 router.patch('/users/:userId/identity-status', adminController.setIdentityStatus);
+router.get('/users/:userId/details', adminController.getUserDetailsByLegacyId);
+router.patch('/users/:userId/profile', adminController.updateUserProfileByLegacyId);
 
 module.exports = router;

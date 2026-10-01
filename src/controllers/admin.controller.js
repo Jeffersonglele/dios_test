@@ -437,6 +437,88 @@ async function getAvailableCountries(req, res, next) {
   }
 }
 
+async function getUserDetailsByLegacyId(req, res, next) {
+  try {
+    const m = _model();
+    const { userId } = req.params;
+    const legacyUserId = Number(userId);
+    let user;
+    if (Number.isInteger(legacyUserId)) {
+      user = await m.user.findFirst({ where: { userId: legacyUserId, deletedAt: null } });
+    }
+    if (!user) {
+      user = await m.user.findFirst({ where: { id: userId, deletedAt: null } });
+    }
+    if (!user) {
+      const err = new Error('Utilisateur introuvable.');
+      err.statusCode = 404;
+      throw err;
+    }
+    const { password, ...safeUser } = user;
+    const identity = await m.identity.findFirst({
+      where: { userId: user.userId, deletedAt: null },
+      orderBy: { createdAt: 'desc' },
+    });
+    const restaurant = await m.restaurant.findFirst({
+      where: { userId: user.userId, deletedAt: null },
+    });
+    return res.status(200).json({
+      data: {
+        user: safeUser,
+        identity: identity || null,
+        restaurant: restaurant || null,
+      },
+    });
+  } catch (error) {
+    return handleControllerError(error, next);
+  }
+}
+
+async function updateUserProfileByLegacyId(req, res, next) {
+  try {
+    const m = _model();
+    const { userId } = req.params;
+    const legacyUserId = Number(userId);
+    let user;
+    if (Number.isInteger(legacyUserId)) {
+      user = await m.user.findFirst({ where: { userId: legacyUserId, deletedAt: null } });
+    }
+    if (!user) {
+      user = await m.user.findFirst({ where: { id: userId, deletedAt: null } });
+    }
+    if (!user) {
+      const err = new Error('Utilisateur introuvable.');
+      err.statusCode = 404;
+      throw err;
+    }
+    const allowedFields = ['firstname', 'lastname', 'username', 'email', 'telephone', 'telephoneLocal', 'telephoneE164', 'image'];
+    const data = {};
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) data[field] = req.body[field];
+    }
+    const updated = await m.user.update({ where: { id: user.id }, data });
+    if (data.firstname !== undefined || data.lastname !== undefined || data.username !== undefined || data.email !== undefined || data.telephone !== undefined || data.image !== undefined) {
+      await prisma.authUser.updateMany({
+        where: { legacyUserId: user.userId },
+        data: {
+          ...(data.firstname !== undefined && { firstname: data.firstname }),
+          ...(data.lastname !== undefined && { lastname: data.lastname }),
+          ...(data.username !== undefined && { username: data.username }),
+          ...(data.email !== undefined && { email: data.email }),
+          ...(data.telephone !== undefined && { telephone: data.telephone }),
+          ...(data.telephoneLocal !== undefined && { telephoneLocal: data.telephoneLocal }),
+          ...(data.telephoneE164 !== undefined && { telephoneE164: data.telephoneE164 }),
+          ...(data.image !== undefined && { image: data.image }),
+        },
+      });
+    }
+    const { password, ...safeUpdated } = updated;
+    return res.status(200).json({ data: safeUpdated });
+  } catch (error) {
+    return handleControllerError(error, next);
+  }
+}
+
 module.exports = {
   getDashboardStats,
   sendEmail,
@@ -450,4 +532,6 @@ module.exports = {
   validateRestaurant,
   setIdentityStatus,
   getAvailableCountries,
+  getUserDetailsByLegacyId,
+  updateUserProfileByLegacyId,
 };
