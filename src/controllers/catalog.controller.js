@@ -2,6 +2,19 @@ const prisma = require('../config/prisma');
 const { createCrudController } = require('./crud.controller');
 const { badRequest, handleControllerError, notFound, pagination, sendPage, canonicalCountry } = require('./controller.utils');
 
+function configuredAdminRoleIds() {
+  return String(process.env.ADMIN_ROLE_IDS || '')
+    .split(',')
+    .map((value) => Number.parseInt(value.trim(), 10))
+    .filter(Number.isInteger);
+}
+
+function isAdminUser(req) {
+  const roleId = req?.auth?.roleId;
+  if (roleId === undefined || roleId === null) return false;
+  return configuredAdminRoleIds().includes(Number(roleId));
+}
+
 const RESTAURANT_FIELDS = [
   'restaurantId', 'userId', 'categories', 'description', 'address', 'addressId',
   'name', 'rating', 'image', 'dateCreation', 'valid', 'orderCount', 'openingHours',
@@ -51,8 +64,9 @@ async function getRestaurantMenu(req, res, next) {
       && restaurant.userId !== undefined
       && restaurant.userId !== null
       && Number(restaurant.userId) === authUserId;
+    const isAdmin = isAdminUser(req);
 
-    if (!isOwner && Number(restaurant.valid) !== 1) throw notFound('Restaurant');
+    if (!isOwner && !isAdmin && Number(restaurant.valid) !== 1) throw notFound('Restaurant');
 
     const pageInfo = pagination(req.query);
     const dishesWhere = { restaurantId, deletedAt: null };
@@ -212,8 +226,9 @@ async function getRestaurantById(req, res, next) {
       && restaurant.userId !== undefined
       && restaurant.userId !== null
       && Number(restaurant.userId) === authUserId;
+    const isAdmin = isAdminUser(req);
 
-    if (!isOwner && Number(restaurant.valid) !== 1) throw notFound('Restaurant');
+    if (!isOwner && !isAdmin && Number(restaurant.valid) !== 1) throw notFound('Restaurant');
     return res.status(200).json({ data: restaurant });
   } catch (error) {
     return handleControllerError(error, next);
@@ -243,8 +258,9 @@ async function getRestaurantByLegacy(req, res, next) {
       && restaurant.userId !== undefined
       && restaurant.userId !== null
       && Number(restaurant.userId) === authUserId;
+    const isAdmin = isAdminUser(req);
 
-    if (!isOwner && Number(restaurant.valid) !== 1) throw notFound('Restaurant');
+    if (!isOwner && !isAdmin && Number(restaurant.valid) !== 1) throw notFound('Restaurant');
     return res.status(200).json({ data: restaurant });
   } catch (error) {
     return handleControllerError(error, next);
