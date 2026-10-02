@@ -20,6 +20,8 @@ import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/notification_service.dart';
+import '../../services/node_auth_service.dart';
+import '../../db/database_helper.dart';
 
 class Settings extends ConsumerStatefulWidget {
   const Settings({super.key});
@@ -175,10 +177,12 @@ class _SettingsState extends ConsumerState<Settings> {
   Future<void> _showChangePasswordDialog() async {
     final l10n = AppLocalizations.of(context)!;
     final session = await SessionService.readSession();
+    if (session.userId <= 0 && !(await SessionService.hasNodeSession())) return;
+    if (!mounted) return;
+
     final users = await Users.fetchUsersFromDB();
     final currentUser = Users.getUsersByUserId(users, session.userId);
-    if (currentUser == null) return;
-    if (!mounted) return;
+    final targetUserId = currentUser?.userID ?? session.userId;
 
     final currentPwdCtrl = TextEditingController();
     final newPwdCtrl = TextEditingController();
@@ -186,6 +190,7 @@ class _SettingsState extends ConsumerState<Settings> {
     final formKey = GlobalKey<FormState>();
 
     bool showCurrent = false, showNew = false, showConfirm = false;
+    bool isSubmitting = false;
 
     await showDialog(
       context: context,
@@ -274,62 +279,144 @@ class _SettingsState extends ConsumerState<Settings> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(ctx),
+              onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
               child: Text(l10n.cancel,
                   style: AppTypography.labelMedium(
                       color: AppColors.resolve(
                           AppColors.inkMuted, AppDarkColors.inkMuted))),
             ),
             ElevatedButton(
-              onPressed: () async {
-                final currentPwd = currentPwdCtrl.text.trim();
-                final newPwd = newPwdCtrl.text.trim();
-                final confirmPwd = confirmPwdCtrl.text.trim();
+              onPressed: isSubmitting
+                  ? null
+                  : () async {
+                      final currentPwd = currentPwdCtrl.text.trim();
+                      final newPwd = newPwdCtrl.text.trim();
+                      final confirmPwd = confirmPwdCtrl.text.trim();
 
-                if (currentPwd.isEmpty ||
-                    newPwd.isEmpty ||
-                    confirmPwd.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(l10n.allFieldsRequired)));
-                  return;
-                }
-                if (newPwd.length < 6) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(l10n.passwordMinLength)));
-                  return;
-                }
-                if (newPwd != confirmPwd) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(l10n.passwordsNotMatch)));
-                  return;
-                }
+                      if (currentPwd.isEmpty ||
+                          newPwd.isEmpty ||
+                          confirmPwd.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(l10n.allFieldsRequired)));
+                        return;
+                      }
+                      if (newPwd.length < 6) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(l10n.passwordMinLength)));
+                        return;
+                      }
+                      if (newPwd != confirmPwd) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(l10n.passwordsNotMatch)));
+                        return;
+                      }
 
-                final currentEncrypted =
-                    await Users.encryptPassword(currentPwd);
-                if (currentUser.password.isNotEmpty &&
-                    currentEncrypted != currentUser.password &&
-                    currentPwd != currentUser.password) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(l10n.incorrectCurrentPassword)));
-                  return;
-                }
+                      setDialogState(() => isSubmitting = true);
 
-                final encrypted = await Users.encryptPassword(newPwd);
-                final result = await Users.updatePassword(
-                    currentUser.userID, encrypted,
-                    plainPassword: newPwd);
-                if (!mounted) return;
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text(result == 'success'
-                      ? l10n.passwordChangedSuccess
-                      : result.toString()),
-                  behavior: SnackBarBehavior.fixed,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.md)),
-                ));
-              },
-              child: Text(l10n.validate),
+                      try {
+                        final token = await SessionService.readNodeToken();
+                        if (token != null && token.isNotEmpty) {
+                          await NodeAuthService.changePassword(
+                            token: token,
+                            currentPassword: currentPwd,
+                            newPassword: newPwd,
+                          );
+                          await DatabaseHelper.updateUserPassword(
+                            targetUserId,
+                            newPwd,
+                          );
+                          Users.notifyDataChanged();
+
+                          if (!mounted) return;
+                          Navigator.pop(ctx);
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text(l10n.passwordChangedSuccess),
+                            backgroundColor: AppColors.success,
+                            behavior: SnackBarBehavior.fixed,
+                            shape: RoundedRectangleBorder(
+                                borderRadius:
+                                    BorderRadius.circular(AppRadius.md)),
+                          ));
+                          return;
+                        }
+
+                        // Fallback Parse pour les comptes legacy
+                        final currentEncrypted =
+                            await Users.encryptPassword(currentPwd);
+                        if (currentUser != null &&
+                            currentUser.password.isNotEmpty &&
+                            currentEncrypted != currentUser.password &&
+                            currentPwd != currentUser.password) {
+                          setDialogState(() => isSubmitting = false);
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                              content: Text(l10n.incorrectCurrentPassword)));
+                          return;
+                        }
+
+                        final encrypted = await Users.encryptPassword(newPwd);
+                        final result = await Users.updatePassword(
+                          targetUserId,
+                          encrypted,
+                          plainPassword: newPwd,
+                          currentPassword: currentPwd,
+                        );
+
+                        if (!mounted) return;
+                        if (result == 'success') {
+                          Navigator.pop(ctx);
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text(l10n.passwordChangedSuccess),
+                            backgroundColor: AppColors.success,
+                            behavior: SnackBarBehavior.fixed,
+                            shape: RoundedRectangleBorder(
+                                borderRadius:
+                                    BorderRadius.circular(AppRadius.md)),
+                          ));
+                        } else {
+                          setDialogState(() => isSubmitting = false);
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text(result.toString()),
+                            backgroundColor: AppColors.error,
+                            behavior: SnackBarBehavior.fixed,
+                            shape: RoundedRectangleBorder(
+                                borderRadius:
+                                    BorderRadius.circular(AppRadius.md)),
+                          ));
+                        }
+                      } on NodeAuthException catch (e) {
+                        setDialogState(() => isSubmitting = false);
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Text(e.message),
+                          backgroundColor: AppColors.error,
+                          behavior: SnackBarBehavior.fixed,
+                          shape: RoundedRectangleBorder(
+                              borderRadius:
+                                  BorderRadius.circular(AppRadius.md)),
+                        ));
+                      } catch (e) {
+                        setDialogState(() => isSubmitting = false);
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Text(e.toString()),
+                          backgroundColor: AppColors.error,
+                          behavior: SnackBarBehavior.fixed,
+                          shape: RoundedRectangleBorder(
+                              borderRadius:
+                                  BorderRadius.circular(AppRadius.md)),
+                        ));
+                      }
+                    },
+              child: isSubmitting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Text(l10n.validate),
             ),
           ],
         ),

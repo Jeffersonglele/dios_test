@@ -105,6 +105,23 @@ class NodeAuthService {
     return response['data'] as Map<String, dynamic>;
   }
 
+  /// Modifie le mot de passe du compte connecté.
+  static Future<Map<String, dynamic>> changePassword({
+    required String token,
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final response = await postJson(
+      '/auth/password/change',
+      token: token,
+      body: {
+        'currentPassword': currentPassword,
+        'newPassword': newPassword,
+      },
+    );
+    return response['data'] as Map<String, dynamic>;
+  }
+
   /// Appel GET générique pour les écrans migrés vers l'API Node.js.
   static Future<Map<String, dynamic>> getJson(
     String path, {

@@ -518,7 +518,34 @@ class Users extends HiveObject {
   }
 
   static Future<String> updatePassword(int userID, String newPassword,
-      {bool? mustChangePassword, String? plainPassword}) async {
+      {bool? mustChangePassword,
+      String? plainPassword,
+      String? currentPassword}) async {
+    try {
+      final token = await SessionService.readNodeToken();
+      if (token != null &&
+          token.isNotEmpty &&
+          currentPassword != null &&
+          currentPassword.isNotEmpty) {
+        await NodeAuthService.changePassword(
+          token: token,
+          currentPassword: currentPassword,
+          newPassword: plainPassword ?? newPassword,
+        );
+        await DatabaseHelper.updateUserPassword(
+          userID,
+          newPassword,
+          mustChangePassword: mustChangePassword,
+        );
+        notifyDataChanged();
+        return "success";
+      }
+    } on NodeAuthException catch (e) {
+      return e.message;
+    } catch (e) {
+      return e.toString();
+    }
+
     final hasNativeSession =
         plainPassword != null && await SessionService.hasParseSession();
     String functionName = hasNativeSession ? 'changePassword' : 'update1User';
