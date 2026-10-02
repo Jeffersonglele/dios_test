@@ -1,3 +1,4 @@
+import '../config/app_config.dart';
 import '../models/dish.dart';
 import '../models/restaurant.dart';
 import 'node_auth_service.dart';
@@ -11,6 +12,16 @@ class NodeRestaurantMenu {
 
 class NodeCatalogService {
   const NodeCatalogService._();
+
+  static String? resolveMediaUrl(dynamic value) {
+    if (value == null) return null;
+    final raw = value.toString().trim();
+    if (raw.isEmpty) return null;
+    if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+    final base = AppConfig.nodeBackendUrl.replaceFirst(RegExp(r'/+$'), '');
+    if (raw.startsWith('/')) return '$base$raw';
+    return '$base/$raw';
+  }
 
   static Future<Restaurant> loadRestaurant({
     required int restaurantId,
@@ -69,7 +80,8 @@ class NodeCatalogService {
     final dishes = dishData is List
         ? dishData
             .whereType<Map>()
-            .map((row) => Dish.fromMap(_dishMap(Map<String, dynamic>.from(row))))
+            .map(
+                (row) => Dish.fromMap(_dishMap(Map<String, dynamic>.from(row))))
             .toList()
         : <Dish>[];
 
@@ -81,6 +93,7 @@ class NodeCatalogService {
 
   static Map<String, dynamic> _restaurantMap(Map<String, dynamic> row) {
     final dateCreation = row['dateCreation'];
+    final imageUrl = resolveMediaUrl(row['image'] ?? row['fileUrl'] ?? '');
     return {
       'restaurantID': row['restaurantId'],
       'userID': row['userId'],
@@ -90,7 +103,7 @@ class NodeCatalogService {
       'name': row['name'],
       'note': row['rating'],
       'nb_orders': row['orderCount'],
-      'image': row['image'],
+      'image': imageUrl ?? '',
       'valid': row['valid'],
       'date_creation': dateCreation == null ? null : {'iso': dateCreation},
       'openingHours': row['openingHours'],
@@ -105,6 +118,7 @@ class NodeCatalogService {
       'deliveryRadius': row['deliveryRadius'],
       'closedDates': row['closedDates'],
       'recoveryMode': row['recoveryMode'],
+      'country': row['country'],
       'cityID': row['cityId'],
       'paymentMethod': row['paymentMethod'],
       'mobileMoneyPhone': row['mobileMoneyPhone'],
@@ -119,6 +133,24 @@ class NodeCatalogService {
   }
 
   static Map<String, dynamic> _dishMap(Map<String, dynamic> row) {
+    final imageUrl = resolveMediaUrl(row['image'] ?? row['fileUrl'] ?? '');
+    final rawImages = row['images'];
+    List<String>? resolvedImages;
+    if (rawImages is List) {
+      resolvedImages = rawImages
+          .map((e) => resolveMediaUrl(e) ?? '')
+          .where((s) => s.isNotEmpty)
+          .toList();
+    } else if (rawImages is String && rawImages.isNotEmpty) {
+      final parts = rawImages.split(RegExp(r'[,;|]'))
+          .map((s) => s.trim())
+          .where((s) => s.isNotEmpty)
+          .toList();
+      resolvedImages = parts
+          .map((e) => resolveMediaUrl(e) ?? '')
+          .where((s) => s.isNotEmpty)
+          .toList();
+    }
     return {
       'dishID': row['dishId'],
       'userID': row['userId'],
@@ -128,8 +160,8 @@ class NodeCatalogService {
       'option2': row['option2'],
       'option3': row['option3'],
       'name': row['name'],
-      'image': row['image'],
-      'images': row['images'],
+      'image': imageUrl ?? '',
+      'images': resolvedImages != null ? resolvedImages.join(',') : (row['images']?.toString() ?? ''),
       'price': row['price'],
       'nb_orders': row['orderCount'],
       'nb_servings': row['servings'],
@@ -139,6 +171,97 @@ class NodeCatalogService {
       'currency': row['currency'],
       'country': row['country'],
       'cityID': row['cityId'],
+    };
+  }
+
+  static Future<Map<String, dynamic>> manageRestaurantLegacy({
+    required String token,
+    int? restaurantID,
+    required int userID,
+    required int valid,
+    required int nb_orders,
+    required double note,
+    required String categories,
+    required String description,
+    required String location,
+    required String name,
+    String? imageUrl,
+    String openingHours = '09:00 - 20:00',
+    double deliveryFee = 0.0,
+    int isOpen = 1,
+    String professionalType = 'amateur',
+    bool trainingCompleted = false,
+    bool isPro = false,
+    String currency = '',
+    String country = '',
+    String openingDays = 'Lun,Mar,Mer,Jeu,Ven,Sam',
+    String recoveryMode = 'delivery',
+    int cityID = 1,
+    String paymentMethod = '',
+    String mobileMoneyPhone = '',
+    String iban = '',
+    String bankName = '',
+    String accountHolder = '',
+    String rccm = '',
+    double minOrderAmount = 0,
+    double deliveryRadius = 10,
+    String closedDates = '',
+    String openingHoursByDay = '',
+  }) async {
+    final body = <String, dynamic>{
+      if (restaurantID != null) 'restaurantID': restaurantID,
+      'userID': userID,
+      'valid': valid,
+      'nb_orders': nb_orders,
+      'note': note,
+      'categories': categories,
+      'description': description,
+      'adress': location,
+      'name': name,
+      if (imageUrl != null) 'image': imageUrl,
+      'openingHours': openingHours,
+      'deliveryFee': deliveryFee,
+      'isOpen': isOpen,
+      'professionalType': professionalType,
+      'trainingCompleted': trainingCompleted,
+      'isPro': isPro,
+      'currency': currency,
+      'country': country,
+      'openingDays': openingDays,
+      'recoveryMode': recoveryMode,
+      'cityID': cityID,
+      'paymentMethod': paymentMethod,
+      'mobileMoneyPhone': mobileMoneyPhone,
+      'iban': iban,
+      'bankName': bankName,
+      'accountHolder': accountHolder,
+      'rccm': rccm,
+      'minOrderAmount': minOrderAmount,
+      'deliveryRadius': deliveryRadius,
+      'closedDates': closedDates,
+      'openingHoursByDay': openingHoursByDay,
+    };
+    final res = restaurantID != null
+        ? await NodeAuthService.patchJson(
+            '/restaurants/legacy/$restaurantID',
+            token: token,
+            body: body,
+          )
+        : await NodeAuthService.postJson(
+            '/restaurants/legacy',
+            token: token,
+            body: body,
+          );
+    final data = res['data'] as Map<String, dynamic>;
+    final meta = res['meta'] as Map<String, dynamic>?;
+    final legacyId = data['restaurantId'] as int?;
+    final fallbackId =
+        legacyId ?? DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    return {
+      'restaurantID': fallbackId,
+      'legacyIdProvided': legacyId != null,
+      'mode': meta?['mode'] ?? (restaurantID != null ? 'updated' : 'created'),
+      'data': data,
     };
   }
 }

@@ -35,14 +35,14 @@ class NodeAdminService {
   }
 
   /// Liste administrative des restaurants, y compris les demandes en attente.
+  /// Le filtre par pays est appliqué LOCALEMENT (restaurant.country + user.country)
+  /// dans la page admin, car certains restaurants n'ont pas country renseigné
+  /// (en base) contrairement à leur propriétaire User.
   static Future<List<Restaurant>> getRestaurants({
     required String token,
     String? country,
   }) async {
-    final query = <String, String>{'pageSize': '100'};
-    if (country?.trim().isNotEmpty == true) {
-      query['country'] = country!.trim();
-    }
+    final query = <String, String>{'pageSize': '100', 'showAll': 'true'};
     final response = await NodeAuthService.getJson(
       '/restaurants',
       token: token,
@@ -258,7 +258,8 @@ class NodeAdminService {
     );
   }
 
-  static Future<Map<String, dynamic>> getUserDetails(int userId, String token) async {
+  static Future<Map<String, dynamic>> getUserDetails(
+      int userId, String token) async {
     final response = await NodeAuthService.getJson(
       '/admin/users/$userId/details',
       token: token,

@@ -1,5 +1,18 @@
 import 'package:flutter/material.dart';
 
+import '../config/app_config.dart';
+
+String? _resolveImageUrl(String? value) {
+  if (value == null) return null;
+  final raw = value.trim();
+  if (raw.isEmpty) return null;
+  if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+  if (raw.startsWith('file://') || raw.startsWith('/data/') || raw.startsWith('/storage/')) return raw;
+  final base = AppConfig.nodeBackendUrl.replaceFirst(RegExp(r'/+$'), '');
+  if (raw.startsWith('/')) return '$base$raw';
+  return '$base/$raw';
+}
+
 /// Affiche une image réseau avec fallback automatique si l'URL est vide.
 /// Évite l'erreur NetworkImage("") quand l'image est null ou vide.
 class DiosImage extends StatelessWidget {
@@ -17,7 +30,8 @@ class DiosImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final validUrl = url != null && url!.trim().isNotEmpty;
+    final resolved = _resolveImageUrl(url);
+    final validUrl = resolved != null && resolved.isNotEmpty;
 
     if (!validUrl) {
       return Container(
@@ -30,7 +44,7 @@ class DiosImage extends StatelessWidget {
     }
 
     return Image.network(
-      url!,
+      resolved!,
       width: width,
       height: height,
       fit: fit,

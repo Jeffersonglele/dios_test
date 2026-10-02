@@ -1,8 +1,10 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import '../l10n/app_localizations.dart';
 
 /// Génère un nom compatible avec les services de stockage Parse.
@@ -156,10 +158,25 @@ Future<XFile?> pickAndConfirmImage(BuildContext context) async {
 
   if (source == null) return null;
 
-  final XFile? picked = await picker.pickImage(source: source);
+  final XFile? picked = await picker.pickImage(
+    source: source,
+    imageQuality: 85,
+    preferredCameraDevice: CameraDevice.rear,
+  );
   if (picked == null) return null;
 
-  return showImageConfirmDialog(context, picked);
+  // Convertir l'image en JPEG pour éviter les problèmes de compatibilité
+  final bytes = await picked.readAsBytes();
+  final image = img.decodeImage(bytes)!;
+  final jpegBytes = img.encodeJpg(image, quality: 85);
+
+  final tempDir = await getTemporaryDirectory();
+  final timestamp = DateTime.now().millisecondsSinceEpoch;
+  final newPath = '${tempDir.path}/dish_$timestamp.jpg';
+  final file = await File(newPath).writeAsBytes(jpegBytes);
+
+  final xFile = XFile(newPath);
+  return showImageConfirmDialog(context, xFile);
 }
 
 /// Pick image directly from camera (for delivery proof)

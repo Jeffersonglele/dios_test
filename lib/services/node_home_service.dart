@@ -42,7 +42,7 @@ class NodeHomeService {
       _optionalGet(
         '/addresses',
         token: token,
-        queryParameters: const {'pageSize': '200'},
+        queryParameters: const {'pageSize': '100'},
       ),
     ]);
 
@@ -74,6 +74,7 @@ class NodeHomeService {
 
     final restaurants = restaurantRows
         .map((row) => Restaurant.fromMap(_restaurantMap(row)))
+        .where((r) => r.valid == 1)
         .toList();
     final categories =
         categoryRows.map((row) => Category.fromMap(_categoryMap(row))).toList();

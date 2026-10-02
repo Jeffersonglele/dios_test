@@ -478,11 +478,13 @@ class _DishDetailsState extends ConsumerState<DishDetails> {
                                 const Icon(Icons.check_circle_outline,
                                     size: 16, color: AppColors.brand),
                                 const SizedBox(width: 8),
-                                Text(opt,
-                                    style: AppTypography.bodyMedium(
-                                        color: AppColors.resolve(
-                                            AppColors.inkMuted,
-                                            AppDarkColors.inkMuted))),
+                                Expanded(
+                                  child: Text(opt,
+                                      style: AppTypography.bodyMedium(
+                                          color: AppColors.resolve(
+                                              AppColors.inkMuted,
+                                              AppDarkColors.inkMuted))),
+                                ),
                               ]),
                             )),
                         const SizedBox(height: 24),

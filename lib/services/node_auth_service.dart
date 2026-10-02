@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 
 import '../config/app_config.dart';
 
@@ -195,8 +197,66 @@ class NodeAuthService {
       final uri = _uri(path);
       final request = http.MultipartRequest('POST', uri)
         ..headers['Accept'] = 'application/json'
-        ..headers['Authorization'] = 'Bearer ${token.trim()}'
-        ..files.add(await http.MultipartFile.fromPath(fieldName, filePath));
+        ..headers['Authorization'] = 'Bearer ${token.trim()}';
+
+      final file = File(filePath);
+      final bytes = await file.readAsBytes();
+      final fileName = filePath.split('/').last;
+      final extension = filePath.toLowerCase().split('.').last;
+
+      MediaType? contentType;
+      switch (extension) {
+        case 'jpg':
+        case 'jpeg':
+          contentType = MediaType('image', 'jpeg');
+          break;
+        case 'png':
+          contentType = MediaType('image', 'png');
+          break;
+        case 'webp':
+          contentType = MediaType('image', 'webp');
+          break;
+        case 'gif':
+          contentType = MediaType('image', 'gif');
+          break;
+        case 'pdf':
+          contentType = MediaType('application', 'pdf');
+          break;
+        default:
+          final mb = bytes.length >= 12 ? bytes.sublist(0, 12) : bytes;
+          if (mb.length >= 3 &&
+              mb[0] == 0xFF &&
+              mb[1] == 0xD8 &&
+              mb[2] == 0xFF) {
+            contentType = MediaType('image', 'jpeg');
+          } else if (mb.length >= 8 &&
+              mb[0] == 0x89 &&
+              mb[1] == 0x50 &&
+              mb[2] == 0x4E &&
+              mb[3] == 0x47) {
+            contentType = MediaType('image', 'png');
+          } else if (mb.length >= 12 &&
+              mb[0] == 0x52 &&
+              mb[1] == 0x49 &&
+              mb[2] == 0x46 &&
+              mb[3] == 0x46 &&
+              mb[8] == 0x57 &&
+              mb[9] == 0x45 &&
+              mb[10] == 0x42 &&
+              mb[11] == 0x50) {
+            contentType = MediaType('image', 'webp');
+          } else {
+            contentType = MediaType('application', 'octet-stream');
+          }
+      }
+
+      request.files.add(http.MultipartFile.fromBytes(
+        fieldName,
+        bytes,
+        filename: fileName,
+        contentType: contentType,
+      ));
+
       if (scope != null) {
         request.fields['scope'] = scope;
       }

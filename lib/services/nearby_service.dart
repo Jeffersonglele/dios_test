@@ -5,6 +5,7 @@ import '../models/address.dart';
 import '../models/dish.dart';
 import '../models/restaurant.dart';
 import '../models/users.dart';
+import '../utils/country_util.dart';
 import 'session_service.dart';
 import 'node_catalog_service.dart';
 import 'node_home_service.dart';
@@ -72,9 +73,9 @@ class NearbyService {
     for (final restaurant in restaurants) {
       final associatedUser = Users.getUsersByUserId(users, restaurant.userID);
       final associatedRole = AppRole.fromId(associatedUser?.roleID);
-      final restaurantAddress =
-          Address.getAddressByObject(addresses, "Restaurant", restaurant.userID) ??
-              Address.getAddressByObject(addresses, "User", restaurant.userID);
+      final restaurantAddress = Address.getAddressByObject(
+              addresses, "Restaurant", restaurant.userID) ??
+          Address.getAddressByObject(addresses, "User", restaurant.userID);
 
       if (restaurant.valid != 1 ||
           associatedUser == null ||
@@ -108,8 +109,8 @@ class NearbyService {
           final restaurantRadius = restaurant.deliveryRadius > 0
               ? restaurant.deliveryRadius
               : maxDistanceKm;
-          isOutOfRange = distanceKm > maxDistanceKm ||
-              distanceKm > restaurantRadius;
+          isOutOfRange =
+              distanceKm > maxDistanceKm || distanceKm > restaurantRadius;
         }
       }
 
@@ -220,8 +221,13 @@ class NearbyService {
     final userLon = double.tryParse(userAddress?.long ?? '');
     final userCityID = userAddress?.cityID ?? 0;
     final userCity = _normalize(_firstNonEmpty([userAddress?.city]));
-    final userCountry =
-        _normalize(_firstNonEmpty([userAddress?.state, session.country]));
+    final userCountryRaw = _firstNonEmpty([
+      userAddress?.state,
+      session.country,
+    ]);
+    final userCountry = CountryUtil.canonical(userCountryRaw).isNotEmpty
+        ? CountryUtil.canonical(userCountryRaw)
+        : _normalize(userCountryRaw);
     final inRange = <NearbyRestaurantResult>[];
     final outOfRange = <NearbyRestaurantResult>[];
 
@@ -233,9 +239,10 @@ class NearbyService {
 
       var distanceKm = 0.0;
       var isOutOfRange = false;
-      final restaurantAddress =
-          Address.getAddressByObject(snapshot.addresses, 'Restaurant', restaurant.userID) ??
-              Address.getAddressByObject(snapshot.addresses, 'User', restaurant.userID);
+      final restaurantAddress = Address.getAddressByObject(
+              snapshot.addresses, 'Restaurant', restaurant.userID) ??
+          Address.getAddressByObject(
+              snapshot.addresses, 'User', restaurant.userID);
       final restaurantLat = restaurant.latitude ??
           (restaurantAddress != null
               ? double.tryParse(restaurantAddress.lat ?? '')
@@ -249,8 +256,14 @@ class NearbyService {
           : (restaurantAddress?.cityID ?? 0);
       final restaurantCity = _normalize(
           _firstNonEmpty([restaurantAddress?.city, restaurant.location]));
-      final restaurantCountry = _normalize(
-          _firstNonEmpty([restaurantAddress?.state, restaurant.country]));
+      final restaurantCountryRaw = _firstNonEmpty([
+        restaurant.country,
+        restaurantAddress?.state,
+      ]);
+      final restaurantCountry =
+          CountryUtil.canonical(restaurantCountryRaw).isNotEmpty
+              ? CountryUtil.canonical(restaurantCountryRaw)
+              : _normalize(restaurantCountryRaw);
 
       // 1) cityID fiable des deux côtés
       if (!ignoreDistance && userCityID > 0 && restaurantCityID > 0) {
@@ -260,7 +273,7 @@ class NearbyService {
       if (!isOutOfRange &&
           !ignoreDistance &&
           ((userCity != null && userCountry != null) ||
-           (restaurantCity != null && restaurantCountry != null))) {
+              (restaurantCity != null && restaurantCountry != null))) {
         final sameCountry = userCountry != null &&
             restaurantCountry != null &&
             userCountry == restaurantCountry;
@@ -290,8 +303,8 @@ class NearbyService {
         final restaurantRadius = restaurant.deliveryRadius > 0
             ? restaurant.deliveryRadius
             : maxDistanceKm;
-        isOutOfRange = distanceKm > maxDistanceKm ||
-            distanceKm > restaurantRadius;
+        isOutOfRange =
+            distanceKm > maxDistanceKm || distanceKm > restaurantRadius;
       }
 
       final result = NearbyRestaurantResult(
@@ -319,13 +332,33 @@ class NearbyService {
     final v = value.trim().toLowerCase();
     if (v.isEmpty) return null;
     const accents = {
-      'à': 'a', 'á': 'a', 'â': 'a', 'ã': 'a', 'ä': 'a', 'å': 'a',
-      'è': 'e', 'é': 'e', 'ê': 'e', 'ë': 'e',
-      'ì': 'i', 'í': 'i', 'î': 'i', 'ï': 'i',
-      'ò': 'o', 'ó': 'o', 'ô': 'o', 'õ': 'o', 'ö': 'o',
-      'ù': 'u', 'ú': 'u', 'û': 'u', 'ü': 'u',
-      'ý': 'y', 'ÿ': 'y',
-      'ç': 'c', 'ñ': 'n',
+      'à': 'a',
+      'á': 'a',
+      'â': 'a',
+      'ã': 'a',
+      'ä': 'a',
+      'å': 'a',
+      'è': 'e',
+      'é': 'e',
+      'ê': 'e',
+      'ë': 'e',
+      'ì': 'i',
+      'í': 'i',
+      'î': 'i',
+      'ï': 'i',
+      'ò': 'o',
+      'ó': 'o',
+      'ô': 'o',
+      'õ': 'o',
+      'ö': 'o',
+      'ù': 'u',
+      'ú': 'u',
+      'û': 'u',
+      'ü': 'u',
+      'ý': 'y',
+      'ÿ': 'y',
+      'ç': 'c',
+      'ñ': 'n',
     };
     final buf = StringBuffer();
     for (final r in v.runes) {

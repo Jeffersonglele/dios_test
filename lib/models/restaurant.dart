@@ -1,4 +1,4 @@
-﻿import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
+import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:hive/hive.dart';
 import '../db/database_helper.dart';
 import 'package:dios_delices/providers/data_version_notifier.dart';
@@ -6,6 +6,7 @@ import '../services/restaurant_opening_hours_service.dart';
 import '../services/session_service.dart';
 import '../utils/currency_util.dart';
 import '../services/node_auth_service.dart';
+import '../services/node_catalog_service.dart';
 
 part 'restaurant.g.dart';
 
@@ -122,12 +123,12 @@ class Restaurant extends HiveObject {
       this.cityID = 1,
       this.paymentMethod = '',
       this.mobileMoneyPhone = '',
-       this.iban = '',
-       this.bankName = '',
-       this.accountHolder = '',
-       this.rccm = '',
-       this.latitude,
-       this.longitude});
+      this.iban = '',
+      this.bankName = '',
+      this.accountHolder = '',
+      this.rccm = '',
+      this.latitude,
+      this.longitude});
 
   Map<String, dynamic> toMap() {
     return {
@@ -183,24 +184,29 @@ class Restaurant extends HiveObject {
             '',
         location: map['adress']?.toString() ?? map['adress']?.toString() ?? '',
         name: map['name']?.toString() ?? map['name']?.toString() ?? '',
-        date_creation: map['date_creation'] != null && map['date_creation']['iso'] != null
-            ? DateTime.tryParse(map['date_creation']['iso'])
-            : null,
+        date_creation:
+            map['date_creation'] != null && map['date_creation']['iso'] != null
+                ? DateTime.tryParse(map['date_creation']['iso'])
+                : null,
         image: map['image']?.toString() ?? '',
         openingHours: map['openingHours']?.toString() ?? '09:00 - 20:00',
         deliveryFee:
             double.tryParse(map['deliveryFee']?.toString() ?? '0') ?? 0.0,
         isOpen: int.tryParse(map['isOpen']?.toString() ?? '1') ?? 1,
         professionalType: map['professionalType']?.toString() ?? 'amateur',
-        trainingCompleted: map['trainingCompleted'] == 1 || map['trainingCompleted'] == true,
+        trainingCompleted:
+            map['trainingCompleted'] == 1 || map['trainingCompleted'] == true,
         isPro: map['isPro'] == true || map['isPro']?.toString() == 'true',
         reviewRemark: map['reviewRemark']?.toString() ?? '',
         country: map['country']?.toString() ?? '',
         currency: map['currency']?.toString() ??
             CurrencyUtil.code(map['country']?.toString() ?? '').toUpperCase(),
-        openingDays: map['openingDays']?.toString() ?? 'Lun,Mar,Mer,Jeu,Ven,Sam',
-        minOrderAmount: double.tryParse(map['minOrderAmount']?.toString() ?? '0') ?? 0,
-        deliveryRadius: double.tryParse(map['deliveryRadius']?.toString() ?? '10') ?? 10,
+        openingDays:
+            map['openingDays']?.toString() ?? 'Lun,Mar,Mer,Jeu,Ven,Sam',
+        minOrderAmount:
+            double.tryParse(map['minOrderAmount']?.toString() ?? '0') ?? 0,
+        deliveryRadius:
+            double.tryParse(map['deliveryRadius']?.toString() ?? '10') ?? 10,
         closedDates: map['closedDates']?.toString() ?? '',
         openingHoursByDay: map['openingHoursByDay']?.toString() ?? '',
         recoveryMode: map['recoveryMode']?.toString() ?? 'delivery',
@@ -209,10 +215,10 @@ class Restaurant extends HiveObject {
         mobileMoneyPhone: map['mobileMoneyPhone']?.toString() ?? '',
         iban: map['iban']?.toString() ?? '',
         bankName: map['bankName']?.toString() ?? '',
-         accountHolder: map['accountHolder']?.toString() ?? '',
-         rccm: map['rccm']?.toString() ?? '',
-         latitude: double.tryParse(map['latitude']?.toString() ?? ''),
-         longitude: double.tryParse(map['longitude']?.toString() ?? ''));
+        accountHolder: map['accountHolder']?.toString() ?? '',
+        rccm: map['rccm']?.toString() ?? '',
+        latitude: double.tryParse(map['latitude']?.toString() ?? ''),
+        longitude: double.tryParse(map['longitude']?.toString() ?? ''));
   }
 
   Restaurant copy({
@@ -326,27 +332,99 @@ class Restaurant extends HiveObject {
         ? CurrencyUtil.code(effectiveCountry).toUpperCase()
         : currency.toUpperCase();
 
-    // Determine cloud function name based on operation
-    String functionName = restaurantID == null ? 'add1Restaurant' : 'update1Restaurant';
-    var cloudFunction = ParseCloudFunction(functionName);
-
-
-    String imageUrl = "";
-
-    // Upload the image if it's not null
+    String imageUrl = img_url ?? '';
     if (image != null) {
-
-      // Attempt to save the file to Parse
       final response = await image.save();
-
-      // Handle the response for file upload
       if (response.success && response.result != null) {
-        // Get the URL of the uploaded file
         imageUrl = (response.result as ParseFileBase).url ?? "";
       } else {
         return "Erreur lors de l'upload de l'image: ${response.error?.message}";
       }
     }
+
+    final nodeToken = await SessionService.readNodeToken();
+    if (nodeToken != null) {
+      try {
+        final res = await NodeCatalogService.manageRestaurantLegacy(
+          token: nodeToken,
+          restaurantID: restaurantID,
+          userID: userID,
+          valid: valid,
+          nb_orders: nb_orders,
+          note: note,
+          categories: categories,
+          description: description,
+          location: location,
+          name: name,
+          imageUrl: imageUrl.isNotEmpty ? imageUrl : null,
+          openingHours: openingHours,
+          deliveryFee: deliveryFee,
+          isOpen: isOpen,
+          professionalType: professionalType,
+          trainingCompleted: trainingCompleted,
+          isPro: isPro,
+          currency: effectiveCurrency,
+          country: effectiveCountry,
+          openingDays: openingDays,
+          recoveryMode: recoveryMode,
+          cityID: cityID,
+          paymentMethod: paymentMethod,
+          mobileMoneyPhone: mobileMoneyPhone,
+          iban: iban,
+          bankName: bankName,
+          accountHolder: accountHolder,
+          rccm: rccm,
+          minOrderAmount: minOrderAmount,
+          deliveryRadius: deliveryRadius,
+          closedDates: closedDates,
+          openingHoursByDay: openingHoursByDay,
+        );
+        final updatedRestauID = res['restaurantID'] as int;
+        final restaurant = Restaurant(
+          restaurantID: updatedRestauID,
+          userID: userID,
+          valid: valid,
+          nb_orders: nb_orders,
+          note: note,
+          categories: categories,
+          description: description,
+          location: location,
+          name: name,
+          image: imageUrl.isNotEmpty ? imageUrl : img_url,
+          date_creation: date_creation,
+          openingHours: openingHours,
+          openingDays: openingDays,
+          openingHoursByDay: openingHoursByDay,
+          deliveryFee: deliveryFee,
+          isOpen: isOpen,
+          professionalType: professionalType,
+          trainingCompleted: trainingCompleted,
+          isPro: isPro,
+          currency: effectiveCurrency,
+          country: effectiveCountry,
+          rccm: rccm,
+        );
+        if (restaurantID == null) {
+          await DatabaseHelper.createRestaurant(restaurant);
+        } else {
+          try {
+            await DatabaseHelper.updateRestaurant(restaurant);
+          } catch (_) {
+            await DatabaseHelper.createRestaurant(restaurant);
+          }
+        }
+        notifyDataChanged();
+        return "success";
+      } catch (e) {
+        final msg = e.toString();
+        return msg.startsWith("Erreur") ? msg : "Erreur backend : $msg";
+      }
+    }
+
+    // Determine cloud function name based on operation
+    String functionName =
+        restaurantID == null ? 'add1Restaurant' : 'update1Restaurant';
+    var cloudFunction = ParseCloudFunction(functionName);
 
     // Build parameters for the cloud function call
     var params = <String, dynamic>{
@@ -390,7 +468,6 @@ class Restaurant extends HiveObject {
         },
     };
 
-
     try {
       final ParseResponse parseResponse =
           await cloudFunction.execute(parameters: params);
@@ -403,7 +480,8 @@ class Restaurant extends HiveObject {
           // L'ID du restau est utile pour la mise à jour, pour l'ajout il est généré par le serveur
           int updatedRestauID = restaurantID ?? response['restaurantID'];
 
-          Restaurant restaurant = Restaurant(restaurantID: updatedRestauID,
+          Restaurant restaurant = Restaurant(
+            restaurantID: updatedRestauID,
             userID: userID,
             valid: valid,
             nb_orders: nb_orders,
@@ -512,11 +590,11 @@ class Restaurant extends HiveObject {
     }
   }
 
-    static Future<bool> getAllRestaurantsDetails() async {
+  static Future<bool> getAllRestaurantsDetails() async {
     try {
       final response = await NodeAuthService.getJson(
         '/restaurants',
-        queryParameters: const {'pageSize': '1000'},
+        queryParameters: const {'pageSize': '1000', 'showAll': 'true'},
       );
 
       final data = response['data'];
@@ -536,7 +614,8 @@ class Restaurant extends HiveObject {
               'nb_orders': map['orderCount'],
               'image': map['image'],
               'valid': map['valid'],
-              'date_creation': dateCreation == null ? null : {'iso': dateCreation},
+              'date_creation':
+                  dateCreation == null ? null : {'iso': dateCreation},
               'openingHours': map['openingHours'],
               'deliveryFee': map['deliveryFee'],
               'isOpen': map['isOpen'],
@@ -614,11 +693,75 @@ class Restaurant extends HiveObject {
     }
   }
 
-  static Restaurant? getRestaurantByUser(List<Restaurant> listRestaurants, int userID) {
+  static Restaurant? getRestaurantByUser(
+      List<Restaurant> listRestaurants, int userID) {
     try {
-      return listRestaurants.firstWhere((restaurant) => restaurant.userID == userID);
+      return listRestaurants
+          .firstWhere((restaurant) => restaurant.userID == userID);
     } catch (e) {
       return null;
     }
+  }
+
+  static Future<Restaurant?> fetchRestaurantByUserIdFromAPI(int userID) async {
+    try {
+      final response = await NodeAuthService.getJson(
+        '/restaurants',
+        queryParameters: {'userId': userID.toString(), 'showAll': 'true'},
+      );
+
+      final data = response['data'];
+      if (data is List && data.isNotEmpty) {
+        final row = data.first;
+        if (row is Map) {
+          final map = Map<String, dynamic>.from(row);
+          final dateCreation = map['dateCreation'];
+          final restauMap = {
+            'restaurantID': map['restaurantId'],
+            'userID': map['userId'],
+            'categories': map['categories'],
+            'description': map['description'],
+            'adress': map['address'],
+            'name': map['name'],
+            'note': map['rating'],
+            'nb_orders': map['orderCount'],
+            'image': map['image'],
+            'valid': map['valid'],
+            'date_creation':
+                dateCreation == null ? null : {'iso': dateCreation},
+            'openingHours': map['openingHours'],
+            'deliveryFee': map['deliveryFee'],
+            'isOpen': map['isOpen'],
+            'professionalType': map['professionalType'],
+            'trainingCompleted': map['trainingCompleted'],
+            'reviewRemark': map['reviewRemark'],
+            'currency': map['currency'],
+            'openingDays': map['openingDays'],
+            'minOrderAmount': map['minOrderAmount'],
+            'deliveryRadius': map['deliveryRadius'],
+            'closedDates': map['closedDates'],
+            'recoveryMode': map['recoveryMode'],
+            'cityID': map['cityId'],
+            'paymentMethod': map['paymentMethod'],
+            'mobileMoneyPhone': map['mobileMoneyPhone'],
+            'iban': map['iban'],
+            'bankName': map['bankName'],
+            'accountHolder': map['accountHolder'],
+            'rccm': map['rccm'],
+            'isPro': map['isPro'],
+            'latitude': map['latitude'],
+            'longitude': map['longitude'],
+          };
+          Restaurant restaurant = Restaurant.fromMap(restauMap);
+          try {
+            await DatabaseHelper.updateRestaurant(restaurant);
+          } catch (_) {
+            await DatabaseHelper.createRestaurant(restaurant);
+          }
+          return restaurant;
+        }
+      }
+    } catch (_) {}
+    return null;
   }
 }

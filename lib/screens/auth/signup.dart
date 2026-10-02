@@ -69,6 +69,7 @@ class _SignUpViewState extends State<SignUpView> {
   final _formKey2 = GlobalKey<FormState>();
 
   final _simpleUIController = SimpleUIController();
+  final _simpleUIControllerConf = SimpleUIController();
 
   // ── Données pays ──────────────────────────────────────────
   static const Map<String, String> _countryCodes = {
@@ -453,11 +454,11 @@ class _SignUpViewState extends State<SignUpView> {
 
           // Confirmation mot de passe
           ListenableBuilder(
-            listenable: _simpleUIController,
+            listenable: _simpleUIControllerConf,
             builder: (context, _) => TextFormField(
               controller: _passwordConfCtrl,
               focusNode: _passwordConfFocus,
-              obscureText: _simpleUIController.isObscure,
+              obscureText: _simpleUIControllerConf.isObscure,
               textInputAction: TextInputAction.done,
               style: _fieldTextStyle(context),
               decoration: _decoration(
@@ -465,11 +466,11 @@ class _SignUpViewState extends State<SignUpView> {
                 hint: l10n.signup_password_confirm_hint,
                 suffixIcon: IconButton(
                   icon: Icon(
-                    _simpleUIController.isObscure
+                    _simpleUIControllerConf.isObscure
                         ? Icons.visibility_off_outlined
                         : Icons.visibility_outlined,
                   ),
-                  onPressed: _simpleUIController.isObscureActive,
+                  onPressed: _simpleUIControllerConf.isObscureActive,
                 ),
               ),
               validator: (v) {

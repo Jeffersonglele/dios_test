@@ -217,22 +217,10 @@ class _DishFormPageState extends ConsumerState<DishFormPage> {
         }
       }
 
-      // Préparation des images
-      ParseFileBase? parseFile;
-      List<ParseFileBase> extraImages = [];
+      // Préparation des images - convertir en chemins de fichiers
+      List<String> imagePaths = [];
       if (_selectedImages.isNotEmpty) {
-        String baseName = _nameController.text.replaceAll(RegExp(r'\s+'), '_');
-        String extension = p.extension(_selectedImages.first.path);
-        String newFileName =
-            "${baseName}_${DateTime.now().millisecondsSinceEpoch}$extension";
-        parseFile = ParseXFile(_selectedImages.first, name: newFileName);
-
-        for (int i = 1; i < _selectedImages.length; i++) {
-          String ext = p.extension(_selectedImages[i].path);
-          String name =
-              "${baseName}_${DateTime.now().millisecondsSinceEpoch}_$i$ext";
-          extraImages.add(ParseXFile(_selectedImages[i], name: name));
-        }
+        imagePaths = _selectedImages.map((xFile) => xFile.path).toList();
       }
 
       // Appel à la fonction de création
@@ -251,8 +239,7 @@ class _DishFormPageState extends ConsumerState<DishFormPage> {
         nb_servings: _parseServings(_nbServingsController.text),
         restauID: restauID,
         status: widget.dish?.status ?? 1,
-        image: parseFile,
-        extraImages: extraImages.isNotEmpty ? extraImages : null,
+        imagePaths: imagePaths.isNotEmpty ? imagePaths : null,
         img_url: widget.isEditing ? widget.dish?.image : null,
         images: widget.isEditing ? widget.dish?.images : null,
       );

@@ -1089,8 +1089,8 @@ class _UserDetailsState extends ConsumerState<UserDetails> {
                       style: const TextStyle(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
                   Text(l10n.delete_confirm_message,
-                      style: const TextStyle(
-                          fontSize: 12, color: AppColors.error)),
+                      style:
+                          const TextStyle(fontSize: 12, color: AppColors.error)),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: confirmCtrl,

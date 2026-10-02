@@ -2,6 +2,7 @@ import 'package:dios_delices/core/app_role.dart';
 import 'package:dios_delices/l10n/app_localizations.dart';
 import 'package:dios_delices/providers/data_version_notifier.dart';
 import 'package:dios_delices/theme/app_theme.dart';
+import 'package:dios_delices/utils/country_util.dart';
 import 'package:flutter/material.dart';
 import '../../models/restaurant.dart';
 import '../../models/users.dart';
@@ -88,7 +89,8 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
       try {
         final results = await Future.wait<dynamic>([
           NodeAdminService.getUsers(token: nodeToken!, country: widget.country),
-          NodeAdminService.getRestaurants(token: nodeToken, country: widget.country),
+          NodeAdminService.getRestaurants(
+              token: nodeToken, country: widget.country),
         ]);
         final usersList = results[0] as List<Users>;
         final restausList = results[1] as List<Restaurant>;
@@ -124,9 +126,19 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
   }
 
   Future<void> _fetchRestaurantsByCountry() async {
+    final targetCountry = CountryUtil.canonical(widget.country);
     for (var restaurant in restaus) {
-      Users? user = await Users.getUsersByUserId(users, restaurant.userID);
-      if (user != null && user.country == widget.country) {
+      Users? user = Users.getUsersByUserId(users, restaurant.userID);
+      if (user == null) continue;
+
+      final userCountry = CountryUtil.canonical(user.country);
+      final restaurantCountry = CountryUtil.canonical(restaurant.country);
+
+      final match = (targetCountry.isEmpty) ||
+          (userCountry.isNotEmpty && userCountry == targetCountry) ||
+          (restaurantCountry.isNotEmpty && restaurantCountry == targetCountry);
+
+      if (match) {
         setState(() {
           filteredRestaurants.add({"restaurant": restaurant, "user": user});
         });
@@ -688,7 +700,8 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
     final token = await SessionService.readNodeToken();
     if (token?.trim().isNotEmpty == true) {
       try {
-        await NodeAdminService.validateRestaurant(restaurant.restaurantID, token!);
+        await NodeAdminService.validateRestaurant(
+            restaurant.restaurantID, token!);
         final emailSent = await _sendEmailToUser(restaurant, true);
         if (!mounted) return;
         setState(() => restaurant.valid = 1);

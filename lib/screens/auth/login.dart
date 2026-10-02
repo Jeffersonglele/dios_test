@@ -450,13 +450,15 @@ class _LoginState extends ConsumerState<Login>
   }
 
   void _handleRestaurantValidation(Users user) async {
+    // Always fetch fresh data on login to get the latest validation status
+    await Restaurant.getAllRestaurantsDetails();
+    final refreshed = await Restaurant.fetchRestaurantsFromDB();
+    _restaus = refreshed ?? [];
     var restau = await Restaurant.getRestaurantByUser(_restaus, user.userID);
 
+    // Si non trouvé en cache local, tenter la recherche directe API pour ce vendeur
     if (restau == null) {
-      await Restaurant.getAllRestaurantsDetails();
-      final refreshed = await Restaurant.fetchRestaurantsFromDB();
-      _restaus = refreshed;
-      restau = await Restaurant.getRestaurantByUser(refreshed, user.userID);
+      restau = await Restaurant.fetchRestaurantByUserIdFromAPI(user.userID);
     }
 
     if (!mounted) return;

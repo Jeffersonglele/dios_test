@@ -111,6 +111,13 @@ class _MyStoreState extends State<MyStore> {
       _restoState = _restaurant?.valid ?? 0;
     }
 
+    if (_restaurant == null && session.userId > 0) {
+      _restaurant = await Restaurant.fetchRestaurantByUserIdFromAPI(session.userId);
+      if (_restaurant != null) {
+        _restoState = _restaurant!.valid;
+      }
+    }
+
     // Build sections based on role
     List<_StoreSection> newSections = [];
 

@@ -201,6 +201,7 @@ class DatabaseHelper {
     if (dish_db != null) {
       dish_db.name = dish.name;
       dish_db.image = dish.image;
+      dish_db.images = dish.images;
       dish_db.price = dish.price;
       dish_db.description = dish.description;
       dish_db.option1 = dish.option1;

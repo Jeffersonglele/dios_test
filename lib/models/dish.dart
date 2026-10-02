@@ -1,7 +1,9 @@
-import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:hive/hive.dart';
+import 'dart:io';
 import '../db/database_helper.dart';
 import 'package:dios_delices/providers/data_version_notifier.dart';
+import '../services/node_auth_service.dart';
+import '../services/session_service.dart';
 
 part 'dish.g.dart';
 
@@ -176,6 +178,10 @@ class Dish extends HiveObject {
     );
   }
 
+  /// Crée ou met à jour un plat via l'API REST Node.js.
+  ///
+  /// Les images sont d'abord uploadées via `/uploads/image`, puis le plat est
+  /// créé (POST) ou modifié (PATCH) via `/dishes`.
   static Future<String> manageDish({
     int? dishID,
     required int userID,
@@ -191,188 +197,313 @@ class Dish extends HiveObject {
     required int nb_servings,
     required int restauID,
     required int status,
-    ParseFileBase? image,
-    List<ParseFileBase>? extraImages,
+    /// Chemins locaux des fichiers images à uploader.
+    List<String>? imagePaths,
     String? img_url,
     String? images,
     String currency = 'EUR',
     int cityID = 1,
   }) async {
-    String functionName = dishID == null ? 'add1Dish' : 'update1Dish';
-    var cloudFunction = ParseCloudFunction(functionName);
+    try {
+      final token = await SessionService.readNodeToken();
+      if (token == null || token.isEmpty) {
+        return "Erreur : Authentification requise. Veuillez vous reconnecter.";
+      }
 
-    String? imageUrl = img_url ?? "";
+      // --- Upload des images via l'API Node.js ---
+      String imageUrl = img_url ?? "";
+      List<String> allUrls = [];
 
-    if (image != null) {
-      try {
-        final response = await image.save();
-        if (response.success && response.result != null) {
-          imageUrl = (response.result as ParseFileBase).url ?? img_url;
-          try { final g = ParseObject('Gallery')..set('file', image); await g.save(); } catch (_) {}
-        }
-      } catch (_) { imageUrl = img_url ?? ""; }
-    }
-
-    List<String> allUrls = [];
-    if (imageUrl != null && imageUrl!.isNotEmpty) allUrls.add(imageUrl!);
-
-    if (extraImages != null) {
-      for (final img in extraImages) {
+      if (imagePaths != null && imagePaths.isNotEmpty) {
+        // Upload de l'image principale
         try {
-          final resp = await img.save();
-          if (resp.success && resp.result != null) {
-            final url = (resp.result as ParseFileBase).url;
-            if (url != null && url.isNotEmpty) allUrls.add(url);
+          final imagePath = imagePaths.first;
+          print('Upload image path: $imagePath');
+
+          // Vérifier que le fichier existe
+          final file = File(imagePath);
+          if (!await file.exists()) {
+            return "Erreur : Fichier image introuvable: $imagePath";
           }
-        } catch (_) {}
-      }
-    }
 
-    final imagesStr = images ?? allUrls.join(',');
+          // Vérifier l'extension
+          final extension = imagePath.toLowerCase().split('.').last;
+          if (!['jpg', 'jpeg', 'png', 'webp'].contains(extension)) {
+            return "Erreur : Format non supporté ($extension). Utilisez JPEG, PNG ou WebP.";
+          }
 
-    // IMPORTANT: S'assurer que price est correctement formaté
-    double finalPrice = price;
-    if (price.toString().contains(',')) {
-      finalPrice = double.parse(price.toString().replaceAll(',', '.'));
-    }
-
-    var params = <String, dynamic>{
-      if (dishID != null) 'dishID': dishID,
-      'userID': userID,
-      'categories': categories,
-      'description': description,
-      'option1': option1,
-      'option2': option2,
-      'option3': option3,
-      'name': name,
-      'note': note,
-      'nb_orders': nb_orders,
-      'image': image == null ? img_url : imageUrl,
-      'images': imagesStr,
-      'price': finalPrice,
-      'nb_servings': nb_servings,
-      'cityID': cityID,
-      'restauID': restauID,
-      'status': status,
-      'currency': currency,
-    };
-
-    try {
-      final ParseResponse parseResponse =
-          await cloudFunction.execute(parameters: params);
-
-      if (parseResponse.success && parseResponse.result != null) {
-        var response = parseResponse.result as Map<String, dynamic>;
-        if (response['success'] == false) {
-          return "Erreur : ${response['error']}";
-        } else {
-          int updatedDishID = dishID ?? response['dishID'];
-
-          Dish dish = Dish(
-              dishID: updatedDishID,
-              nb_orders: nb_orders,
-              note: note,
-              categories: categories,
-              description: description,
-              option1: option1,
-              option2: option2,
-              option3: option3,
-              name: name,
-              image: image == null ? img_url : imageUrl,
-              images: imagesStr,
-              userID: userID,
-              price: finalPrice, // Utiliser le prix corrigé
-              nb_servings: nb_servings,
-              restauID: restauID,
-              status: status,
-              currency: currency,
-              cityID: cityID);
-
-          if (dishID == null) {
-            await DatabaseHelper.createDish(dish);
+          final response = await NodeAuthService.uploadFile(
+            '/uploads/image',
+            token: token,
+            filePath: imagePath,
+            scope: 'dishes',
+          );
+          print('Upload response: $response');
+          final data = response['data'];
+          if (data is Map && data['url'] != null) {
+            imageUrl = data['url'].toString();
           } else {
-            await DatabaseHelper.updateDish(dish);
+            // Si pas d'URL, vérifier s'il y a un message d'erreur
+            final error = data['error'] ?? data['message'] ?? 'pas d\'URL retournée';
+            return "Erreur : Upload image échoué - $error";
           }
-
-          notifyDataChanged();
-          return "success";
+        } catch (e) {
+          print('Upload error: $e');
+          return "Erreur : Upload image échoué - $e";
         }
-      } else {
-        return "Erreur lors de l'appel de la fonction cloud : ${parseResponse.error?.message}";
-      }
-    } catch (e) {
-      return "Exception lors de l'appel de la fonction cloud : $e";
-    }
-  }
 
-  static Future<String> updateDishStatus(int dishID, int status) async {
-    String functionName = 'update1Dish';
-    var cloudFunction = ParseCloudFunction(functionName);
-
-    var params = <String, dynamic>{
-      'dishID': dishID,
-      'status': status,
-    };
-
-    try {
-      final ParseResponse parseResponse =
-          await cloudFunction.execute(parameters: params);
-
-      if (parseResponse.success && parseResponse.result != null) {
-        var response = parseResponse.result as Map<String, dynamic>;
-        if (response['success'] == false) {
-          return "Erreur : ${response['error']}";
-        } else {
-          await DatabaseHelper.updateDishStatus(dishID, status);
-          notifyDataChanged();
-          return "success";
+        // Upload des images supplémentaires
+        for (int i = 0; i < imagePaths.length; i++) {
+          if (i == 0 && imageUrl.isNotEmpty) {
+            allUrls.add(imageUrl);
+            continue;
+          }
+          try {
+            final response = await NodeAuthService.uploadFile(
+              '/uploads/image',
+              token: token,
+              filePath: imagePaths[i],
+              scope: 'dishes',
+            );
+            final data = response['data'];
+            if (data is Map && data['url'] != null) {
+              allUrls.add(data['url'].toString());
+            }
+          } catch (_) {}
         }
-      } else {
-        return "Erreur lors de l'appel de la fonction cloud : ${parseResponse.error?.message}";
+      } else if (imageUrl.isNotEmpty) {
+        allUrls.add(imageUrl);
       }
-    } catch (e) {
-      return "Exception lors de l'appel de la fonction cloud : $e";
-    }
-  }
 
-  static Future<String> suppr1Dish(int dishID) async {
-    var cloudFunction = ParseCloudFunction('suppr1Dish');
-    var params = <String, dynamic>{
-      'dishID': dishID,
-    };
+      // Si de nouvelles images ont été uploadées, utiliser les nouvelles URLs
+      // Sinon, conserver les images existantes
+      final imagesStr = (imagePaths != null && imagePaths.isNotEmpty)
+          ? allUrls.join(',')
+          : (images ?? allUrls.join(','));
 
-    try {
-      final ParseResponse parseResponse =
-          await cloudFunction.execute(parameters: params);
+      // S'assurer que price est correctement formaté
+      double finalPrice = price;
+      if (price.toString().contains(',')) {
+        finalPrice = double.parse(price.toString().replaceAll(',', '.'));
+      }
 
-      if (parseResponse.success && parseResponse.result != null) {
-        var response = parseResponse.result as Map<String, dynamic>;
-        if (response['success'] == true) {
-          await DatabaseHelper.deleteDish(dishID);
-          notifyDataChanged();
-          return "success";
-        } else {
-          return "Erreur : ${response['error']}";
+      // --- Création / mise à jour du plat via l'API REST ---
+      final body = <String, dynamic>{
+        'userId': userID,
+        'restaurantId': restauID,
+        'categories': categories,
+        'description': description,
+        'option1': option1,
+        'option2': option2,
+        'option3': option3,
+        'name': name,
+        'rating': note,
+        'orderCount': nb_orders,
+        'image': imageUrl,
+        'images': imagesStr,
+        'price': finalPrice,
+        'servings': nb_servings,
+        'cityId': cityID,
+        'status': status,
+        'currency': currency,
+      };
+
+      Map<String, dynamic> response;
+      if (dishID != null) {
+        // Chercher l'UUID du plat à partir de son dishId numérique
+        final existing = await NodeAuthService.getJson(
+          '/dishes',
+          token: token,
+          queryParameters: {'pageSize': '100'},
+        );
+        final existingData = existing['data'];
+        String? uuid;
+        if (existingData is List) {
+          for (final item in existingData) {
+            if (item is Map && item['dishId'] == dishID) {
+              uuid = item['id']?.toString();
+              break;
+            }
+          }
         }
+        if (uuid == null) {
+          return "Erreur : plat introuvable pour la mise à jour.";
+        }
+        response = await NodeAuthService.patchJson(
+          '/dishes/$uuid',
+          token: token,
+          body: body,
+        );
       } else {
-        return "Erreur lors de l'appel de la fonction cloud : ${parseResponse.error?.message}";
+        response = await NodeAuthService.postJson(
+          '/dishes',
+          token: token,
+          body: body,
+        );
       }
-    } catch (e) {
-      return "Exception lors de l'appel de la fonction cloud : $e";
-    }
-  }
 
-  static Future<bool> getAllDishesDetails() async {
-    var cloudFunction = ParseCloudFunction('getAllDishes');
+      final data = response['data'];
+      if (data is Map) {
+        int updatedDishID = dishID ?? (data['dishId'] as int? ?? 0);
 
-    try {
-      var response = await cloudFunction.execute();
+        Dish dish = Dish(
+            dishID: updatedDishID,
+            nb_orders: nb_orders,
+            note: note,
+            categories: categories,
+            description: description,
+            option1: option1,
+            option2: option2,
+            option3: option3,
+            name: name,
+            image: imageUrl,
+            images: imagesStr,
+            userID: userID,
+            price: finalPrice,
+            nb_servings: nb_servings,
+            restauID: restauID,
+            status: status,
+            currency: currency,
+            cityID: cityID);
 
-      if (response.success) {
-        List<dynamic> dishDataList = response.result;
-        for (var dishData in dishDataList) {
-          Dish dish = Dish.fromMap(dishData);
+        if (dishID == null) {
           await DatabaseHelper.createDish(dish);
+        } else {
+          await DatabaseHelper.updateDish(dish);
+        }
+
+        notifyDataChanged();
+        return "success";
+      } else {
+        return "Erreur : réponse inattendue du serveur.";
+      }
+    } catch (e) {
+      return "Erreur : $e";
+    }
+  }
+
+  /// Met à jour le statut d'un plat via l'API REST Node.js.
+  static Future<String> updateDishStatus(int dishID, int status) async {
+    try {
+      final token = await SessionService.readNodeToken();
+      if (token == null || token.isEmpty) {
+        return "Erreur : Authentification requise.";
+      }
+
+      // Chercher l'UUID du plat
+      final existing = await NodeAuthService.getJson(
+        '/dishes',
+        token: token,
+        queryParameters: {'pageSize': '100'},
+      );
+      final existingData = existing['data'];
+      String? uuid;
+      if (existingData is List) {
+        for (final item in existingData) {
+          if (item is Map && item['dishId'] == dishID) {
+            uuid = item['id']?.toString();
+            break;
+          }
+        }
+      }
+      if (uuid == null) {
+        return "Erreur : plat introuvable.";
+      }
+
+      await NodeAuthService.patchJson(
+        '/dishes/$uuid',
+        token: token,
+        body: {'status': status},
+      );
+
+      await DatabaseHelper.updateDishStatus(dishID, status);
+      notifyDataChanged();
+      return "success";
+    } catch (e) {
+      return "Erreur : $e";
+    }
+  }
+
+  /// Supprime un plat via l'API REST Node.js (soft delete).
+  static Future<String> suppr1Dish(int dishID) async {
+    try {
+      final token = await SessionService.readNodeToken();
+      if (token == null || token.isEmpty) {
+        return "Erreur : Authentification requise.";
+      }
+
+      // Chercher l'UUID du plat
+      final existing = await NodeAuthService.getJson(
+        '/dishes',
+        token: token,
+        queryParameters: {'pageSize': '100'},
+      );
+      final existingData = existing['data'];
+      String? uuid;
+      if (existingData is List) {
+        for (final item in existingData) {
+          if (item is Map && item['dishId'] == dishID) {
+            uuid = item['id']?.toString();
+            break;
+          }
+        }
+      }
+      if (uuid == null) {
+        return "Erreur : plat introuvable.";
+      }
+
+      await NodeAuthService.deleteJson(
+        '/dishes/$uuid',
+        token: token,
+      );
+
+      await DatabaseHelper.deleteDish(dishID);
+      notifyDataChanged();
+      return "success";
+    } catch (e) {
+      return "Erreur : $e";
+    }
+  }
+
+  /// Charge tous les plats depuis l'API REST Node.js et les persiste en cache local.
+  static Future<bool> getAllDishesDetails() async {
+    try {
+      final token = await SessionService.readNodeToken();
+      final response = await NodeAuthService.getJson(
+        '/dishes',
+        token: token,
+        queryParameters: {'pageSize': '100'},
+      );
+
+      final data = response['data'];
+      if (data is List) {
+        for (var dishData in data) {
+          if (dishData is Map) {
+            final map = Map<String, dynamic>.from(dishData);
+            final dishMap = {
+              'dishID': map['dishId'],
+              'userID': map['userId'],
+              'categories': map['categories'],
+              'description': map['description'],
+              'option1': map['option1'],
+              'option2': map['option2'],
+              'option3': map['option3'],
+              'name': map['name'],
+              'image': map['image'],
+              'images': map['images'],
+              'price': map['price'],
+              'nb_orders': map['orderCount'],
+              'nb_servings': map['servings'],
+              'restauID': map['restaurantId'],
+              'status': map['status'],
+              'note': map['rating'],
+              'currency': map['currency'],
+              'country': map['country'],
+              'cityID': map['cityId'],
+            };
+            Dish dish = Dish.fromMap(dishMap);
+            await DatabaseHelper.createDish(dish);
+          }
         }
       } else {
         return false;
@@ -433,4 +564,3 @@ class DishOption {
     this.price = 0.0,
   });
 }
-

@@ -13,6 +13,7 @@ import 'package:geocoding/geocoding.dart';
 import '../../constants/constant.dart';
 import '../../controllers/ui_controller.dart';
 import '../../l10n/app_localizations.dart';
+import '../../utils/country_util.dart';
 import '../../widgets/search_input.dart';
 import '../../core/app_role.dart';
 import '../../models/address.dart';
@@ -141,7 +142,7 @@ class _HomeUserState extends State<HomeUser> {
 
     if (nodeHome != null && mounted) {
       final u = nodeHome.user;
-      final restaus = nodeHome.restaurants;
+      final restaus = nodeHome.restaurants.where((r) => r.valid == 1).toList();
       final addrs = nodeHome.addresses;
       final cats = nodeHome.categories;
       setState(() {
@@ -170,7 +171,8 @@ class _HomeUserState extends State<HomeUser> {
       CategoryService.getAllCategories(),
     ]);
     final usersList = results[0] as List<Users>;
-    final restausList = results[1] as List<Restaurant>;
+    final restausList =
+        (results[1] as List<Restaurant>).where((r) => r.valid == 1).toList();
     final addressList = results[2] as List<Address>;
     final dbCats = results[3] as List<Category>;
     if (!mounted) return;
@@ -206,10 +208,13 @@ class _HomeUserState extends State<HomeUser> {
       userAddress?.city,
       _liveCity,
     ]));
-    final userCountryText = _normalize(_firstNonEmpty([
+    final userCountryRaw = _firstNonEmpty([
       userAddress?.state,
       _liveCountry,
-    ]));
+    ]);
+    final userCountryText = CountryUtil.canonical(userCountryRaw).isNotEmpty
+        ? CountryUtil.canonical(userCountryRaw)
+        : _normalize(userCountryRaw);
     final userLat = double.tryParse(userAddress?.lat ?? '');
     final userLon = double.tryParse(userAddress?.long ?? '');
 
@@ -226,10 +231,13 @@ class _HomeUserState extends State<HomeUser> {
 
         final rCityID = r.cityID > 0 ? r.cityID : (rAddr?.cityID ?? 0);
         final rCityText = _normalize(_firstNonEmpty([rAddr?.city, r.location]));
-        final rCountryText = _normalize(_firstNonEmpty([
-          rAddr?.state,
+        final rCountryRaw = _firstNonEmpty([
           r.country,
-        ]));
+          rAddr?.state,
+        ]);
+        final rCountryText = CountryUtil.canonical(rCountryRaw).isNotEmpty
+            ? CountryUtil.canonical(rCountryRaw)
+            : _normalize(rCountryRaw);
 
         // 1) cityID fiable des deux côtés → comparaison stricte
         if (userCityID > 0 && rCityID > 0) {
