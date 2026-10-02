@@ -348,6 +348,59 @@ async function resetPassword(req, res, next) {
   }
 }
 
+async function changePassword(req, res, next) {
+  try {
+    const userId = req.auth?.userId;
+    if (!userId) throw notFound('Utilisateur authentifié');
+
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      throw badRequest('Mot de passe actuel et nouveau mot de passe sont obligatoires.');
+    }
+
+    const user = await prisma.user.findFirst({
+      where: { userId, deletedAt: null },
+    });
+    if (!user) throw notFound('Utilisateur introuvable.');
+
+    let authUser = await prisma.authUser.findFirst({
+      where: { legacyUserId: userId, deletedAt: null },
+    });
+
+    if (!authUser && user.email) {
+      authUser = await prisma.authUser.findFirst({
+        where: { email: user.email.toLowerCase(), deletedAt: null },
+      });
+    }
+
+    if (!authUser) throw notFound('Compte utilisateur introuvable.');
+
+    const isMatch = await bcrypt.compare(currentPassword, authUser.password);
+    if (!isMatch) {
+      const error = new Error('Mot de passe actuel incorrect.');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+
+    await prisma.$transaction([
+      prisma.authUser.update({
+        where: { id: authUser.id },
+        data: { password: passwordHash },
+      }),
+      prisma.user.updateMany({
+        where: { userId },
+        data: { password: passwordHash },
+      }),
+    ]);
+
+    return res.status(200).json({ data: { message: 'Mot de passe modifié avec succès.' } });
+  } catch (error) {
+    return handleControllerError(error, next);
+  }
+}
+
 async function updateMe(req, res, next) {
   try {
     const userId = req.auth?.userId;
@@ -369,6 +422,7 @@ async function updateMe(req, res, next) {
 }
 
 module.exports = {
+  changePassword,
   confirmEmailVerification,
   login,
   me,

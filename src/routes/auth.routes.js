@@ -14,5 +14,7 @@ router.post('/email-verification/request', authenticate, validate(validators.emp
 router.post('/email-verification/confirm', authenticate, validate(validators.emailVerification), auth.confirmEmailVerification);
 router.post('/password/reset-request', validate(validators.resetRequest), auth.requestPasswordReset);
 router.post('/password/reset', validate(validators.resetPassword), auth.resetPassword);
+router.post('/password/change', authenticate, validate(validators.changePassword), auth.changePassword);
+router.post('/change-password', authenticate, validate(validators.changePassword), auth.changePassword);
 
 module.exports = router;

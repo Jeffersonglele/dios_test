@@ -52,6 +52,14 @@ const validators = {
     body: Joi.object({ email: Joi.string().email().required(), code: Joi.string().trim().required(), password: Joi.string().min(8).max(128).required() }),
     params: Joi.object(), query: Joi.object(),
   }),
+  changePassword: Joi.object({
+    body: Joi.object({
+      currentPassword: Joi.string().required(),
+      newPassword: Joi.string().min(6).max(128).required(),
+    }),
+    params: Joi.object(),
+    query: Joi.object(),
+  }),
   emailVerification: Joi.object({
     body: Joi.object({ code: Joi.string().trim().pattern(/^\d{6}$/).required() }),
     params: Joi.object(), query: Joi.object(),
