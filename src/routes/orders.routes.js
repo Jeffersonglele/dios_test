@@ -9,10 +9,17 @@ const router = express.Router();
 
 router.get('/:id/details', authenticate, validate(validators.id), orders.order.getDetails);
 router.patch('/:id/status', authenticate, validate(validators.id), orders.order.updateStatus);
-router.use('/', createResourceRouter(orders.order, {
-  readMiddlewares: [authenticate],
-  createValidator: validate(validators.createOrder),
-}));
+
+// Custom list route with includeLines support
+router.get('/', authenticate, validate(validators.pagination), orders.listOrders);
+
+// Individual order routes (getById, update, remove)
+router.get('/:id', authenticate, validate(validators.id), orders.order.getById);
+router.patch('/:id', authenticate, validate(validators.id), orders.order.update);
+router.delete('/:id', authenticate, validate(validators.id), orders.order.remove);
+
+// Create order
+router.post('/', authenticate, validate(validators.createOrder), orders.order.create);
 
 const orderLinesRouter = createResourceRouter(orders.orderLine, { readMiddlewares: [authenticate] });
 

@@ -211,23 +211,44 @@ async function listOrders(req, res, next) {
 
     const includeLines = req.query.includeLines === 'true';
 
-    const [data, total] = await prisma.$transaction([
+    const [orders, total] = await prisma.$transaction([
       prisma.order.findMany({
         where,
         skip: pageInfo.skip,
         take: pageInfo.take,
         orderBy: { orderedAt: 'desc' },
-        include: includeLines ? {
-          lines: {
-            where: { deletedAt: null },
-          },
-        } : undefined,
       }),
       prisma.order.count({ where }),
     ]);
 
-    // Si includeLines est activé, récupérer les noms des plats pour chaque ligne
+    const data = orders;
+
+    // Si includeLines est activé, récupérer les lignes séparément
     if (includeLines) {
+      const orderIds = orders.map(order => String(order.orderId));
+      const allLines = await prisma.orderLine.findMany({
+        where: {
+          orderId: { in: orderIds },
+          deletedAt: null,
+        },
+      });
+
+      // Grouper les lignes par orderId
+      const linesByOrderId = new Map();
+      for (const line of allLines) {
+        const orderId = line.orderId;
+        if (!linesByOrderId.has(orderId)) {
+          linesByOrderId.set(orderId, []);
+        }
+        linesByOrderId.get(orderId).push(line);
+      }
+
+      // Attacher les lignes à chaque order
+      for (const order of data) {
+        order.lines = linesByOrderId.get(String(order.orderId)) || [];
+      }
+
+      // Récupérer les noms des plats pour chaque ligne
       for (const order of data) {
         if (order.lines && order.lines.length > 0) {
           const dishIds = order.lines.map(line => line.dishId).filter(id => id != null);
