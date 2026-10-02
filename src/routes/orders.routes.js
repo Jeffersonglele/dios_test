@@ -11,7 +11,7 @@ router.get('/:id/details', authenticate, validate(validators.id), orders.order.g
 router.patch('/:id/status', authenticate, validate(validators.id), orders.order.updateStatus);
 
 // Custom list route with includeLines support
-router.get('/', authenticate, validate(validators.pagination), orders.listOrders);
+router.get('/', authenticate, validate(validators.pagination), orders.order.list);
 
 // Create order
 router.post('/', authenticate, validate(validators.createOrder), orders.order.create);
