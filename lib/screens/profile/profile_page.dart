@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'package:dios_delices/l10n/app_localizations.dart';
 import 'package:dios_delices/models/users.dart';
 import 'package:dios_delices/models/address.dart';
@@ -11,6 +11,7 @@ import 'package:dios_delices/utils/image_picker_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
+import 'package:dios_delices/widgets/dios_image.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -59,10 +60,19 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget _buildAvatarImage(String imageStr, String initials, {double size = 80}) {
     final trimmed = imageStr.trim();
     if (trimmed.isNotEmpty) {
-      if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      if (trimmed.startsWith('http://') ||
+          trimmed.startsWith('https://') ||
+          trimmed.startsWith('/') ||
+          trimmed.startsWith('uploads/')) {
+        final resolved = resolveImageUrl(trimmed);
         return ClipOval(
-          child: Image.network(trimmed, width: size, height: size, fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => _initialsWidget(initials, size)),
+          child: Image.network(
+            resolved ?? trimmed,
+            width: size,
+            height: size,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => _initialsWidget(initials, size),
+          ),
         );
       }
       try {
@@ -70,7 +80,20 @@ class _ProfilePageState extends State<ProfilePage> {
           child: Image.memory(base64Decode(trimmed), width: size, height: size,
               fit: BoxFit.cover, errorBuilder: (_, __, ___) => _initialsWidget(initials, size)),
         );
-      } catch (_) {}
+      } catch (_) {
+        final resolved = resolveImageUrl(trimmed);
+        if (resolved != null && resolved.isNotEmpty) {
+          return ClipOval(
+            child: Image.network(
+              resolved,
+              width: size,
+              height: size,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => _initialsWidget(initials, size),
+            ),
+          );
+        }
+      }
     }
     return _initialsWidget(initials, size);
   }

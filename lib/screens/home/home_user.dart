@@ -141,7 +141,11 @@ class _HomeUserState extends State<HomeUser> {
     }
 
     if (nodeHome != null && mounted) {
-      final u = nodeHome.user;
+      Users? u = nodeHome.user;
+      if (u == null && session.userId > 0) {
+        final localUsers = await Users.fetchUsersFromDB();
+        u = Users.getUsersByUserId(localUsers, session.userId);
+      }
       final restaus = nodeHome.restaurants.where((r) => r.valid == 1).toList();
       final addrs = nodeHome.addresses;
       final cats = nodeHome.categories;
@@ -149,7 +153,7 @@ class _HomeUserState extends State<HomeUser> {
         _currentUserID = u?.userID ?? session.userId;
         _currentUserRole = u?.roleID ?? session.role.id;
         _currentUserRestau = session.restaurantId ?? 0;
-        _users = u == null ? _users : [u];
+        _users = u != null ? [u] : _users;
         _allRestaus = restaus;
         _addresses = addrs;
         _categories = [
@@ -498,7 +502,8 @@ class _HomeUserState extends State<HomeUser> {
                 // ── Header ──────────────────────────────
                 SliverToBoxAdapter(
                   child: _HomeHeader(
-                    currentUser: Users.getUsersByUserId(_users, _currentUserID),
+                    currentUser: Users.getUsersByUserId(_users, _currentUserID) ??
+                        (_users.isNotEmpty ? _users.first : null),
                     addressLabel: _liveAddress.isNotEmpty ? _liveAddress : null,
                     onTap: () => _addAddress(),
                   ),
@@ -604,18 +609,57 @@ class _HomeHeader extends StatelessWidget {
         AppColors.resolve(AppColors.border, AppDarkColors.border);
 
     Widget avatarChild;
-    if (user != null && user.image.isNotEmpty) {
-      try {
+    final imgStr = user?.image.trim() ?? '';
+    if (imgStr.isNotEmpty) {
+      if (imgStr.startsWith('http://') ||
+          imgStr.startsWith('https://') ||
+          imgStr.startsWith('/') ||
+          imgStr.startsWith('uploads/')) {
+        final resolved = resolveImageUrl(imgStr);
         avatarChild = ClipOval(
-          child: Image.memory(
-            base64Decode(user.image),
+          child: Image.network(
+            resolved ?? imgStr,
             width: 44,
             height: 44,
             fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => _avatarInitials(user!, brandColor),
           ),
         );
-      } catch (_) {
-        avatarChild = _avatarInitials(user, brandColor);
+      } else {
+        Widget? memImage;
+        try {
+          memImage = ClipOval(
+            child: Image.memory(
+              base64Decode(imgStr),
+              width: 44,
+              height: 44,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => _avatarInitials(user!, brandColor),
+            ),
+          );
+        } catch (_) {
+          memImage = null;
+        }
+
+        if (memImage != null) {
+          avatarChild = memImage;
+        } else {
+          final resolved = resolveImageUrl(imgStr);
+          if (resolved != null && resolved.isNotEmpty) {
+            avatarChild = ClipOval(
+              child: Image.network(
+                resolved,
+                width: 44,
+                height: 44,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) =>
+                    _avatarInitials(user!, brandColor),
+              ),
+            );
+          } else {
+            avatarChild = _avatarInitials(user!, brandColor);
+          }
+        }
       }
     } else if (user != null) {
       avatarChild = _avatarInitials(user, brandColor);

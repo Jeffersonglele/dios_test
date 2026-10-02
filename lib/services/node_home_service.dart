@@ -51,8 +51,12 @@ class NodeHomeService {
     if (token?.trim().isNotEmpty == true) {
       try {
         final userResponse = await NodeAuthService.me(token!);
-        user = Users.fromNodeAuth(userResponse['data'] as Map<String, dynamic>);
-      } catch (_) {
+        final userMap = (userResponse['data'] is Map<String, dynamic>)
+            ? userResponse['data'] as Map<String, dynamic>
+            : userResponse;
+        user = Users.fromNodeAuth(userMap);
+      } catch (e) {
+        debugPrint('⚠️ NodeHomeService user load failed: $e');
         user = null;
       }
     }

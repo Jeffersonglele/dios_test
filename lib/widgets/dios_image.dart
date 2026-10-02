@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../config/app_config.dart';
 
-String? _resolveImageUrl(String? value) {
+String? resolveImageUrl(String? value) {
   if (value == null) return null;
   final raw = value.trim();
   if (raw.isEmpty) return null;
@@ -12,6 +12,8 @@ String? _resolveImageUrl(String? value) {
   if (raw.startsWith('/')) return '$base$raw';
   return '$base/$raw';
 }
+
+String? _resolveImageUrl(String? value) => resolveImageUrl(value);
 
 /// Affiche une image réseau avec fallback automatique si l'URL est vide.
 /// Évite l'erreur NetworkImage("") quand l'image est null ou vide.
