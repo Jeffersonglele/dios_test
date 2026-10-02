@@ -209,10 +209,43 @@ async function listOrders(req, res, next) {
       if (req.query[field] !== undefined) where[field] = String(req.query[field]);
     }
 
+    const includeLines = req.query.includeLines === 'true';
+
     const [data, total] = await prisma.$transaction([
-      prisma.order.findMany({ where, skip: pageInfo.skip, take: pageInfo.take, orderBy: { orderedAt: 'desc' } }),
+      prisma.order.findMany({
+        where,
+        skip: pageInfo.skip,
+        take: pageInfo.take,
+        orderBy: { orderedAt: 'desc' },
+        include: includeLines ? {
+          lines: {
+            where: { deletedAt: null },
+          },
+        } : undefined,
+      }),
       prisma.order.count({ where }),
     ]);
+
+    // Si includeLines est activé, récupérer les noms des plats pour chaque ligne
+    if (includeLines) {
+      for (const order of data) {
+        if (order.lines && order.lines.length > 0) {
+          const dishIds = order.lines.map(line => line.dishId).filter(id => id != null);
+          if (dishIds.length > 0) {
+            const dishes = await prisma.dish.findMany({
+              where: { dishId: { in: dishIds }, deletedAt: null },
+              select: { dishId: true, name: true },
+            });
+            const dishMap = new Map(dishes.map(d => [d.dishId, d.name]));
+            order.lines = order.lines.map(line => ({
+              ...line,
+              dishName: dishMap.get(line.dishId) || null,
+            }));
+          }
+        }
+      }
+    }
+
     return sendPage(res, data, total, pageInfo);
   } catch (error) {
     return handleControllerError(error, next);
