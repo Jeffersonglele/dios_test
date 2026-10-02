@@ -13,6 +13,46 @@ function driver() {
   return String(process.env.STORAGE_DRIVER || 'local').trim().toLowerCase();
 }
 
+function inferMimeTypeFromMagicBytes(buffer) {
+  if (!buffer || buffer.length < 12) return null;
+  if (buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF) {
+    return 'image/jpeg';
+  }
+  if (buffer[0] === 0x89 &&
+      buffer[1] === 0x50 &&
+      buffer[2] === 0x4E &&
+      buffer[3] === 0x47 &&
+      buffer[4] === 0x0D &&
+      buffer[5] === 0x0A &&
+      buffer[6] === 0x1A &&
+      buffer[7] === 0x0A) {
+    return 'image/png';
+  }
+  if (buffer[0] === 0x52 &&
+      buffer[1] === 0x49 &&
+      buffer[2] === 0x46 &&
+      buffer[3] === 0x46 &&
+      buffer[8] === 0x57 &&
+      buffer[9] === 0x45 &&
+      buffer[10] === 0x42 &&
+      buffer[11] === 0x50) {
+    return 'image/webp';
+  }
+  return null;
+}
+
+function normalizeMimeType(file) {
+  const fromMagic = inferMimeTypeFromMagicBytes(file.buffer);
+  if (fromMagic) {
+    file.mimetype = fromMagic;
+    return fromMagic;
+  }
+  if (ACCEPTED_TYPES.has(file.mimetype)) {
+    return file.mimetype;
+  }
+  return file.mimetype || null;
+}
+
 function assertImage(file) {
   if (!file?.buffer?.length) {
     const error = new Error('Aucun fichier image reçu.');
@@ -24,7 +64,8 @@ function assertImage(file) {
     error.statusCode = 413;
     throw error;
   }
-  if (!ACCEPTED_TYPES.has(file.mimetype)) {
+  const detected = normalizeMimeType(file);
+  if (!ACCEPTED_TYPES.has(detected)) {
     const error = new Error('Format non pris en charge. Utilisez JPEG, PNG ou WebP.');
     error.statusCode = 415;
     throw error;
