@@ -13,13 +13,22 @@ router.patch('/:id/status', authenticate, validate(validators.id), orders.order.
 // Custom list route with includeLines support
 router.get('/', authenticate, validate(validators.pagination), orders.listOrders);
 
-// Individual order routes (getById, update, remove)
-router.get('/:id', authenticate, validate(validators.id), orders.order.getById);
-router.patch('/:id', authenticate, validate(validators.id), orders.order.update);
-router.delete('/:id', authenticate, validate(validators.id), orders.order.remove);
-
 // Create order
 router.post('/', authenticate, validate(validators.createOrder), orders.order.create);
+
+// Use resource router for getById, update, remove (excluding list and create)
+const { createCrudController } = require('../controllers/crud.controller');
+const { ORDER_FIELDS } = require('../controllers/orders.controller');
+const orderCrudForRoutes = createCrudController({
+  delegate: 'order',
+  resource: 'Commande',
+  fields: ORDER_FIELDS,
+  filterFields: ['status', 'country', 'deliveryMode', 'paymentProvider'],
+});
+
+router.get('/:id', authenticate, validate(validators.id), orderCrudForRoutes.getById);
+router.patch('/:id', authenticate, validate(validators.id), orderCrudForRoutes.update);
+router.delete('/:id', authenticate, validate(validators.id), orderCrudForRoutes.remove);
 
 const orderLinesRouter = createResourceRouter(orders.orderLine, { readMiddlewares: [authenticate] });
 
