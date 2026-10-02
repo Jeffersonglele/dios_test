@@ -81,6 +81,30 @@ class NodeAuthService {
     return response['data'] as Map<String, dynamic>;
   }
 
+  /// Met à jour le profil de l'utilisateur connecté via /auth/me.
+  static Future<Map<String, dynamic>> updateProfile({
+    required String token,
+    String? firstname,
+    String? lastname,
+    String? email,
+    String? telephone,
+    String? telephoneLocal,
+    String? telephoneE164,
+    String? image,
+  }) async {
+    final body = <String, dynamic>{
+      if (firstname != null) 'firstname': firstname.trim(),
+      if (lastname != null) 'lastname': lastname.trim(),
+      if (email != null) 'email': email.trim(),
+      if (telephone != null) 'telephone': telephone.trim(),
+      if (telephoneLocal != null) 'telephoneLocal': telephoneLocal.trim(),
+      if (telephoneE164 != null) 'telephoneE164': telephoneE164.trim(),
+      if (image != null) 'image': image,
+    };
+    final response = await patchJson('/auth/me', token: token, body: body);
+    return response['data'] as Map<String, dynamic>;
+  }
+
   /// Appel GET générique pour les écrans migrés vers l'API Node.js.
   static Future<Map<String, dynamic>> getJson(
     String path, {

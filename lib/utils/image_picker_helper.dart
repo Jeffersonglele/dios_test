@@ -167,13 +167,19 @@ Future<XFile?> pickAndConfirmImage(BuildContext context) async {
 
   // Convertir l'image en JPEG pour éviter les problèmes de compatibilité
   final bytes = await picked.readAsBytes();
-  final image = img.decodeImage(bytes)!;
-  final jpegBytes = img.encodeJpg(image, quality: 85);
-
   final tempDir = await getTemporaryDirectory();
   final timestamp = DateTime.now().millisecondsSinceEpoch;
   final newPath = '${tempDir.path}/dish_$timestamp.jpg';
-  final file = await File(newPath).writeAsBytes(jpegBytes);
+
+  final decoded = img.decodeImage(bytes);
+  if (decoded != null) {
+    // Ré-encodage en JPEG pour normaliser le format (HEIC, WebP, etc.)
+    final jpegBytes = img.encodeJpg(decoded, quality: 85);
+    await File(newPath).writeAsBytes(jpegBytes);
+  } else {
+    // Format non décodable par le package image : on copie tel quel
+    await File(newPath).writeAsBytes(bytes);
+  }
 
   final xFile = XFile(newPath);
   return showImageConfirmDialog(context, xFile);

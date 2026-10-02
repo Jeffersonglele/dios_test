@@ -124,6 +124,15 @@ class SessionService {
     }
   }
 
+  static Future<void> updateEmail(String? email) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (email != null && email.trim().isNotEmpty) {
+      await prefs.setString(_currentUserEmailKey, email.trim());
+    } else {
+      await prefs.remove(_currentUserEmailKey);
+    }
+  }
+
   /// Adopte la session Parse créée par `loginUser` côté Cloud Code.
   ///
   /// Les préférences gardent uniquement les informations d'affichage et de

@@ -12,6 +12,7 @@ import '../screens/navigation/curved_navigation_livreur.dart';
 import '../db/database_helper.dart';
 import '../services/session_service.dart';
 import '../services/node_admin_service.dart';
+import '../services/node_auth_service.dart';
 
 part 'users.g.dart';
 
@@ -569,8 +570,7 @@ class Users extends HiveObject {
     try {
       final token = await SessionService.readNodeToken();
       if (token != null) {
-        await NodeAdminService.updateUserProfile(
-          userId: userID,
+        await NodeAuthService.updateProfile(
           token: token,
           firstname: firstname,
           lastname: lastname,
@@ -581,11 +581,12 @@ class Users extends HiveObject {
         await DatabaseHelper.updateUserProfile(
             userID, firstname, lastname, email, telephone,
             image: image);
+        await SessionService.updateEmail(email);
         notifyDataChanged();
         return "success";
       }
     } catch (e) {
-      // Fallback to Parse Cloud Function if Node API fails
+      return e.toString();
     }
     var cloudFunction = ParseCloudFunction('update1User');
     var params = <String, dynamic>{
@@ -607,6 +608,7 @@ class Users extends HiveObject {
           await DatabaseHelper.updateUserProfile(
               userID, firstname, lastname, email, telephone,
               image: image);
+          await SessionService.updateEmail(email);
           notifyDataChanged();
           return "success";
         }
