@@ -17,7 +17,9 @@ const allowedOrigins = configuredOrigins();
 
 app.disable('x-powered-by');
 app.set('trust proxy', trustProxy());
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+}));
 app.use(cors({
   origin(origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
