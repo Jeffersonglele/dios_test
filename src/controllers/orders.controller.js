@@ -88,7 +88,7 @@ async function createOrder(req, res, next) {
     });
     const subtotalAmount = normalizedLines.reduce((total, line) => total + (line.unitPrice * line.quantity), 0);
     const deliveryMode = String(payload.deliveryMode || 'DELIVERY').toUpperCase();
-    const isDelivery = !['PICKUP', 'EMPORTER', 'À EMPORTER'].includes(deliveryMode);
+    const isDelivery = !['PICKUP', 'EMPORTER', 'À EMPORTER', 'À Emporter'].includes(deliveryMode);
     let quote = null;
     let deliveryAddress = null;
     if (isDelivery) {
