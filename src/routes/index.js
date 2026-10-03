@@ -15,9 +15,11 @@ const verification = require('./verification.routes');
 const wallet = require('./wallet.routes');
 const admin = require('./admin.routes');
 const promotions = require('./promotions.routes');
+const config = require('./config.routes');
 
 const router = express.Router();
 
+router.use('/', config);
 router.use('/auth', auth);
 router.use('/users', users);
 router.use('/', uploads);
