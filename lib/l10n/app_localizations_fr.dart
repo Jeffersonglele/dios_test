@@ -792,7 +792,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get cart_payment_cod => 'À la livraison';
 
   @override
-  String get cart_payment_fedapay => 'Mobile Money (Nyole)';
+  String get cart_payment_fedapay => 'Mobile Money';
 
   @override
   String get cart_processing => 'Traitement...';
@@ -1940,7 +1940,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get commande_details_wave => 'Wave';
 
   @override
-  String get commande_details_cinetpay => 'Mobile Money (Nyole)';
+  String get commande_details_cinetpay => 'Mobile Money';
 
   @override
   String get commande_details_items => 'Articles';

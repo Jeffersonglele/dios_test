@@ -57,13 +57,14 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
     }
     if (_activeUserId == userId && _loadedUserId == userId) {
       if (!refreshRemote || nodeSession) return;
-      final remote = await CartSyncService.loadCart();
-      if (version != _activationVersion) return;
-      if (remote?.exists == true) {
-        state = List<Map<String, dynamic>>.from(remote!.items);
-        total = _calculateTotal(state);
-        await _saveCart(syncRemote: false);
-      }
+      // Désactivé car on migre vers Node.js
+      // final remote = await CartSyncService.loadCart();
+      // if (version != _activationVersion) return;
+      // if (remote?.exists == true) {
+      //   state = List<Map<String, dynamic>>.from(remote!.items);
+      //   total = _calculateTotal(state);
+      //   await _saveCart(syncRemote: false);
+      // }
       return;
     }
 
@@ -105,17 +106,18 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
     // Un panier déjà enregistré sur Parse doit être visible sur un nouvel
     // appareil. Si aucune copie serveur n'existe encore, on migre la copie
     // locale pour ne pas perdre un panier créé avant cette synchronisation.
-    if (!nodeSession) {
-      final remote = await CartSyncService.loadCart();
-      if (version != _activationVersion) return;
-      if (remote?.exists == true) {
-        state = List<Map<String, dynamic>>.from(remote!.items);
-        total = _calculateTotal(state);
-        await _saveCart(syncRemote: false);
-      } else if (remote != null && restored.isNotEmpty) {
-        await _saveCart();
-      }
-    }
+    // Désactivé car on migre vers Node.js
+    // if (!nodeSession) {
+    //   final remote = await CartSyncService.loadCart();
+    //   if (version != _activationVersion) return;
+    //   if (remote?.exists == true) {
+    //     state = List<Map<String, dynamic>>.from(remote!.items);
+    //     total = _calculateTotal(state);
+    //     await _saveCart(syncRemote: false);
+    //   } else if (remote != null && restored.isNotEmpty) {
+    //     await _saveCart();
+    //   }
+    // }
   }
 
   List<Map<String, dynamic>> _deserializeCart(String? saved, int userId) {
@@ -184,12 +186,24 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
 
       if (nodeToken != null) {
         currentUser = Users.fromNodeAuth(await NodeAuthService.me(nodeToken));
-        restaurant = await NodeCatalogService.loadRestaurant(
-          restaurantId: restau_id,
-          token: nodeToken,
-        );
-        restauLat = restaurant.latitude;
-        restauLng = restaurant.longitude;
+        try {
+          restaurant = await NodeCatalogService.loadRestaurant(
+            restaurantId: restau_id,
+            token: nodeToken,
+          );
+          restauLat = restaurant.latitude;
+          restauLng = restaurant.longitude;
+        } catch (e) {
+          // If restaurant not found in Node backend, fall back to local DB
+          print('Restaurant not found in Node backend, using local DB: $e');
+          final usersList = await Users.fetchUsersFromDB();
+          final restaurantsList = await Restaurant.fetchRestaurantsFromDB();
+          currentUser = Users.getUsersByUserId(usersList, user_id);
+          restaurant = Restaurant.getRestaurantByRestaurantId(
+            restaurantsList,
+            restau_id,
+          );
+        }
       } else {
         final usersList = await Users.fetchUsersFromDB();
         final restaurantsList = await Restaurant.fetchRestaurantsFromDB();
@@ -332,6 +346,8 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
       await _saveCart();
       return 'success';
     } catch (e) {
+      print('Cart add error: $e');
+      print('Stack trace: ${StackTrace.current}');
       return 'error';
     }
   }
@@ -348,9 +364,12 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
     final snapshot = List<Map<String, dynamic>>.from(state);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_storageKey(userId), jsonEncode(snapshot));
-    if (syncRemote && !await SessionService.hasNodeSession()) {
-      await CartSyncService.saveCart(snapshot);
-    }
+    
+    // Ne plus synchroniser avec Parse car on migre vers Node.js
+    // La synchronisation Parse causait l'erreur "params.id must be a valid GUID"
+    // if (syncRemote && !await SessionService.hasNodeSession()) {
+    //   await CartSyncService.saveCart(snapshot);
+    // }
   }
 
   Future<void> clearCart() async {

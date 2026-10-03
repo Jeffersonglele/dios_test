@@ -34,11 +34,12 @@ import 'theme/theme_provider.dart';
 import 'providers/theme_provider.dart' as legacy_providers;
 import 'core/device_info.dart';
 import 'widgets/session_guard.dart';
-
+import 'services/currency_service.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await DeviceInfo.init();
+  await CurrencyService.instance.init();
 
   // Configuration de la barre système
   SystemChrome.setEnabledSystemUIMode(

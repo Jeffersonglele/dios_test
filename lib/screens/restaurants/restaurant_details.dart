@@ -12,6 +12,7 @@ import '../../services/favorites_service.dart';
 import '../../services/delivery_availability_service.dart';
 import '../../services/session_service.dart';
 import '../../services/node_catalog_service.dart';
+import '../../services/currency_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/dios_image.dart';
 import '../../widgets/micro_interactions.dart';
@@ -1031,7 +1032,7 @@ class _RestaurantDetailsState extends ConsumerState<RestaurantDetails>
                           children: [
                             Expanded(
                               child: Text(
-                                '${dish.price?.toStringAsFixed(2)} ${CurrencyUtil.symbol(currentUser_country)}',
+                                '${dish.price?.toStringAsFixed(2)} ${CurrencyUtil.symbol(CurrencyUtil.code(currentUser_country))}',
                                 style: TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w800,
@@ -1164,21 +1165,28 @@ class _InfoChipsRow extends StatelessWidget {
             bg: chipBg,
             color: chipText,
           ),
-        if (restaurant.deliveryFee <= 0)
-          _InfoChip(
-            icon: Icons.delivery_dining_rounded,
-            label: l10n.home_delivery_fee_label('0'),
-            bg: success.withValues(alpha: 0.10),
-            color: success,
-          )
-        else
-          _InfoChip(
-            icon: Icons.delivery_dining_rounded,
-            label: l10n.home_delivery_fee_label(
-                restaurant.deliveryFee.toStringAsFixed(0)),
-            bg: chipBg,
-            color: chipText,
-          ),
+        AnimatedBuilder(
+          animation: CurrencyService.instance,
+          builder: (_, __) {
+            final isFree = false;
+            // Afficher le tarif par défaut du pays si le restaurant n'a pas de tarif
+            final deliveryFee = restaurant.deliveryFee > 0 
+                ? restaurant.deliveryFee 
+                : (restaurant.country?.toLowerCase().contains('bénin') == true || 
+                   restaurant.country?.toLowerCase().contains('benin') == true ? 500.0 : 2000.0);
+            final label = CurrencyUtil.formatConvertedPrice(deliveryFee);
+            final bg = isFree
+                ? success.withValues(alpha: 0.10)
+                : chipBg;
+            final col = isFree ? success : chipText;
+            return _InfoChip(
+              icon: Icons.delivery_dining_rounded,
+              label: label,
+              bg: bg,
+              color: col,
+            );
+          },
+        ),
         if (restaurant.openingDays.isNotEmpty)
           _InfoChip(
             icon: Icons.calendar_today_rounded,

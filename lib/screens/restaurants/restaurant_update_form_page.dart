@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geocoding/geocoding.dart' as geo;
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
+import 'dart:io';
 import '../../constants/constant.dart';
 import '../../utils/image_picker_helper.dart';
 import '../../models/users.dart';
@@ -14,6 +15,7 @@ import '../../utils/hashtag_text_input_formatter.dart';
 import '../../utils/phone_number.dart';
 import '../../services/node_admin_service.dart';
 import '../../services/session_service.dart';
+import '../../services/upload_service.dart';
 import '../../utils/toast.dart';
 import '../../widgets/brand_avatar_logo.dart';
 import '../../widgets/dios_image.dart';
@@ -322,17 +324,19 @@ class _RestaurantUpdateFormPageState
 
                           final user = ref.read(usersProvider);
                           if (user != null) {
-                            ParseFileBase? parseFile;
+                            String? imageUrl;
                             final _image = this._image;
 
                             if (_image != null) {
                               if (_nameController.text.isNotEmpty &&
                                   user.userID != null) {
-                                final newFileName = safeUploadFileName(
-                                  prefix: 'restaurant_${user.userID}',
-                                  file: _image,
-                                );
-                                parseFile = ParseXFile(_image, name: newFileName);
+                                // Upload vers R2 via le nouveau backend
+                                final imageFile = File(_image.path);
+                                imageUrl = await UploadService.uploadImage(imageFile, scope: 'restaurants');
+                                if (imageUrl == null) {
+                                  Toast(context, 'Erreur lors de l\'upload de l\'image', false);
+                                  return;
+                                }
                               } else {
                                 return;
                               }
@@ -358,7 +362,8 @@ class _RestaurantUpdateFormPageState
                                     .replaceAll(',', '.'),
                               ),
                               isOpen: _isOpen ? 1 : 0,
-                              image: parseFile,
+                              image: null, // On utilise imageUrl à la place
+                              img_url: imageUrl ?? widget.restaurant.image,
                             );
 
                             if (createResult == "success") {

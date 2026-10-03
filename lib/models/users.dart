@@ -12,6 +12,7 @@ import '../screens/navigation/curved_navigation_livreur.dart';
 import '../db/database_helper.dart';
 import '../services/session_service.dart';
 import '../services/node_admin_service.dart';
+import '../services/node_auth_service.dart';
 
 part 'users.g.dart';
 
@@ -517,7 +518,34 @@ class Users extends HiveObject {
   }
 
   static Future<String> updatePassword(int userID, String newPassword,
-      {bool? mustChangePassword, String? plainPassword}) async {
+      {bool? mustChangePassword,
+      String? plainPassword,
+      String? currentPlainPassword}) async {
+    final token = await SessionService.readNodeToken();
+    final session = await SessionService.readSession();
+    final isNodeSession = token != null && session.userId == userID;
+
+    if (isNodeSession) {
+      try {
+        await NodeAuthService.changePassword(
+          token: token,
+          newPassword: plainPassword ?? newPassword,
+          currentPassword: currentPlainPassword,
+        );
+        await DatabaseHelper.updateUserPassword(
+          userID,
+          newPassword,
+          mustChangePassword: mustChangePassword ?? false,
+        );
+        notifyDataChanged();
+        return "success";
+      } on NodeAuthException catch (e) {
+        return "Erreur : ${e.message}";
+      } catch (e) {
+        return "Erreur : $e";
+      }
+    }
+
     final hasNativeSession =
         plainPassword != null && await SessionService.hasParseSession();
     String functionName = hasNativeSession ? 'changePassword' : 'update1User';
@@ -566,26 +594,50 @@ class Users extends HiveObject {
     required String telephone,
     String? image,
   }) async {
-    try {
-      final token = await SessionService.readNodeToken();
-      if (token != null) {
-        await NodeAdminService.updateUserProfile(
-          userId: userID,
-          token: token,
-          firstname: firstname,
-          lastname: lastname,
-          email: email,
-          telephone: telephone,
-          image: image,
-        );
-        await DatabaseHelper.updateUserProfile(
-            userID, firstname, lastname, email, telephone,
-            image: image);
-        notifyDataChanged();
-        return "success";
+    final token = await SessionService.readNodeToken();
+    if (token != null) {
+      try {
+        final session = await SessionService.readSession();
+        final isSelfUpdate = session.userId == userID;
+        final body = <String, dynamic>{
+          'firstname': firstname,
+          'lastname': lastname,
+          'email': email,
+          'telephone': telephone,
+          if (image != null) 'image': image,
+        };
+        if (isSelfUpdate) {
+          final res = await NodeAuthService.updateMe(token: token, body: body);
+          final updatedUser = res['data'];
+          if (updatedUser is Map) {
+            final imageVal = updatedUser['image']?.toString() ?? image;
+            await DatabaseHelper.updateUserProfile(
+                userID, firstname, lastname, email, telephone,
+                image: imageVal ?? image);
+            notifyDataChanged();
+            return "success";
+          }
+        } else {
+          await NodeAdminService.updateUserProfile(
+            userId: userID,
+            token: token,
+            firstname: firstname,
+            lastname: lastname,
+            email: email,
+            telephone: telephone,
+            image: image,
+          );
+          await DatabaseHelper.updateUserProfile(
+              userID, firstname, lastname, email, telephone,
+              image: image);
+          notifyDataChanged();
+          return "success";
+        }
+      } on NodeAuthException catch (e) {
+        return "Erreur : ${e.message}";
+      } catch (e) {
+        return "Erreur : $e";
       }
-    } catch (e) {
-      // Fallback to Parse Cloud Function if Node API fails
     }
     var cloudFunction = ParseCloudFunction('update1User');
     var params = <String, dynamic>{

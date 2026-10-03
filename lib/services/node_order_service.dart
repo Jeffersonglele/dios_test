@@ -15,27 +15,37 @@ class NodeOrderService {
     double reduction = 0,
     String? promoCode,
     int? cityId,
+    String? currency,
+    String? country,
   }) async {
+    final resolvedMode = deliveryMode == 'À Emporter' ||
+            deliveryMode.toUpperCase() == 'PICKUP'
+        ? 'PICKUP'
+        : 'DELIVERY';
+    final body = <String, dynamic>{
+      'order': <String, dynamic>{
+        'userId': userId,
+        'restaurantId': restaurantId,
+        'deliveryMode': resolvedMode,
+        'paymentMethod': paymentMethod,
+        if (addressId != null) 'deliveryAddressId': addressId,
+        if (reduction > 0) 'reduction': reduction,
+        if (promoCode?.trim().isNotEmpty == true) 'promoCode': promoCode,
+        if (cityId != null) 'cityId': cityId,
+        if (currency != null && currency.trim().isNotEmpty)
+          'currency': currency.trim().toUpperCase(),
+        if (country != null && country.trim().isNotEmpty)
+          'country': country.trim(),
+      },
+      'lines': lines,
+    };
     final response = await NodeAuthService.postJson(
       '/orders',
       token: token,
-      body: {
-        'order': {
-          'userId': userId,
-          'restaurantId': restaurantId,
-          'deliveryMode':
-              deliveryMode == 'À Emporter' || deliveryMode.toUpperCase() == 'PICKUP'
-                  ? 'PICKUP'
-                  : 'DELIVERY',
-          'paymentMethod': paymentMethod,
-          if (addressId != null) 'deliveryAddressId': addressId,
-          if (reduction > 0) 'reduction': reduction,
-          if (promoCode?.trim().isNotEmpty == true) 'promoCode': promoCode,
-          if (cityId != null) 'cityId': cityId,
-        },
-        'lines': lines,
-      },
+      body: body,
     );
+    print('NodeOrderService.create - deliveryMode: $resolvedMode, '
+        'currency: ${currency ?? 'DEFAULT'}, reduction: $reduction');
     final data = response['data'];
     if (data is! Map) {
       throw const NodeAuthException('Réponse de commande invalide.');
@@ -63,11 +73,16 @@ class NodeOrderService {
   static Future<List<Map<String, dynamic>>> listMine({
     required String token,
     required int userId,
+    bool includeLines = true,
   }) async {
     final response = await NodeAuthService.getJson(
       '/orders',
       token: token,
-      queryParameters: {'userId': '$userId', 'pageSize': '100'},
+      queryParameters: {
+        'userId': '$userId',
+        'pageSize': '100',
+        if (includeLines) 'includeLines': 'true',
+      },
     );
     final data = response['data'];
     if (data is! List) return const [];
@@ -111,12 +126,20 @@ class NodeOrderService {
           (order['orderId'] ?? order['commandeID'] ?? order['id']).toString(),
         ) ??
         0;
+    final paymentProvider = order['paymentProvider']?.toString();
+    // Mapper le paymentProvider vers le moyenPaiementID legacy
+    int moyenPaiementId = _int(order['paymentMethodId'] ?? order['moyenPaiementID']);
+    if (paymentProvider == 'CASH') {
+      moyenPaiementId = 1; // Cash
+    } else if (paymentProvider == 'NYOLE') {
+      moyenPaiementId = 2; // Mobile Money
+    }
     return Commande(
       commandeID: id,
       userID: _int(order['userId'] ?? order['userID']),
       restauID: _int(order['restaurantId'] ?? order['restauID']),
       restaurateurID: _int(order['restaurateurId'] ?? order['restaurateurID']),
-      moyenPaiementID: _int(order['paymentMethodId'] ?? order['moyenPaiementID']),
+      moyenPaiementID: moyenPaiementId,
       fraisLivraison: _double(order['deliveryFee'] ?? order['fraisLivraison']),
       reduction: _double(order['reduction'] ?? order['globalReduction']),
       dateCommande: date,
@@ -132,7 +155,7 @@ class NodeOrderService {
       subtotalAmount: _double(order['subtotalAmount']),
       deliveryMode: order['deliveryMode']?.toString(),
       country: order['country']?.toString() ?? 'RDC',
-      paymentStatus: order['paymentProvider']?.toString(),
+      paymentStatus: paymentProvider,
     );
   }
 

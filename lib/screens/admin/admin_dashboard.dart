@@ -1806,7 +1806,7 @@ class _RevenueCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${revenue.toStringAsFixed(0)} ${CurrencyUtil.symbol(country)}',
+                  '${revenue.toStringAsFixed(0)} ${CurrencyUtil.symbol(CurrencyUtil.code(country))}',
                   style: GoogleFonts.playfairDisplay(
                     fontSize: isSmallScreen ? 24 : 34,
                     fontWeight: FontWeight.w700,

@@ -27,16 +27,37 @@ class NodeCatalogService {
     required int restaurantId,
     String? token,
   }) async {
+    // First, try to find the UUID by querying all restaurants
     final response = await NodeAuthService.getJson(
-      '/restaurants/$restaurantId',
+      '/restaurants',
       token: token,
+      queryParameters: {'pageSize': '100'},
     );
     final data = response['data'];
-    if (data is! Map) {
+    String? uuid;
+    if (data is List) {
+      for (final item in data) {
+        if (item is Map && item['restaurantId'] == restaurantId) {
+          uuid = item['id']?.toString();
+          break;
+        }
+      }
+    }
+    if (uuid == null) {
+      throw const NodeAuthException('Restaurant introuvable.');
+    }
+
+    // Now load the restaurant using its UUID
+    final restaurantResponse = await NodeAuthService.getJson(
+      '/restaurants/$uuid',
+      token: token,
+    );
+    final restaurantData = restaurantResponse['data'];
+    if (restaurantData is! Map) {
       throw const NodeAuthException('Restaurant invalide.');
     }
     return Restaurant.fromMap(
-      _restaurantMap(Map<String, dynamic>.from(data)),
+      _restaurantMap(Map<String, dynamic>.from(restaurantData)),
     );
   }
 

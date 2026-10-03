@@ -4,10 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 
-/// Spinner Dios Délices : rotation continue et longueur d'arc animée.
-///
-/// Le composant reste indépendant du contexte d'utilisation afin de pouvoir
-/// être placé dans une page, un bouton ou un overlay de chargement.
+
 class Swirling extends StatefulWidget {
   const Swirling({
     super.key,

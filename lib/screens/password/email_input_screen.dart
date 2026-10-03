@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
 import '../../mails/mails.dart';
 import '../../models/users.dart';
+import '../../services/node_auth_service.dart';
 import '../../l10n/app_localizations.dart';
 import '../../widgets/auth_shell.dart';
 import 'password_reset_screen.dart';
@@ -26,33 +27,34 @@ class _EmailInputScreenState extends State<EmailInputScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => isLoading = true);
     final email = emailCtrl.text.trim();
-    final exists = await Users.checkEmailExists(widget.listusers, email);
-    if (!exists) {
+    try {
+      await NodeAuthService.requestPasswordReset(email);
+    } on NodeAuthException catch (e) {
       if (mounted) setState(() => isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         backgroundColor: AppColors.error,
         behavior: SnackBarBehavior.fixed,
-        content: Text(AppLocalizations.of(context)!.no_account_for_email)));
+        content: Text(e.message)));
       return;
-    }
-    final code = generateCode();
-    final sent = await sendPasswordResetEmail(context, email, code);
-    if (!mounted) return;
-    setState(() => isLoading = false);
-    if (sent == null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+    } catch (e) {
+      if (mounted) setState(() => isLoading = false);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         backgroundColor: AppColors.error,
         behavior: SnackBarBehavior.fixed,
         content: Text(AppLocalizations.of(context)!.reset_code_send_failed)));
       return;
     }
     if (!mounted) return;
+    setState(() => isLoading = false);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      backgroundColor: AppColors.success,
+      behavior: SnackBarBehavior.fixed,
+      content: Text(AppLocalizations.of(context)!.reset_code_sent)));
     Navigator.push(context, MaterialPageRoute(
       builder: (_) => PasswordResetScreen(
         email: email,
         listusers: widget.listusers,
-        expectedCode: code,
-        generatedAt: DateTime.now(),
       ),
     ));
   }

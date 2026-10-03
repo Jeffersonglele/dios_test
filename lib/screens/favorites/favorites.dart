@@ -2,6 +2,7 @@ import 'package:dios_delices/screens/dish/dish_details.dart';
 import 'package:dios_delices/screens/restaurants/restaurant_details.dart';
 import 'package:dios_delices/models/dish.dart';
 import 'package:dios_delices/models/restaurant.dart';
+import 'package:dios_delices/services/currency_service.dart';
 import 'package:dios_delices/services/favorites_service.dart';
 import 'package:dios_delices/services/session_service.dart';
 import 'package:dios_delices/theme/app_theme.dart';
@@ -199,17 +200,9 @@ class _FavoritesState extends State<Favorites> {
                 width: 0.5),
           ),
           child: Row(children: [
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                  color: AppColors.resolve(
-                      AppColors.brandSurface, AppDarkColors.brandSurface),
-                  borderRadius: BorderRadius.circular(AppRadius.md)),
-              child: Icon(Icons.storefront_rounded,
-                  color: AppColors.resolve(
-                      AppColors.brandSurface, AppDarkColors.brandSurface),
-                  size: 26),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              child: DiosImage(url: r.image, width: 56, height: 56),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -219,13 +212,16 @@ class _FavoritesState extends State<Favorites> {
                     Text(r.name,
                         style: AppTypography.labelMedium(
                             color: AppColors.resolve(
-                                AppColors.inkMuted, AppDarkColors.inkMuted))),
-                    Text(
-                        '${r.openingHours} · ${CurrencyUtil.formatPrice(r.deliveryFee, _country)}',
-                        style: AppTypography.bodyMedium(
-                                color: AppColors.resolve(
-                                    AppColors.inkMuted, AppDarkColors.inkMuted))
-                            .copyWith(fontSize: 12)),
+                                AppColors.ink, AppDarkColors.ink))),
+                    AnimatedBuilder(
+                      animation: CurrencyService.instance,
+                      builder: (_, __) => Text(
+                          '${r.openingHours} · ${CurrencyUtil.formatConvertedPrice(r.deliveryFee.toDouble())}',
+                          style: AppTypography.bodyMedium(
+                                  color: AppColors.resolve(
+                                      AppColors.inkMuted, AppDarkColors.inkMuted))
+                              .copyWith(fontSize: 12)),
+                    ),
                   ]),
             ),
             _LikeButton(
@@ -268,11 +264,14 @@ class _FavoritesState extends State<Favorites> {
                         style: AppTypography.labelMedium(
                             color: AppColors.resolve(
                                 AppColors.inkMuted, AppDarkColors.inkMuted))),
-                    Text(
-                        CurrencyUtil.formatPrice(
-                            d.price?.toDouble() ?? 0, _country),
-                        style:
-                            AppTypography.bodyMedium(color: AppColors.brand)),
+                    AnimatedBuilder(
+                      animation: CurrencyService.instance,
+                      builder: (_, __) => Text(
+                          CurrencyUtil.formatConvertedPrice(
+                              (d.price ?? 0).toDouble()),
+                          style:
+                              AppTypography.bodyMedium(color: AppColors.brand)),
+                    ),
                   ]),
             ),
             _LikeButton(active: true, onTap: () => _removeDish(d.dishID)),

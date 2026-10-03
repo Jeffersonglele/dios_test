@@ -1,4 +1,5 @@
 import 'package:dios_delices/models/dish.dart';
+import 'package:dios_delices/services/currency_service.dart';
 import 'package:dios_delices/services/session_service.dart';
 import 'package:dios_delices/theme/app_theme.dart';
 import 'package:dios_delices/utils/currency_util.dart';
@@ -72,8 +73,13 @@ class _MealsOfACategoryState extends State<MealsOfACategory> {
                                 Text(_dishes[i].description ?? '', maxLines: 2, overflow: TextOverflow.ellipsis,
                                     style: AppTypography.bodyMedium()),
                                 const SizedBox(height: 4),
-                                Text(CurrencyUtil.formatPrice(_dishes[i].price?.toDouble() ?? 0, _country),
-                                    style: AppTypography.bodyLarge(color: AppColors.brand)),
+                                AnimatedBuilder(
+                                  animation: CurrencyService.instance,
+                                  builder: (_, __) => Text(
+                                      CurrencyUtil.formatConvertedPrice(
+                                          (_dishes[i].price ?? 0).toDouble()),
+                                      style: AppTypography.bodyLarge(color: AppColors.brand)),
+                                ),
                               ]),
                             ),
                           ),

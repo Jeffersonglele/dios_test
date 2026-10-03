@@ -5,6 +5,7 @@ import '../core/commande_status.dart';
 import '../db/database_helper.dart';
 import '../services/node_order_service.dart';
 import '../services/session_service.dart';
+import 'ligne_commande.dart';
 
 part 'commande.g.dart';
 
@@ -297,14 +298,37 @@ class Commande extends HiveObject {
       final orders = await NodeOrderService.listMine(
         token: nodeToken,
         userId: session.userId,
+        includeLines: true,
       );
       final box = await Hive.openBox<Commande>('commande');
       await box.clear();
+      final ligneBox = await Hive.openBox<LigneCommande>('ligne_commande');
+      await ligneBox.clear();
       for (final order in orders) {
-        await DatabaseHelper.createCommande(
-          NodeOrderService.toLegacyCommande(order),
-        );
+        final commande = NodeOrderService.toLegacyCommande(order);
+        await DatabaseHelper.createCommande(commande);
+
+        // Synchroniser les lignes de commande depuis le backend Node.js
+        final lines = order['lines'] as List<dynamic>?;
+        if (lines != null) {
+          for (final line in lines) {
+            if (line is Map<String, dynamic>) {
+              final ligne = LigneCommande(
+                ligneID: line['lineId']?.toString() ?? line['id']?.toString() ?? '',
+                commandeID: commande.commandeID.toString(),
+                platID: int.tryParse(line['dishId']?.toString() ?? '') ?? 0,
+                quantite: int.tryParse(line['quantity']?.toString() ?? '') ?? 1,
+                prixUnitaire: double.tryParse(line['unitPrice']?.toString() ?? '') ?? 0.0,
+                reduction: double.tryParse(line['reduction']?.toString() ?? '') ?? 0.0,
+                nomPlat: line['dishName']?.toString(),
+              );
+              await DatabaseHelper.createLigneCommande(ligne);
+            }
+          }
+        }
       }
+      // Recharger les lignes depuis la base locale pour s'assurer qu'elles sont bien stockées
+      await LigneCommande.getAllLignesCommande();
       return;
     }
     await getAllCommandes();

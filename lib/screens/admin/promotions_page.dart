@@ -66,7 +66,7 @@ class _PromotionsPageState extends State<PromotionsPage> {
       '${date.year}';
 
   String _currencyAwareLabel(String label) =>
-      label.replaceAll('€', CurrencyUtil.symbol(_country));
+      label.replaceAll('€', CurrencyUtil.symbol(CurrencyUtil.code(_country)));
 
   String _fmtDiscount(Map<String, dynamic> code) {
     final discountPercent = (code['discountPercent'] ?? 0).toDouble();

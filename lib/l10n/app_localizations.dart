@@ -1619,7 +1619,7 @@ abstract class AppLocalizations {
   /// No description provided for @cart_payment_fedapay.
   ///
   /// In en, this message translates to:
-  /// **'Mobile Money (Nyole)'**
+  /// **'Mobile Money'**
   String get cart_payment_fedapay;
 
   /// No description provided for @cart_processing.
@@ -3695,7 +3695,7 @@ abstract class AppLocalizations {
   /// No description provided for @commande_details_cinetpay.
   ///
   /// In en, this message translates to:
-  /// **'Mobile Money (Nyole)'**
+  /// **'Mobile Money'**
   String get commande_details_cinetpay;
 
   /// No description provided for @commande_details_items.

@@ -287,6 +287,41 @@ class NodeAuthService {
     );
   }
 
+  static Future<void> requestPasswordReset(String email) async {
+    await _post('/auth/password/reset-request', {'email': email.trim()});
+  }
+
+  static Future<void> resetPassword({
+    required String email,
+    required String code,
+    required String password,
+  }) async {
+    await _post('/auth/password/reset', {
+      'email': email.trim(),
+      'code': code.trim(),
+      'password': password,
+    });
+  }
+
+  static Future<Map<String, dynamic>> updateMe({
+    required String token,
+    required Map<String, dynamic> body,
+  }) async {
+    return patchJson('/auth/me', token: token, body: body);
+  }
+
+  static Future<void> changePassword({
+    required String token,
+    required String newPassword,
+    String? currentPassword,
+  }) async {
+    final body = <String, dynamic>{
+      'newPassword': newPassword,
+      if (currentPassword != null) 'currentPassword': currentPassword,
+    };
+    await _authorizedPost('/auth/password/change', token, body: body);
+  }
+
   static Future<void> _authorizedPost(
     String path,
     String token, {

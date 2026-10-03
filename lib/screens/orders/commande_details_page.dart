@@ -95,8 +95,10 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage> {
       _isRestaurantView =
           session.role.isAdmin || session.role == AppRole.microRestaurant;
 
+      // Recharger les commandes depuis le backend Node.js si disponible
+      await Commande.refreshLocalCommandes();
+
       await Future.wait([
-        Commande.refreshLocalCommandes(),
         LigneCommande.getAllLignesCommande(),
         Address.getAllAdressesDetails(),
       ]);
@@ -114,6 +116,13 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage> {
       final allU = results[2] as List<Users>;
       final lignes = results[3] as List<LigneCommande>;
       final allA = results[4] as List<Address>;
+
+      // Recharger la commande depuis la base locale après la synchronisation
+      final allC = await Commande.fetchCommandesFromDB();
+      final updated = allC.where((c) => c.commandeID == _commande.commandeID);
+      if (updated.isNotEmpty) {
+        _commande = updated.first;
+      }
 
       final dn = <int, String>{};
       for (final d in allD) {
@@ -259,8 +268,18 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage> {
     return sum;
   }
 
-  double get _total =>
-      _subtotal + _commande.fraisLivraison - _commande.reduction;
+  double get _total {
+    // Utiliser le montant total depuis la commande si disponible
+    if (_commande.totalAmount > 0) {
+      return _commande.totalAmount;
+    }
+    // Sinon, calculer manuellement
+    final showDeliveryFee = _commande.deliveryMode == 'DELIVERY' ||
+                           _commande.deliveryMode?.toLowerCase() == 'livraison' ||
+                           _commande.deliveryMode?.toLowerCase() == 'delivery';
+    final deliveryFee = showDeliveryFee ? _commande.fraisLivraison : 0.0;
+    return _subtotal + deliveryFee - _commande.reduction;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -620,6 +639,15 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage> {
   }
 
   String get _paymentLabel {
+    // Vérifier d'abord le paymentProvider (nouveau champ Node.js stocké dans paymentStatus)
+    final provider = _commande.paymentStatus?.toLowerCase();
+    if (provider == 'nyole' || provider == 'mobile money') {
+      return 'Mobile Money (Nyole)';
+    }
+    if (provider == 'cash') {
+      return AppLocalizations.of(context)!.commande_details_cash;
+    }
+    // Sinon, utiliser le moyenPaiementID legacy
     switch (_commande.moyenPaiementID) {
       case 1:
         return AppLocalizations.of(context)!.commande_details_cash;
@@ -712,6 +740,11 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage> {
 
   // ── Totaux ────────────────────────────────────────────
   Widget _buildTotals() {
+    // Afficher les frais de livraison seulement si c'est une livraison
+    final showDeliveryFee = _commande.deliveryMode == 'DELIVERY' ||
+                           _commande.deliveryMode?.toLowerCase() == 'livraison' ||
+                           _commande.deliveryMode?.toLowerCase() == 'delivery';
+
     return Container(
       decoration: BoxDecoration(
         color: AppColors.resolve(AppColors.card, AppDarkColors.card),
@@ -725,8 +758,9 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage> {
         children: [
           _buildTotalRow(AppLocalizations.of(context)!.subtotal, CurrencyUtil.formatPrice(_subtotal, _country)),
           const SizedBox(height: 6),
-          _buildTotalRow(AppLocalizations.of(context)!.commande_details_livraison,
-              CurrencyUtil.formatPrice(_commande.fraisLivraison, _country)),
+          if (showDeliveryFee)
+            _buildTotalRow(AppLocalizations.of(context)!.commande_details_livraison,
+                CurrencyUtil.formatPrice(_commande.fraisLivraison, _country)),
           if (_commande.reduction > 0) ...[
             const SizedBox(height: 6),
             _buildTotalRow(AppLocalizations.of(context)!.commande_details_reduction,

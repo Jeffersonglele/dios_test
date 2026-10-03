@@ -258,7 +258,7 @@
   "cart_discount": "Discount",
   "cart_payment_section": "Payment method",
   "cart_payment_cod": "Cash on delivery",
-  "cart_payment_fedapay": "Mobile Money (Nyole)",
+  "cart_payment_fedapay": "Mobile Money",
   "cart_processing": "Processing...",
   "cart_order_button": "Order · {amount}",
   "@cart_order_button": {
@@ -801,7 +801,7 @@
   "commande_details_card": "Credit card",
   "commande_details_om": "Orange Money",
   "commande_details_wave": "Wave",
-  "commande_details_cinetpay": "Mobile Money (Nyole)",
+  "commande_details_cinetpay": "Mobile Money",
   "commande_details_items": "Items",
   "commande_details_no_items": "No items",
   "commande_details_address": "Delivery address",

@@ -6,6 +6,8 @@ import '../../theme/app_theme.dart';
 import '../../controllers/ui_controller.dart';
 import '../../mails/mails.dart';
 import '../../models/users.dart';
+import '../../db/database_helper.dart';
+import '../../services/node_auth_service.dart';
 import '../../utils/toast.dart';
 import '../../l10n/app_localizations.dart';
 import '../../widgets/auth_shell.dart';
@@ -14,15 +16,15 @@ import 'password_change_success_screen.dart';
 class PasswordResetScreen extends StatefulWidget {
   final String email;
   final List<Users> listusers;
-  final String expectedCode;
-  final DateTime generatedAt;
+  final String? expectedCode;
+  final DateTime? generatedAt;
 
   const PasswordResetScreen({
     super.key,
     required this.email,
     required this.listusers,
-    required this.expectedCode,
-    required this.generatedAt,
+    this.expectedCode,
+    this.generatedAt,
   });
 
   @override
@@ -71,15 +73,14 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
 
   Future<void> _resendCode() async {
     setState(() => isLoading = true);
-    final code = generateCode();
-    final sent = await sendPasswordResetEmail(context, widget.email, code);
-    if (!mounted) return;
-    if (sent != null) {
+    try {
+      await NodeAuthService.requestPasswordReset(widget.email);
+      if (!mounted) return;
       setState(() {
         isCodeVerified = false;
         isLoading = false;
-        expectedCode = code;
-        generatedAt = DateTime.now();
+        expectedCode = null;
+        generatedAt = null;
         codeCtrl.clear();
       });
       _startResendCooldown();
@@ -87,9 +88,15 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
         backgroundColor: AppColors.success,
         behavior: SnackBarBehavior.fixed,
         content: Text(AppLocalizations.of(context)!.reset_code_sent)));
-    } else {
+    } on NodeAuthException catch (e) {
+      if (mounted) setState(() => isLoading = false);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        backgroundColor: AppColors.error,
+        behavior: SnackBarBehavior.fixed,
+        content: Text(e.message)));
+    } catch (e) {
       setState(() => isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         backgroundColor: AppColors.error,
         behavior: SnackBarBehavior.fixed,
         content: Text(AppLocalizations.of(context)!.reset_code_send_failed)));
@@ -97,8 +104,8 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
   }
 
   // store mutable refs so resend can update them
-  late String expectedCode = widget.expectedCode;
-  late DateTime generatedAt = widget.generatedAt;
+  late String? expectedCode = widget.expectedCode;
+  late DateTime? generatedAt = widget.generatedAt;
 
   Future<void> verifyCode() async {
     final code = codeCtrl.text.trim();
@@ -109,9 +116,10 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
         content: Text(AppLocalizations.of(context)!.password_reset_code_hint)));
       return;
     }
-    // Primary: local verification
-    bool valid = isCodeValid(code, expectedCode, generatedAt);
-    // Fallback: cloud verification
+    bool valid = false;
+    if (expectedCode != null && generatedAt != null) {
+      valid = isCodeValid(code, expectedCode!, generatedAt!);
+    }
     if (!valid) {
       valid = await verifyEmailCode(email: widget.email, code: code);
     }
@@ -137,21 +145,31 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
     if (!isCodeVerified) { verifyCode(); return; }
     if (!_formKey.currentState!.validate()) return;
     setState(() => isLoading = true);
-    final user = await Users.getUsersByEmail(widget.listusers, widget.email);
-    if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        backgroundColor: AppColors.error,
-        behavior: SnackBarBehavior.fixed,
-        content: Text(AppLocalizations.of(context)!.user_not_found)));
-      setState(() => isLoading = false); return;
-    }
-    final encrypted = await Users.encryptPassword(newPwdCtrl.text);
-    final result = await Users.updatePassword(user.userID, encrypted);
-    setState(() => isLoading = false);
-    if (result == "success") {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => const PasswordChangeSuccessScreen()));
-    } else {
-      Toast(context, "Erreur : $result", false);
+    try {
+      await NodeAuthService.resetPassword(
+        email: widget.email,
+        code: codeCtrl.text.trim(),
+        password: newPwdCtrl.text,
+      );
+      final user = Users.getUsersByEmail(widget.listusers, widget.email);
+      if (user != null) {
+        final encrypted = await Users.encryptPassword(newPwdCtrl.text);
+        await DatabaseHelper.updateUserPassword(
+          user.userID,
+          encrypted,
+          mustChangePassword: false,
+        );
+      }
+      setState(() => isLoading = false);
+      if (mounted) {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const PasswordChangeSuccessScreen()));
+      }
+    } on NodeAuthException catch (e) {
+      setState(() => isLoading = false);
+      if (mounted) Toast(context, e.message, false);
+    } catch (e) {
+      setState(() => isLoading = false);
+      if (mounted) Toast(context, "Erreur : $e", false);
     }
   }
 

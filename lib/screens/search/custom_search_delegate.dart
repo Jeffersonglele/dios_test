@@ -2,6 +2,7 @@ import 'package:dios_delices/screens/dish/dish_details.dart';
 import 'package:dios_delices/screens/restaurants/restaurant_details.dart';
 import 'package:dios_delices/models/dish.dart';
 import 'package:dios_delices/models/restaurant.dart';
+import 'package:dios_delices/services/currency_service.dart';
 import 'package:dios_delices/services/session_service.dart';
 import 'package:dios_delices/theme/app_theme.dart';
 import 'package:dios_delices/utils/currency_util.dart';
@@ -107,8 +108,13 @@ class CustomSearchDelegate extends SearchDelegate<void> {
                   child: DiosImage(url: d.image, width: 44, height: 44),
                   ),
                   title: Text(d.name ?? 'Plat', style: AppTypography.labelMedium(color: colorScheme.onSurface)),
-                  subtitle: Text(CurrencyUtil.formatPrice(d.price?.toDouble() ?? 0, data.country),
-                      style: AppTypography.bodyMedium(color: AppColors.resolve(AppColors.brand, AppDarkColors.brand))),
+                  subtitle: AnimatedBuilder(
+                    animation: CurrencyService.instance,
+                    builder: (_, __) => Text(
+                        CurrencyUtil.formatConvertedPrice(
+                            (d.price ?? 0).toDouble()),
+                        style: AppTypography.bodyMedium(color: AppColors.resolve(AppColors.brand, AppDarkColors.brand))),
+                  ),
                   trailing: Icon(Icons.chevron_right_rounded, color: AppColors.resolve(AppColors.inkSubtle, AppDarkColors.inkSubtle)),
                   onTap: () {
                     Navigator.push(context, CupertinoPageRoute(

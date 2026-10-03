@@ -8,8 +8,10 @@ import 'package:geocoding/geocoding.dart' as geo;
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
+import 'dart:io';
 import '../../constants/constant.dart';
 import '../../services/session_service.dart';
+import '../../services/upload_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/hashtag_text_input_formatter.dart';
 import '../../utils/image_picker_helper.dart';
@@ -575,14 +577,16 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
             final userCountry = session.country;
             final userRoleID = session.role.id;
 
-            ParseFileBase? parseFile;
+            String? imageUrl;
             final img = _imageFile;
             if (img != null && _nameController.text.isNotEmpty) {
-              final name = safeUploadFileName(
-                prefix: 'restaurant_${userID}',
-                file: img,
-              );
-              parseFile = ParseXFile(img, name: name);
+              // Upload vers R2 via le nouveau backend
+              final imageFile = File(img.path);
+              imageUrl = await UploadService.uploadImage(imageFile, scope: 'restaurants');
+              if (imageUrl == null) {
+                if (context.mounted) Toast(context, 'Erreur lors de l\'upload de l\'image', false);
+                return;
+              }
             }
 
             int? addressID;
@@ -626,8 +630,8 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
             addressID: addressID,
             openingDays: openingDays,
             recoveryMode: _recoveryMode,
-            image: parseFile,
-            img_url: widget.isEditing && !_removeExistingImage ? widget.restaurant?.image : null,
+            image: null, // On utilise imageUrl à la place
+            img_url: imageUrl ?? (widget.isEditing && !_removeExistingImage ? widget.restaurant?.image : null),
             date_creation: widget.isEditing ? widget.restaurant?.date_creation : null,
             paymentMethod: _paymentMethod,
             mobileMoneyPhone: _paymentMethod == 'mobile_money' ? _phoneController.text.trim() : '',

@@ -1,3 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-final selectedDeliveryProvider = StateProvider<String>((ref) => 'En livraison');
+const kDeliveryOptionLivraison = 'En Livraison';
+const kDeliveryOptionEmporter = 'À Emporter';
+
+final selectedDeliveryProvider =
+    StateProvider<String>((ref) => kDeliveryOptionLivraison);

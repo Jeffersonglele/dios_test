@@ -4,19 +4,20 @@ import 'dart:math' as math;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../db/database_helper.dart';
 import '../../models/address.dart' as delivery;
 import '../../models/commande.dart';
+import '../../models/ligne_commande.dart';
 import '../../models/restaurant.dart';
 import '../../models/users.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/selected_delivery.dart';
 import '../../services/commande_api.dart';
 import '../../services/delivery_availability_service.dart';
+import '../../services/delivery_shipping_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/node_home_service.dart';
 import '../../services/node_order_service.dart';
@@ -26,15 +27,16 @@ import '../../services/promo_service.dart';
 import '../../services/restaurant_opening_hours_service.dart';
 import '../../services/session_service.dart';
 import '../../theme/app_theme.dart';
+import '../../services/currency_service.dart';
 import '../../utils/currency_util.dart';
+import '../../utils/country_util.dart';
 import '../../utils/toast.dart';
 import '../../widgets/animations.dart';
 import '../../widgets/delivery_unavailable.dart';
 import '../../widgets/dios_image.dart';
+import '../../widgets/cart_widgets.dart';
 import '../orders/order_tracking_page.dart';
-
-const kDeliveryOptionLivraison = 'En Livraison';
-const kDeliveryOptionEmporter = 'À Emporter';
+import '../payment/nyole_payment_page.dart';
 
 class Cart extends ConsumerStatefulWidget {
   const Cart({super.key, this.restaurantId});
@@ -458,10 +460,31 @@ class _CartState extends ConsumerState<Cart> {
   double _staticDeliveryFee(List<Map<String, dynamic>> cartItems) {
     if (cartItems.isEmpty) return 0.0;
     final restaurant = cartItems.first['restaurant'] as Map<String, dynamic>?;
-    final fee = restaurant?['delivery_fee'];
-    if (fee is num && fee > 0) return fee.toDouble();
+    
+    // Essayer plusieurs clés possibles pour le frais de livraison
+    final fee = restaurant?['delivery_fee'] ?? 
+                 restaurant?['deliveryFee'] ?? 
+                 restaurant?['deliveryfee'];
+                 
+    debugPrint('🚚 _staticDeliveryFee: restaurant = ${restaurant?.keys.toList()}');
+    debugPrint('🚚 _staticDeliveryFee: delivery_fee value = $fee');
+    
+    if (fee is num && fee > 0) {
+      debugPrint('🚚 _staticDeliveryFee: returning fee $fee');
+      return fee.toDouble();
+    }
     final parsed = double.tryParse(fee?.toString() ?? '') ?? 0.0;
-    return parsed > 0 ? parsed : 2000.0;
+    if (parsed > 0) {
+      debugPrint('🚚 _staticDeliveryFee: returning parsed fee $parsed');
+      return parsed;
+    }
+    
+    // Fallback par pays
+    final country = _countryFromCart(cartItems);
+    final countryCode = CountryUtil.canonical(country);
+    final defaultFee = countryCode == CountryUtil.benin ? 500.0 : 2000.0;
+    debugPrint('🚚 _staticDeliveryFee: using country default $defaultFee for $countryCode');
+    return defaultFee;
   }
 
   Future<double> _configuredDeliveryFeeFallback(
@@ -493,11 +516,50 @@ class _CartState extends ConsumerState<Cart> {
   Future<double> calculateDeliveryFee(
       List<Map<String, dynamic>> cartItems) async {
     if (cartItems.isEmpty) return _staticDeliveryFee(cartItems);
+    
+    debugPrint('🚚 Calculating delivery fee...');
+    debugPrint('🚚 Selected address: ${selectedAddress?.addressID}');
+    
+    // Try new shipping service with GPS coordinates (this should work even without Node token)
+    if (selectedAddress != null) {
+      final dlvLat = double.tryParse(selectedAddress!.lat ?? '');
+      final dlvLng = double.tryParse(selectedAddress!.long ?? '');
+      debugPrint('🚚 Address coords: lat=$dlvLat, lng=$dlvLng');
+      if (dlvLat != null && dlvLng != null) {
+        final resto = cartItems.first['restaurant'] as Map<String, dynamic>?;
+        if (resto != null) {
+          final restaurantId = int.tryParse(resto['restau_id']?.toString() ?? '');
+          final rstLat = double.tryParse(resto['restau_lat']?.toString() ?? '');
+          final rstLng = double.tryParse(resto['restau_lng']?.toString() ?? '');
+          debugPrint('🚚 Restaurant coords: lat=$rstLat, lng=$rstLng');
+          
+          if (restaurantId != null && rstLat != null && rstLng != null) {
+            try {
+              debugPrint('🚚 Trying new shipping service...');
+              final quote = await DeliveryShippingService.calculateShipping(
+                restaurantId: restaurantId,
+                deliveryLat: dlvLat,
+                deliveryLng: dlvLng,
+              );
+              debugPrint('🚚 Shipping service quote: $quote');
+              if (quote != null) {
+                return quote.shippingFee;
+              }
+            } catch (e) {
+              debugPrint('🚚 Shipping service error: $e');
+            }
+          }
+        }
+      }
+    }
+    
+    // Try Node.js backend
     final nodeToken = await SessionService.readNodeToken();
     if (nodeToken != null && selectedAddress?.addressID != null) {
       final restaurant = cartItems.first['restaurant'] as Map<String, dynamic>?;
       final restaurantId =
           int.tryParse(restaurant?['restau_id']?.toString() ?? '');
+      debugPrint('🚚 Trying Node.js quote: restaurantId=$restaurantId, addressId=${selectedAddress?.addressID}');
       if (restaurantId != null) {
         try {
           final quote = await NodeOrderService.quoteDelivery(
@@ -505,19 +567,25 @@ class _CartState extends ConsumerState<Cart> {
             restaurantId: restaurantId,
             addressId: selectedAddress!.addressID!,
           );
+          debugPrint('🚚 Node.js quote response: $quote');
           if (quote['available'] == true) {
             return (quote['deliveryFee'] as num?)?.toDouble() ?? 0;
           }
-        } catch (_) {}
+        } catch (e) {
+          debugPrint('🚚 Node.js quote error: $e');
+        }
       }
     }
+    
     if (selectedAddress == null) {
+      debugPrint('🚚 No address selected, using fallback');
       return _configuredDeliveryFeeFallback(cartItems);
     }
 
     final dlvLat = double.tryParse(selectedAddress!.lat ?? '');
     final dlvLng = double.tryParse(selectedAddress!.long ?? '');
     if (dlvLat == null || dlvLng == null) {
+      debugPrint('🚚 Invalid address coords, using fallback');
       return _configuredDeliveryFeeFallback(cartItems);
     }
 
@@ -527,10 +595,12 @@ class _CartState extends ConsumerState<Cart> {
     final rstLat = double.tryParse(resto['restau_lat']?.toString() ?? '');
     final rstLng = double.tryParse(resto['restau_lng']?.toString() ?? '');
     if (rstLat == null || rstLng == null) {
+      debugPrint('🚚 Invalid restaurant coords, using fallback');
       return _configuredDeliveryFeeFallback(cartItems);
     }
 
     try {
+      debugPrint('🚚 Trying Parse Cloud Function...');
       final fn = ParseCloudFunction('calculateDeliveryFee');
       final response = await fn.execute(parameters: {
         'restauLat': rstLat,
@@ -541,11 +611,15 @@ class _CartState extends ConsumerState<Cart> {
       if (response.success && response.result != null) {
         final data = response.result as Map<String, dynamic>;
         if (data['success'] == true && data['delivery_fee'] != null) {
+          debugPrint('🚚 Parse Cloud Function returned: ${data['delivery_fee']}');
           return (data['delivery_fee'] as num).toDouble();
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('🚚 Parse Cloud Function error: $e');
+    }
 
+    debugPrint('🚚 All methods failed, using fallback');
     return _configuredDeliveryFeeFallback(cartItems);
   }
 
@@ -590,7 +664,7 @@ class _CartState extends ConsumerState<Cart> {
   }
 
   String _currencyCode(String country) => CurrencyUtil.code(country);
-  String _currencySymbol(String country) => CurrencyUtil.symbol(country);
+  String _currencySymbol(String country) => CurrencyUtil.symbol(_currencyCode(country));
 
   double _lineTotal(Map<String, dynamic> item) {
     final unitPrice = (item['meal']['price'] as num?)?.toDouble() ?? 0.0;
@@ -603,8 +677,7 @@ class _CartState extends ConsumerState<Cart> {
       items.fold(0.0, (sum, i) => sum + _lineTotal(i));
 
   String _formatAmount(double amount, String code, String symbol) {
-    if (code == 'eur') return '${amount.toStringAsFixed(2)} $symbol';
-    return '${amount.round()} $symbol';
+    return CurrencyUtil.formatConvertedPrice(amount);
   }
 
   Future<void> _applyPromo({
@@ -628,6 +701,14 @@ class _CartState extends ConsumerState<Cart> {
         AppLocalizations.of(context)!.cart_promo_applied(promo.description),
         true);
   }
+
+  // ═══════════════════════════════════════════════════════════════
+//  REMPLACE la méthode `build` de _CartState (l'ancienne en entier).
+//  + ajoute en haut de cart.dart :  import 'cart_widgets.dart';
+//  + SUPPRIME les anciennes classes : _SectionTitle, _SummaryRow,
+//    _CartItemCard, _QtyButton (remplacées par cart_widgets.dart).
+//  Toute la logique (commande, paiement, livraison, promo) est inchangée.
+// ═══════════════════════════════════════════════════════════════
 
   @override
   Widget build(BuildContext context) {
@@ -653,7 +734,11 @@ class _CartState extends ConsumerState<Cart> {
     final allowedOptions = [kDeliveryOptionLivraison, kDeliveryOptionEmporter];
     final safeOption = allowedOptions.contains(selectedOption)
         ? selectedOption
-        : kDeliveryOptionEmporter;
+        : kDeliveryOptionLivraison;
+
+    if (safeOption != selectedOption) {
+      deliveryNotifier.state = safeOption;
+    }
 
     // Adresse utilisateur par défaut
     if (selectedAddress == null) {
@@ -671,14 +756,12 @@ class _CartState extends ConsumerState<Cart> {
     final deliveryFee = safeOption == kDeliveryOptionLivraison
         ? (_calculatedDeliveryFee ?? _staticDeliveryFee(cartItems))
         : 0.0;
+    
+    debugPrint('🚚 Final delivery fee: $deliveryFee (calculated: $_calculatedDeliveryFee, static: ${_staticDeliveryFee(cartItems)})');
     final cartTotal = _subtotal(cartItems);
     final reduction = _appliedPromo?.discountAmount ?? 0.0;
     final payableTotal =
         (cartTotal + deliveryFee - reduction).clamp(0.0, double.infinity);
-    final deliveryLabels = {
-      kDeliveryOptionLivraison: l10n.cart_delivery_option_delivery,
-      kDeliveryOptionEmporter: l10n.cart_delivery_option_takeaway,
-    };
     final deliveryBlocked = _cartDeliveryAvailability != null &&
         !_cartDeliveryAvailability!.canOrder;
     final restaurantClosed =
@@ -688,246 +771,194 @@ class _CartState extends ConsumerState<Cart> {
       return _buildBasketSelection(context, basketGroups, l10n);
     }
 
+    PreferredSizeWidget appBar(String title) => AppBar(
+          backgroundColor: CC.surface,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          centerTitle: true,
+          title: Text(
+            title,
+            style: AppTypography.titleLarge(color: CC.ink)
+                .copyWith(fontSize: 20),
+          ),
+        );
+
     if (cartItems.isEmpty) {
       return Scaffold(
-        backgroundColor:
-            AppColors.resolve(AppColors.surface, AppDarkColors.surface),
-        appBar: AppBar(title: Text(l10n.cart_title)),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.shopping_basket_outlined,
-                  size: 80,
-                  color: AppColors.resolve(
-                      AppColors.border, AppDarkColors.border)),
-              const SizedBox(height: 20),
-              Text(l10n.cart_empty,
-                  style: AppTypography.titleMedium(
-                      color:
-                          AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
-              const SizedBox(height: 8),
-              Text(l10n.cart_empty_hint,
-                  style: AppTypography.bodyMedium(
-                      color:
-                          AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
-            ],
-          ),
-        ),
+        backgroundColor: CC.surface,
+        appBar: appBar(l10n.cart_title),
+        body: CartEmptyState(title: l10n.cart_empty, hint: l10n.cart_empty_hint),
       );
     }
 
-    return Scaffold(
-      backgroundColor:
-          AppColors.resolve(AppColors.surface, AppDarkColors.surface),
-      appBar: AppBar(
-        title: Text(
-            widget.restaurantId != null
-                ? ((cartItems.first['restaurant']
-                            as Map<String, dynamic>?)?['name']
-                        ?.toString() ??
-                    l10n.cart_title)
-                : l10n.cart_title,
-            style: AppTypography.titleLarge(
-              color: AppColors.resolve(AppColors.ink, AppDarkColors.ink),
-            ).copyWith(fontSize: 20)),
-      ),
-      body: Column(
-        children: [
-          // Liste des items
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Items
-                  ...List.generate(cartItems.length, (index) {
-                    final item = cartItems[index];
-                    final globalIndex = visibleGlobalIndices[index];
-                    return _CartItemCard(
-                      item: item,
-                      country: country,
-                      onDelete: () {
-                        cartNotifier.removeFromCart(globalIndex);
-                        Toast(
-                            context,
-                            l10n.cart_item_deleted(item['meal']['meal_name']),
-                            true);
-                      },
-                      onQuantityChanged: (qty) =>
-                          cartNotifier.updateQuantity(globalIndex, qty),
-                    );
-                  }),
-                  const SizedBox(height: 20),
+    final restaurant = cartItems.first['restaurant'] as Map<String, dynamic>?;
+    final restaurantName = restaurant?['name']?.toString() ?? l10n.cart_title;
+    final restaurantImage = restaurant?['image']?.toString() ?? '';
+    final articleCount = cartItems.fold<int>(
+      0,
+      (sum, item) =>
+          sum +
+          (((item['order'] as Map<String, dynamic>?)?['quantity'] as num?)
+                  ?.toInt() ??
+              0),
+    );
 
-                  // ── Livraison ───────────────────────
-                  _SectionTitle(l10n.cart_delivery_section),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: AppColors.resolve(
-                                AppColors.card, AppDarkColors.card),
-                            borderRadius: BorderRadius.circular(AppRadius.lg),
-                            border:
-                                Border.all(color: AppColors.border, width: 0.5),
-                          ),
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              value: safeOption,
-                              isDense: true,
-                              isExpanded: true,
-                              items: allowedOptions
-                                  .map((o) => DropdownMenuItem(
-                                      value: o,
-                                      child: Text(deliveryLabels[o] ?? o)))
-                                  .toList(),
-                              onChanged: (v) {
-                                if (v != null) deliveryNotifier.state = v;
-                              },
-                            ),
-                          ),
-                        ),
+    final canSubmit = !_isSubmittingPayment;
+
+    return Scaffold(
+      backgroundColor: CC.surface,
+      appBar: appBar(l10n.cart_title),
+      body: ListView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+        children: [
+          // ── Bannière restaurant ─────────────────────
+          FadeSlideIn(
+            child: CartStoreHeader(
+              name: restaurantName,
+              image: restaurantImage,
+              subtitle: l10n.cart_basket_articles(articleCount),
+            ),
+          ),
+          const SizedBox(height: 18),
+
+          // ── Articles ────────────────────────────────
+          ...List.generate(cartItems.length, (index) {
+            final item = cartItems[index];
+            final globalIndex = visibleGlobalIndices[index];
+            return FadeSlideIn(
+              index: index + 1,
+              child: CartItemTile(
+                item: item,
+                country: country,
+                onDelete: () {
+                  cartNotifier.removeFromCart(globalIndex);
+                  Toast(
+                      context,
+                      l10n.cart_item_deleted(item['meal']['meal_name']),
+                      true);
+                },
+                onQuantityChanged: (qty) =>
+                    cartNotifier.updateQuantity(globalIndex, qty),
+              ),
+            );
+          }),
+          const SizedBox(height: 6),
+
+          // ── Livraison ───────────────────────────────
+          FadeSlideIn(
+            index: 2,
+            child: CartSectionCard(
+              icon: Icons.delivery_dining_rounded,
+              title: l10n.cart_delivery_section,
+              child: Column(
+                children: [
+                  CartSegmented(
+                    value: safeOption,
+                    onChanged: (v) => deliveryNotifier.state = v,
+                    segments: [
+                      CartSegment(
+                        kDeliveryOptionLivraison,
+                        l10n.cart_delivery_option_delivery,
+                        Icons.delivery_dining_rounded,
+                      ),
+                      CartSegment(
+                        kDeliveryOptionEmporter,
+                        l10n.cart_delivery_option_takeaway,
+                        Icons.shopping_bag_outlined,
                       ),
                     ],
                   ),
-                  if (safeOption == kDeliveryOptionLivraison) ...[
-                    const SizedBox(height: 12),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: AppColors.resolve(
-                            AppColors.brandSurface, AppDarkColors.brandSurface),
-                        borderRadius: BorderRadius.circular(AppRadius.lg),
-                        border: Border.all(
-                          color: AppColors.brand.withValues(alpha: 0.18),
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            l10n.cart_delivery_to,
-                            style: AppTypography.titleSmall(
-                              color: AppColors.resolve(
-                                  AppColors.ink, AppDarkColors.ink),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            selectedAddress?.fullAddress ??
-                                l10n.cart_choose_current_location,
-                            style: AppTypography.bodyMedium(
-                              color: AppColors.resolve(
-                                  AppColors.inkMuted, AppDarkColors.inkMuted),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: OutlinedButton.icon(
-                                  onPressed: _isUsingCurrentLocation
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 250),
+                    curve: Curves.easeOut,
+                    alignment: Alignment.topCenter,
+                    child: safeOption == kDeliveryOptionLivraison
+                        ? Padding(
+                            padding: const EdgeInsets.only(top: 14),
+                            child: Column(
+                              children: [
+                                CartAddressBox(
+                                  title: l10n.cart_delivery_to,
+                                  address: selectedAddress?.fullAddress,
+                                  placeholder: l10n.cart_choose_current_location,
+                                  locating: _isUsingCurrentLocation,
+                                  locateLabel: _isUsingCurrentLocation
+                                      ? l10n.cart_location_in_progress
+                                      : l10n.cart_current_location,
+                                  onLocate: _isUsingCurrentLocation
                                       ? null
                                       : _useCurrentLocation,
-                                  icon: _isUsingCurrentLocation
-                                      ? const SizedBox(
-                                          height: 18,
-                                          width: 18,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                          ),
-                                        )
-                                      : const Icon(Icons.my_location_rounded,
-                                          size: 18),
-                                  label: Text(_isUsingCurrentLocation
-                                      ? l10n.cart_location_in_progress
-                                      : l10n.cart_current_location),
+                                  onEdit: _isUsingCurrentLocation
+                                      ? null
+                                      : _showAddressPicker,
+                                  editTooltip: selectedAddress != null
+                                      ? l10n.cart_change_address
+                                      : l10n.cart_choose_address,
+                                  savedLabel: l10n.cart_location_saved,
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              IconButton(
-                                tooltip: selectedAddress != null
-                                    ? l10n.cart_change_address
-                                    : l10n.cart_choose_address,
-                                onPressed: _isUsingCurrentLocation
-                                    ? null
-                                    : _showAddressPicker,
-                                icon: const Icon(
-                                    Icons.edit_location_alt_outlined),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (selectedAddress != null) ...[
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: AppColors.resolve(AppColors.successLight,
-                              AppDarkColors.successLight),
-                          borderRadius: BorderRadius.circular(AppRadius.md),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.my_location_rounded,
-                                color: AppColors.resolve(
-                                    AppColors.success, AppDarkColors.success),
-                                size: 18),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                l10n.cart_location_saved,
-                                style: AppTypography.labelMedium(
-                                  color: AppColors.resolve(
-                                      AppColors.ink, AppDarkColors.ink),
-                                ),
-                              ),
+                                if (deliveryBlocked) ...[
+                                  const SizedBox(height: 10),
+                                  DeliveryUnavailableBanner(
+                                    onTap: () =>
+                                        showDeliveryUnavailableSheet(context),
+                                  ),
+                                ],
+                                if (restaurantClosed) ...[
+                                  const SizedBox(height: 10),
+                                  RestaurantClosedBanner(
+                                    status: _cartOpeningStatus!,
+                                    onTap: () =>
+                                        showRestaurantClosedSheet(context),
+                                  ),
+                                ],
+                              ],
                             ),
-                          ],
-                        ),
-                      ),
-                    ],
-                    if (deliveryBlocked) ...[
-                      const SizedBox(height: 8),
-                      DeliveryUnavailableBanner(
-                        onTap: () => showDeliveryUnavailableSheet(context),
-                      ),
-                    ],
-                    if (restaurantClosed) ...[
-                      const SizedBox(height: 8),
-                      RestaurantClosedBanner(
-                        status: _cartOpeningStatus!,
-                        onTap: () => showRestaurantClosedSheet(context),
-                      ),
-                    ],
-                  ],
+                          )
+                        : const SizedBox(width: double.infinity),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
 
-                  // ── Code promo ──────────────────────
-                  const SizedBox(height: 24),
-                  _SectionTitle(l10n.cart_promo_section),
-                  const SizedBox(height: 12),
+          // ── Code promo ──────────────────────────────
+          FadeSlideIn(
+            index: 3,
+            child: CartSectionCard(
+              icon: Icons.local_offer_rounded,
+              title: l10n.cart_promo_section,
+              child: Column(
+                children: [
                   Row(
                     children: [
                       Expanded(
                         child: TextField(
                           controller: _promoController,
                           textCapitalization: TextCapitalization.characters,
-                          style: AppTypography.bodyLarge(
-                            color: AppColors.resolve(
-                                AppColors.ink, AppDarkColors.ink),
-                          ),
+                          style: AppTypography.bodyLarge(color: CC.ink),
                           decoration: InputDecoration(
                             hintText: l10n.cart_promo_hint,
-                            prefixIcon: const Icon(Icons.local_offer_outlined,
-                                size: 20),
+                            filled: true,
+                            fillColor: CC.surfaceWarm,
+                            prefixIcon: Icon(Icons.confirmation_number_outlined,
+                                size: 20, color: CC.brand),
+                            contentPadding:
+                                const EdgeInsets.symmetric(vertical: 16),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(AppRadius.lg),
+                              borderSide: BorderSide.none,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(AppRadius.lg),
+                              borderSide: BorderSide.none,
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(AppRadius.lg),
+                              borderSide:
+                                  BorderSide(color: CC.brand, width: 1.5),
+                            ),
                           ),
                         ),
                       ),
@@ -935,218 +966,120 @@ class _CartState extends ConsumerState<Cart> {
                       SizedBox(
                         height: 54,
                         child: ElevatedButton(
-                          onPressed: cartItems.isEmpty
-                              ? null
-                              : () => _applyPromo(
-                                  cartItems: cartItems,
-                                  deliveryFee: deliveryFee),
+                          onPressed: () => _applyPromo(
+                              cartItems: cartItems, deliveryFee: deliveryFee),
                           child: Text(l10n.cart_promo_apply),
                         ),
                       ),
                     ],
                   ),
-                  if (_appliedPromo != null) ...[
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.resolve(
-                            AppColors.successLight, AppDarkColors.successLight),
-                        borderRadius: BorderRadius.circular(AppRadius.md),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 250),
+                    child: _appliedPromo != null
+                        ? CartPromoBadge(
+                            key: ValueKey(_appliedPromo!.code),
+                            text:
+                                '${_appliedPromo!.code} : ${_appliedPromo!.description}',
+                          )
+                        : const SizedBox(width: double.infinity),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // ── Résumé ──────────────────────────────────
+          FadeSlideIn(
+            index: 4,
+            child: CartSectionCard(
+              icon: Icons.receipt_long_rounded,
+              title: l10n.cart_summary_section,
+              child: AnimatedBuilder(
+                animation: CurrencyService.instance,
+                builder: (_, __) => Column(
+                  children: [
+                    CartSummaryRow(
+                        l10n.subtotal, _formatAmount(cartTotal, cc, cs)),
+                    if (safeOption == kDeliveryOptionLivraison)
+                      CartSummaryRow(l10n.deliveryFee,
+                          CurrencyUtil.formatConvertedPrice(deliveryFee)),
+                    if (_appliedPromo != null)
+                      CartSummaryRow(
+                        l10n.cart_discount,
+                        '- ${_formatAmount(reduction, cc, cs)}',
+                        valueColor: CC.success,
                       ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.check_circle,
-                              color: AppColors.resolve(
-                                  AppColors.success, AppDarkColors.success),
-                              size: 18),
-                          const SizedBox(width: 8),
-                          Text(
-                            '${_appliedPromo!.code} : ${_appliedPromo!.description}',
-                            style: AppTypography.labelMedium(
-                                color: AppColors.success),
-                          ),
-                        ],
-                      ),
-                    ),
+                    const CartDashedDivider(),
+                    CartTotalRow(
+                        l10n.total, _formatAmount(payableTotal, cc, cs)),
                   ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
 
-                  // ── Résumé ──────────────────────────
-                  const SizedBox(height: 24),
-                  _SectionTitle(l10n.cart_summary_section),
-                  const SizedBox(height: 14),
-                  _SummaryRow(l10n.subtotal, _formatAmount(cartTotal, cc, cs)),
-                  if (safeOption == kDeliveryOptionLivraison)
-                    _SummaryRow(
-                        l10n.deliveryFee, _formatAmount(deliveryFee, cc, cs)),
-                  if (_appliedPromo != null)
-                    _SummaryRow(
-                      l10n.cart_discount,
-                      '- ${_formatAmount(reduction, cc, cs)}',
-                      valueColor: AppColors.success,
+          // ── Paiement ────────────────────────────────
+          FadeSlideIn(
+            index: 5,
+            child: CartSectionCard(
+              icon: Icons.account_balance_wallet_rounded,
+              title: l10n.cart_payment_section,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: CartPaymentOption(
+                      icon: Icons.payments_outlined,
+                      label: l10n.cart_payment_cod,
+                      selected: !_payOnline,
+                      onTap: () => setState(() => _payOnline = false),
                     ),
-                  const Divider(height: 20),
-                  _SummaryRow(
-                    l10n.total,
-                    _formatAmount(payableTotal, cc, cs),
-                    isBold: true,
-                    valueColor: AppColors.brand,
                   ),
-
-                  // ── Paiement ────────────────────────
-                  const SizedBox(height: 24),
-                  _SectionTitle(l10n.cart_payment_section),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () => setState(() => _payOnline = false),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            decoration: BoxDecoration(
-                              color: !_payOnline
-                                  ? AppColors.resolve(AppColors.brandSurface,
-                                      AppDarkColors.brandSurface)
-                                  : AppColors.resolve(
-                                      AppColors.card, AppDarkColors.card),
-                              borderRadius: BorderRadius.circular(AppRadius.lg),
-                              border: Border.all(
-                                color: !_payOnline
-                                    ? AppColors.resolve(
-                                        AppColors.brand, AppDarkColors.brand)
-                                    : AppColors.resolve(
-                                        AppColors.border, AppDarkColors.border),
-                                width: !_payOnline ? 1.5 : 0.5,
-                              ),
-                            ),
-                            child: Column(
-                              children: [
-                                Icon(Icons.payments_outlined,
-                                    color: !_payOnline
-                                        ? AppColors.resolve(AppColors.brand,
-                                            AppDarkColors.brand)
-                                        : AppColors.resolve(AppColors.inkMuted,
-                                            AppDarkColors.inkMuted)),
-                                const SizedBox(height: 4),
-                                Text(l10n.cart_payment_cod,
-                                    style: AppTypography.labelMedium(
-                                        color: !_payOnline
-                                            ? AppColors.resolve(AppColors.brand,
-                                                AppDarkColors.brand)
-                                            : AppColors.resolve(
-                                                AppColors.inkMuted,
-                                                AppDarkColors.inkMuted))),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () => setState(() => _payOnline = true),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            decoration: BoxDecoration(
-                              color: _payOnline
-                                  ? AppColors.resolve(AppColors.brandSurface,
-                                      AppDarkColors.brandSurface)
-                                  : AppColors.resolve(
-                                      AppColors.card, AppDarkColors.card),
-                              borderRadius: BorderRadius.circular(AppRadius.lg),
-                              border: Border.all(
-                                color: _payOnline
-                                    ? AppColors.resolve(
-                                        AppColors.brand, AppDarkColors.brand)
-                                    : AppColors.resolve(
-                                        AppColors.border, AppDarkColors.border),
-                                width: _payOnline ? 1.5 : 0.5,
-                              ),
-                            ),
-                            child: Column(
-                              children: [
-                                Icon(Icons.credit_card_outlined,
-                                    color: _payOnline
-                                        ? AppColors.resolve(AppColors.brand,
-                                            AppDarkColors.brand)
-                                        : AppColors.resolve(AppColors.inkMuted,
-                                            AppDarkColors.inkMuted)),
-                                const SizedBox(height: 4),
-                                Text(l10n.cart_payment_fedapay,
-                                    style: AppTypography.labelMedium(
-                                        color: _payOnline
-                                            ? AppColors.resolve(AppColors.brand,
-                                                AppDarkColors.brand)
-                                            : AppColors.resolve(
-                                                AppColors.inkMuted,
-                                                AppDarkColors.inkMuted))),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: CartPaymentOption(
+                      icon: Icons.credit_card_outlined,
+                      label: l10n.cart_payment_fedapay,
+                      selected: _payOnline,
+                      onTap: () => setState(() => _payOnline = true),
+                    ),
                   ),
-                  const SizedBox(height: 100),
                 ],
               ),
             ),
           ),
         ],
       ),
-      // ── Bouton Commander sticky ─────────────────────
-      bottomNavigationBar: cartItems.isNotEmpty
-          ? Container(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-              decoration: BoxDecoration(
-                color:
-                    AppColors.resolve(AppColors.surface, AppDarkColors.surface),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.resolve(AppColors.ink, AppDarkColors.ink)
-                        .withValues(alpha: 0.04),
-                    blurRadius: 16,
-                    offset: const Offset(0, -4),
-                  ),
-                ],
-              ),
-              child: SafeArea(
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: ElevatedButton(
-                    onPressed: cartItems.isNotEmpty && !_isSubmittingPayment
-                        ? () async {
-                            if (deliveryBlocked) {
-                              await showDeliveryUnavailableSheet(context);
-                              return;
-                            }
-                            if (restaurantClosed) {
-                              await showRestaurantClosedSheet(context);
-                              return;
-                            }
-                            if (_payOnline) {
-                              await _handleOnlinePayment();
-                            } else {
-                              await _handleOrder();
-                            }
-                          }
-                        : null,
-                    child: Text(
-                      _isSubmittingPayment
-                          ? l10n.cart_processing
-                          : l10n.cart_order_button(
-                              CurrencyUtil.formatPrice(payableTotal, country)),
-                      style: AppTypography.labelLarge(
-                          color: AppColors.resolve(
-                              AppColors.card, AppDarkColors.card)),
-                    ),
-                  ),
-                ),
-              ),
-            )
-          : null,
+
+      // ── Bouton Commander collant ─────────────────────
+      bottomNavigationBar: AnimatedBuilder(
+        animation: CurrencyService.instance,
+        builder: (_, __) => CartCheckoutBar(
+          loading: _isSubmittingPayment,
+          label: _isSubmittingPayment
+              ? l10n.cart_processing
+              : l10n.cart_order_button(
+                  CurrencyUtil.formatConvertedPrice(payableTotal)),
+          onPressed: canSubmit
+              ? () async {
+                  if (deliveryBlocked) {
+                    await showDeliveryUnavailableSheet(context);
+                    return;
+                  }
+                  if (restaurantClosed) {
+                    await showRestaurantClosedSheet(context);
+                    return;
+                  }
+                  if (_payOnline) {
+                    await _handleOnlinePayment();
+                  } else {
+                    await _handleOrder();
+                  }
+                }
+              : null,
+        ),
+      ),
     );
   }
 
@@ -1263,7 +1196,7 @@ class _CartState extends ConsumerState<Cart> {
             restaurantName: currentRestaurant.name,
             totalAmount: total.clamp(0.0, double.infinity),
             orderId: int.tryParse(commandeId),
-            currencySymbol: CurrencyUtil.symbol(country),
+            currencySymbol: CurrencyUtil.symbol(CurrencyUtil.code(country)),
           );
         }
         await cartNotifier.clearRestaurantCart(restaurantId);
@@ -1376,23 +1309,44 @@ class _CartState extends ConsumerState<Cart> {
       if (data != null) {
         final paymentUrl = data['paymentUrl']?.toString();
         if (paymentUrl != null && paymentUrl.isNotEmpty) {
-          final uri = Uri.parse(paymentUrl);
-          if (!await canLaunchUrl(uri)) {
-            throw Exception('Impossible d’ouvrir la page de paiement Nyole.');
-          }
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
           final restaurantId = int.tryParse(
                   cartItems.first['restaurant']['restau_id'].toString()) ??
               0;
           await cartNotifier.clearRestaurantCart(restaurantId);
+          
           if (mounted) {
-            Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => OrderConfirmationPage(
-                          commandeId: commandeId,
-                          paymentPending: true,
-                        )));
+            final paymentResult = await Navigator.push<bool>(
+              context,
+              MaterialPageRoute(
+                builder: (_) => NyolePaymentPage(
+                  paymentUrl: paymentUrl,
+                  orderId: commandeId,
+                  onPaymentSuccess: () {
+                    // Le paiement est réussi, on continue vers la page de confirmation
+                  },
+                  onPaymentFailed: () {
+                    Toast(context, 'Le paiement a échoué', false);
+                  },
+                  onPaymentCancelled: () {
+                    Toast(context, 'Paiement annulé', false);
+                  },
+                ),
+              ),
+            );
+            
+            // Si le paiement a réussi (paymentResult == true), on navigue vers la confirmation
+            if (paymentResult == true && mounted) {
+              Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => OrderConfirmationPage(
+                            commandeId: commandeId,
+                            paymentPending: true,
+                          )));
+            } else if (paymentResult == false && mounted) {
+              // Si le paiement a échoué ou été annulé, on reste sur la page du panier
+              // ou on pourrait rediriger vers une page d'erreur
+            }
           }
         } else {
           Toast(context, AppLocalizations.of(context)!.cart_payment_url_error,
@@ -1402,8 +1356,10 @@ class _CartState extends ConsumerState<Cart> {
         Toast(context, AppLocalizations.of(context)!.cart_payment_online_error,
             false);
       }
-    } catch (_) {
-      Toast(context, AppLocalizations.of(context)!.cart_payment_error, false);
+    } catch (e) {
+      final errorMessage = e.toString();
+      print('Erreur paiement: $errorMessage');
+      Toast(context, 'Erreur paiement: $errorMessage', false);
     } finally {
       if (mounted) setState(() => _isSubmittingPayment = false);
     }
@@ -1450,13 +1406,34 @@ class _CartState extends ConsumerState<Cart> {
         reduction: reduction,
         promoCode: promoCode,
         cityId: cityID,
+        currency: currencyCode,
+        country: country,
       );
       final order = result['order'];
       if (order is! Map) return null;
       final normalizedOrder = Map<String, dynamic>.from(order);
-      await DatabaseHelper.createCommande(
-        NodeOrderService.toLegacyCommande(normalizedOrder),
-      );
+      final commande = NodeOrderService.toLegacyCommande(normalizedOrder);
+      await DatabaseHelper.createCommande(commande);
+
+      // Synchroniser les lignes de commande localement
+      final orderLines = result['lines'] as List<dynamic>?;
+      if (orderLines != null) {
+        for (final line in orderLines) {
+          if (line is Map<String, dynamic>) {
+            final ligne = LigneCommande(
+              ligneID: line['lineId']?.toString() ?? line['id']?.toString() ?? '',
+              commandeID: commande.commandeID.toString(),
+              platID: int.tryParse(line['dishId']?.toString() ?? '') ?? 0,
+              quantite: int.tryParse(line['quantity']?.toString() ?? '') ?? 1,
+              prixUnitaire: double.tryParse(line['unitPrice']?.toString() ?? '') ?? 0.0,
+              reduction: double.tryParse(line['reduction']?.toString() ?? '') ?? 0.0,
+              nomPlat: line['dishName']?.toString(),
+            );
+            await DatabaseHelper.createLigneCommande(ligne);
+          }
+        }
+      }
+
       return (normalizedOrder['orderId'] ?? normalizedOrder['commandeID'] ?? '')
           .toString();
     }
@@ -1802,7 +1779,7 @@ class OrderConfirmationPage extends StatelessWidget {
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: () => Navigator.pushReplacement(
+                  onPressed: () => Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (_) =>
