@@ -130,6 +130,10 @@ async function createCheckout(req, res, next, kind = 'ORDER') {
     if (existing) return res.status(200).json({ data: { ...paymentPayload(existing), reused: true } });
 
     const transactionId = `DD-NYOLE-${order.orderId}-${randomUUID().replace(/-/g, '')}`;
+    const subtotalN = Number(order.subtotalAmount || 0);
+    const reductionN = Number(order.reduction || 0);
+    const deliveryFeeN = Number(order.deliveryFee || 0);
+    const restaurantShareN = Math.max(0, subtotalN - reductionN);
     const created = await prisma.transaction.create({
       data: {
         transactionId,
@@ -140,8 +144,11 @@ async function createCheckout(req, res, next, kind = 'ORDER') {
         status: 'INITIATED',
         paymentMethod: 'NYOLE',
         subtotalAmount: order.subtotalAmount,
-        restaurantShare: order.subtotalAmount,
-        deliveryFeeShare: order.deliveryFee,
+        restaurantShare: restaurantShareN,
+        deliveryFeeShare: deliveryFeeN,
+        commissionRate: 0,
+        commissionAmount: 0,
+        settlementStatus: kind === 'TIP' ? 'PENDING_PAYOUT' : 'PENDING_DELIVERY',
         providerData: { mode: process.env.NYOLE_MODE === 'live' ? 'live' : 'test', kind },
       },
     });

@@ -87,8 +87,9 @@ async function createOrder(req, res, next) {
       return { line, dishId, quantity, unitPrice: Number(dish.price) };
     });
     const subtotalAmount = normalizedLines.reduce((total, line) => total + (line.unitPrice * line.quantity), 0);
-    const deliveryMode = String(payload.deliveryMode || 'DELIVERY').toUpperCase();
-    const isDelivery = !['PICKUP', 'EMPORTER', 'À EMPORTER', 'À Emporter'].includes(deliveryMode);
+    const deliveryMode = String(payload.deliveryMode || 'DELIVERY').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const pickupTokens = new Set(['PICKUP', 'EMPORTER', 'A EMPORTER', 'TAKEAWAY', 'EMPORT', 'TOGO', 'TO GO']);
+    const isDelivery = !pickupTokens.has(deliveryMode) && !deliveryMode.startsWith('EMPORTER') && !deliveryMode.includes('EMPORTER');
     let quote = null;
     let deliveryAddress = null;
     if (isDelivery) {
@@ -98,8 +99,13 @@ async function createOrder(req, res, next) {
       if (!quote.available) throw badRequest(quote.message);
       deliveryAddress = await prisma.address.findFirst({ where: { addressId, objectId: userId, deletedAt: null } });
     }
-    const deliveryFee = quote?.deliveryFee || 0;
-    const totalAmount = subtotalAmount + deliveryFee;
+    const deliveryFee = Number(quote?.deliveryFee || 0);
+    const requestedReduction = Number(payload.reduction || 0);
+    const reduction = Number.isFinite(requestedReduction) && requestedReduction > 0 ? requestedReduction : 0;
+    const totalAmount = Math.max(0, Number(subtotalAmount) + Number(deliveryFee) - Number(reduction));
+    const defaultCurrency = String(payload.currency || payload.currencyCode || restaurant.currency || 'CDF').toUpperCase();
+    const supportedCurrencies = new Set(['CDF', 'USD', 'XAF', 'XOF', 'EUR', 'GBP']);
+    const currency = supportedCurrencies.has(defaultCurrency) ? defaultCurrency : 'CDF';
     const paymentMethod = String(payload.paymentMethod || payload.paymentProvider || 'CASH').trim().toUpperCase();
     if (!['CASH', 'NYOLE'].includes(paymentMethod)) {
       throw badRequest('Le moyen de paiement doit être CASH ou NYOLE. Le portefeuille reste désactivé.');
@@ -117,27 +123,28 @@ async function createOrder(req, res, next) {
           restaurantId,
           deliveryMode: isDelivery ? 'DELIVERY' : 'PICKUP',
           deliveryFee,
+          reduction,
           subtotalAmount,
           totalAmount,
-          currency: 'CDF',
+          currency,
           paymentProvider: paymentMethod,
           cityId: quote?.cityId || restaurant.cityId,
           deliveryDistanceKm: quote?.estimatedDistanceKm || null,
           deliveryQuoteSnapshot: quote,
-          deliveryAddressSnapshot: deliveryAddress ? {
+          deliveryAddressSnapshot: isDelivery && deliveryAddress ? {
             addressId: deliveryAddress.addressId,
             fullAddress: deliveryAddress.fullAddress,
             latitude: deliveryAddress.latitude,
             longitude: deliveryAddress.longitude,
             cityId: deliveryAddress.cityId,
           } : undefined,
-          pickupSnapshot: isDelivery ? {
+          pickupSnapshot: !isDelivery ? {
             restaurantId: restaurant.restaurantId,
             name: restaurant.name,
             address: restaurant.address,
             latitude: restaurant.latitude,
             longitude: restaurant.longitude,
-            cityId: quote.cityId,
+            cityId: quote?.cityId || restaurant.cityId,
           } : undefined,
           orderedAt: payload.orderedAt ? new Date(payload.orderedAt) : new Date(),
           status: paymentMethod === 'CASH' ? 'CONFIRMED_CASH' : 'AWAITING_PAYMENT',
@@ -152,11 +159,11 @@ async function createOrder(req, res, next) {
             orderId,
             provider: 'cash',
             amount: totalAmount,
-            currency: 'CDF',
+            currency,
             status: 'PENDING_CASH_COLLECTION',
             paymentMethod: 'CASH',
             subtotalAmount,
-            restaurantShare: subtotalAmount,
+            restaurantShare: Math.max(0, Number(subtotalAmount) - Number(reduction)),
             deliveryFeeShare: deliveryFee,
             commissionRate: 0,
             commissionAmount: 0,
