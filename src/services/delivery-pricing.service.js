@@ -94,7 +94,28 @@ async function quoteDelivery({ restaurantId, addressId, userId }) {
     });
   }
 
-  const config = await configurationForCity(customerCity.cityId);
+  // Priorité 1: Utiliser deliveryFee du restaurant si défini et > 0
+  const restaurantDeliveryFee = toNumber(restaurant.deliveryFee, 0);
+  let config;
+  let pricingSource;
+
+  if (restaurantDeliveryFee > 0) {
+    // Le restaurant a son propre tarif fixe
+    config = {
+      ...DEFAULT_CONFIG,
+      baseFee: restaurantDeliveryFee,
+      perKmRate: 0,
+      includedDistanceKm: Infinity,
+      currency: restaurant.currency || DEFAULT_CONFIG.currency,
+    };
+    pricingSource = 'RESTAURANT_FEE';
+  } else {
+    // Priorité 2: Utiliser la configuration DeliveryConfig pour la ville
+    // Priorité 3: Fallback sur la configuration par défaut du pays
+    config = await configurationForCity(customerCity.cityId);
+    pricingSource = config.source;
+  }
+
   const straightLineDistanceKm = haversineKm(
     restaurant.latitude,
     restaurant.longitude,
@@ -124,7 +145,7 @@ async function quoteDelivery({ restaurantId, addressId, userId }) {
     estimatedDistanceKm: Number(estimatedDistanceKm.toFixed(2)),
     distanceKind: 'ESTIMATED_ROAD_DISTANCE',
     pricing: {
-      source: config.source,
+      source: pricingSource,
       baseFee: config.baseFee,
       includedDistanceKm: config.includedDistanceKm,
       perKmRate: config.perKmRate,
@@ -136,4 +157,4 @@ async function quoteDelivery({ restaurantId, addressId, userId }) {
   };
 }
 
-module.exports = { configurationForCity, haversineKm, quoteDelivery };
+module.exports = { configurationForCity, haversineKm, quoteDelivery, roundedCdf };

@@ -4,7 +4,7 @@ async function getConfig(req, res, next) {
   try {
     const country = req.userCountry || 'BJ';
     const currency = currencyService.getCurrencyForCountry(country);
-    const rates = await currencyService.getExchangeRates();
+    const rates = await currencyService.getExchangeRates(country);
 
     res.json({
       success: true,
