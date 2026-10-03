@@ -334,13 +334,24 @@ async function resetPassword(req, res, next) {
     if (!verification) throw badRequest('Le code est invalide ou expiré.');
 
     const passwordHash = await bcrypt.hash(password, 12);
-    const authUser = await prisma.authUser.findUnique({ where: { email: verification.email } });
+    const authUser = await prisma.authUser.findFirst({
+      where: { email: verification.email, deletedAt: null },
+    });
     if (!authUser) throw notFound('Utilisateur');
 
     await prisma.$transaction([
-      prisma.authUser.update({ where: { id: authUser.id }, data: { password: passwordHash } }),
-      prisma.user.updateMany({ where: { userId: authUser.legacyUserId }, data: { password: passwordHash } }),
-      prisma.verificationCode.update({ where: { id: verification.id }, data: { verified: true } }),
+      prisma.authUser.updateMany({
+        where: { email: verification.email, deletedAt: null },
+        data: { password: passwordHash },
+      }),
+      prisma.user.updateMany({
+        where: { userId: authUser.legacyUserId, deletedAt: null },
+        data: { password: passwordHash },
+      }),
+      prisma.verificationCode.update({
+        where: { id: verification.id },
+        data: { verified: true },
+      }),
     ]);
     return res.status(200).json({ data: { message: 'Mot de passe mis à jour.' } });
   } catch (error) {
@@ -380,7 +391,7 @@ async function changePassword(req, res, next) {
       where: { legacyUserId: userId, deletedAt: null },
     });
     if (!authUser) throw notFound('Compte d’authentification');
-    if (currentPassword != null && String(currentPassword).isNotEmpty == true) {
+    if (currentPassword != null && String(currentPassword).trim().length > 0) {
       const matches = await bcrypt.compare(String(currentPassword), authUser.password);
       if (!matches) {
         const err = new Error('Le mot de passe actuel est incorrect.');
@@ -390,8 +401,14 @@ async function changePassword(req, res, next) {
     }
     const passwordHash = await bcrypt.hash(String(newPassword), 12);
     await prisma.$transaction([
-      prisma.authUser.update({ where: { id: authUser.id }, data: { password: passwordHash } }),
-      prisma.user.updateMany({ where: { userId }, data: { password: passwordHash, mustChangePassword: false } }),
+      prisma.authUser.updateMany({
+        where: { legacyUserId: userId, deletedAt: null },
+        data: { password: passwordHash },
+      }),
+      prisma.user.updateMany({
+        where: { userId: authUser.legacyUserId, deletedAt: null },
+        data: { password: passwordHash },
+      }),
     ]);
     return res.status(200).json({ data: { message: 'Mot de passe mis à jour.' } });
   } catch (error) {

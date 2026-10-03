@@ -103,13 +103,16 @@ model User {
   /// Position courante du livreur, stockée en géographie PostGIS.
   location          Unsupported("geography(Point,4326)")?
   locationUpdatedAt DateTime?                             @map("location_updated_at")
-  phoneVerified     Boolean                               @default(false)
-  accountType       String?
-  otpPhone          String?
-  ageConfirmed      Boolean                               @default(false)
-  deletedAt         DateTime?
-  createdAt         DateTime                              @default(now())
-  updatedAt         DateTime                              @updatedAt
+  phoneVerified       Boolean                               @default(false)
+  accountType         String?
+  otpPhone            String?
+  ageConfirmed        Boolean                               @default(false)
+  mustChangePassword  Boolean                               @default(false)
+  maxDeliveryDistance Float?                                @map("max_delivery_distance")
+  isSimplified        Boolean                               @default(false)
+  deletedAt           DateTime?
+  createdAt           DateTime                              @default(now())
+  updatedAt           DateTime                              @updatedAt
 
   @@index([firstname])
   @@index([cityId])
