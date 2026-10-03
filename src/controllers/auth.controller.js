@@ -368,7 +368,39 @@ async function updateMe(req, res, next) {
   }
 }
 
+async function changePassword(req, res, next) {
+  try {
+    const userId = req.auth?.userId;
+    if (!userId) throw notFound('Utilisateur authentifié');
+    const { currentPassword, newPassword } = req.body;
+    if (!newPassword || String(newPassword).length < 6) {
+      throw badRequest('Le nouveau mot de passe doit comporter au moins 6 caractères.');
+    }
+    const authUser = await prisma.authUser.findFirst({
+      where: { legacyUserId: userId, deletedAt: null },
+    });
+    if (!authUser) throw notFound('Compte d’authentification');
+    if (currentPassword != null && String(currentPassword).isNotEmpty == true) {
+      const matches = await bcrypt.compare(String(currentPassword), authUser.password);
+      if (!matches) {
+        const err = new Error('Le mot de passe actuel est incorrect.');
+        err.statusCode = 401;
+        throw err;
+      }
+    }
+    const passwordHash = await bcrypt.hash(String(newPassword), 12);
+    await prisma.$transaction([
+      prisma.authUser.update({ where: { id: authUser.id }, data: { password: passwordHash } }),
+      prisma.user.updateMany({ where: { userId }, data: { password: passwordHash, mustChangePassword: false } }),
+    ]);
+    return res.status(200).json({ data: { message: 'Mot de passe mis à jour.' } });
+  } catch (error) {
+    return handleControllerError(error, next);
+  }
+}
+
 module.exports = {
+  changePassword,
   confirmEmailVerification,
   login,
   me,
