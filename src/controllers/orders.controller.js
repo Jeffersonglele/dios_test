@@ -5,6 +5,7 @@ const { createCrudController } = require('./crud.controller');
 const { badRequest, handleControllerError, notFound, pagination, pick, sendPage } = require('./controller.utils');
 const { startDispatchForOrder } = require('../services/delivery-dispatch.service');
 const { quoteDelivery } = require('../services/delivery-pricing.service');
+const { broadcastDeliveryStatus } = require('../sockets/socket.manager');
 
 const ORDER_FIELDS = [
   'externalOrderId', 'userId', 'legacyUserId', 'restaurantId', 'legacyRestaurantId',
@@ -311,6 +312,15 @@ async function updateOrderStatus(req, res, next) {
     if (restaurantDispatchStatuses.includes(requestedStatus) && updated.deliveryMode === 'DELIVERY') {
       const dispatched = await startDispatchForOrder(updated);
       delivery = dispatched.delivery;
+    }
+    const orderIdentifier = updated.orderId ?? updated.id;
+    if (orderIdentifier) {
+      broadcastDeliveryStatus({
+        orderId: orderIdentifier,
+        status: updated.deliveryStatus || updated.orderStatus || updated.status,
+        courierId: updated.delivererId,
+        extra: { orderStatus: updated.orderStatus, status: updated.status },
+      });
     }
     return res.status(200).json({ data: { order: updated, delivery } });
   } catch (error) {

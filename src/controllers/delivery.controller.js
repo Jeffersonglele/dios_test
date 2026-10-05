@@ -4,6 +4,7 @@ const { badRequest, handleControllerError, notFound } = require('./controller.ut
 const dispatch = require('../services/delivery-dispatch.service');
 const geolocation = require('../services/geolocation.service');
 const { quoteDelivery } = require('../services/delivery-pricing.service');
+const { broadcastDeliveryStatus } = require('../sockets/socket.manager');
 
 const CITY_FIELDS = ['cityId', 'name', 'country', 'countryCode', 'deliveryEnabled', 'active'];
 const ZONE_FIELDS = [
@@ -196,7 +197,15 @@ async function listCourierDeliveries(req, res, next) {
 
 async function acceptDeliveryOffer(req, res, next) {
   try {
-    return res.status(200).json({ data: await dispatch.acceptOffer({ offerId: req.params.id, delivererId: req.auth.userId }) });
+    const data = await dispatch.acceptOffer({ offerId: req.params.id, delivererId: req.auth.userId });
+    if (data?.delivery?.orderId) {
+      broadcastDeliveryStatus({
+        orderId: data.delivery.orderId,
+        status: data.delivery.status,
+        courierId: req.auth.userId,
+      });
+    }
+    return res.status(200).json({ data });
   } catch (error) {
     return handleControllerError(error, next);
   }
@@ -217,6 +226,13 @@ async function updateDeliveryStatus(req, res, next) {
       delivererId: req.auth.userId,
       status: req.body.status,
     });
+    if (data?.orderId) {
+      broadcastDeliveryStatus({
+        orderId: data.orderId,
+        status: data.status,
+        courierId: req.auth.userId,
+      });
+    }
     return res.status(200).json({ data });
   } catch (error) {
     return handleControllerError(error, next);
