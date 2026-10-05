@@ -14,6 +14,7 @@ const uploads = require('./uploads.routes');
 const verification = require('./verification.routes');
 const wallet = require('./wallet.routes');
 const admin = require('./admin.routes');
+const chat = require('./chat.routes');
 const promotions = require('./promotions.routes');
 const config = require('./config.routes');
 
@@ -32,6 +33,7 @@ router.use('/', delivery);
 router.use('/geocoding', geocoding);
 router.use('/', verification);
 router.use('/', communication);
+router.use('/chat', chat);
 router.use('/', operations);
 router.use('/', wallet);
 router.use('/admin', admin);

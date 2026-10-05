@@ -98,4 +98,35 @@ async function uploadImage(file, scope = 'images') {
   return { ...saved, driver: activeDriver, mimeType: image.mimeType, size: image.buffer.length };
 }
 
-module.exports = { MAX_IMAGE_BYTES, uploadImage };
+async function uploadRawMedia(file, folder = 'chat_media') {
+  if (!file?.buffer?.length) {
+    const error = new Error('Aucun fichier média reçu.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  let ext = path.extname(file.originalname || '');
+  if (!ext) {
+    const mime = (file.mimetype || '').toLowerCase();
+    if (mime.includes('m4a') || mime === 'audio/mp4') ext = '.m4a';
+    else if (mime.includes('aac')) ext = '.aac';
+    else if (mime.includes('ogg')) ext = '.ogg';
+    else if (mime.includes('wav')) ext = '.wav';
+    else if (mime.includes('webm')) ext = '.webm';
+    else if (mime.includes('mp3') || mime.includes('mpeg')) ext = '.mp3';
+    else if (mime.includes('jpeg') || mime.includes('jpg')) ext = '.jpg';
+    else if (mime.includes('png')) ext = '.png';
+    else if (mime.includes('webp')) ext = '.webp';
+    else ext = '.bin';
+  }
+
+  const safeFolder = String(folder).replace(/[^a-z0-9/_-]/gi, '').replace(/^\/+|\/+$/g, '') || 'chat_media';
+  const key = path.posix.join(safeFolder, new Date().toISOString().slice(0, 10), `${randomUUID()}${ext}`);
+  const activeDriver = driver();
+  const storage = activeDriver === 'minio' ? minioStorage : localStorage;
+  const mimeType = file.mimetype || 'application/octet-stream';
+  const saved = await storage.save(key, file.buffer, mimeType);
+  return { ...saved, driver: activeDriver, mimeType, size: file.buffer.length };
+}
+
+module.exports = { MAX_IMAGE_BYTES, uploadImage, uploadRawMedia };

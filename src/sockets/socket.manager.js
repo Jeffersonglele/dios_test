@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const { Prisma } = require('@prisma/client');
 const jwt = require('jsonwebtoken');
 const prisma = require('../config/prisma');
+const { registerChatHandlers } = require('./chat.handler');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dios_delices_super_secret_jwt_key_2026_production_safe';
 const LOCATION_SAVE_THROTTLE_MS = 10_000; // 10 seconds between DB saves
@@ -143,6 +144,9 @@ function initializeSocketIO(io) {
   // ── Connection handler ─────────────────────────────────
   io.on('connection', (socket) => {
     console.log(`[socket] ✔ User connected: ${socket.user.userId}`);
+
+    // Initialiser les événements du chat en temps réel
+    registerChatHandlers(io, socket);
 
     // ─ Client joins order tracking room ──────────────────
     socket.on('join_order_tracking', async (data) => {

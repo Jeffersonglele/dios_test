@@ -424,8 +424,15 @@ model Message {
   fromUserId    Int?
   toUserId      Int?
   text          String?
+  messageType   String    @default("TEXT") @map("message_type")
+  mediaUrl      String?   @map("media_url")
+  mediaDuration Int?      @map("media_duration")
+  mediaMimeType String?   @map("media_mime_type")
+  mediaSize     Int?      @map("media_size")
   orderId       Int?      @map("commande_id")
   read          Boolean   @default(false)
+  readAt        DateTime? @map("read_at")
+  deliveredAt   DateTime? @map("delivered_at")
   deletedAt     DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
