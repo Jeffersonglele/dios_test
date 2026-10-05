@@ -123,6 +123,7 @@ async function updateAddressLocation(req, res, next) {
       longitude: req.body.longitude,
       fullAddress: req.body.fullAddress,
       nominatimPlaceId: req.body.nominatimPlaceId,
+      country: req.body.country,
     });
     return res.status(200).json({ data });
   } catch (error) {

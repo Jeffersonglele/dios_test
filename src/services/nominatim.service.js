@@ -1,17 +1,55 @@
 const crypto = require('crypto');
 
 const axios = require('axios');
+const axiosRetryModule = require('axios-retry');
+const axiosRetry = axiosRetryModule.default || axiosRetryModule;
+const { isNetworkOrIdempotentRequestError, exponentialDelay } = axiosRetryModule;
 
 const prisma = require('../config/prisma');
 const { badRequest } = require('../controllers/controller.utils');
 
-const NOMINATIM_BASE_URL = 'https://nominatim.openstreetmap.org';
+const NOMINATIM_BASE_URL = String(process.env.NOMINATIM_BASE_URL || 'https://nominatim.openstreetmap.org')
+  .replace(/\/+$/, '');
+const NOMINATIM_DEFAULT_USER_AGENT = 'DiosDelicesApp/1.0 (contact@diosdelices.local)';
 const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 let nextPublicRequestAt = 0;
 
 function userAgent() {
-  return String(process.env.NOMINATIM_USER_AGENT || '').trim();
+  const env = String(process.env.NOMINATIM_USER_AGENT || '').trim();
+  if (env) return env;
+  return NOMINATIM_DEFAULT_USER_AGENT;
 }
+
+const nominatimClient = axios.create({
+  baseURL: NOMINATIM_BASE_URL,
+  timeout: 15000,
+  headers: {
+    Accept: 'application/json',
+    'User-Agent': userAgent(),
+  },
+});
+
+axiosRetry(nominatimClient, {
+  retries: 3,
+  retryDelay: exponentialDelay,
+  retryCondition: (error) => {
+    if (isNetworkOrIdempotentRequestError(error)) return true;
+    const code = error.code;
+    if (code === 'ECONNABORTED' || code === 'ETIMEDOUT' || code === 'ECONNRESET') return true;
+    const status = error.response?.status;
+    if (status === 429 || status === 502 || status === 503 || status === 504) return true;
+    return false;
+  },
+  onRetry: (retryCount, error) => {
+    const status = error.response?.status || 'N/A';
+    const after = error.response?.headers?.['retry-after'];
+    console.warn(
+      `[nominatim] retry #${retryCount} (status=${status}) ${error.config?.url || ''}${
+        after ? `; Retry-After: ${after}s` : ''
+      }`,
+    );
+  },
+});
 
 function cacheKey(kind, payload) {
   return crypto.createHash('sha256').update(`${kind}:${JSON.stringify(payload)}`).digest('hex');
@@ -50,10 +88,9 @@ async function cachedOrFetch(kind, payload, request) {
     throw error;
   }
   await waitForPublicRequestSlot();
-  const response = await axios.get(`${NOMINATIM_BASE_URL}${request.path}`, {
+  const response = await nominatimClient.get(request.path, {
     params: request.params,
     headers: { 'User-Agent': agent, Accept: 'application/json' },
-    timeout: 15000,
   });
   const raw = response.data;
   const first = Array.isArray(raw) ? raw[0] : raw;

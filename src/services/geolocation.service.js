@@ -83,7 +83,7 @@ async function setCityBoundary(cityId, geoJson) {
   return prisma.city.findUnique({ where: { id: city.id } });
 }
 
-async function updateCustomerAddressLocation({ addressId, userId, latitude, longitude, fullAddress, nominatimPlaceId }) {
+async function updateCustomerAddressLocation({ addressId, userId, latitude, longitude, fullAddress, nominatimPlaceId, country }) {
   const point = coordinates(latitude, longitude);
   const numericAddressId = Number.parseInt(addressId, 10);
   if (!Number.isInteger(numericAddressId)) throw badRequest('addressId est obligatoire.');
@@ -96,6 +96,12 @@ async function updateCustomerAddressLocation({ addressId, userId, latitude, long
   const city = await resolveCoveredCity(point.latitude, point.longitude);
   if (!city) throw badRequest('Cette position ne se trouve dans aucune ville couverte.');
 
+  const rawCountry = country ? String(country).trim() : null;
+  const resolvedCountry = city.country
+    || address.country
+    || (rawCountry && rawCountry.length > 0 ? rawCountry : null)
+    || 'RDC';
+
   await prisma.$transaction(async (tx) => {
     await tx.address.update({
       where: { id: address.id },
@@ -103,7 +109,7 @@ async function updateCustomerAddressLocation({ addressId, userId, latitude, long
         latitude: point.latitude,
         longitude: point.longitude,
         cityId: city.cityId,
-        country: city.country || address.country || req.body?.country || 'RDC',
+        country: resolvedCountry,
         ...(fullAddress ? { fullAddress: String(fullAddress).trim() } : {}),
         ...(nominatimPlaceId ? { nominatimPlaceId: String(nominatimPlaceId) } : {}),
         locationSource: 'DEVICE_GPS',

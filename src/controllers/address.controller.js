@@ -1,5 +1,8 @@
+const { Prisma } = require('@prisma/client');
+
 const prisma = require('../config/prisma');
 const { badRequest, handleControllerError, notFound, pagination, pick, sendPage } = require('./controller.utils');
+const geolocation = require('../services/geolocation.service');
 
 const fields = [
   'streetNumber', 'city', 'state', 'country', 'fullAddress',
@@ -11,6 +14,18 @@ async function nextAddressId(tx) {
     orderBy: { addressId: 'desc' }, select: { addressId: true },
   });
   return (last?.addressId || 0) + 1;
+}
+
+function validCoordinates(latitude, longitude) {
+  const lat = Number(latitude);
+  const lng = Number(longitude);
+  return Number.isFinite(lat) && Number.isFinite(lng)
+    && lat >= -90 && lat <= 90
+    && lng >= -180 && lng <= 180;
+}
+
+function pointSql(latitude, longitude) {
+  return Prisma.sql`ST_SetSRID(ST_MakePoint(${Number(longitude)}, ${Number(latitude)}), 4326)`;
 }
 
 async function list(req, res, next) {
@@ -46,16 +61,68 @@ async function list(req, res, next) {
 async function create(req, res, next) {
   try {
     if (!req.body.fullAddress) throw badRequest('Une adresse lisible est obligatoire.');
-    const address = await prisma.$transaction(async (tx) => tx.address.create({
-      data: {
-        ...pick(req.body, fields),
-        addressId: await nextAddressId(tx),
-        objectType: 'USER',
-        objectId: req.auth.userId,
-        country: req.body.country || req.auth?.country || 'RDC',
-      },
-    }));
-    return res.status(201).json({ data: address });
+
+    const rawLat = req.body.latitude;
+    const rawLng = req.body.longitude;
+    const hasCoords = validCoordinates(rawLat, rawLng);
+
+    let resolvedCity = null;
+    const nominatimPlaceId = req.body.nominatimPlaceId
+      ? String(req.body.nominatimPlaceId).trim()
+      : null;
+    const authCountry = req.auth?.country ? String(req.auth.country).trim() : null;
+    const bodyCountry = req.body.country ? String(req.body.country).trim() : null;
+
+    if (hasCoords) {
+      resolvedCity = await geolocation.resolveCoveredCity(
+        Number(rawLat),
+        Number(rawLng),
+      );
+    }
+
+    const address = await prisma.$transaction(async (tx) => {
+      const nextId = await nextAddressId(tx);
+      const resolvedCountry = resolvedCity?.country
+        || bodyCountry
+        || authCountry
+        || 'RDC';
+      const created = await tx.address.create({
+        data: {
+          ...pick(req.body, fields),
+          addressId: nextId,
+          objectType: 'USER',
+          objectId: req.auth.userId,
+          country: resolvedCountry,
+          ...(resolvedCity ? { cityId: resolvedCity.cityId } : {}),
+          ...(nominatimPlaceId ? { nominatimPlaceId } : {}),
+          ...(hasCoords ? {
+            latitude: Number(rawLat),
+            longitude: Number(rawLng),
+            locationSource: 'DEVICE_GPS',
+            locationUpdatedAt: new Date(),
+          } : {}),
+        },
+      });
+      if (hasCoords) {
+        await tx.$executeRaw(Prisma.sql`
+          UPDATE "addresses"
+          SET "location" = ${pointSql(rawLat, rawLng)}::geography
+          WHERE "id" = ${created.id}::uuid
+        `);
+      }
+      return created;
+    });
+
+    const hydrated = hasCoords
+      ? await prisma.address.findUnique({ where: { id: address.id } })
+      : address;
+
+    return res.status(201).json({
+      data: hydrated,
+      meta: hasCoords
+        ? { resolution: resolvedCity ? 'POSTGIS_CITY' : 'NO_COVERED_CITY' }
+        : { resolution: 'NO_COORDS' },
+    });
   } catch (error) {
     return handleControllerError(error, next);
   }
