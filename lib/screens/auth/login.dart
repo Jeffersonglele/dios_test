@@ -34,6 +34,55 @@ import '../password/first_login_password_change.dart';
 import '../onboarding/verification_page.dart';
 import '../../widgets/animations.dart';
 import '../../widgets/auth_shell.dart';
+import '../../widgets/swirling_loader.dart';
+
+
+VoidCallback _showAuthLoader(BuildContext context) {
+  final overlay = Overlay.of(context, rootOverlay: true);
+  final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+  final card = AppColors.resolve(AppColors.card, AppDarkColors.card);
+  var removed = false;
+  late final OverlayEntry entry;
+  entry = OverlayEntry(
+    builder: (_) => TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 200),
+      builder: (_, v, child) => Opacity(opacity: v, child: child),
+      child: Stack(
+        children: [
+          ModalBarrier(
+            dismissible: false,
+            color: Colors.black.withValues(alpha: 0.55),
+          ),
+          Center(
+            child: Container(
+              width: 112,
+              height: 112,
+              decoration: BoxDecoration(
+                color: card,
+                borderRadius: BorderRadius.circular(28),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.25),
+                    blurRadius: 30,
+                    offset: const Offset(0, 12),
+                  ),
+                ],
+              ),
+              child: Center(child: Swirling(size: 64, color: brand)),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+  overlay.insert(entry);
+  return () {
+    if (removed) return;
+    removed = true;
+    entry.remove();
+  };
+}
 
 // ═══════════════════════════════════════════════════════════
 // WelcomeScreen
@@ -294,6 +343,7 @@ class _LoginState extends ConsumerState<Login>
       _isLoading = true;
       _loginFailed = false;
     });
+    final closeLoader = _showAuthLoader(context);
 
     try {
       // Évite qu'une ancienne session Parse soit réutilisée par les écrans
@@ -366,9 +416,9 @@ class _LoginState extends ConsumerState<Login>
       }
 
       if (role.isAdmin) {
-        _firstLogin(authenticatedUser);
+        await _firstLogin(authenticatedUser);
       } else if (authenticatedUser.status == 'Verified') {
-        _handleApprovedUser(authenticatedUser);
+        await _handleApprovedUser(authenticatedUser);
       } else {
         _redirectToVerification(authenticatedUser);
       }
@@ -381,6 +431,8 @@ class _LoginState extends ConsumerState<Login>
         Toast(context, AppLocalizations.of(context)!.connectError, false);
       }
       _onLoginFailed();
+    } finally {
+      closeLoader(); // sans effet s'il est déjà fermé
     }
   }
 
@@ -403,7 +455,7 @@ class _LoginState extends ConsumerState<Login>
     return Users.verifUser(fresh, _nameCtrl.text, _passwordCtrl.text);
   }
 
-  void _handleApprovedUser(Users user) async {
+  Future<void> _handleApprovedUser(Users user) async {
     if (user.country.trim().isEmpty) {
       Navigator.pushReplacement(
         context,
@@ -413,7 +465,7 @@ class _LoginState extends ConsumerState<Login>
         ),
       );
     } else if (user.identity == "Verified") {
-      _redirectToMainApp(user);
+      await _redirectToMainApp(user);
     } else if (user.identity == "En attente") {
       Navigator.push(
         context,
@@ -430,26 +482,26 @@ class _LoginState extends ConsumerState<Login>
         ),
       );
     } else {
-      _redirectToMainApp(user);
+      await _redirectToMainApp(user);
     }
   }
 
-  void _redirectToMainApp(Users user) async {
+  Future<void> _redirectToMainApp(Users user) async {
     final role = AppRole.fromId(user.roleID);
     if (role.isProfessional) {
       NotificationService.subscribeToRestaurantNotifications();
-      _handleRestaurantValidation(user);
+      await _handleRestaurantValidation(user);
     } else {
       if (role.isIndividual) {
         final r = await Restaurant.getRestaurantByUser(_restaus, user.userID);
         if (r != null) await SessionService.setRestaurantId(r.restaurantID);
       }
       NotificationService.subscribeToRestaurantNotifications();
-      _firstLogin(user);
+      await _firstLogin(user);
     }
   }
 
-  void _handleRestaurantValidation(Users user) async {
+  Future<void> _handleRestaurantValidation(Users user) async {
     // Always fetch fresh data on login to get the latest validation status
     await Restaurant.getAllRestaurantsDetails();
     final refreshed = await Restaurant.fetchRestaurantsFromDB();
@@ -476,7 +528,7 @@ class _LoginState extends ConsumerState<Login>
     } else if (restau.valid == 1) {
       await SessionService.setRestaurantId(restau.restaurantID);
       NotificationService.subscribeToRestaurantNotifications();
-      _firstLogin(user);
+      await _firstLogin(user);
     } else {
       Navigator.push(
         context,
@@ -575,6 +627,7 @@ class _LoginState extends ConsumerState<Login>
 
   Widget _buildFooter() {
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: () {
         Navigator.pop(context);
         _nameCtrl.clear();
@@ -582,6 +635,7 @@ class _LoginState extends ConsumerState<Login>
         _formKey.currentState?.reset();
       },
       child: RichText(
+        textAlign: TextAlign.center,
         text: TextSpan(
           text: AppLocalizations.of(context)!.dont_have_account,
           style: AppTypography.bodyLarge(
@@ -625,6 +679,7 @@ class _LoginState extends ConsumerState<Login>
               decoration: _decoration(
                 context,
                 hint: AppLocalizations.of(context)!.username_or_email,
+                icon: Icons.person_outline_rounded,
               ),
               validator: (v) {
                 if (v == null || v.isEmpty) {
@@ -654,6 +709,7 @@ class _LoginState extends ConsumerState<Login>
               decoration: _decoration(
                 context,
                 hint: AppLocalizations.of(context)!.password,
+                icon: Icons.lock_outline_rounded,
                 suffixIcon: IconButton(
                   icon: Icon(
                     _obscurePassword
@@ -738,6 +794,7 @@ class _LoginState extends ConsumerState<Login>
     BuildContext context, {
     required String hint,
     Widget? suffixIcon,
+    IconData? icon,
   }) {
     final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
     final border = AppColors.resolve(AppColors.border, AppDarkColors.border);
@@ -751,9 +808,11 @@ class _LoginState extends ConsumerState<Login>
       hintText: hint,
       hintStyle: AppTypography.bodyLarge(color: inkMuted),
       suffixIcon: suffixIcon,
+      prefixIcon:
+          icon == null ? null : Icon(icon, size: 20, color: inkMuted),
       filled: true,
       fillColor: surface,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(999),
         borderSide: BorderSide.none,
@@ -795,30 +854,63 @@ class _LoginTabSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final card = AppColors.resolve(AppColors.card, AppDarkColors.card);
+    final ink = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
+    final track =
+        AppColors.resolve(AppColors.brandSurface, AppDarkColors.brandSurface);
+    final border = AppColors.resolve(AppColors.border, AppDarkColors.border);
+
     return Container(
+      height: 54,
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color:
-            AppColors.resolve(AppColors.surfaceWarm, AppDarkColors.surfaceWarm),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(
-          color: AppColors.resolve(AppColors.border, AppDarkColors.border)
-              .withValues(alpha: 0.5),
-        ),
+        color: track,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: border.withValues(alpha: 0.5)),
       ),
-      child: Row(
+      child: Stack(
         children: [
-          _LoginTab(
-            label: AppLocalizations.of(context)!.login_email_tab,
-            icon: Icons.email_outlined,
-            selected: currentTab == LoginTab.emailPassword,
-            onTap: () => onTabChanged(LoginTab.emailPassword),
+          // Pastille qui glisse d'un onglet à l'autre
+          AnimatedAlign(
+            duration: AppMotion.fast,
+            curve: AppMotion.standard,
+            alignment: currentTab == LoginTab.emailPassword
+                ? Alignment.centerLeft
+                : Alignment.centerRight,
+            child: FractionallySizedBox(
+              widthFactor: 0.5,
+              heightFactor: 1,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: card,
+                  borderRadius: BorderRadius.circular(999),
+                  boxShadow: [
+                    BoxShadow(
+                      color: ink.withValues(alpha: 0.08),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
-          _LoginTab(
-            label: AppLocalizations.of(context)!.login_phone_tab,
-            icon: Icons.phone_outlined,
-            selected: currentTab == LoginTab.phone,
-            onTap: () => onTabChanged(LoginTab.phone),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _LoginTab(
+                label: AppLocalizations.of(context)!.login_email_tab,
+                icon: Icons.email_outlined,
+                selected: currentTab == LoginTab.emailPassword,
+                onTap: () => onTabChanged(LoginTab.emailPassword),
+              ),
+              _LoginTab(
+                label: AppLocalizations.of(context)!.login_phone_tab,
+                icon: Icons.phone_outlined,
+                selected: currentTab == LoginTab.phone,
+                onTap: () => onTabChanged(LoginTab.phone),
+              ),
+            ],
           ),
         ],
       ),
@@ -846,49 +938,35 @@ class _LoginTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
-    final card = AppColors.resolve(AppColors.card, AppDarkColors.card);
-    final ink = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
     final inkMuted =
         AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
 
     return Expanded(
       child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: onTap,
-        child: AnimatedContainer(
-          duration: AppMotion.fast,
-          curve: AppMotion.standard,
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: selected ? card : Colors.transparent,
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            boxShadow: selected
-                ? [
-                    BoxShadow(
-                      color: ink.withValues(alpha: 0.06),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                size: 16,
-                color: selected ? brand : inkMuted,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: AppTypography.labelMedium(
-                  color: selected ? brand : inkMuted,
-                ).copyWith(
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+        child: Center(
+          child: AnimatedDefaultTextStyle(
+            duration: AppMotion.fast,
+            style: AppTypography.labelMedium(
+              color: selected ? brand : inkMuted,
+            ).copyWith(
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 17, color: selected ? brand : inkMuted),
+                const SizedBox(width: 7),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -897,7 +975,9 @@ class _LoginTab extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════
-// _GradientButton — Bouton réutilisable gradient + ombre
+// _GradientButton — pilule en dégradé + ombre
+// (dégradé/ombre sur le Container, effet d'appui sur un Material rogné
+//  → aucun coin carré visible)
 // ═══════════════════════════════════════════════════════════
 
 class _GradientButton extends StatelessWidget {
@@ -914,76 +994,70 @@ class _GradientButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final brandColor = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+    final radius = BorderRadius.circular(999);
+    final disabled = onPressed == null && !isLoading;
 
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: DecoratedBox(
+    return Opacity(
+      opacity: disabled ? 0.5 : (isLoading ? 0.8 : 1),
+      child: Container(
+        width: double.infinity,
+        height: 56,
         decoration: BoxDecoration(
-          gradient: isLoading || onPressed == null
-              ? null
-              : LinearGradient(
-                  colors: [
-                    brandColor,
-                    brandColor.withValues(alpha: 0.80),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: isLoading || onPressed == null
-              ? null
-              : [
-                  BoxShadow(
-                    color: brandColor.withValues(alpha: 0.35),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-        ),
-        child: ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.transparent,
-            shadowColor: Colors.transparent,
-            disabledBackgroundColor: Colors.transparent,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(18),
-            ),
+          gradient: LinearGradient(
+            colors: [brandColor, brandColor.withValues(alpha: 0.85)],
           ),
-          onPressed: onPressed,
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 200),
-            child: isLoading
-                ? const SizedBox(
-                    key: ValueKey('loading'),
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2.5,
-                    ),
-                  )
-                : Row(
-                    key: const ValueKey('label'),
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        label,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 16,
-                          letterSpacing: 0.3,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      const Icon(
-                        Icons.arrow_forward_rounded,
+          borderRadius: radius,
+          boxShadow: [
+            BoxShadow(
+              color: brandColor.withValues(
+                  alpha: (isLoading || disabled) ? 0.10 : 0.32),
+              blurRadius: 18,
+              offset: const Offset(0, 9),
+            ),
+          ],
+        ),
+        child: Material(
+          type: MaterialType.transparency,
+          borderRadius: radius,
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: isLoading ? null : onPressed,
+            child: Center(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: isLoading
+                    ? Swirling(
+                        key: const ValueKey('loading'),
+                        size: 34,
                         color: Colors.white,
-                        size: 18,
+                      )
+                    : Row(
+                        key: const ValueKey('label'),
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 16,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Icon(
+                            Icons.arrow_forward_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+              ),
+            ),
           ),
         ),
       ),
@@ -1055,6 +1129,7 @@ class _PhoneLoginFormState extends ConsumerState<_PhoneLoginForm> {
   Future<void> _sendOTP() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
+    final closeLoader = _showAuthLoader(context);
     try {
       final cloudFunction = ParseCloudFunction('sendOTP');
       final response = await cloudFunction.execute(parameters: {
@@ -1086,6 +1161,7 @@ class _PhoneLoginFormState extends ConsumerState<_PhoneLoginForm> {
     } catch (e) {
       if (mounted) Toast(context, 'Erreur: $e', false);
     } finally {
+      closeLoader();
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -1101,6 +1177,7 @@ class _PhoneLoginFormState extends ConsumerState<_PhoneLoginForm> {
       return;
     }
     setState(() => _isLoading = true);
+    final closeLoader = _showAuthLoader(context);
     try {
       final cloudFunction = ParseCloudFunction('verifyOTP');
       final response = await cloudFunction.execute(parameters: {
@@ -1155,6 +1232,7 @@ class _PhoneLoginFormState extends ConsumerState<_PhoneLoginForm> {
     } catch (e) {
       if (mounted) Toast(context, 'Erreur: $e', false);
     } finally {
+      closeLoader();
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -1187,6 +1265,7 @@ class _PhoneLoginFormState extends ConsumerState<_PhoneLoginForm> {
     BuildContext context, {
     required String hint,
     Widget? suffixIcon,
+    IconData? icon,
   }) {
     final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
     final border = AppColors.resolve(AppColors.border, AppDarkColors.border);
@@ -1199,9 +1278,11 @@ class _PhoneLoginFormState extends ConsumerState<_PhoneLoginForm> {
       hintText: hint,
       hintStyle: AppTypography.bodyLarge(color: inkMuted),
       suffixIcon: suffixIcon,
+      prefixIcon:
+          icon == null ? null : Icon(icon, size: 20, color: inkMuted),
       filled: true,
       fillColor: surface,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(999),
         borderSide: BorderSide.none,
@@ -1257,6 +1338,7 @@ class _PhoneLoginFormState extends ConsumerState<_PhoneLoginForm> {
             decoration: _decoration(
               context,
               hint: phoneExampleForCountry(_country),
+              icon: Icons.phone_outlined,
             ),
             validator: (v) {
               if (v == null || v.isEmpty) return loc.enter_phone;
@@ -1396,46 +1478,41 @@ class _PhoneCountryTile extends StatelessWidget {
     final ink = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
     final inkMuted =
         AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
+    final brandSurface =
+        AppColors.resolve(AppColors.brandSurface, AppDarkColors.brandSurface);
 
     return Material(
-      color: Colors.transparent,
+      color: surface,
+      shape: StadiumBorder(side: BorderSide(color: border, width: 1)),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
-        borderRadius: BorderRadius.circular(999),
         onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-          decoration: BoxDecoration(
-            color: surface,
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: border, width: 1),
-          ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(10, 8, 16, 8),
           child: Row(
             children: [
-              // Drapeau
-              Text(
-                flag,
-                style: const TextStyle(fontSize: 22),
+              Container(
+                width: 38,
+                height: 38,
+                decoration:
+                    BoxDecoration(shape: BoxShape.circle, color: brandSurface),
+                alignment: Alignment.center,
+                child: Text(flag, style: const TextStyle(fontSize: 20)),
               ),
-              const SizedBox(width: 10),
-              // Nom du pays
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   country,
                   style: AppTypography.bodyLarge(color: ink),
                 ),
               ),
-              // Indicatif
               Text(
                 dialCode,
                 style: AppTypography.bodyMedium(color: inkMuted),
               ),
               const SizedBox(width: 6),
-              // Chevron
-              Icon(
-                Icons.keyboard_arrow_down_rounded,
-                color: inkMuted,
-                size: 20,
-              ),
+              Icon(Icons.keyboard_arrow_down_rounded,
+                  color: inkMuted, size: 22),
             ],
           ),
         ),

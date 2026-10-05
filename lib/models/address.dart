@@ -91,6 +91,7 @@ class Address extends HiveObject {
     String? lat,
     String? long,
     int cityID = 1,
+    String? nominatimPlaceId,
   }) async {
     // Choix de la Cloud Function (ajout ou mise à jour)
     String functionName = addressID == null ? 'addAddress' : 'updateAddress';
@@ -108,6 +109,8 @@ class Address extends HiveObject {
       'lat': lat,
       'long': long,
       'cityID': cityID,
+      if (nominatimPlaceId != null && nominatimPlaceId.trim().isNotEmpty)
+        'nominatimPlaceId': nominatimPlaceId.trim(),
     };
 
 

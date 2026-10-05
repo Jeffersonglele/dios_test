@@ -11,6 +11,7 @@ import '../../models/restaurant.dart';
 import '../../models/users.dart';
 import '../../services/livreur_api.dart';
 import '../../services/session_service.dart';
+import '../../services/socket_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/currency_util.dart';
 import '../../utils/toast.dart';
@@ -35,6 +36,8 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
   int driverID = 0;
   int? activeCommandeID;
   Timer? _locationTimer;
+  StreamSubscription<Position>? _positionStreamSub;
+  DateTime _lastApiSave = DateTime(2000);
   double _totalEarnings = 0;
   int _totalDeliveries = 0;
   String? statusFilter;
@@ -47,13 +50,21 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
     super.initState();
     _load();
     _listen();
+    _initSocket();
   }
 
   @override
   void dispose() {
     _locationTimer?.cancel();
+    _positionStreamSub?.cancel();
     if (sub != null) liveQuery.client.unSubscribe(sub!);
+    SocketService().disconnect();
     super.dispose();
+  }
+
+  // ── Socket.io initialization ─────────────────────────────
+  Future<void> _initSocket() async {
+    await SocketService().connect();
   }
 
   // ── LiveQuery pour rafraîchir en temps réel ──────────────
@@ -228,24 +239,69 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
 
   void _startSharingLocation([int? commandeID]) {
     _locationTimer?.cancel();
+    _positionStreamSub?.cancel();
     if (commandeID != null) activeCommandeID = commandeID;
-    _sendLocation();
+
+    // Use a continuous GPS stream for real-time Socket.io emission.
+    // The stream fires every ~5 seconds with high accuracy.
+    _positionStreamSub = Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 10, // metres – avoid noisy updates when stationary
+      ),
+    ).listen(_onPositionUpdate, onError: (_) {});
+
+    // Fallback: still run a periodic timer in case the stream stalls
+    // (e.g. background mode on some devices).
     _locationTimer =
-        Timer.periodic(const Duration(seconds: 30), (_) => _sendLocation());
+        Timer.periodic(const Duration(seconds: 30), (_) => _sendLocationOnce());
   }
 
   void _stopSharingLocation() {
     _locationTimer?.cancel();
+    _positionStreamSub?.cancel();
+    _positionStreamSub = null;
     activeCommandeID = null;
   }
 
-  Future<void> _sendLocation() async {
+  /// Called on every GPS position update from the stream.
+  /// Emits to Socket.io instantly, but throttles HTTP API calls.
+  void _onPositionUpdate(Position pos) {
+    if (!isOnline) return;
+
+    // 1. Emit real-time via Socket.io (instant, every update) tant qu'une course est active
+    final currentOrderId = activeCommandeID ?? _currentActiveDeliveryId();
+    if (currentOrderId != null) {
+      SocketService().emit('courier_location_update', {
+        'orderId': currentOrderId.toString(),
+        'latitude': pos.latitude,
+        'longitude': pos.longitude,
+        'accuracyM': pos.accuracy,
+        'heading': pos.heading,
+      });
+    }
+
+    // 2. Throttled HTTP API save (every 30 seconds)
+    final now = DateTime.now();
+    if (now.difference(_lastApiSave).inSeconds >= 30) {
+      _lastApiSave = now;
+      LivreurApi.updatePosition(
+        driverID,
+        pos.latitude,
+        pos.longitude,
+        accuracyM: pos.accuracy,
+        commandeID: activeCommandeID,
+      );
+    }
+  }
+
+  /// Single-shot location push (fallback timer).
+  Future<void> _sendLocationOnce() async {
     if (!isOnline) return;
     try {
       final pos = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.high);
-      await LivreurApi.updatePosition(driverID, pos.latitude, pos.longitude,
-          commandeID: activeCommandeID);
+      _onPositionUpdate(pos);
     } catch (_) {}
   }
 

@@ -4,13 +4,13 @@ import 'package:dios_delices/models/users.dart';
 import 'package:dios_delices/models/address.dart' as address_model;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:geocoding/geocoding.dart' as geo;
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'dart:io';
 import '../../constants/constant.dart';
 import '../../services/session_service.dart';
+import '../../services/geocoding_api_service.dart';
 import '../../services/upload_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/hashtag_text_input_formatter.dart';
@@ -52,6 +52,7 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
   bool _isDetecting = false;
   bool _isSaving = false;
   bool _removeExistingImage = false;
+  String? _nominatimPlaceId;
 
   static const List<String> _allDays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
   static const Map<String, String> _dayLabels = {
@@ -122,40 +123,76 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
   Future<void> _detectPosition() async {
     setState(() => _isDetecting = true);
     try {
-      final position = await Geolocator.getCurrentPosition();
-      final placemarks = await geo.placemarkFromCoordinates(
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        if (context.mounted) Toast(context, AppLocalizations.of(context)!.location_disabled, false);
+        return;
+      }
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        if (context.mounted) Toast(context, AppLocalizations.of(context)!.location_disabled, false);
+        return;
+      }
+
+      Position? position;
+      try {
+        position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+          timeLimit: const Duration(seconds: 15),
+        );
+      } catch (e) {
+        position = await Geolocator.getLastKnownPosition();
+      }
+
+      if (position == null) {
+        if (context.mounted) Toast(context, AppLocalizations.of(context)!.location_detect_failed, false);
+        return;
+      }
+
+      final reverse = await GeocodingApiService.reverse(
         position.latitude,
         position.longitude,
       );
-      if (placemarks.isNotEmpty) {
-        final p = placemarks.first;
-        final parts = <String>[
-          if (p.street != null && p.street!.isNotEmpty) p.street!,
-          if (p.subLocality != null && p.subLocality!.isNotEmpty) p.subLocality!,
-          if (p.locality != null && p.locality!.isNotEmpty) p.locality!,
-          if (p.country != null && p.country!.isNotEmpty) p.country!,
-        ];
-        setState(() => _addressController.text = parts.join(', '));
-      }
+      _nominatimPlaceId = reverse.placeId;
+      final parts = <String>[
+        if (reverse.thoroughfare != null && reverse.thoroughfare!.isNotEmpty) reverse.thoroughfare!,
+        if (reverse.street != null && reverse.street!.isNotEmpty) reverse.street!,
+        if (reverse.subLocality != null && reverse.subLocality!.isNotEmpty) reverse.subLocality!,
+        if (reverse.locality != null && reverse.locality!.isNotEmpty) reverse.locality!,
+        if (reverse.country != null && reverse.country!.isNotEmpty) reverse.country!,
+      ];
+      final addressText = parts.isNotEmpty
+          ? parts.join(', ')
+          : (reverse.displayName ?? _gpsAddress(position));
+      setState(() => _addressController.text = addressText);
     } catch (e) {
-      if (context.mounted) Toast(context, 'Impossible de détecter la position', false);
+      if (context.mounted) Toast(context, AppLocalizations.of(context)!.location_detect_failed, false);
     } finally {
       if (mounted) setState(() => _isDetecting = false);
     }
   }
 
+  String _gpsAddress(Position gpsPosition) =>
+      'Position GPS : ${gpsPosition.latitude.toStringAsFixed(6)}, '
+      '${gpsPosition.longitude.toStringAsFixed(6)}';
+
   Future<bool> _validateAddressCountry(String address) async {
     final session = await SessionService.readSession();
     if (session.userId == 0) return false;
     try {
-      final locations = await geo.locationFromAddress(address).timeout(const Duration(seconds: 10));
-      if (locations.isEmpty) return false;
-      final placemarks = await geo.placemarkFromCoordinates(
-        locations.first.latitude,
-        locations.first.longitude,
-      );
-      if (placemarks.isEmpty) return false;
-      final country = placemarks.first.country;
+      final candidates = await GeocodingApiService.search(address, limit: 3).timeout(const Duration(seconds: 10));
+      if (candidates.isEmpty) return false;
+      final best = candidates.first;
+      String? country;
+      if (best.country != null && best.country!.isNotEmpty) {
+        country = best.country!;
+      } else {
+        final reverse = await GeocodingApiService.reverse(best.latitude, best.longitude);
+        country = reverse.country;
+      }
       if (country == null || country.isEmpty) return false;
       final detectedCountry = CountryUtil.canonical(country);
       final sessionCountry = CountryUtil.canonical(session.country);
@@ -593,9 +630,10 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
             final addressChanged = !widget.isEditing || addressText != (widget.restaurant?.location ?? '');
             if (addressChanged && addressText.isNotEmpty) {
               try {
-                final locations = await geo.locationFromAddress(addressText).timeout(const Duration(seconds: 10));
-                final lat = locations.isNotEmpty ? locations.first.latitude : 0.0;
-                final lng = locations.isNotEmpty ? locations.first.longitude : 0.0;
+                final geo = await GeocodingApiService.search(addressText, limit: 3).timeout(const Duration(seconds: 10));
+                final lat = geo.isNotEmpty ? geo.first.latitude : 0.0;
+                final lng = geo.isNotEmpty ? geo.first.longitude : 0.0;
+                final placeId = geo.isNotEmpty ? geo.first.placeId : null;
                 final result = await address_model.Address.manageAddress(
                   city: '',
                   state: userCountry,
@@ -606,6 +644,7 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
                   object: 'Restaurant',
                   objectID: userID,
                   user_roleID: userRoleID,
+                  nominatimPlaceId: placeId,
                 );
                 if (result is int) addressID = result;
               } catch (_) {}

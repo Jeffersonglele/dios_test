@@ -10,8 +10,10 @@ import 'package:dios_delices/models/users.dart';
 import 'package:dios_delices/screens/profile/profile_page.dart';
 import 'package:dios_delices/services/currency_service.dart';
 import 'package:dios_delices/services/favorites_service.dart';
+import 'package:dios_delices/services/location_cache_service.dart';
 import 'package:dios_delices/theme/app_theme.dart';
 import 'package:dios_delices/utils/currency_util.dart';
+import 'package:dios_delices/utils/delivery_fee_calculator.dart';
 import 'package:dios_delices/widgets/dios_image.dart';
 import 'package:dios_delices/widgets/search_input.dart';
 
@@ -753,15 +755,24 @@ class _HomeRestaurantCardState extends State<HomeRestaurantCard> {
         ? colorScheme.onSurface.withValues(alpha: 0.7)
         : colorScheme.onSurface;
     final tags = _tags();
-    final isFreeDelivery = false;
     
-    // Afficher le tarif par défaut du pays si le restaurant n'a pas de tarif
-    final deliveryFee = widget.restaurant.deliveryFee > 0 
-        ? widget.restaurant.deliveryFee 
-        : (widget.restaurant.country?.toLowerCase().contains('bénin') == true || 
-           widget.restaurant.country?.toLowerCase().contains('benin') == true ? 500.0 : 2000.0);
-    
-    final deliveryLabel = CurrencyUtil.formatConvertedPrice(deliveryFee);
+    // Affichage dynamique basé sur le cache GPS ou libellé harmonisé "Dès X"
+    final cachedPos = LocationCacheService.instance.cachedPosition;
+    final String deliveryLabel;
+    final bool isFreeDelivery;
+    if (cachedPos != null) {
+      final estimate = DeliveryFeeCalculator.estimateFeeForRestaurant(
+        userLat: cachedPos.latitude,
+        userLng: cachedPos.longitude,
+        restaurant: widget.restaurant,
+      );
+      deliveryLabel = estimate.summaryLabel;
+      isFreeDelivery = estimate.fee == 0;
+    } else {
+      deliveryLabel =
+          DeliveryFeeCalculator.getStartingFeeLabel(widget.restaurant);
+      isFreeDelivery = false;
+    }
 
     return HomePressable(
       onTap: widget.onTap,

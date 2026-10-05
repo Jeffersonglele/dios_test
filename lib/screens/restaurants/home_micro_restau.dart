@@ -11,6 +11,7 @@ import 'package:dios_delices/models/restaurant.dart';
 import 'package:dios_delices/services/session_service.dart';
 import 'package:dios_delices/theme/app_theme.dart';
 import 'package:dios_delices/utils/currency_util.dart';
+import 'package:dios_delices/utils/delivery_fee_calculator.dart';
 import 'package:dios_delices/utils/toast.dart';
 import 'package:dios_delices/widgets/dios_image.dart';
 import 'package:flutter/cupertino.dart';
@@ -439,8 +440,9 @@ class _HeroHeader extends StatelessWidget {
                       Expanded(
                         child: _InfoCell(
                           icon: Icons.delivery_dining_rounded,
-                          text:
-                              '${CurrencyUtil.formatPrice(r.deliveryFee, country)} livraison',
+                          text: r.deliveryFee > 0
+                              ? '${CurrencyUtil.formatPrice(r.deliveryFee, country)} livraison'
+                              : '${DeliveryFeeCalculator.getStartingFeeLabel(r)} livraison',
                         ),
                       ),
                       Container(

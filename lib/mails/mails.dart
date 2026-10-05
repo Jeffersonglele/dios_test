@@ -19,7 +19,10 @@ Future<bool> sendVerificationEmail(BuildContext context, String email) async {
       return true;
     } on NodeAuthException catch (error) {
       debugPrint('Node email verification request failed: $error');
-      return false;
+      rethrow;
+    } catch (e) {
+      debugPrint('Node email verification request unknown error: $e');
+      rethrow;
     }
   }
 
@@ -27,9 +30,13 @@ Future<bool> sendVerificationEmail(BuildContext context, String email) async {
     final params = <String, dynamic>{'email': email};
     final cloudFunction = ParseCloudFunction('sendVerificationCode');
     final response = await cloudFunction.execute(parameters: params);
-    return response.success;
+    if (!response.success) {
+      throw Exception(response.error?.message ?? 'Échec envoi code (Parse)');
+    }
+    return true;
   } catch (e) {
-    return false;
+    debugPrint('Parse sendVerificationCode error: $e');
+    rethrow;
   }
 }
 
@@ -87,7 +94,10 @@ Future<bool> verifyEmailCode({
       return true;
     } on NodeAuthException catch (error) {
       debugPrint('Node email verification confirmation failed: $error');
-      return false;
+      rethrow;
+    } catch (e) {
+      debugPrint('Node email verification unknown error: $e');
+      rethrow;
     }
   }
 
@@ -98,8 +108,6 @@ Future<bool> verifyEmailCode({
       'code': code,
     });
 
-    // Logging pour diagnostiquer le rôle livreur
-    // (dans le console/devtools Flutter)
     debugPrint('verifyCode response.success=${response.success}');
     debugPrint('verifyCode response.result=${response.result}');
     debugPrint('verifyCode response.error=${response.error?.message}');
@@ -107,14 +115,21 @@ Future<bool> verifyEmailCode({
     if (response.success && response.result != null) {
       final result = response.result;
       if (result is Map<String, dynamic>) {
-        // ex: { success: true } ou { success: false, error: '...' }
-        return result['success'] == true;
+        final ok = result['success'] == true;
+        if (!ok) {
+          throw Exception(result['error']?.toString() ??
+              'Code invalide ou expiré (Parse)');
+        }
+        return true;
       }
-      if (result is bool) return result;
+      if (result is bool) {
+        if (!result) throw Exception('Code invalide ou expiré (Parse)');
+        return true;
+      }
     }
-    return false;
+    throw Exception(response.error?.message ?? 'Code invalide ou expiré');
   } catch (e) {
     debugPrint('verifyCode exception=$e');
-    return false;
+    rethrow;
   }
 }

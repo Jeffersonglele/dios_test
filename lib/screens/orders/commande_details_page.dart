@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:dios_delices/core/app_role.dart';
 import 'package:dios_delices/core/commande_status.dart';
 import 'package:dios_delices/l10n/app_localizations.dart';
@@ -10,6 +11,7 @@ import 'package:dios_delices/models/restaurant.dart';
 import 'package:dios_delices/models/users.dart';
 import 'package:dios_delices/services/commande_api.dart';
 import 'package:dios_delices/services/session_service.dart';
+import 'package:dios_delices/services/socket_service.dart';
 import 'package:dios_delices/theme/app_theme.dart';
 import 'package:dios_delices/utils/currency_util.dart';
 import 'package:flutter/material.dart';
@@ -29,7 +31,8 @@ class CommandeDetailsPage extends StatefulWidget {
   State<CommandeDetailsPage> createState() => _CommandeDetailsPageState();
 }
 
-class _CommandeDetailsPageState extends State<CommandeDetailsPage> {
+class _CommandeDetailsPageState extends State<CommandeDetailsPage>
+    with TickerProviderStateMixin {
   late Commande _commande;
   List<LigneCommande> _lignes = [];
   Map<int, String> _dishNames = {};
@@ -45,10 +48,32 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage> {
   Timer? _trackingTimer;
   String _country = 'RDC';
 
+  // ── Live tracking state ──────────────────────────────────
+  final MapController _mapController = MapController();
+  final SocketService _socketService = SocketService();
+  StreamSubscription<Map<String, dynamic>>? _courierMovedSub;
+  StreamSubscription<Map<String, dynamic>>? _deliveryStatusSub;
+  StreamSubscription<bool>? _connectionSub;
+  AnimationController? _markerAnimController;
+  double? _liveLat;
+  double? _liveLng;
+  double _animLat = 0;
+  double _animLng = 0;
+  double? _liveHeading;
+  double? _liveAccuracy;
+  bool _isSocketConnected = false;
+  bool _hasReceivedLiveUpdate = false;
+  Address? _deliveryAddress;
+
   @override
   void initState() {
     super.initState();
     _commande = widget.commande;
+    // Seed live position from whatever the model already has
+    _liveLat = _commande.livreurLat;
+    _liveLng = _commande.livreurLng;
+    _animLat = _commande.livreurLat ?? 0;
+    _animLng = _commande.livreurLng ?? 0;
     _loadData();
     _startTracking();
   }
@@ -56,14 +81,117 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage> {
   @override
   void dispose() {
     _trackingTimer?.cancel();
+    _courierMovedSub?.cancel();
+    _deliveryStatusSub?.cancel();
+    _connectionSub?.cancel();
+    _markerAnimController?.dispose();
+    // Leave the tracking room if we joined one
+    final orderId = _commande.commandeID.toString();
+    _socketService.leaveOrderTracking(orderId);
+    _mapController.dispose();
     super.dispose();
   }
 
+  // ── Live tracking setup ──────────────────────────────────
   void _startTracking() {
-    if (_commande.deliveryStatus == null || _commande.deliveryStatus == 'delivered') return;
-    _trackingTimer = Timer.periodic(const Duration(seconds: 10), (_) => _refreshCommande());
+    final status = _commande.deliveryStatus;
+    if (status == null || status == 'delivered') return;
+
+    // 1. Connect to WebSocket & join the order's tracking room
+    _initLiveTracking();
+
+    // 2. Fallback polling (runs less often since WebSocket handles real-time)
+    _trackingTimer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => _refreshCommande(),
+    );
   }
 
+  Future<void> _initLiveTracking() async {
+    try {
+      await _socketService.connect();
+      final orderId = _commande.commandeID.toString();
+      _socketService.joinOrderTracking(orderId);
+
+      // Connection state
+      _connectionSub = _socketService.onConnectionChanged.listen((connected) {
+        if (mounted) {
+          setState(() => _isSocketConnected = connected);
+          // Rejoin room on reconnect
+          if (connected) {
+            _socketService.joinOrderTracking(orderId);
+          }
+        }
+      });
+
+      // Real-time courier movement with smooth interpolation
+      _courierMovedSub = _socketService.onCourierMoved.listen((data) {
+        if (!mounted) return;
+        final lat = (data['latitude'] as num?)?.toDouble();
+        final lng = (data['longitude'] as num?)?.toDouble();
+        if (lat == null || lng == null) return;
+
+        final prevLat = _animLat != 0 ? _animLat : (_liveLat ?? lat);
+        final prevLng = _animLng != 0 ? _animLng : (_liveLng ?? lng);
+
+        _markerAnimController?.stop();
+        _markerAnimController?.dispose();
+        _markerAnimController = AnimationController(
+          vsync: this,
+          duration: const Duration(milliseconds: 800),
+        );
+
+        final curved = CurvedAnimation(
+          parent: _markerAnimController!,
+          curve: Curves.easeInOutQuad,
+        );
+
+        curved.addListener(() {
+          if (!mounted) return;
+          final t = curved.value;
+          setState(() {
+            _animLat = prevLat + (lat - prevLat) * t;
+            _animLng = prevLng + (lng - prevLng) * t;
+          });
+        });
+
+        _markerAnimController!.forward();
+
+        setState(() {
+          _liveLat = lat;
+          _liveLng = lng;
+          _liveHeading = (data['heading'] as num?)?.toDouble();
+          _liveAccuracy = (data['accuracyM'] as num?)?.toDouble();
+          _hasReceivedLiveUpdate = true;
+          // Also update model for consistency
+          _commande.livreurLat = lat;
+          _commande.livreurLng = lng;
+        });
+
+        // Smoothly adjust camera to keep courier and destination in view
+        _adjustCameraToCourierAndDestination(lat, lng);
+      });
+
+      // Delivery lifecycle events (status changes)
+      _deliveryStatusSub = _socketService.onDeliveryStatusChanged.listen((data) {
+        if (!mounted) return;
+        final newStatus = data['status'] as String?;
+        if (newStatus != null) {
+          setState(() => _commande.deliveryStatus = newStatus);
+          if (newStatus == 'delivered') {
+            _trackingTimer?.cancel();
+            _courierMovedSub?.cancel();
+          }
+        }
+      });
+
+      if (mounted) setState(() => _isSocketConnected = _socketService.isConnected);
+    } catch (e) {
+      print('[CommandeDetails] Live tracking init failed: $e');
+    }
+  }
+
+  // ── Fallback polling ──────────────────────────────────────
   Future<void> _refreshCommande() async {
     try {
       final query = QueryBuilder<ParseObject>(ParseObject('Commande'))
@@ -76,14 +204,23 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage> {
           final lng = obj.get<double>('livreurLng');
           final status = obj.get<String>('deliveryStatus');
           setState(() {
-            if (lat != null) _commande.livreurLat = lat;
-            if (lng != null) _commande.livreurLng = lng;
+            if (lat != null) {
+              _commande.livreurLat = lat;
+              // Only update live position if we haven't had a socket update recently
+              if (!_hasReceivedLiveUpdate) _liveLat = lat;
+            }
+            if (lng != null) {
+              _commande.livreurLng = lng;
+              if (!_hasReceivedLiveUpdate) _liveLng = lng;
+            }
             if (status != null) _commande.deliveryStatus = status;
           });
           if (status == 'delivered') _trackingTimer?.cancel();
         }
       }
     } catch (_) {}
+    // Reset the flag so next polling cycle can fill in if socket is dead
+    _hasReceivedLiveUpdate = false;
   }
 
   Future<void> _loadData() async {
@@ -144,6 +281,7 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage> {
       }
 
       String addressLabel = '';
+      Address? deliveryAddress;
       if (_commande.addressID != null && _commande.addressID! > 0) {
         final address = Address.getAddressByObject(
             allA, 'Commande', _commande.commandeID);
@@ -152,9 +290,11 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage> {
               (a) => a.addressID == _commande.addressID);
           if (addr.isNotEmpty) {
             addressLabel = addr.first.fullAddress ?? '';
+            deliveryAddress = addr.first;
           }
         } else {
           addressLabel = address.fullAddress ?? '';
+          deliveryAddress = address;
         }
       }
 
@@ -166,6 +306,7 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage> {
         _clientName = clientName;
         _clientPhone = clientPhone;
         _addressLabel = addressLabel;
+        _deliveryAddress = deliveryAddress;
         _isLoading = false;
       });
     } catch (_) {
@@ -837,11 +978,111 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage> {
     );
   }
 
-  // ── Carte de livraison ────────────────────────────────
+  // ── Carte de livraison en temps réel ──────────────────────
+  void _adjustCameraToCourierAndDestination(double courierLat, double courierLng) {
+    try {
+      final destLat = double.tryParse(_deliveryAddress?.lat ?? '');
+      final destLng = double.tryParse(_deliveryAddress?.long ?? '');
+      if (destLat != null && destLng != null && (destLat != courierLat || destLng != courierLng)) {
+        final bounds = LatLngBounds(
+          LatLng(courierLat, courierLng),
+          LatLng(destLat, destLng),
+        );
+        _mapController.fitCamera(
+          CameraFit.bounds(
+            bounds: bounds,
+            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 36),
+          ),
+        );
+      } else {
+        _mapController.move(LatLng(courierLat, courierLng), _mapController.camera.zoom);
+      }
+    } catch (_) {
+      // MapController may not be ready yet
+    }
+  }
+
+  // ── Carte de livraison en temps réel ──────────────────────
   Widget _buildDeliveryMap() {
-    final lat = _commande.livreurLat;
-    final lng = _commande.livreurLng;
+    final lat = _liveLat ?? _commande.livreurLat;
+    final lng = _liveLng ?? _commande.livreurLng;
     if (lat == null || lng == null) return const SizedBox.shrink();
+
+    final currentDisplayLat = _animLat != 0 ? _animLat : lat;
+    final currentDisplayLng = _animLng != 0 ? _animLng : lng;
+    final courierPos = LatLng(currentDisplayLat, currentDisplayLng);
+
+    // Build marker list
+    final markers = <Marker>[
+      // Marqueur Moto avec rotation selon le cap et animation lumineuse
+      Marker(
+        point: courierPos,
+        width: 52,
+        height: 52,
+        child: Transform.rotate(
+          angle: (_liveHeading ?? 0) * (math.pi / 180),
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppColors.brand,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 3),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.brand.withValues(alpha: 0.45),
+                  blurRadius: 14,
+                  spreadRadius: 3,
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.two_wheeler_rounded,
+              color: Colors.white,
+              size: 26,
+            ),
+          ),
+        ),
+      ),
+    ];
+
+    // Marqueur de destination (adresse du client)
+    final destLat = double.tryParse(_deliveryAddress?.lat ?? '');
+    final destLng = double.tryParse(_deliveryAddress?.long ?? '');
+    if (destLat != null && destLng != null) {
+      markers.add(Marker(
+        point: LatLng(destLat, destLng),
+        width: 42,
+        height: 42,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.red.shade600,
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 2.5),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.red.shade600.withValues(alpha: 0.35),
+                blurRadius: 10,
+                spreadRadius: 1,
+              ),
+            ],
+          ),
+          child: const Icon(Icons.home_rounded, color: Colors.white, size: 20),
+        ),
+      ));
+    }
+
+    // Cercle de précision GPS
+    final circles = <CircleMarker>[];
+    if (_liveAccuracy != null && _liveAccuracy! > 0 && _liveAccuracy! < 500) {
+      circles.add(CircleMarker(
+        point: courierPos,
+        radius: _liveAccuracy!,
+        useRadiusInMeter: true,
+        color: AppColors.brand.withValues(alpha: 0.08),
+        borderColor: AppColors.brand.withValues(alpha: 0.3),
+        borderStrokeWidth: 1.5,
+      ));
+    }
+
     return Container(
       decoration: BoxDecoration(
         color: AppColors.resolve(AppColors.card, AppDarkColors.card),
@@ -854,25 +1095,65 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Title row with live indicator
           Row(
             children: [
               Icon(Icons.map_rounded, size: 16,
                   color: AppColors.resolve(AppColors.brand, AppDarkColors.brand)),
               const SizedBox(width: 8),
-              Text(AppLocalizations.of(context)!.commande_details_driver_position,
+              Expanded(
+                child: Text(
+                  AppLocalizations.of(context)!.commande_details_driver_position,
                   style: AppTypography.titleSmall(
-                      color: AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
+                      color: AppColors.resolve(AppColors.ink, AppDarkColors.ink)),
+                ),
+              ),
+              // Live / Offline indicator badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: _isSocketConnected
+                      ? Colors.green.withOpacity(0.12)
+                      : Colors.orange.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(99),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _isSocketConnected ? Colors.green : Colors.orange,
+                      ),
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      _isSocketConnected ? 'LIVE' : '•••',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: _isSocketConnected ? Colors.green.shade700 : Colors.orange.shade700,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 10),
+          // Map
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: SizedBox(
-              height: 160,
+              height: 200,
               child: FlutterMap(
+                mapController: _mapController,
                 options: MapOptions(
-                    initialCenter: LatLng(lat, lng),
-                    initialZoom: 14,
+                    initialCenter: courierPos,
+                    initialZoom: 15,
                     interactionOptions: const InteractionOptions(
                         flags: InteractiveFlag.drag |
                             InteractiveFlag.pinchZoom |
@@ -883,25 +1164,9 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage> {
                         'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                     userAgentPackageName: 'com.diosdelices.app',
                   ),
-                  MarkerLayer(
-                    markers: [
-                      Marker(
-                        point: LatLng(lat, lng),
-                        width: 40,
-                        height: 40,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: AppColors.brand,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 3),
-                            boxShadow: [AppShadows.card],
-                          ),
-                          child: const Icon(Icons.delivery_dining_rounded,
-                              color: Colors.white, size: 20),
-                        ),
-                      ),
-                    ],
-                  ),
+                  if (circles.isNotEmpty)
+                    CircleLayer(circles: circles),
+                  MarkerLayer(markers: markers),
                 ],
               ),
             ),

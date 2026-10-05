@@ -98,17 +98,34 @@ class _LivreurMapPageState extends State<LivreurMapPage> {
     try {
       final pos = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.high);
-      await LivreurApi.updatePosition(_driverID, pos.latitude, pos.longitude);
+      await LivreurApi.updatePosition(
+        _driverID,
+        pos.latitude,
+        pos.longitude,
+        accuracyM: pos.accuracy,
+      );
     } catch (_) {}
   }
 
   Future<void> _getPosition() async {
     try {
-      final pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
+      Position? pos;
+      try {
+        pos = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+          timeLimit: const Duration(seconds: 15),
+        );
+      } catch (_) {
+        pos = await Geolocator.getLastKnownPosition();
+      }
+
       if (mounted) {
-        setState(() => _currentPosition = LatLng(pos.latitude, pos.longitude));
+        final p = pos;
+        if (p != null) {
+          setState(() => _currentPosition = LatLng(p.latitude, p.longitude));
+        } else {
+          setState(() => _currentPosition = const LatLng(48.8566, 2.3522));
+        }
       }
     } catch (_) {
       if (mounted) {

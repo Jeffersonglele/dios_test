@@ -6,6 +6,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import '../../services/location_cache_service.dart';
 
 import '../../constants/constant.dart';
 import '../../controllers/ui_controller.dart';
@@ -244,8 +245,11 @@ class _HomeUserState extends State<HomeUser> {
     final userCountryText = CountryUtil.canonical(userCountryRaw).isNotEmpty
         ? CountryUtil.canonical(userCountryRaw)
         : _normalize(userCountryRaw);
-    final userLat = double.tryParse(userAddress?.lat ?? '');
-    final userLon = double.tryParse(userAddress?.long ?? '');
+    final cachedPos = LocationCacheService.instance.cachedPosition;
+    final userLat =
+        double.tryParse(userAddress?.lat ?? '') ?? cachedPos?.latitude;
+    final userLon =
+        double.tryParse(userAddress?.long ?? '') ?? cachedPos?.longitude;
 
     final hasUserLocation = (userCityID > 0) ||
         (userCityText != null && userCountryText != null) ||
@@ -411,41 +415,40 @@ class _HomeUserState extends State<HomeUser> {
 
   Future<void> _detectLiveLocation() async {
     try {
-      final permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) return;
-      final pos = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.low,
-          timeLimit: const Duration(seconds: 5));
-      final placemarks =
-          await placemarkFromCoordinates(pos.latitude, pos.longitude);
-      if (placemarks.isNotEmpty) {
-        final p = placemarks.first;
-        final addr = [p.locality, p.administrativeArea]
-            .where((s) => s != null && s.isNotEmpty)
-            .join(', ');
-        final liveCity = _firstNonEmpty(
-            [p.locality, p.subAdministrativeArea, p.administrativeArea]);
-        final liveCountry = _firstNonEmpty([p.country, p.isoCountryCode]);
-        if (mounted) {
-          bool needsRetag = false;
-          if (addr.isNotEmpty && _liveAddress != addr) {
-            setState(() => _liveAddress = addr);
-          }
-          if (liveCity != null && _liveCity != liveCity) {
-            _liveCity = liveCity;
-            needsRetag = true;
-          }
-          if (liveCountry != null && _liveCountry != liveCountry) {
-            _liveCountry = liveCountry;
-            needsRetag = true;
-          }
-          if (needsRetag) {
-            await _tagOutOfRangeAndSort();
-          }
-        }
+      final cache = LocationCacheService.instance;
+      // Appliquer immédiatement si déjà disponible en cache
+      if (cache.cachedPosition != null) {
+        _applyCachedLocation(cache);
       }
+
+      final pos = await cache.getPosition();
+      if (pos == null || !mounted) return;
+
+      _applyCachedLocation(cache);
     } catch (_) {}
+  }
+
+  void _applyCachedLocation(LocationCacheService cache) {
+    if (!mounted) return;
+    bool needsRetag = false;
+    final addr = cache.cachedDisplayName;
+    final liveCity = cache.cachedCity;
+    final liveCountry = cache.cachedCountry;
+
+    if (addr != null && addr.isNotEmpty && _liveAddress != addr) {
+      setState(() => _liveAddress = addr);
+    }
+    if (liveCity != null && _liveCity != liveCity) {
+      _liveCity = liveCity;
+      needsRetag = true;
+    }
+    if (liveCountry != null && _liveCountry != liveCountry) {
+      _liveCountry = liveCountry;
+      needsRetag = true;
+    }
+    if (needsRetag) {
+      _tagOutOfRangeAndSort();
+    }
   }
 
   double _haversine(double la1, double lo1, double la2, double lo2) {

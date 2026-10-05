@@ -291,6 +291,16 @@ class NodeAuthService {
     await _post('/auth/password/reset-request', {'email': email.trim()});
   }
 
+  static Future<void> verifyPasswordResetCode({
+    required String email,
+    required String code,
+  }) async {
+    await _post('/auth/password/reset-verify', {
+      'email': email.trim(),
+      'code': code.trim(),
+    });
+  }
+
   static Future<void> resetPassword({
     required String email,
     required String code,

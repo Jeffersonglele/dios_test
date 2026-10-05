@@ -13,10 +13,12 @@ import '../../services/delivery_availability_service.dart';
 import '../../services/session_service.dart';
 import '../../services/node_catalog_service.dart';
 import '../../services/currency_service.dart';
+import '../../services/location_cache_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/dios_image.dart';
 import '../../widgets/micro_interactions.dart';
 import '../../utils/currency_util.dart';
+import '../../utils/delivery_fee_calculator.dart';
 import '../../utils/stars.dart';
 import '../../utils/toast.dart';
 import '../../widgets/rating_tags_display.dart';
@@ -1169,21 +1171,23 @@ class _InfoChipsRow extends StatelessWidget {
           animation: CurrencyService.instance,
           builder: (_, __) {
             final isFree = false;
-            // Afficher le tarif par défaut du pays si le restaurant n'a pas de tarif
-            final deliveryFee = restaurant.deliveryFee > 0 
-                ? restaurant.deliveryFee 
-                : (restaurant.country?.toLowerCase().contains('bénin') == true || 
-                   restaurant.country?.toLowerCase().contains('benin') == true ? 500.0 : 2000.0);
-            final label = CurrencyUtil.formatConvertedPrice(deliveryFee);
-            final bg = isFree
-                ? success.withValues(alpha: 0.10)
-                : chipBg;
-            final col = isFree ? success : chipText;
+            final cachedPos = LocationCacheService.instance.cachedPosition;
+            final String label;
+            if (cachedPos != null) {
+              final estimate = DeliveryFeeCalculator.estimateFeeForRestaurant(
+                userLat: cachedPos.latitude,
+                userLng: cachedPos.longitude,
+                restaurant: restaurant,
+              );
+              label = estimate.summaryLabel;
+            } else {
+              label = DeliveryFeeCalculator.getStartingFeeLabel(restaurant);
+            }
             return _InfoChip(
               icon: Icons.delivery_dining_rounded,
               label: label,
-              bg: bg,
-              color: col,
+              bg: chipBg,
+              color: chipText,
             );
           },
         ),

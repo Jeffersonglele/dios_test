@@ -1,11 +1,14 @@
+import 'dart:async';
 import 'package:dios_delices/core/commande_status.dart';
 import 'package:dios_delices/models/commande.dart';
 import 'package:dios_delices/models/restaurant.dart';
 import 'package:dios_delices/services/session_service.dart';
+import 'package:dios_delices/services/socket_service.dart';
 import 'package:dios_delices/theme/app_theme.dart';
 import 'package:dios_delices/utils/currency_util.dart';
 import '../../l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
+import 'commande_details_page.dart';
 
 class OrderTrackingPage extends StatefulWidget {
   final String? highlightedCommandeId;
@@ -19,11 +22,76 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
   List<Commande> commandes = [];
   Map<int, Restaurant> restaurantById = {};
   String _country = 'RDC';
+  StreamSubscription<Map<String, dynamic>>? _courierMovedSubscription;
+  StreamSubscription<Map<String, dynamic>>? _deliveryStatusSubscription;
+  final SocketService _socketService = SocketService();
 
   @override
   void initState() {
     super.initState();
     _load();
+    _initSocket();
+  }
+
+  @override
+  void dispose() {
+    _courierMovedSubscription?.cancel();
+    _deliveryStatusSubscription?.cancel();
+    super.dispose();
+  }
+
+  // ── Socket.io initialization ─────────────────────────────
+  Future<void> _initSocket() async {
+    await _socketService.connect();
+    
+    // Listen for courier location updates
+    _courierMovedSubscription = _socketService.onCourierMoved.listen((data) {
+      final orderId = data['orderId']?.toString();
+      final lat = (data['latitude'] as num?)?.toDouble();
+      final lng = (data['longitude'] as num?)?.toDouble();
+      if (orderId != null && lat != null && lng != null && mounted) {
+        setState(() {
+          for (var i = 0; i < commandes.length; i++) {
+            if (commandes[i].commandeID.toString() == orderId) {
+              commandes[i].livreurLat = lat;
+              commandes[i].livreurLng = lng;
+              break;
+            }
+          }
+        });
+      }
+    });
+
+    // Listen for status changes (e.g. ASSIGNED -> AT_PICKUP -> IN_TRANSIT -> DELIVERED)
+    _deliveryStatusSubscription = _socketService.onDeliveryStatusChanged.listen((data) {
+      final orderId = data['orderId']?.toString();
+      final newStatus = data['status']?.toString();
+      if (orderId != null && newStatus != null && mounted) {
+        setState(() {
+          for (var i = 0; i < commandes.length; i++) {
+            if (commandes[i].commandeID.toString() == orderId) {
+              commandes[i].deliveryStatus = newStatus;
+              break;
+            }
+          }
+        });
+      }
+    });
+
+    // Join tracking rooms for active deliveries
+    _joinActiveTrackingRooms();
+  }
+
+  void _joinActiveTrackingRooms() {
+    for (final commande in commandes) {
+      final status = DeliveryStatus.normalize(commande.deliveryStatus);
+      if (status == DeliveryStatus.assigned ||
+          status == DeliveryStatus.atPickup ||
+          status == DeliveryStatus.pickedUp ||
+          status == DeliveryStatus.inTransit) {
+        _socketService.joinOrderTracking(commande.commandeID.toString());
+      }
+    }
   }
 
   Future<void> _load() async {
@@ -44,6 +112,9 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
       restaurantById = {for (final r in restos) r.restaurantID: r};
       isLoading = false;
     });
+    
+    // Join tracking rooms for active deliveries after loading
+    _joinActiveTrackingRooms();
   }
 
   @override
@@ -76,18 +147,30 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
     final status = CommandeStatus.normalize(c.status);
     final isHighlighted = widget.highlightedCommandeId == c.commandeID.toString();
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: isHighlighted ? AppColors.brandSurface.withValues(alpha: 0.5) : AppColors.card,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
         borderRadius: BorderRadius.circular(AppRadius.xl),
-        border: Border.all(
-          color: isHighlighted ? AppColors.brand.withValues(alpha: 0.3) : AppColors.border,
-          width: isHighlighted ? 1 : 0.5,
-        ),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => CommandeDetailsPage(commande: c),
+            ),
+          ).then((_) => _load());
+        },
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 14),
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: isHighlighted ? AppColors.brandSurface.withValues(alpha: 0.5) : AppColors.card,
+            borderRadius: BorderRadius.circular(AppRadius.xl),
+            border: Border.all(
+              color: isHighlighted ? AppColors.brand.withValues(alpha: 0.3) : AppColors.border,
+              width: isHighlighted ? 1 : 0.5,
+            ),
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Expanded(
             child:             Text(AppLocalizations.of(context)!.order_num(c.commandeID),
@@ -127,9 +210,11 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
           Text(AppLocalizations.of(context)!.discount_amount(CurrencyUtil.formatPrice(c.reduction, _country)),
               style: AppTypography.bodyMedium().copyWith(fontSize: 12)),
         ]),
-      ]),
-    );
-  }
+        ]),
+      ),
+    ),
+  );
+}
 
   String _statusMessage(String s) {
     final l10n = AppLocalizations.of(context)!;

@@ -1,5 +1,6 @@
 import 'package:dios_delices/services/node_auth_service.dart';
 import 'package:dios_delices/services/session_service.dart';
+import 'package:dios_delices/services/socket_service.dart';
 
 class LivreurApi {
   // Récupérer les livraisons assignées à un livreur
@@ -70,19 +71,34 @@ class LivreurApi {
     return null;
   }
 
-  // Mettre à jour la position GPS du livreur
-  static Future<bool> updatePosition(int livreurID, double lat, double lng, {int? commandeID}) async {
+  static Future<bool> updatePosition(
+    int livreurID,
+    double lat,
+    double lng, {
+    double? accuracyM,
+    int? commandeID,
+  }) async {
     final token = await SessionService.readNodeToken();
     if (token == null) return false;
 
     try {
+      final clampedAccuracy = accuracyM != null && accuracyM > 0
+          ? (accuracyM.isFinite ? accuracyM : 50.0)
+          : 50.0;
       final body = <String, dynamic>{
         'latitude': lat,
         'longitude': lng,
-        'accuracyM': 10,
+        'accuracyM': clampedAccuracy,
       };
       if (commandeID != null && commandeID > 0) {
         body['commandeID'] = commandeID;
+        // Emit live position to clients tracking this order in real time
+        SocketService().emit('courier_location_update', {
+          'orderId': commandeID.toString(),
+          'latitude': lat,
+          'longitude': lng,
+          'accuracyM': clampedAccuracy,
+        });
       }
       
       await NodeAuthService.postJson(

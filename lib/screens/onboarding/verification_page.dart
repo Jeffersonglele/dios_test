@@ -9,6 +9,7 @@ import '../../constants/constant.dart';
 import '../../core/app_role.dart';
 import '../../mails/mails.dart';
 import '../../models/users.dart';
+import '../../services/node_auth_service.dart';
 import '../../services/session_service.dart';
 import '../../widgets/showConfetti.dart';
 import '../../utils/toast.dart';
@@ -54,6 +55,7 @@ class _VerificationPageState extends State<VerificationPage> {
   bool _isSendingCodes = true;
   bool _isVerifying = false;
   String? _sendErrorMessage;
+  String? _verifyErrorMessage;
   String? _emailError;
   int _resendCooldown = 0;
   Timer? _cooldownTimer;
@@ -99,8 +101,22 @@ class _VerificationPageState extends State<VerificationPage> {
     try {
       return await sendVerificationEmail(context, email);
     } catch (e) {
+      setState(() {
+        _sendErrorMessage = _extractErrorMessage(e);
+      });
       return false;
     }
+  }
+
+  String _extractErrorMessage(Object error) {
+    if (error is NodeAuthException) {
+      return error.message;
+    }
+    final msg = error.toString();
+    if (msg.startsWith('Exception: ')) {
+      return msg.substring('Exception: '.length);
+    }
+    return msg.isEmpty ? 'Erreur inconnue' : msg;
   }
 
   String _buildSendErrorMessage() {
@@ -140,11 +156,15 @@ class _VerificationPageState extends State<VerificationPage> {
     if (_isVerifying) return;
     final code = _codeController.text.trim();
     if (code.isEmpty) {
+      setState(() => _verifyErrorMessage = l10n.verification_enter_code);
       Toast(context, l10n.verification_enter_code, false);
       return;
     }
     if (!mounted) return;
-    setState(() => _isVerifying = true);
+    setState(() {
+      _isVerifying = true;
+      _verifyErrorMessage = null;
+    });
     try {
       final valid = await verifyEmailCode(email: widget.email, code: code);
       if (!mounted) return;
@@ -172,11 +192,23 @@ class _VerificationPageState extends State<VerificationPage> {
           );
         } catch (e) {
           if (!mounted) return;
+          setState(() => _verifyErrorMessage =
+              _extractErrorMessage(e).isEmpty
+                  ? l10n.verification_account_error
+                  : _extractErrorMessage(e));
           Toast(context, l10n.verification_account_error, false);
         }
       } else {
+        setState(() => _verifyErrorMessage = l10n.verification_code_invalid);
         Toast(context, l10n.verification_code_invalid, false);
       }
+    } catch (e) {
+      if (!mounted) return;
+      final msg = _extractErrorMessage(e);
+      setState(() => _verifyErrorMessage = msg.isEmpty
+          ? l10n.verification_code_invalid
+          : msg);
+      Toast(context, _verifyErrorMessage!, false);
     } finally {
       if (mounted) setState(() => _isVerifying = false);
     }
@@ -398,7 +430,7 @@ class _VerificationPageState extends State<VerificationPage> {
                                       AppTypography.bodySmall(color: inkMuted),
                                 ),
                               ),
-                              const SizedBox(height: 28),
+                              const SizedBox(height: 24),
                               PinCodeTextField(
                                 appContext: context,
                                 length: 6,
@@ -431,7 +463,11 @@ class _VerificationPageState extends State<VerificationPage> {
                                     AppTypography.labelLarge(color: inkColor)
                                         .copyWith(fontWeight: FontWeight.w700),
                                 onCompleted: (v) {},
-                                onChanged: (value) {},
+                                onChanged: (value) {
+                                  if (_verifyErrorMessage != null) {
+                                    setState(() => _verifyErrorMessage = null);
+                                  }
+                                },
                               ),
                               const SizedBox(height: 24),
                               _PrimaryButton(
@@ -457,6 +493,37 @@ class _VerificationPageState extends State<VerificationPage> {
                                   ),
                                 ),
                               ),
+                              if (_verifyErrorMessage != null) ...[
+                                const SizedBox(height: 16),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: AppSpacing.md,
+                                      vertical: AppSpacing.md),
+                                  decoration: BoxDecoration(
+                                    color: error.withValues(alpha: 0.10),
+                                    borderRadius:
+                                        BorderRadius.circular(AppRadius.lg),
+                                    border: Border.all(
+                                        color: error.withValues(alpha: 0.45)),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.error_outline_rounded,
+                                          color: error, size: 20),
+                                      const SizedBox(width: AppSpacing.sm),
+                                      Expanded(
+                                        child: Text(
+                                          _verifyErrorMessage!,
+                                          style: AppTypography.bodyMedium(
+                                                  color: error)
+                                              .copyWith(
+                                                  fontWeight: FontWeight.w600),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ],
                           ],
                         ),

@@ -3,6 +3,7 @@ import 'dart:math';
 import '../models/address.dart';
 import '../models/restaurant.dart';
 import '../services/session_service.dart';
+import '../services/location_cache_service.dart';
 import '../utils/country_util.dart';
 
 class DeliveryAvailability {
@@ -48,8 +49,11 @@ class DeliveryAvailabilityService {
     final resolvedCustomerAddress = customerAddress ??
         Address.getAddressByObject(addresses, 'User', customerId) ??
         Address.getAddressByObject(addresses, 'Livraison', customerId);
-    final customerLat = _parseDouble(resolvedCustomerAddress?.lat);
-    final customerLng = _parseDouble(resolvedCustomerAddress?.long);
+    final cachedPos = LocationCacheService.instance.cachedPosition;
+    final customerLat = _parseDouble(resolvedCustomerAddress?.lat) ??
+        cachedPos?.latitude;
+    final customerLng = _parseDouble(resolvedCustomerAddress?.long) ??
+        cachedPos?.longitude;
 
     final restaurantAddress = Address.getAddressByObject(
             addresses, 'Restaurant', restaurant.userID) ??

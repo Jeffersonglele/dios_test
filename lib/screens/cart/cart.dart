@@ -18,6 +18,8 @@ import '../../providers/selected_delivery.dart';
 import '../../services/commande_api.dart';
 import '../../services/delivery_availability_service.dart';
 import '../../services/delivery_shipping_service.dart';
+import '../../services/geocoding_api_service.dart';
+import '../../services/location_cache_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/node_home_service.dart';
 import '../../services/node_order_service.dart';
@@ -357,7 +359,7 @@ class _CartState extends ConsumerState<Cart> {
     setState(() => _isUsingCurrentLocation = true);
     try {
       if (!await Geolocator.isLocationServiceEnabled()) {
-        Toast(context, l10n.location_disabled, false);
+        if (mounted) Toast(context, 'Veuillez activer le GPS', false);
         return;
       }
 
@@ -367,91 +369,145 @@ class _CartState extends ConsumerState<Cart> {
       }
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
-        Toast(context, l10n.location_disabled, false);
+        if (mounted) Toast(context, l10n.location_detect_failed, false);
         return;
       }
 
-      final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 15),
-      );
-
-      final nearbyAddress = await _findNearbySavedAddress(position);
-      if (nearbyAddress != null) {
-        await refreshAddresses();
-        if (mounted) setState(() => selectedAddress = nearbyAddress);
-        return;
-      }
-
-      Map<String, dynamic> geocoded = {};
+      Position? position;
       try {
-        final response = await ParseCloudFunction(
-          'reverseGeocodeDeliveryLocation',
-        ).execute(parameters: {
-          'lat': position.latitude,
-          'lng': position.longitude,
-        });
-        if (response.success && response.result is Map) {
-          geocoded = Map<String, dynamic>.from(response.result as Map);
+        position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+          timeLimit: const Duration(seconds: 10),
+        );
+      } catch (e) {
+        debugPrint(
+            'cart.getCurrentPosition failed or timed out: $e, fallback to lastKnownPosition');
+        try {
+          position = await Geolocator.getLastKnownPosition();
+        } catch (lastErr) {
+          debugPrint('cart.getLastKnownPosition failed: $lastErr');
         }
-      } catch (_) {
-        // Les coordonnées GPS suffisent à créer une adresse livrable :
-        // Nominatim reste un enrichissement, pas un point de blocage.
+      }
+
+      if (position == null) {
+        if (mounted) Toast(context, l10n.location_detect_failed, false);
+        return;
+      }
+
+      GeocodingResult? geocoded;
+      try {
+        geocoded = await GeocodingApiService.reverse(
+          position.latitude,
+          position.longitude,
+        );
+      } catch (e) {
+        debugPrint('GeocodingApiService.reverse error: $e');
       }
 
       final fallbackAddress = 'Position GPS : '
           '${position.latitude.toStringAsFixed(6)}, '
           '${position.longitude.toStringAsFixed(6)}';
       final fullAddress = _firstText([
-        geocoded['displayName'],
+        geocoded?.displayName,
+        geocoded?.street,
         fallbackAddress,
       ]);
-      final city = _firstText([geocoded['city'], geocoded['district']]);
+      final city = _firstText([
+        geocoded?.locality,
+        geocoded?.subAdministrativeArea,
+        geocoded?.administrativeArea,
+      ]);
       final state = _firstText([
-        geocoded['district'],
-        geocoded['department'],
-        geocoded['country'],
+        geocoded?.administrativeArea,
+        geocoded?.country,
       ]);
 
-      final result = await delivery.Address.manageAddress(
+      // Met en cache la position et les infos géocodées
+      LocationCacheService.instance.updateCache(
+        position: position,
+        displayName: fullAddress,
         city: city,
-        state: state,
-        fullAddress: fullAddress,
-        lat: position.latitude.toString(),
-        long: position.longitude.toString(),
-        object: 'Livraison',
-        objectID: current_userID,
-        user_roleID: current_user_role,
+        country: state,
       );
 
-      await refreshAddresses();
-      if (result is int) {
-        final saved = addresses.where((address) => address.addressID == result);
-        if (mounted) {
-          setState(() {
-            selectedAddress = saved.isNotEmpty
-                ? saved.first
-                : delivery.Address(
-                    addressID: result,
-                    object: 'Livraison',
-                    objectID: current_userID,
-                    city: city,
-                    state: state,
-                    fullAddress: fullAddress,
-                    lat: position.latitude.toString(),
-                    long: position.longitude.toString(),
-                  );
-          });
-        }
-      } else if (result == 'EXISTING_ADDRESS') {
-        final existing = await _findNearbySavedAddress(position);
-        if (mounted && existing != null)
-          setState(() => selectedAddress = existing);
+      delivery.Address? matchedAddress;
+      final nearby = await _findNearbySavedAddress(position);
+      if (nearby != null) {
+        matchedAddress = delivery.Address(
+          addressID: nearby.addressID,
+          object: 'Livraison',
+          objectID: current_userID,
+          city: city.isNotEmpty ? city : (nearby.city ?? ''),
+          state: state.isNotEmpty ? state : (nearby.state ?? ''),
+          fullAddress: fullAddress,
+          lat: position.latitude.toString(),
+          long: position.longitude.toString(),
+        );
       } else {
-        Toast(context, l10n.location_detect_failed, false);
+        int? savedId;
+        try {
+          final result = await delivery.Address.manageAddress(
+            city: city,
+            state: state,
+            fullAddress: fullAddress,
+            lat: position.latitude.toString(),
+            long: position.longitude.toString(),
+            object: 'Livraison',
+            objectID: current_userID,
+            user_roleID: current_user_role,
+            nominatimPlaceId: geocoded?.placeId,
+          );
+          if (result is int) {
+            savedId = result;
+          } else if (result == 'EXISTING_ADDRESS') {
+            final found = await _findNearbySavedAddress(position);
+            if (found != null) {
+              matchedAddress = delivery.Address(
+                addressID: found.addressID,
+                object: 'Livraison',
+                objectID: current_userID,
+                city: city.isNotEmpty ? city : (found.city ?? ''),
+                state: state.isNotEmpty ? state : (found.state ?? ''),
+                fullAddress: fullAddress,
+                lat: position.latitude.toString(),
+                long: position.longitude.toString(),
+              );
+            }
+          }
+        } catch (e) {
+          debugPrint('delivery.Address.manageAddress failed: $e');
+        }
+
+        if (matchedAddress == null) {
+          if (savedId != null) {
+            await refreshAddresses();
+            final saved = addresses.where((a) => a.addressID == savedId);
+            if (saved.isNotEmpty) {
+              matchedAddress = saved.first;
+            }
+          }
+          matchedAddress ??= delivery.Address(
+            addressID: savedId,
+            object: 'Livraison',
+            objectID: current_userID,
+            city: city,
+            state: state,
+            fullAddress: fullAddress,
+            lat: position.latitude.toString(),
+            long: position.longitude.toString(),
+          );
+        }
       }
-    } catch (_) {
-      if (mounted) Toast(context, l10n.location_detect_failed, false);
+
+      if (mounted) {
+        setState(() => selectedAddress = matchedAddress);
+        await _refreshCartDeliveryAvailability(
+          _itemsForRestaurant(ref.read(cartStateProvider)),
+        );
+        Toast(context, 'Position actuelle mise à jour.', true);
+      }
+    } catch (e) {
+      debugPrint('cart._useCurrentLocation unexpected: $e');
     } finally {
       if (mounted) setState(() => _isUsingCurrentLocation = false);
     }

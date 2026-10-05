@@ -18,6 +18,7 @@ import '../legal/cgv_page.dart';
 import '../../services/session_service.dart';
 import '../../services/node_auth_service.dart';
 import '../../widgets/auth_shell.dart';
+import '../../widgets/swirling_loader.dart';
 import '../onboarding/verification_page.dart';
 import 'login.dart';
 
@@ -115,10 +116,18 @@ class _SignUpViewState extends State<SignUpView> {
 
       if (mounted) setState(() => _isDetectingCountry = true);
 
-      final pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.low,
-        timeLimit: const Duration(seconds: 5),
-      );
+      Position? pos;
+      try {
+        pos = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.low,
+          timeLimit: const Duration(seconds: 5),
+        );
+      } catch (_) {
+        pos = await Geolocator.getLastKnownPosition();
+      }
+
+      if (pos == null) return;
+
       final placemarks =
           await placemarkFromCoordinates(pos.latitude, pos.longitude);
 
@@ -301,7 +310,8 @@ class _SignUpViewState extends State<SignUpView> {
             focusNode: _usernameFocus,
             textInputAction: TextInputAction.done,
             style: _fieldTextStyle(context),
-            decoration: _decoration(context, hint: l10n.signup_username),
+            decoration: _decoration(context,
+                hint: l10n.signup_username, icon: Icons.alternate_email_rounded),
             validator: _minValidator(4, l10n.signup_username_min_chars),
           ),
           const SizedBox(height: AppSpacing.xl),
@@ -333,7 +343,8 @@ class _SignUpViewState extends State<SignUpView> {
             onFieldSubmitted: (_) => _phoneFocus.requestFocus(),
             keyboardType: TextInputType.emailAddress,
             style: _fieldTextStyle(context),
-            decoration: _decoration(context, hint: l10n.signup_email),
+            decoration: _decoration(context,
+                hint: l10n.signup_email, icon: Icons.mail_outline_rounded),
             validator: (v) => !EmailValidator.validate(v ?? '')
                 ? l10n.signup_email_invalid
                 : null,
@@ -362,6 +373,7 @@ class _SignUpViewState extends State<SignUpView> {
             ],
             decoration: _decoration(
               context,
+              icon: Icons.phone_outlined,
               hint: l10n.signup_phone_hint(
                 phoneExampleForCountry(_selectedCountry),
               ),
@@ -421,6 +433,7 @@ class _SignUpViewState extends State<SignUpView> {
               decoration: _decoration(
                 context,
                 hint: l10n.signup_password_hint,
+                icon: Icons.lock_outline_rounded,
                 suffixIcon: IconButton(
                   icon: Icon(
                     _simpleUIController.isObscure
@@ -464,6 +477,7 @@ class _SignUpViewState extends State<SignUpView> {
               decoration: _decoration(
                 context,
                 hint: l10n.signup_password_confirm_hint,
+                icon: Icons.lock_outline_rounded,
                 suffixIcon: IconButton(
                   icon: Icon(
                     _simpleUIControllerConf.isObscure
@@ -500,6 +514,7 @@ class _SignUpViewState extends State<SignUpView> {
               Expanded(
                 child: _StepButton(
                   label: l10n.signup_create_account,
+                  icon: Icons.check_rounded,
                   isLoading: _isLoading,
                   onPressed: _onSubmit,
                 ),
@@ -509,6 +524,49 @@ class _SignUpViewState extends State<SignUpView> {
         ],
       ),
     );
+  }
+
+  /// Voile plein écran non fermable avec Swirling. Retourne la fonction qui
+  /// le referme (sans danger si appelée plusieurs fois).
+  VoidCallback _showBlockingLoader() {
+    final nav = Navigator.of(context, rootNavigator: true);
+    final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+    final card = AppColors.resolve(AppColors.card, AppDarkColors.card);
+    var open = true;
+    showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      barrierLabel: '',
+      barrierColor: Colors.black.withValues(alpha: 0.55),
+      transitionDuration: const Duration(milliseconds: 200),
+      transitionBuilder: (_, anim, __, child) =>
+          FadeTransition(opacity: anim, child: child),
+      pageBuilder: (_, __, ___) => PopScope(
+        canPop: false,
+        child: Center(
+          child: Container(
+            width: 112,
+            height: 112,
+            decoration: BoxDecoration(
+              color: card,
+              borderRadius: BorderRadius.circular(28),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.25),
+                  blurRadius: 30,
+                  offset: const Offset(0, 12),
+                ),
+              ],
+            ),
+            child: Center(child: Swirling(size: 64, color: brand)),
+          ),
+        ),
+      ),
+    );
+    return () {
+      if (open && nav.canPop()) nav.pop();
+      open = false;
+    };
   }
 
   // ── Soumission ────────────────────────────────────────────
@@ -525,6 +583,7 @@ class _SignUpViewState extends State<SignUpView> {
     }
 
     setState(() => _isLoading = true);
+    final closeLoader = _showBlockingLoader();
 
     NodeAuthSession? auth;
     try {
@@ -656,6 +715,7 @@ class _SignUpViewState extends State<SignUpView> {
                   '') ??
               0);
 
+      closeLoader();
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -683,6 +743,7 @@ class _SignUpViewState extends State<SignUpView> {
           auth == null ? '$baseMessage$statusHint' : baseMessage;
       Toast(context, userMessage, false);
     } finally {
+      closeLoader(); // sécurité : sans effet s'il est déjà fermé
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -728,6 +789,7 @@ class _SignUpViewState extends State<SignUpView> {
     BuildContext context, {
     required String hint,
     Widget? suffixIcon,
+    IconData? icon,
   }) {
     final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
     final border = AppColors.resolve(AppColors.border, AppDarkColors.border);
@@ -741,10 +803,12 @@ class _SignUpViewState extends State<SignUpView> {
       hintText: hint,
       hintStyle: AppTypography.bodyLarge(color: inkMuted),
       suffixIcon: suffixIcon,
+      prefixIcon:
+          icon == null ? null : Icon(icon, size: 20, color: inkMuted),
       filled: true,
       fillColor: surface,
       contentPadding: const EdgeInsets.symmetric(
-          horizontal: 24, vertical: 18), // Élargi pour l'effet pilule
+          horizontal: 20, vertical: 18), // Élargi pour l'effet pilule
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(999),
         borderSide: BorderSide.none,
@@ -878,7 +942,7 @@ class _SectionLabel extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════
-// _StepProgressBar — Identique, couleurs conservées
+// _StepProgressBar — pastilles animées + compteur « 1/3 »
 // ═══════════════════════════════════════════════════════════
 class _StepProgressBar extends StatelessWidget {
   const _StepProgressBar({
@@ -893,91 +957,124 @@ class _StepProgressBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
     final border = AppColors.resolve(AppColors.border, AppDarkColors.border);
+    final inkMuted =
+        AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
 
     return Row(
-      children: List.generate(totalSteps, (i) {
-        final active = i <= currentStep;
-        return Expanded(
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 280),
-            curve: Curves.easeInOut,
-            height: 6,
-            margin: EdgeInsets.only(right: i < totalSteps - 1 ? 6 : 0),
-            decoration: BoxDecoration(
-              color: active ? brand : border,
-              borderRadius: BorderRadius.circular(99),
-            ),
+      children: [
+        Expanded(
+          child: Row(
+            children: List.generate(totalSteps, (i) {
+              final active = i <= currentStep;
+              return Expanded(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                  height: 6,
+                  margin: EdgeInsets.only(right: i < totalSteps - 1 ? 6 : 0),
+                  decoration: BoxDecoration(
+                    color: active ? brand : border,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+              );
+            }),
           ),
-        );
-      }),
+        ),
+        const SizedBox(width: 14),
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 200),
+          child: Text(
+            '${currentStep + 1}/$totalSteps',
+            key: ValueKey(currentStep),
+            style: AppTypography.labelMedium(color: inkMuted)
+                .copyWith(fontWeight: FontWeight.w700),
+          ),
+        ),
+      ],
     );
   }
 }
 
 // ═══════════════════════════════════════════════════════════
-// _StepButton — Couleurs et ombres conservées
+// _StepButton — pilule en dégradé de la couleur de marque
+// (dégradé + ombre sur le Container, effet d'appui sur un Material rogné
+//  → aucun coin carré visible)
 // ═══════════════════════════════════════════════════════════
 class _StepButton extends StatelessWidget {
   const _StepButton({
     required this.label,
     required this.onPressed,
     this.isLoading = false,
+    this.icon = Icons.arrow_forward_rounded,
   });
 
   final String label;
   final VoidCallback onPressed;
   final bool isLoading;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
     final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+    final radius = BorderRadius.circular(999);
 
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(999), // Rendu très arrondi (Pilule)
-        boxShadow: [
-          BoxShadow(
-            color: brand.withValues(alpha: isLoading ? 0.12 : 0.30),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: SizedBox(
+    return Opacity(
+      opacity: isLoading ? 0.7 : 1,
+      child: Container(
         width: double.infinity,
         height: 56,
-        child: ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: brand,
-            foregroundColor: Colors.white,
-            elevation: 0,
-            disabledBackgroundColor: brand.withValues(alpha: 0.5),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(999),
-            ),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [brand, brand.withValues(alpha: 0.85)],
           ),
-          onPressed: isLoading ? null : onPressed,
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 200),
-            child: isLoading
-                ? const SizedBox(
-                    key: ValueKey('loading'),
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2.5,
-                    ),
-                  )
-                : Text(
-                    label,
-                    key: const ValueKey('label'),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 16,
-                      letterSpacing: 0.2,
-                    ),
-                  ),
+          borderRadius: radius,
+          boxShadow: [
+            BoxShadow(
+              color: brand.withValues(alpha: isLoading ? 0.12 : 0.32),
+              blurRadius: 18,
+              offset: const Offset(0, 9),
+            ),
+          ],
+        ),
+        child: Material(
+          type: MaterialType.transparency,
+          borderRadius: radius,
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: isLoading ? null : onPressed,
+            child: Center(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: isLoading
+                    ? Swirling(
+                        key: const ValueKey('loading'),
+                        size: 34,
+                        color: Colors.white,
+                      )
+                    : Row(
+                        key: const ValueKey('label'),
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 16,
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Icon(icon, color: Colors.white, size: 20),
+                        ],
+                      ),
+              ),
+            ),
           ),
         ),
       ),
@@ -986,7 +1083,7 @@ class _StepButton extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════
-// _BackButton — Adapté pour rester cohérent
+// _BackButton — rond, même hauteur que le bouton principal
 // ═══════════════════════════════════════════════════════════
 class _BackButton extends StatelessWidget {
   const _BackButton({required this.onPressed});
@@ -999,19 +1096,27 @@ class _BackButton extends StatelessWidget {
     final ink = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
     final card = AppColors.resolve(AppColors.card, AppDarkColors.card);
 
-    return Material(
-      color: card,
-      shape: CircleBorder(side: BorderSide(color: border)),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onPressed,
-        child: SizedBox(
-          width: 56,
-          height: 56,
-          child: Icon(
-            Icons.arrow_back_rounded,
-            color: ink,
-            size: 20,
+    return Container(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: ink.withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Material(
+        color: card,
+        shape: CircleBorder(side: BorderSide(color: border)),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onPressed,
+          child: SizedBox(
+            width: 56,
+            height: 56,
+            child: Icon(Icons.arrow_back_rounded, color: ink, size: 22),
           ),
         ),
       ),
@@ -1069,10 +1174,9 @@ class _CountryTile extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             if (isDetecting) ...[
-              const SizedBox(
-                width: 14,
-                height: 14,
-                child: CircularProgressIndicator(strokeWidth: 2),
+              Swirling(
+                size: 26,
+                color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
               ),
               const SizedBox(width: 8),
               Text(

@@ -2,7 +2,6 @@ import 'package:dios_delices/utils/toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:geocoding/geocoding.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/address.dart';
 import '../../db/database_helper.dart';
@@ -11,6 +10,7 @@ import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/session_service.dart';
 import '../../services/node_auth_service.dart';
+import '../../services/geocoding_api_service.dart';
 import '../../utils/country_util.dart';
 
 class LocationPage extends ConsumerStatefulWidget {
@@ -32,6 +32,7 @@ class _LocationPageState extends ConsumerState<LocationPage> {
   bool _isSaving = false;
   String? _detectedCity;
   String? _detectedCountry;
+  String? _nominatimPlaceId;
 
   TextEditingController locationController = TextEditingController();
   TextEditingController cityController = TextEditingController();
@@ -108,41 +109,45 @@ class _LocationPageState extends ConsumerState<LocationPage> {
       }
 
       print('Trying to get address from coordinates...');
-      List<Placemark> placeMarks = [];
+      GeocodingResult? geoResult;
       try {
-        placeMarks = await placemarkFromCoordinates(
-            newPosition.latitude, newPosition.longitude);
-        print('Got ${placeMarks.length} placemarks');
+        geoResult = await GeocodingApiService.reverse(
+          newPosition.latitude,
+          newPosition.longitude,
+        );
+        print('Got reverse geocoding result via API (or fallback plugin)');
       } catch (e) {
-        print('Error getting placemarks: $e');
+        print('Error getting reverse geocoding result: $e');
       }
 
-      if (placeMarks.isNotEmpty) {
-        Placemark pMarks = placeMarks[0];
-        print('Placemark: $pMarks');
+      if (geoResult != null) {
+        print('GeocodingResult: $geoResult');
 
         _detectedCity = _firstNonEmpty([
-          pMarks.locality,
-          pMarks.subAdministrativeArea,
-          pMarks.administrativeArea,
+          geoResult.locality,
+          geoResult.subAdministrativeArea,
+          geoResult.administrativeArea,
         ]);
-        _detectedCountry = _firstNonEmpty([pMarks.country]);
+        _detectedCountry = _firstNonEmpty([geoResult.country]);
+        _nominatimPlaceId = geoResult.placeId;
         completeAddress = _joinAddressParts([
-          pMarks.thoroughfare,
-          pMarks.subLocality,
-          pMarks.locality,
-          pMarks.administrativeArea,
-          pMarks.country,
+          geoResult.thoroughfare,
+          geoResult.street,
+          geoResult.subLocality,
+          geoResult.locality,
+          geoResult.administrativeArea,
+          geoResult.country,
         ]);
-        // Certains résultats de géocodage contiennent des champs vides.
-        // Les coordonnées restent néanmoins une adresse de livraison valide.
+        if (completeAddress!.isEmpty) {
+          completeAddress = geoResult.displayName;
+        }
         if (completeAddress!.isEmpty) {
           completeAddress = _gpsAddress(newPosition);
         }
         locationController.text = completeAddress!;
         print('Complete address: $completeAddress');
       } else {
-        print('No placemarks found');
+        print('No reverse geocoding result');
         _setGpsAddress(newPosition);
         if (mounted) {
           Toast(
@@ -203,20 +208,24 @@ class _LocationPageState extends ConsumerState<LocationPage> {
     required String lat,
     required String long,
     required String country,
+    String? nominatimPlaceId,
   }) async {
     final nodeToken = await SessionService.readNodeToken();
     if (nodeToken != null) {
+      final body = <String, dynamic>{
+        'city': city,
+        'state': state,
+        'fullAddress': fullAddress,
+        'latitude': double.tryParse(lat),
+        'longitude': double.tryParse(long),
+        'country': country,
+        if (nominatimPlaceId != null && nominatimPlaceId.trim().isNotEmpty)
+          'nominatimPlaceId': nominatimPlaceId.trim(),
+      };
       final response = await NodeAuthService.postJson(
         '/addresses',
         token: nodeToken,
-        body: {
-          'city': city,
-          'state': state,
-          'fullAddress': fullAddress,
-          'latitude': double.tryParse(lat),
-          'longitude': double.tryParse(long),
-          'country': country,
-        },
+        body: body,
       );
       final data = response['data'];
       if (data is Map && data['addressId'] != null) {
@@ -294,6 +303,7 @@ class _LocationPageState extends ConsumerState<LocationPage> {
         lat: lat ?? '',
         long: long ?? '',
         country: effectiveCountry,
+        nominatimPlaceId: _nominatimPlaceId,
       );
 
       if (validationResult == "EXISTING_ADDRESS") {
@@ -389,26 +399,38 @@ class _LocationPageState extends ConsumerState<LocationPage> {
 
     setState(() => _isSaving = true);
     try {
-      // Géocodage adapté : adresse complète + quartier + ville + pays
       final query = [fullAddress, quarter, city, userCountry]
           .where((s) => s.isNotEmpty)
           .join(', ');
-      List<Location> locations = await locationFromAddress(query);
-      if (locations.isEmpty) {
-        // Réessayer sans le quartier
+      final results = await GeocodingApiService.search(
+        query,
+        limit: 3,
+      );
+      if (results.isEmpty) {
         final query2 = [fullAddress, city, userCountry]
             .where((s) => s.isNotEmpty)
             .join(', ');
-        locations = await locationFromAddress(query2);
+        final retry = await GeocodingApiService.search(
+          query2,
+          limit: 3,
+        );
+        if (retry.isEmpty) {
+          Toast(context, AppLocalizations.of(context)!.address_not_found_check,
+              false);
+          return;
+        }
+        results.addAll(retry);
       }
-      if (locations.isEmpty) {
+      if (results.isEmpty) {
         Toast(context, AppLocalizations.of(context)!.address_not_found_check,
             false);
         return;
       }
 
-      double lat = locations.first.latitude;
-      double long = locations.first.longitude;
+      final best = results.first;
+      double lat = best.latitude;
+      double long = best.longitude;
+      final placeId = best.placeId;
 
       final effectiveState = quarter.isNotEmpty ? quarter : userCountry;
       final effectiveCountry = CountryUtil.canonical(quarter).isNotEmpty
@@ -422,6 +444,7 @@ class _LocationPageState extends ConsumerState<LocationPage> {
         lat: lat.toString(),
         long: long.toString(),
         country: effectiveCountry.isNotEmpty ? effectiveCountry : 'RDC',
+        nominatimPlaceId: placeId,
       );
 
       if (validationResult == "EXISTING_ADDRESS") {
