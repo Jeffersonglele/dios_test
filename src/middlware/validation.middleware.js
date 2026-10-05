@@ -48,9 +48,15 @@ const validators = {
     }).required(), params: Joi.object(), query: Joi.object(),
   }),
   resetRequest: Joi.object({ body: Joi.object({ email: Joi.string().email().required() }), params: Joi.object(), query: Joi.object() }),
+  resetVerify: Joi.object({
+    body: Joi.object({ email: Joi.string().email().required(), code: Joi.string().trim().pattern(/^\d{6}$/).required() }),
+    params: Joi.object(),
+    query: Joi.object(),
+  }),
   resetPassword: Joi.object({
-    body: Joi.object({ email: Joi.string().email().required(), code: Joi.string().trim().required(), password: Joi.string().min(8).max(128).required() }),
-    params: Joi.object(), query: Joi.object(),
+    body: Joi.object({ email: Joi.string().email().required(), code: Joi.string().trim().pattern(/^\d{6}$/).required(), password: Joi.string().min(8).max(128).required() }),
+    params: Joi.object(),
+    query: Joi.object(),
   }),
   emailVerification: Joi.object({
     body: Joi.object({ code: Joi.string().trim().pattern(/^\d{6}$/).required() }),

@@ -364,6 +364,28 @@ async function resetPassword(req, res, next) {
   }
 }
 
+async function verifyPasswordResetCode(req, res, next) {
+  try {
+    const { email, code } = req.body;
+    if (!email || !code) throw badRequest('Email et code sont obligatoires.');
+
+    const verification = await prisma.verificationCode.findFirst({
+      where: {
+        email: String(email).trim().toLowerCase(),
+        code: String(code).trim(),
+        purpose: 'password_reset',
+        verified: false,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!verification) throw badRequest('Le code est invalide ou expiré.');
+    return res.status(200).json({ data: { valid: true, message: 'Code valide.' } });
+  } catch (error) {
+    return handleControllerError(error, next);
+  }
+}
+
 async function updateMe(req, res, next) {
   try {
     const userId = req.auth?.userId;
@@ -426,10 +448,11 @@ module.exports = {
   confirmEmailVerification,
   login,
   me,
-  updateMe,
-  register,
+  resetPassword,
   requestEmailVerification,
   requestPasswordReset,
-  resetPassword,
   serializeUser,
+  updateMe,
+  verifyPasswordResetCode,
+  register,
 };
