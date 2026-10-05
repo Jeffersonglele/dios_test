@@ -48,7 +48,12 @@ function registrationRoleId() {
   return Number.isInteger(configured) ? configured : 2;
 }
 
-
+async function nextLegacyUserId(tx) {
+  const row = await (tx ?? prisma).user.aggregate({ _max: { userId: true } });
+  const currentMax = Number(row?._max?.userId ?? 0);
+  if (!Number.isFinite(currentMax) || currentMax < 0) return 1;
+  return currentMax + 1;
+}
 
 async function recoverOrphanedRegistration(existing, req, normalizedUsername, normalizedEmail, password) {
   const sameUsername = existing.username?.trim().toLowerCase() === normalizedUsername.toLowerCase();
