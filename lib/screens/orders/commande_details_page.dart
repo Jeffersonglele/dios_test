@@ -1263,10 +1263,8 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage>
                     context,
                     MaterialPageRoute(
                       builder: (_) => ChatScreen(
-                        withUserID: _isRestaurantView
-                            ? _commande.userID
-                            : _commande.restaurateurID,
-                        withUsername: _isRestaurantView
+                        orderId: _commande.commandeID,
+                        recipientName: _isRestaurantView
                             ? _clientName
                             : _restaurantName.isNotEmpty
                                 ? _restaurantName

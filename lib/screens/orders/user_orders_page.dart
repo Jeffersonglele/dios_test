@@ -497,8 +497,8 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
                                   context,
                                   MaterialPageRoute(
                                       builder: (_) => ChatScreen(
-                                          withUserID: c.userID,
-                                          withUsername:
+                                          orderId: c.commandeID,
+                                          recipientName:
                                               'Client #${c.commandeID}'))),
                             ),
                           ],

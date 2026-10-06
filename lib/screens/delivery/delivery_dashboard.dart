@@ -944,8 +944,8 @@ class _DeliveryDashboardState extends State<DeliveryDashboard> {
                                     context,
                                     MaterialPageRoute(
                                         builder: (_) => ChatScreen(
-                                            withUserID: c.userID,
-                                            withUsername:
+                                            orderId: c.commandeID,
+                                            recipientName:
                                                 'Client #${c.userID}'))),
                               ),
                             if (status == DeliveryStatus.assigned ||

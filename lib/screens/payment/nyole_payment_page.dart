@@ -30,7 +30,7 @@ class _NyolePaymentPageState extends State<NyolePaymentPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Paiement Nyole'),
+        title: const Text('Paiement'),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () {

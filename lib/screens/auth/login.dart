@@ -241,7 +241,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                 ? AppLocalizations.of(context)!
                                     .admin_welcome_title
                                 : AppLocalizations.of(context)!.welcome,
-                            style: AppTypography.headlineLarge(),
+                            style: AppTypography.headlineLarge(color: AppColors.resolve(
+                                  AppColors.inkMuted, AppDarkColors.inkMuted)),
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: AppSpacing.sm),

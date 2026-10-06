@@ -61,6 +61,7 @@ class _CartState extends ConsumerState<Cart> {
   double? _calculatedDeliveryFee;
   String? _deliveryFeeKey;
   int _deliveryFeeRequestId = 0;
+  bool _isDeliveryFeeLoading = false;
 
   delivery.Address? selectedAddress;
   List<delivery.Address> addresses = [];
@@ -695,6 +696,7 @@ class _CartState extends ConsumerState<Cart> {
     if (deliveryMode != kDeliveryOptionLivraison || cartItems.isEmpty) {
       _deliveryFeeKey = null;
       _calculatedDeliveryFee = null;
+      _isDeliveryFeeLoading = false;
       return;
     }
 
@@ -703,6 +705,7 @@ class _CartState extends ConsumerState<Cart> {
 
     _deliveryFeeKey = key;
     _calculatedDeliveryFee = null;
+    _isDeliveryFeeLoading = true;
     final requestId = ++_deliveryFeeRequestId;
     calculateDeliveryFee(cartItems).then((fee) {
       if (!mounted ||
@@ -710,7 +713,10 @@ class _CartState extends ConsumerState<Cart> {
           _deliveryFeeKey != key) {
         return;
       }
-      setState(() => _calculatedDeliveryFee = fee);
+      setState(() {
+        _calculatedDeliveryFee = fee;
+        _isDeliveryFeeLoading = false;
+      });
     });
   }
 
@@ -809,15 +815,20 @@ class _CartState extends ConsumerState<Cart> {
     final cc = _currencyCode(country);
     final cs = _currencySymbol(country);
     _ensureDisplayedDeliveryFee(cartItems, safeOption);
+    // N'afficher le montant de livraison que lorsqu'il est effectivement calculé.
+    // Pendant le chargement, deliveryFee reste à null pour éviter
+    // un flash visuel (ex: 500 → 1500 FCFA).
     final deliveryFee = safeOption == kDeliveryOptionLivraison
-        ? (_calculatedDeliveryFee ?? _staticDeliveryFee(cartItems))
+        ? _calculatedDeliveryFee
         : 0.0;
+    final bool deliveryFeeLoading =
+        safeOption == kDeliveryOptionLivraison && _isDeliveryFeeLoading;
     
-    debugPrint('🚚 Final delivery fee: $deliveryFee (calculated: $_calculatedDeliveryFee, static: ${_staticDeliveryFee(cartItems)})');
+    debugPrint('🚚 Final delivery fee: $deliveryFee (calculated: $_calculatedDeliveryFee, loading: $deliveryFeeLoading)');
     final cartTotal = _subtotal(cartItems);
     final reduction = _appliedPromo?.discountAmount ?? 0.0;
     final payableTotal =
-        (cartTotal + deliveryFee - reduction).clamp(0.0, double.infinity);
+        (cartTotal + (deliveryFee ?? 0.0) - reduction).clamp(0.0, double.infinity);
     final deliveryBlocked = _cartDeliveryAvailability != null &&
         !_cartDeliveryAvailability!.canOrder;
     final restaurantClosed =
@@ -1023,7 +1034,7 @@ class _CartState extends ConsumerState<Cart> {
                         height: 54,
                         child: ElevatedButton(
                           onPressed: () => _applyPromo(
-                              cartItems: cartItems, deliveryFee: deliveryFee),
+                              cartItems: cartItems, deliveryFee: deliveryFee ?? 0.0),
                           child: Text(l10n.cart_promo_apply),
                         ),
                       ),
@@ -1059,7 +1070,9 @@ class _CartState extends ConsumerState<Cart> {
                         l10n.subtotal, _formatAmount(cartTotal, cc, cs)),
                     if (safeOption == kDeliveryOptionLivraison)
                       CartSummaryRow(l10n.deliveryFee,
-                          CurrencyUtil.formatConvertedPrice(deliveryFee)),
+                          deliveryFeeLoading
+                              ? '...'
+                              : CurrencyUtil.formatConvertedPrice(deliveryFee ?? 0.0)),
                     if (_appliedPromo != null)
                       CartSummaryRow(
                         l10n.cart_discount,
@@ -1068,7 +1081,10 @@ class _CartState extends ConsumerState<Cart> {
                       ),
                     const CartDashedDivider(),
                     CartTotalRow(
-                        l10n.total, _formatAmount(payableTotal, cc, cs)),
+                        l10n.total,
+                        deliveryFeeLoading
+                            ? '...'
+                            : _formatAmount(payableTotal, cc, cs)),
                   ],
                 ),
               ),
