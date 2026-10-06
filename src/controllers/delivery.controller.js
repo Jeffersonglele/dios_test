@@ -329,12 +329,12 @@ async function clientUnreachable(req, res, next) {
     const delivery = await prisma.delivery.findUnique({ where: { orderId } });
     if (!delivery) throw notFound('Livraison introuvable');
     if (delivery.delivererId !== delivererId) throw badRequest('Non autorisé');
-    if (!delivery.driverArrivedAt) throw badRequest('Le livreur n\\'est pas encore arrivé');
+    if (!delivery.driverArrivedAt) throw badRequest('Le livreur n\'est pas encore arrivé');
 
     const now = new Date();
     const diff = now.getTime() - delivery.driverArrivedAt.getTime();
     if (diff < 10 * 60 * 1000) {
-      throw badRequest('Le délai d\\'attente de 10 minutes n\\'est pas encore écoulé');
+      throw badRequest('Le délai d\'attente de 10 minutes n\'est pas encore écoulé');
     }
 
     const order = await prisma.order.findUnique({ where: { orderId } });
