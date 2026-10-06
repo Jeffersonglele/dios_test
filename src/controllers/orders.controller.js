@@ -122,6 +122,7 @@ async function createOrder(req, res, next) {
           externalOrderId,
           userId,
           restaurantId,
+          restaurateurId: Number.isInteger(restaurant.userId) ? restaurant.userId : null,
           deliveryMode: isDelivery ? 'DELIVERY' : 'PICKUP',
           deliveryFee,
           reduction,
