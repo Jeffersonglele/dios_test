@@ -307,7 +307,7 @@ async function driverArrived(req, res, next) {
 
     const delivery = await prisma.delivery.findUnique({ where: { orderId } });
     if (!delivery) throw notFound('Livraison introuvable');
-    if (delivery.delivererId !== delivererId) throw badRequest('Non autorisé : vous n\\'êtes pas le livreur assigné');
+    if (delivery.delivererId !== delivererId) throw badRequest('Non autorisé : vous n\'êtes pas le livreur assigné');
 
     const updated = await prisma.delivery.update({
       where: { orderId },
