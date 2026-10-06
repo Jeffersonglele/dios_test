@@ -38,6 +38,17 @@ async function nextOrderId(tx) {
   return (last?.orderId || 0) + 1;
 }
 
+const OTP_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+function generateRetrievalOtp(length = 4) {
+  const chunks = [];
+  for (let i = 0; i < length; i += 1) {
+    chunks.push(
+      OTP_ALPHABET[Math.floor(Math.random() * OTP_ALPHABET.length)],
+    );
+  }
+  return chunks.join('');
+}
+
 function hasRole(roleName, roleId) {
   const configured = String(process.env[`${roleName}_ROLE_IDS`] || '')
     .split(',')
@@ -151,6 +162,8 @@ async function createOrder(req, res, next) {
           orderedAt: payload.orderedAt ? new Date(payload.orderedAt) : new Date(),
           status: paymentMethod === 'CASH' ? 'CONFIRMED_CASH' : 'AWAITING_PAYMENT',
           orderStatus: paymentMethod === 'CASH' ? 'CONFIRMED_CASH' : 'AWAITING_PAYMENT',
+          retrievalOtp: generateRetrievalOtp(4),
+          isOtpVerified: false,
         },
       });
 
@@ -329,8 +342,334 @@ async function updateOrderStatus(req, res, next) {
   }
 }
 
+async function verifyRetrievalOrder(req, res, next) {
+  try {
+    const order = await prisma.order.findFirst({
+      where: { id: req.params.id, deletedAt: null },
+    });
+    if (!order) throw notFound('Commande');
+
+    const otp = typeof req.body.otp === 'string' ? req.body.otp.trim().toUpperCase() : '';
+    const proofPhotoUrl = typeof req.body.proofPhotoUrl === 'string'
+      ? req.body.proofPhotoUrl.trim()
+      : req.body.proofPhotoUrl;
+
+    const isDelivery = String(order.deliveryMode || '').toUpperCase() === 'DELIVERY';
+
+    if (!otp) {
+      throw badRequest("Le code OTP est obligatoire pour valider la remise.");
+    }
+
+    if (isDelivery) {
+      if (!proofPhotoUrl) {
+        throw badRequest('Photo de preuve obligatoire pour la livraison.');
+      }
+      if (order.delivererId === null || order.delivererId === undefined) {
+        const err = new Error('Aucun livreur n\'est assigné à cette commande.');
+        err.statusCode = 400;
+        throw err;
+      }
+      if (Number(order.delivererId) !== Number(req.auth.userId)) {
+        const err = new Error('Seul le livreur assigné peut valider cette livraison.');
+        err.statusCode = 403;
+        throw err;
+      }
+      if (!order.retrievalOtp || otp !== String(order.retrievalOtp).toUpperCase()) {
+        throw badRequest('Code OTP incorrect.');
+      }
+      if (order.isOtpVerified === true) {
+        return res.status(200).json({
+          data: { message: 'La livraison est déjà validée.', order },
+        });
+      }
+
+      const isCashPayment = order.paymentProvider === 'CASH';
+
+      const result = await prisma.$transaction(async (tx) => {
+        const updated = await tx.order.update({
+          where: { id: order.id },
+          data: {
+            isOtpVerified: true,
+            proofPhotoUrl,
+            status: 'DELIVERED',
+            orderStatus: 'DELIVERED',
+            deliveryStatus: 'DELIVERED',
+          },
+        });
+
+        if (isCashPayment && order.delivererId) {
+          const deliverer = await tx.user.findFirst({
+            where: { userId: order.delivererId, deletedAt: null },
+          });
+          if (deliverer) {
+            await tx.user.update({
+              where: { id: deliverer.id },
+              data: {
+                cashOnHand: {
+                  increment: Number(order.totalAmount || 0),
+                },
+              },
+            });
+          }
+        }
+
+        return updated;
+      });
+
+      const orderIdentifier = result.orderId ?? result.id;
+      if (orderIdentifier) {
+        broadcastDeliveryStatus({
+          orderId: orderIdentifier,
+          status: 'DELIVERED',
+          courierId: order.delivererId,
+          extra: { orderStatus: result.orderStatus, status: result.status },
+        });
+      }
+      return res.status(200).json({
+        data: { message: 'Livraison validée avec succès.', order: result },
+      });
+    }
+
+    // Cas B : À EMPORTER (PICKUP)
+    const restaurant = await prisma.restaurant.findFirst({
+      where: { restaurantId: order.restaurantId, deletedAt: null },
+    });
+    if (!restaurant) {
+      throw notFound('Restaurant associé à la commande.');
+    }
+    if (Number(restaurant.userId) !== Number(req.auth.userId)) {
+      const err = new Error('Seul le restaurateur propriétaire peut valider ce retrait.');
+      err.statusCode = 403;
+      throw err;
+    }
+    if (!order.retrievalOtp || otp !== String(order.retrievalOtp).toUpperCase()) {
+      throw badRequest('Code OTP incorrect.');
+    }
+    if (order.isOtpVerified === true) {
+      return res.status(200).json({
+        data: { message: 'Le retrait est déjà validé.', order },
+      });
+    }
+    const updated = await prisma.order.update({
+      where: { id: order.id },
+      data: {
+        isOtpVerified: true,
+        status: 'COMPLETED',
+        orderStatus: 'COMPLETED',
+      },
+    });
+    const orderIdentifier = updated.orderId ?? updated.id;
+    if (orderIdentifier) {
+      broadcastDeliveryStatus({
+        orderId: orderIdentifier,
+        status: 'COMPLETED',
+        courierId: updated.delivererId,
+        extra: { orderStatus: updated.orderStatus, status: updated.status },
+      });
+    }
+    return res.status(200).json({
+      data: { message: 'Retrait validé avec succès.', order: updated },
+    });
+  } catch (error) {
+    return handleControllerError(error, next);
+  }
+}
+
+async function submitDispute(req, res, next) {
+  try {
+    const orderId = Number.parseInt(req.params.orderId, 10);
+    const { reason, proofPhotoUrl } = req.body;
+    const userId = req.auth.userId;
+
+    if (!Number.isInteger(orderId)) throw badRequest('orderId invalide');
+    if (!reason || typeof reason !== 'string' || reason.trim() === '') {
+      throw badRequest('La raison du litige est obligatoire');
+    }
+    if (!proofPhotoUrl || typeof proofPhotoUrl !== 'string' || proofPhotoUrl.trim() === '') {
+      throw badRequest('La photo de preuve est obligatoire');
+    }
+
+    const order = await prisma.order.findFirst({
+      where: { orderId, deletedAt: null },
+    });
+    if (!order) throw notFound('Commande introuvable');
+
+    if (order.userId !== userId) {
+      const err = new Error('Seul le client peut soumettre un litige pour sa commande');
+      err.statusCode = 403;
+      throw err;
+    }
+
+    const delivery = await prisma.delivery.findUnique({
+      where: { orderId },
+    });
+    if (!delivery) throw notFound('Livraison introuvable');
+
+    if (!delivery.deliveredAt) {
+      throw badRequest('La commande n\'a pas encore été livrée');
+    }
+
+    const now = new Date();
+    const diff = now.getTime() - delivery.deliveredAt.getTime();
+    const sixtyMinutesInMs = 60 * 60 * 1000;
+
+    if (diff > sixtyMinutesInMs) {
+      const err = new Error('Le délai de réclamation de 60 minutes est dépassé');
+      err.statusCode = 403;
+      throw err;
+    }
+
+    const existingDispute = await prisma.dispute.findUnique({
+      where: { orderId },
+    });
+    if (existingDispute) {
+      throw badRequest('Un litige existe déjà pour cette commande');
+    }
+
+    const dispute = await prisma.dispute.create({
+      data: {
+        orderId,
+        userId,
+        reason: reason.trim(),
+        proofPhotoUrl: proofPhotoUrl.trim(),
+        status: 'OPEN',
+      },
+    });
+
+    return res.status(201).json({ data: dispute });
+  } catch (error) {
+    return handleControllerError(error, next);
+  }
+}
+
+async function payOrderWithWallet(req, res, next) {
+  try {
+    const orderId = req.params.orderId;
+    const userId = req.auth.userId;
+
+    if (!orderId) throw badRequest('orderId est obligatoire');
+
+    const order = await prisma.order.findFirst({
+      where: { id: orderId, deletedAt: null },
+      select: {
+        id: true,
+        orderId: true,
+        userId: true,
+        totalAmount: true,
+        status: true,
+        orderStatus: true,
+        paymentProvider: true,
+        currency: true,
+      },
+    });
+
+    if (!order) throw notFound('Commande introuvable');
+    if (order.userId !== userId) {
+      const err = new Error('Non autorisé : cette commande ne vous appartient pas');
+      err.statusCode = 403;
+      throw err;
+    }
+
+    const payableStatuses = ['PENDING', 'AWAITING_PAYMENT', 'ACCEPTED', 'CONFIRMED_CASH'];
+    if (!payableStatuses.includes(order.status) && !payableStatuses.includes(order.orderStatus)) {
+      throw badRequest('Cette commande ne peut plus être payée (statut invalide)');
+    }
+
+    if (order.paymentProvider === 'WALLET') {
+      throw badRequest('Cette commande est déjà payée avec le portefeuille');
+    }
+
+    const wallet = await prisma.walletAccount.findUnique({
+      where: { userId },
+    });
+
+    if (!wallet) {
+      throw badRequest('Portefeuille introuvable. Veuillez initialiser votre portefeuille.');
+    }
+
+    if (wallet.status !== 'ACTIVE') {
+      throw badRequest('Portefeuille inactif. Veuillez activer votre portefeuille.');
+    }
+
+    const walletBalance = Number(wallet.balance || 0);
+    const orderAmount = Number(order.totalAmount || 0);
+
+    if (walletBalance < orderAmount) {
+      const err = new Error('Solde insuffisant. Veuillez recharger votre portefeuille.');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      const recheckOrder = await tx.order.findUnique({
+        where: { id: orderId },
+        select: { paymentProvider: true },
+      });
+
+      if (recheckOrder && recheckOrder.paymentProvider === 'WALLET') {
+        throw badRequest('Cette commande a déjà été payée par un autre processus.');
+      }
+
+      const updatedWallet = await tx.walletAccount.update({
+        where: { id: wallet.id },
+        data: {
+          balance: {
+            decrement: orderAmount,
+          },
+        },
+      });
+
+      const ledgerEntry = await tx.walletLedgerEntry.create({
+        data: {
+          walletAccountId: wallet.id,
+          direction: 'DEBIT',
+          amount: orderAmount,
+          currency: order.currency || wallet.currency,
+          status: 'COMPLETED',
+          referenceType: 'ORDER_PAYMENT',
+          referenceId: String(order.orderId),
+          description: `Paiement commande #${order.orderId}`,
+          postedAt: new Date(),
+        },
+      });
+
+      const updatedOrder = await tx.order.update({
+        where: { id: orderId },
+        data: {
+          paymentProvider: 'WALLET',
+          status: 'PAID',
+          orderStatus: 'PAID',
+        },
+      });
+
+      return {
+        wallet: updatedWallet,
+        ledgerEntry,
+        order: updatedOrder,
+        newBalance: Number(updatedWallet.balance),
+      };
+    });
+
+    return res.status(200).json({
+      data: result,
+      message: 'Paiement effectué avec succès',
+    });
+  } catch (error) {
+    return handleControllerError(error, next);
+  }
+}
+
 module.exports = {
-  order: { ...orderCrud, create: createOrder, list: listOrders, getDetails: getOrderDetails, updateStatus: updateOrderStatus },
+  order: {
+    ...orderCrud,
+    create: createOrder,
+    list: listOrders,
+    getDetails: getOrderDetails,
+    updateStatus: updateOrderStatus,
+    verifyRetrieval: verifyRetrievalOrder,
+    submitDispute,
+    payOrderWithWallet,
+  },
   orderLine: orderLineCrud,
   ORDER_FIELDS,
   ORDER_LINE_FIELDS,

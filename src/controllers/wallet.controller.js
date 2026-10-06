@@ -21,16 +21,34 @@ function normalizeOperator(value) {
 
 async function walletSummary(req, res, next) {
   try {
-    const wallet = await prisma.walletAccount.findUnique({ where: { userId: req.auth.userId } });
+    let wallet = await prisma.walletAccount.findUnique({ where: { userId: req.auth.userId } });
+
     if (!wallet) {
-      return res.status(200).json({ data: { currency: 'CDF', status: 'DISABLED', balance: 0, activationRequired: true } });
+      wallet = await prisma.walletAccount.create({
+        data: {
+          userId: req.auth.userId,
+          currency: 'CDF',
+          balance: 0,
+          status: 'ACTIVE',
+        },
+      });
     }
-    const entries = await prisma.walletLedgerEntry.findMany({
-      where: { walletAccountId: wallet.id, status: 'POSTED' }, select: { direction: true, amount: true },
+
+    const ledgerEntries = await prisma.walletLedgerEntry.findMany({
+      where: { walletAccountId: wallet.id },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
     });
-    const balance = entries.reduce((total, entry) => total + (entry.direction === 'CREDIT' ? Number(entry.amount) : -Number(entry.amount)), 0);
+
     return res.status(200).json({
-      data: { id: wallet.id, currency: wallet.currency, status: wallet.status, balance, activationRequired: wallet.status !== 'ACTIVE' },
+      data: {
+        id: wallet.id,
+        userId: wallet.userId,
+        currency: wallet.currency,
+        balance: Number(wallet.balance),
+        status: wallet.status,
+        ledgerEntries,
+      },
     });
   } catch (error) {
     return handleControllerError(error, next);
@@ -57,6 +75,70 @@ async function requestTopUp(req, res, next) {
   const error = new Error('Le portefeuille Dios Delices est désactivé tant que le partenaire de paiement et le cadre RDC ne sont pas validés.');
   error.statusCode = 503;
   return next(error);
+}
+
+async function topUpWallet(req, res, next) {
+  try {
+    const { amount, referenceId } = req.body;
+    const userId = req.auth.userId;
+
+    if (!amount || !Number.isFinite(amount) || amount <= 0) {
+      throw badRequest('Le montant doit être strictement positif');
+    }
+    if (!referenceId || typeof referenceId !== 'string' || referenceId.trim() === '') {
+      throw badRequest('referenceId est obligatoire');
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      let wallet = await tx.walletAccount.findUnique({ where: { userId } });
+
+      if (!wallet) {
+        wallet = await tx.walletAccount.create({
+          data: {
+            userId,
+            currency: 'CDF',
+            balance: 0,
+            status: 'ACTIVE',
+          },
+        });
+      }
+
+      const ledgerEntry = await tx.walletLedgerEntry.create({
+        data: {
+          walletAccountId: wallet.id,
+          direction: 'CREDIT',
+          amount: Number(amount),
+          currency: wallet.currency,
+          status: 'COMPLETED',
+          referenceType: 'TOP_UP',
+          referenceId: referenceId.trim(),
+          description: 'Recharge de portefeuille',
+          postedAt: new Date(),
+        },
+      });
+
+      const updatedWallet = await tx.walletAccount.update({
+        where: { id: wallet.id },
+        data: {
+          balance: {
+            increment: Number(amount),
+          },
+        },
+      });
+
+      return { wallet: updatedWallet, ledgerEntry };
+    });
+
+    return res.status(200).json({
+      data: {
+        wallet: result.wallet,
+        ledgerEntry: result.ledgerEntry,
+        newBalance: Number(result.wallet.balance),
+      },
+    });
+  } catch (error) {
+    return handleControllerError(error, next);
+  }
 }
 
 async function listMobileMoneyAccounts(req, res, next) {
@@ -126,6 +208,7 @@ module.exports = {
   removeMobileMoneyAccount,
   requestTopUp,
   setDefaultMobileMoneyAccount,
+  topUpWallet,
   walletLedger,
   walletSummary,
 };

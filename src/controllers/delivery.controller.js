@@ -1,6 +1,6 @@
 const prisma = require('../config/prisma');
 const { createCrudController } = require('./crud.controller');
-const { badRequest, handleControllerError, notFound } = require('./controller.utils');
+const { badRequest, handleControllerError, notFound, conflict } = require('./controller.utils');
 const dispatch = require('../services/delivery-dispatch.service');
 const geolocation = require('../services/geolocation.service');
 const { quoteDelivery } = require('../services/delivery-pricing.service');
@@ -299,6 +299,236 @@ async function getCourierEarnings(req, res, next) {
   }
 }
 
+async function driverArrived(req, res, next) {
+  try {
+    const orderId = Number.parseInt(req.params.orderId, 10);
+    const delivererId = req.auth.userId;
+    if (!Number.isInteger(orderId)) throw badRequest('orderId invalide');
+
+    const delivery = await prisma.delivery.findUnique({ where: { orderId } });
+    if (!delivery) throw notFound('Livraison introuvable');
+    if (delivery.delivererId !== delivererId) throw badRequest('Non autorisé : vous n\\'êtes pas le livreur assigné');
+
+    const updated = await prisma.delivery.update({
+      where: { orderId },
+      data: { driverArrivedAt: new Date() }
+    });
+
+    return res.status(200).json({ data: updated });
+  } catch (error) {
+    return handleControllerError(error, next);
+  }
+}
+
+async function clientUnreachable(req, res, next) {
+  try {
+    const orderId = Number.parseInt(req.params.orderId, 10);
+    const delivererId = req.auth.userId;
+    if (!Number.isInteger(orderId)) throw badRequest('orderId invalide');
+
+    const delivery = await prisma.delivery.findUnique({ where: { orderId } });
+    if (!delivery) throw notFound('Livraison introuvable');
+    if (delivery.delivererId !== delivererId) throw badRequest('Non autorisé');
+    if (!delivery.driverArrivedAt) throw badRequest('Le livreur n\\'est pas encore arrivé');
+
+    const now = new Date();
+    const diff = now.getTime() - delivery.driverArrivedAt.getTime();
+    if (diff < 10 * 60 * 1000) {
+      throw badRequest('Le délai d\\'attente de 10 minutes n\\'est pas encore écoulé');
+    }
+
+    const order = await prisma.order.findUnique({ where: { orderId } });
+    if (!order) throw notFound('Commande introuvable');
+
+    const isCashPayment = order.paymentProvider === 'CASH';
+    let user = null;
+    if (isCashPayment && order.userId) {
+      user = await prisma.user.findFirst({ where: { userId: order.userId, deletedAt: null } });
+    }
+
+    const updates = [
+      prisma.order.update({
+        where: { orderId },
+        data: {
+          status: 'CANCELLED',
+          cancelledBy: 'CLIENT',
+          cancellationReason: 'Client injoignable',
+          cancelledAt: now
+        }
+      }),
+      prisma.delivery.update({
+        where: { orderId },
+        data: {
+          status: 'CANCELLED',
+          cancellationReason: 'Client injoignable',
+          cancelledAt: now
+        }
+      })
+    ];
+
+    if (user) {
+      updates.push(
+        prisma.user.update({
+          where: { id: user.id },
+          data: {
+            cashDebtAmount: {
+              increment: Number(order.totalAmount || 0)
+            }
+          }
+        })
+      );
+    }
+
+    await prisma.$transaction(updates);
+
+    return res.status(200).json({ success: true, message: 'Commande annulée pour client injoignable' });
+  } catch (error) {
+    return handleControllerError(error, next);
+  }
+}
+
+async function listAvailableDeliveries(req, res, next) {
+  try {
+    const lat = Number(req.query.lat);
+    const lng = Number(req.query.lng);
+    const radiusKm = Number(req.query.radiusKm) || 5;
+
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      throw badRequest('lat et lng sont obligatoires');
+    }
+    if (!Number.isFinite(radiusKm) || radiusKm <= 0) {
+      throw badRequest('radiusKm doit être un nombre positif');
+    }
+
+    const deliveries = await prisma.$queryRaw`
+      SELECT
+        o."orderId",
+        o."id",
+        o."totalAmount",
+        o."paymentProvider",
+        o."orderedAt",
+        o."deliveryAddressSnapshot",
+        o."restaurantId",
+        r."name" as "restaurantName",
+        r."address" as "restaurantAddress",
+        r."location" as "restaurantLocation",
+        d."id" as "deliveryId",
+        d."status" as "deliveryStatus",
+        d."quotedDistanceKm"
+      FROM "orders" o
+      INNER JOIN "restaurants" r ON o."restaurantId" = r."restaurantId"
+      INNER JOIN "deliveries" d ON o."orderId" = d."orderId"
+      WHERE o."deletedAt" IS NULL
+        AND r."deletedAt" IS NULL
+        AND d."deletedAt" IS NULL
+        AND o."deliveryMode" = 'DELIVERY'
+        AND o."delivererId" IS NULL
+        AND d."status" = 'SEARCHING'
+        AND r."location" IS NOT NULL
+        AND ST_DWithin(
+          r."location",
+          ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography,
+          ${radiusKm * 1000}
+        )
+      ORDER BY o."orderedAt" ASC
+      LIMIT 50
+    `;
+
+    return res.status(200).json({ data: deliveries });
+  } catch (error) {
+    return handleControllerError(error, next);
+  }
+}
+
+const MAX_CASH_ON_HAND = 50000;
+
+async function acceptOrder(req, res, next) {
+  try {
+    const orderId = req.params.orderId;
+    const delivererId = req.auth.userId;
+
+    if (!orderId) throw badRequest('orderId est obligatoire');
+
+    const user = await prisma.user.findFirst({
+      where: { userId: delivererId, deletedAt: null },
+      select: { id: true, cashOnHand: true, userId: true },
+    });
+    if (!user) throw notFound('Livreur introuvable');
+
+    const order = await prisma.order.findFirst({
+      where: { id: orderId, deletedAt: null },
+      select: {
+        id: true,
+        orderId: true,
+        totalAmount: true,
+        paymentProvider: true,
+        delivererId: true,
+        status: true,
+      },
+    });
+    if (!order) throw notFound('Commande introuvable');
+
+    if (order.delivererId !== null) {
+      throw conflict('Cette commande a déjà été acceptée par un autre livreur.');
+    }
+
+    if (order.paymentProvider === 'CASH') {
+      const currentCashOnHand = Number(user.cashOnHand || 0);
+      const orderAmount = Number(order.totalAmount || 0);
+      if (currentCashOnHand + orderAmount > MAX_CASH_ON_HAND) {
+        const err = new Error('Plafond d\'espèces atteint. Veuillez effectuer un reversement Mobile Money pour accepter de nouvelles commandes en espèces.');
+        err.statusCode = 403;
+        throw err;
+      }
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      const recheckOrder = await tx.order.findUnique({
+        where: { id: orderId },
+        select: { delivererId: true },
+      });
+
+      if (!recheckOrder || recheckOrder.delivererId !== null) {
+        throw conflict('Cette commande a déjà été acceptée par un autre livreur.');
+      }
+
+      const updatedOrder = await tx.order.update({
+        where: { id: orderId },
+        data: {
+          delivererId: user.userId,
+          status: 'ACCEPTED',
+        },
+      });
+
+      const updatedDelivery = await tx.delivery.update({
+        where: { orderId: order.orderId },
+        data: {
+          delivererId: user.userId,
+          status: 'ASSIGNED',
+          acceptedAt: new Date(),
+        },
+      });
+
+      await tx.user.update({
+        where: { id: user.id },
+        data: { courierStatus: 'BUSY' },
+      });
+
+      return { order: updatedOrder, delivery: updatedDelivery };
+    });
+
+    broadcastDeliveryStatus({
+      orderId: order.orderId,
+      status: 'ASSIGNED',
+      courierId: user.userId,
+    });
+
+    return res.status(200).json({ data: result });
+  } catch (error) {
+    return handleControllerError(error, next);
+  }
+}
+
 module.exports = {
   city,
   zone: { ...zone, resolve: resolveZone },
@@ -315,5 +545,9 @@ module.exports = {
   acceptDeliveryOffer,
   rejectDeliveryOffer,
   updateDeliveryStatus,
+  driverArrived,
+  clientUnreachable,
+  listAvailableDeliveries,
+  acceptOrder,
   pointIsInsidePolygon,
 };

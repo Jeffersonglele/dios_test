@@ -110,6 +110,8 @@ model User {
   mustChangePassword  Boolean                               @default(false)
   maxDeliveryDistance Float?                                @map("max_delivery_distance")
   isSimplified        Boolean                               @default(false)
+  cashDebtAmount      Decimal                               @default(0) @db.Decimal(14, 2)
+  cashOnHand          Decimal                               @default(0) @db.Decimal(14, 2)
   deletedAt           DateTime?
   createdAt           DateTime                              @default(now())
   updatedAt           DateTime                              @updatedAt
@@ -192,6 +194,7 @@ model Restaurant {
   iban              String?
   bankName          String?
   accountHolder     String?
+  consecutiveCancellations Int                              @default(0)
   deletedAt         DateTime?
   createdAt         DateTime                              @default(now())
   updatedAt         DateTime                              @updatedAt
@@ -378,6 +381,15 @@ model Order {
   deliveryAddressSnapshot Json?     @map("delivery_address_snapshot")
   /// Informations du point de retrait figées dans la commande.
   pickupSnapshot          Json?     @map("pickup_snapshot")
+  /// Code OTP alphanumérique à 4 caractères pour valider la remise.
+  retrievalOtp            String?   @map("retrieval_otp")
+  /// Passe à `true` lorsque l'OTP a été vérifié avec succès (livraison ou retrait).
+  isOtpVerified           Boolean   @default(false) @map("is_otp_verified")
+  /// URL de la photo de preuve géolocalisée (uniquement pour la livraison).
+  proofPhotoUrl           String?   @map("proof_photo_url")
+  cancelledAt             DateTime?
+  cancellationReason      String?
+  cancelledBy             String?
   deletedAt               DateTime?
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
@@ -687,6 +699,7 @@ model Delivery {
   quotedDistanceKm   Decimal?  @map("quoted_distance_km") @db.Decimal(10, 3)
   acceptedAt         DateTime? @map("accepted_at")
   pickedUpAt         DateTime? @map("picked_up_at")
+  driverArrivedAt    DateTime? @map("driver_arrived_at")
   deliveredAt        DateTime? @map("delivered_at")
   cancelledAt        DateTime? @map("cancelled_at")
   cancellationReason String?   @map("cancellation_reason")
@@ -758,7 +771,8 @@ model WalletAccount {
   id        String   @id @default(uuid()) @db.Uuid
   userId    Int      @unique @map("user_id")
   currency  String   @default("CDF")
-  status    String   @default("DISABLED")
+  balance   Decimal  @default(0) @db.Decimal(14, 2)
+  status    String   @default("ACTIVE")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -982,3 +996,20 @@ model Subscription {
   @@index([status])
   @@map("subscriptions")
 }
+
+/// Litige soumis pour une commande (ex. 60 min max après livraison).
+model Dispute {
+  id            String   @id @default(uuid()) @db.Uuid
+  orderId       Int      @unique @map("commande_id")
+  userId        Int      @map("client_id")
+  reason        String
+  proofPhotoUrl String   @map("proof_photo_url")
+  faultyParty   String?  @map("faulty_party")
+  refundAmount  Decimal? @db.Decimal(14, 2)
+  status        String   @default("OPEN")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("disputes")
+}
+

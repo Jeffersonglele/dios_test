@@ -6,8 +6,10 @@ const { validate, validators } = require('../middlware/validation.middleware');
 
 const router = express.Router();
 
+router.get('/wallet', authenticate, wallet.walletSummary);
 router.get('/wallet/me', authenticate, wallet.walletSummary);
 router.get('/wallet/me/ledger', authenticate, validate(validators.pagination), wallet.walletLedger);
+router.post('/wallet/top-up', authenticate, wallet.topUpWallet);
 router.post('/wallet/top-ups', authenticate, wallet.requestTopUp);
 router.get('/mobile-money-accounts', authenticate, wallet.listMobileMoneyAccounts);
 router.post('/mobile-money-accounts', authenticate, wallet.createMobileMoneyAccount);

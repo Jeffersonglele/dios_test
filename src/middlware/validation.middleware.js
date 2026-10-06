@@ -69,6 +69,14 @@ const validators = {
       restaurantId: Joi.number().integer(),
     }).or('lines', 'orderLines'), params: Joi.object(), query: Joi.object(),
   }),
+  verifyRetrieval: Joi.object({
+    params: uuidParam,
+    body: Joi.object({
+      otp: Joi.string().trim().alphanum().length(4).required(),
+      proofPhotoUrl: Joi.string().trim().uri().max(1024),
+    }).required(),
+    query: Joi.object(),
+  }),
 };
 
 module.exports = { validate, validators };

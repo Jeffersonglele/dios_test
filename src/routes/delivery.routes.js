@@ -22,6 +22,10 @@ router.get('/couriers/me/earnings', authenticate, authorize('LIVREUR'), delivery
 router.post('/delivery-offers/:id/accept', authenticate, authorize('LIVREUR'), delivery.acceptDeliveryOffer);
 router.post('/delivery-offers/:id/reject', authenticate, authorize('LIVREUR'), delivery.rejectDeliveryOffer);
 router.patch('/deliveries/:id/status', authenticate, authorize('LIVREUR'), delivery.updateDeliveryStatus);
+router.post('/deliveries/:orderId/arrive', authenticate, authorize('LIVREUR'), delivery.driverArrived);
+router.post('/deliveries/:orderId/client-unreachable', authenticate, authorize('LIVREUR'), delivery.clientUnreachable);
+router.get('/deliveries/available', authenticate, authorize('LIVREUR'), delivery.listAvailableDeliveries);
+router.post('/deliveries/:orderId/accept', authenticate, authorize('LIVREUR'), delivery.acceptOrder);
 router.use('/cities', createResourceRouter(delivery.city, { writeMiddlewares: adminOnly, removeMiddlewares: adminOnly }));
 router.use('/delivery-zones', createResourceRouter(delivery.zone, { writeMiddlewares: adminOnly, removeMiddlewares: adminOnly }));
 router.use('/delivery-configs', createResourceRouter(delivery.config, {
