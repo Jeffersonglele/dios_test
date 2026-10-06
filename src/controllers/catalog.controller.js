@@ -1,6 +1,8 @@
+const { Prisma } = require('@prisma/client');
 const prisma = require('../config/prisma');
 const { createCrudController } = require('./crud.controller');
 const { badRequest, handleControllerError, notFound, pagination, sendPage, canonicalCountry } = require('./controller.utils');
+const { resolveCoveredCity } = require('../services/geolocation.service');
 
 function configuredAdminRoleIds() {
   return String(process.env.ADMIN_ROLE_IDS || '')
@@ -22,7 +24,42 @@ const RESTAURANT_FIELDS = [
   'currency', 'openingDays', 'minOrderAmount', 'deliveryRadius', 'closedDates',
   'recoveryMode', 'country', 'isPro', 'cityId', 'rccm', 'paymentMethod',
   'mobileMoneyPhone', 'iban', 'bankName', 'accountHolder',
+  'latitude', 'longitude',
 ];
+
+/**
+ * Si latitude + longitude sont valides, résout la ville couverte (cityId) et
+ * met à jour la colonne PostGIS `restaurants.location` via $executeRaw.
+ * Retourne les champs enrichis { cityId, country } ou {} si pas de coordonnées.
+ */
+async function _syncRestaurantLocation(restaurantUuid, lat, lng, currentCountry) {
+  const latitude = Number(lat);
+  const longitude = Number(lng);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return {};
+
+  const city = await resolveCoveredCity(latitude, longitude);
+  const extra = {};
+  if (city) {
+    extra.cityId = city.cityId;
+    extra.country = city.country || currentCountry || 'RDC';
+  }
+  extra.locationUpdatedAt = new Date();
+
+  // Mettre à jour les champs relationnels via Prisma
+  await prisma.restaurant.update({
+    where: { id: restaurantUuid },
+    data: extra,
+  });
+
+  // Mettre à jour la colonne PostGIS (Unsupported par Prisma, donc $executeRaw)
+  await prisma.$executeRaw(Prisma.sql`
+    UPDATE "restaurants"
+    SET "location" = ST_SetSRID(ST_MakePoint(${longitude}, ${latitude}), 4326)::geography
+    WHERE "id" = ${restaurantUuid}::uuid
+  `);
+
+  return extra;
+}
 
 const DISH_FIELDS = [
   'dishId', 'userId', 'restaurantId', 'name', 'categories', 'image', 'images',
@@ -209,6 +246,13 @@ async function manageRestaurantLegacy(req, res, next) {
       if (data.isOpen === undefined) data.isOpen = 1;
       record = await prisma.restaurant.create({ data });
     }
+
+    // Synchroniser la position PostGIS et la ville couverte
+    if (data.latitude != null && data.longitude != null) {
+      await _syncRestaurantLocation(record.id, data.latitude, data.longitude, data.country);
+      record = await prisma.restaurant.findUnique({ where: { id: record.id } });
+    }
+
     return res.status(200).json({ data: record, meta: { mode } });
   } catch (error) {
     return handleControllerError(error, next);
@@ -239,7 +283,14 @@ async function createRestaurant(req, res, next) {
   try {
     const data = { ...pick(req.body, RESTAURANT_FIELDS) };
     if (data.valid === undefined || data.valid === null) data.valid = 0;
-    const record = await prisma.restaurant.create({ data });
+    let record = await prisma.restaurant.create({ data });
+
+    // Synchroniser la position PostGIS et la ville couverte
+    if (data.latitude != null && data.longitude != null) {
+      await _syncRestaurantLocation(record.id, data.latitude, data.longitude, data.country);
+      record = await prisma.restaurant.findUnique({ where: { id: record.id } });
+    }
+
     return res.status(201).json({ data: record });
   } catch (error) {
     return handleControllerError(error, next);
