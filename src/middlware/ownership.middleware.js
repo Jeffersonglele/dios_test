@@ -9,7 +9,18 @@ function configuredAdminRoleIds() {
 
 async function userOwnerOrAdmin(req, res, next) {
   try {
-    const user = await prisma.user.findFirst({ where: { id: req.params.id, deletedAt: null } });
+    const raw = req.params.id;
+    const parsed = Number.parseInt(String(raw ?? ''), 10);
+    const rawStr = String(raw ?? '');
+    const looksLikeUuid =
+      (rawStr.length === 36 || rawStr.length === 32) &&
+      /^[0-9a-fA-F-]+$/.test(rawStr);
+    const orWhere = [];
+    if (Number.isInteger(parsed)) orWhere.push({ userId: parsed });
+    if (looksLikeUuid) orWhere.push({ id: rawStr });
+    const user = orWhere.length > 0
+      ? await prisma.user.findFirst({ where: { OR: orWhere, deletedAt: null } })
+      : null;
     if (!user) {
       const error = new Error('Utilisateur introuvable.');
       error.statusCode = 404;

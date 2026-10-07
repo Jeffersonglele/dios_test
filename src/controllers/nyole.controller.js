@@ -154,13 +154,47 @@ async function createCheckout(req, res, next, kind = 'ORDER') {
     });
     const user = await prisma.user.findFirst({ where: { userId: req.auth.userId, deletedAt: null } });
     const restaurant = await prisma.restaurant.findFirst({ where: { restaurantId: order.restaurantId, deletedAt: null }, select: { restaurantId: true, id: true, name: true, latitude: true, longitude: true, cityId: true } });
-    const delivery = order.deliveryMode === 'DELIVERY'
-      ? await prisma.delivery.findFirst({
-          where: { orderId: order.orderId },
-          select: { deliveryMode: true, deliveryAddressId: true, deliveryLatitude: true, deliveryLongitude: true },
-        })
-      : null;
-    const deliverySnapshot = order.deliveryAddressSnapshot || {};
+
+    let deliveryPayload = null;
+    if (order.deliveryMode === 'DELIVERY') {
+      const numericAddressId = Number.isInteger(order.addressId) ? order.addressId : Number.parseInt(String(order.addressId ?? ''), 10);
+      const deliveryRec = await prisma.delivery.findFirst({
+        where: { orderId: order.orderId },
+        select: { deliveryLatitude: true, deliveryLongitude: true },
+      });
+      let deliveryAddressRecord = null;
+      if (Number.isInteger(numericAddressId)) {
+        deliveryAddressRecord = await prisma.address.findFirst({
+          where: { addressId: numericAddressId, deletedAt: null },
+          select: { addressId: true, latitude: true, longitude: true, fullAddress: true, cityId: true, country: true },
+        });
+      }
+      const deliverySnapshot = order.deliveryAddressSnapshot && typeof order.deliveryAddressSnapshot === 'object'
+        ? order.deliveryAddressSnapshot
+        : {};
+      const finalLat = deliveryRec?.deliveryLatitude != null && Number.isFinite(Number(deliveryRec.deliveryLatitude))
+        ? Number(deliveryRec.deliveryLatitude)
+        : deliveryAddressRecord?.latitude != null && Number.isFinite(Number(deliveryAddressRecord.latitude))
+          ? Number(deliveryAddressRecord.latitude)
+          : Number.isFinite(Number(deliverySnapshot.latitude)) ? Number(deliverySnapshot.latitude) : null;
+      const finalLng = deliveryRec?.deliveryLongitude != null && Number.isFinite(Number(deliveryRec.deliveryLongitude))
+        ? Number(deliveryRec.deliveryLongitude)
+        : deliveryAddressRecord?.longitude != null && Number.isFinite(Number(deliveryAddressRecord.longitude))
+          ? Number(deliveryAddressRecord.longitude)
+          : Number.isFinite(Number(deliverySnapshot.longitude)) ? Number(deliverySnapshot.longitude) : null;
+      deliveryPayload = {
+        deliveryMode: String(order.deliveryMode || 'DELIVERY'),
+        deliveryAddressId: Number.isInteger(numericAddressId) ? numericAddressId : null,
+        latitude: Number.isFinite(finalLat) ? finalLat : undefined,
+        longitude: Number.isFinite(finalLng) ? finalLng : undefined,
+        cityId: order.cityId || deliveryAddressRecord?.cityId || undefined,
+        country: deliveryAddressRecord?.country || deliverySnapshot.country || undefined,
+        fullAddress: deliveryAddressRecord?.fullAddress || deliverySnapshot.fullAddress || undefined,
+      };
+    }
+    const deliverySnapshot = order.deliveryAddressSnapshot && typeof order.deliveryAddressSnapshot === 'object'
+      ? order.deliveryAddressSnapshot
+      : {};
     let gateway;
     try {
       gateway = await initiatePayment({
@@ -180,11 +214,14 @@ async function createCheckout(req, res, next, kind = 'ORDER') {
           longitude: Number.isFinite(Number(restaurant?.longitude)) ? Number(restaurant.longitude) : undefined,
           cityId: restaurant?.cityId || undefined,
         },
-        delivery: delivery ? {
-          deliveryMode: delivery.deliveryMode || 'DELIVERY',
-          deliveryAddressId: delivery.deliveryAddressId || undefined,
-          latitude: Number.isFinite(Number(delivery.deliveryLatitude)) ? Number(delivery.deliveryLatitude) : Number.isFinite(Number(deliverySnapshot?.latitude)) ? Number(deliverySnapshot.latitude) : undefined,
-          longitude: Number.isFinite(Number(delivery.deliveryLongitude)) ? Number(delivery.deliveryLongitude) : Number.isFinite(Number(deliverySnapshot?.longitude)) ? Number(deliverySnapshot.longitude) : undefined,
+        delivery: deliveryPayload ? {
+          deliveryMode: deliveryPayload.deliveryMode,
+          deliveryAddressId: deliveryPayload.deliveryAddressId ?? undefined,
+          latitude: deliveryPayload.latitude,
+          longitude: deliveryPayload.longitude,
+          cityId: deliveryPayload.cityId,
+          country: deliveryPayload.country,
+          fullAddress: deliveryPayload.fullAddress,
         } : undefined,
       });
     } catch (error) {

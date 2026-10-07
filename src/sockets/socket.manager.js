@@ -120,14 +120,19 @@ function initializeSocketIO(io) {
       if (!userId) return next(new Error('Invalid token payload'));
 
       const parsedId = Number.parseInt(userId, 10);
+      const stringUserId = String(userId ?? '');
+      const looksLikeUuid =
+        typeof stringUserId === 'string' &&
+        (stringUserId.length === 36 || stringUserId.length === 32) &&
+        /^[0-9a-fA-F-]+$/.test(stringUserId);
+
+      const orWhere = [];
+      if (Number.isInteger(parsedId)) orWhere.push({ userId: parsedId });
+      if (looksLikeUuid) orWhere.push({ id: stringUserId });
+      if (orWhere.length === 0) return next(new Error('User not found'));
+
       const user = await prisma.user.findFirst({
-        where: {
-          OR: [
-            ...(Number.isInteger(parsedId) ? [{ userId: parsedId }] : []),
-            { id: String(userId) },
-          ],
-          deletedAt: null,
-        },
+        where: { OR: orWhere, deletedAt: null },
         select: { userId: true, courierStatus: true, roleId: true },
       });
 
@@ -159,14 +164,19 @@ function initializeSocketIO(io) {
         }
 
         const parsedOrderId = Number.parseInt(orderId, 10);
+        const stringOrderId = String(orderId ?? '');
+        const orderLooksLikeUuid =
+          stringOrderId.length === 36 || stringOrderId.length === 32;
+
+        const orderOr = [];
+        if (Number.isInteger(parsedOrderId)) orderOr.push({ orderId: parsedOrderId });
+        if (orderLooksLikeUuid) orderOr.push({ id: stringOrderId });
+        if (orderOr.length === 0) {
+          socket.emit('error', { message: 'Order not found' });
+          return;
+        }
         const order = await prisma.order.findFirst({
-          where: {
-            OR: [
-              ...(Number.isInteger(parsedOrderId) ? [{ orderId: parsedOrderId }] : []),
-              { id: String(orderId) },
-            ],
-            deletedAt: null,
-          },
+          where: { OR: orderOr, deletedAt: null },
           select: { orderId: true, userId: true, delivererId: true, status: true },
         });
 
