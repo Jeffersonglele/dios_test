@@ -7,6 +7,14 @@ const { startDispatchForOrder } = require('../services/delivery-dispatch.service
 const { quoteDelivery, resolveRestaurantLocation, configurationForCity } = require('../services/delivery-pricing.service');
 const { broadcastDeliveryStatus } = require('../sockets/socket.manager');
 
+/**
+ * Vérifie si une chaîne ressemble à un UUID valide (format avec tirets, 36 caractères)
+ */
+function isValidUUID(str) {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+}
+
 const ORDER_FIELDS = [
   'externalOrderId', 'userId', 'legacyUserId', 'restaurantId', 'legacyRestaurantId',
   'restaurateurId', 'legacyRestaurateurId', 'paymentMethodId', 'externalPaymentId',
@@ -660,8 +668,15 @@ async function payOrderWithWallet(req, res, next) {
 
     if (!orderId) throw badRequest('orderId est obligatoire');
 
+    const parsedOrderId = Number.parseInt(orderId, 10);
     const order = await prisma.order.findFirst({
-      where: { id: orderId, deletedAt: null },
+      where: {
+        OR: [
+          ...(Number.isInteger(parsedOrderId) ? [{ orderId: parsedOrderId }] : []),
+          ...(isValidUUID(orderId) ? [{ id: orderId }] : []),
+        ],
+        deletedAt: null,
+      },
       select: {
         id: true,
         orderId: true,
@@ -713,7 +728,7 @@ async function payOrderWithWallet(req, res, next) {
 
     const result = await prisma.$transaction(async (tx) => {
       const recheckOrder = await tx.order.findUnique({
-        where: { id: orderId },
+        where: { id: order.id },
         select: { paymentProvider: true },
       });
 
@@ -745,7 +760,7 @@ async function payOrderWithWallet(req, res, next) {
       });
 
       const updatedOrder = await tx.order.update({
-        where: { id: orderId },
+        where: { id: order.id },
         data: {
           paymentProvider: 'WALLET',
           status: 'PAID',
