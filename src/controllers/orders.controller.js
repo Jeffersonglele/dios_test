@@ -329,7 +329,17 @@ async function createOrder(req, res, next) {
 
 async function getOrderDetails(req, res, next) {
   try {
-    const order = await prisma.order.findFirst({ where: { id: req.params.id, deletedAt: null } });
+    const orderId = req.params.id;
+    const parsedOrderId = Number.parseInt(orderId, 10);
+    const order = await prisma.order.findFirst({
+      where: {
+        OR: [
+          ...(Number.isInteger(parsedOrderId) ? [{ orderId: parsedOrderId }] : []),
+          ...(isValidUUID(orderId) ? [{ id: orderId }] : []),
+        ],
+        deletedAt: null,
+      },
+    });
     if (!order) throw notFound('Commande');
     const lines = await prisma.orderLine.findMany({ where: { orderId: String(order.orderId), deletedAt: null } });
     const transactions = await prisma.transaction.findMany({ where: { orderId: order.orderId, deletedAt: null } });
@@ -416,7 +426,17 @@ async function listOrders(req, res, next) {
 
 async function updateOrderStatus(req, res, next) {
   try {
-    const order = await prisma.order.findFirst({ where: { id: req.params.id, deletedAt: null } });
+    const orderId = req.params.id;
+    const parsedOrderId = Number.parseInt(orderId, 10);
+    const order = await prisma.order.findFirst({
+      where: {
+        OR: [
+          ...(Number.isInteger(parsedOrderId) ? [{ orderId: parsedOrderId }] : []),
+          ...(isValidUUID(orderId) ? [{ id: orderId }] : []),
+        ],
+        deletedAt: null,
+      },
+    });
     if (!order) throw notFound('Commande');
     if (!req.body.status) throw badRequest('Le statut est obligatoire.');
     const requestedStatus = String(req.body.status).toUpperCase();
@@ -463,8 +483,16 @@ async function updateOrderStatus(req, res, next) {
 
 async function verifyRetrievalOrder(req, res, next) {
   try {
+    const orderId = req.params.id;
+    const parsedOrderId = Number.parseInt(orderId, 10);
     const order = await prisma.order.findFirst({
-      where: { id: req.params.id, deletedAt: null },
+      where: {
+        OR: [
+          ...(Number.isInteger(parsedOrderId) ? [{ orderId: parsedOrderId }] : []),
+          ...(isValidUUID(orderId) ? [{ id: orderId }] : []),
+        ],
+        deletedAt: null,
+      },
     });
     if (!order) throw notFound('Commande');
 
