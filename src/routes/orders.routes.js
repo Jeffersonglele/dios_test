@@ -10,6 +10,7 @@ const router = express.Router();
 router.get('/:id/details', authenticate, validate(validators.id), orders.order.getDetails);
 router.patch('/:id/status', authenticate, validate(validators.id), orders.order.updateStatus);
 router.post('/:id/verify-retrieval', authenticate, validate(validators.verifyRetrieval), orders.order.verifyRetrieval);
+router.post('/:id/verify-pickup-otp', authenticate, validate(validators.verifyRetrieval), orders.order.verifyRetrieval);
 router.post('/:orderId/disputes', authenticate, orders.order.submitDispute);
 router.post('/:orderId/pay-wallet', authenticate, orders.order.payOrderWithWallet);
 

@@ -119,13 +119,58 @@ async function createOrder(req, res, next) {
     const supportedCurrencies = new Set(['CDF', 'USD', 'XAF', 'XOF', 'EUR', 'GBP']);
     const currency = supportedCurrencies.has(defaultCurrency) ? defaultCurrency : 'CDF';
     const paymentMethod = String(payload.paymentMethod || payload.paymentProvider || 'CASH').trim().toUpperCase();
-    if (!['CASH', 'NYOLE'].includes(paymentMethod)) {
-      throw badRequest('Le moyen de paiement doit être CASH ou NYOLE. Le portefeuille reste désactivé.');
+    if (!['CASH', 'NYOLE', 'WALLET'].includes(paymentMethod)) {
+      throw badRequest("Le moyen de paiement doit être CASH, NYOLE ou WALLET.");
+    }
+
+    let walletForCreation = null;
+    if (paymentMethod === 'WALLET') {
+      walletForCreation = await prisma.walletAccount.findUnique({ where: { userId } });
+      if (!walletForCreation) throw badRequest('Portefeuille introuvable. Veuillez initialiser votre portefeuille.');
+      if (walletForCreation.status !== 'ACTIVE') throw badRequest('Portefeuille inactif. Veuillez activer votre portefeuille.');
+      if (Number(walletForCreation.balance || 0) < Number(totalAmount)) {
+        throw badRequest('Solde du portefeuille insuffisant. Veuillez recharger votre portefeuille.');
+      }
+      if (walletForCreation.currency && String(walletForCreation.currency).toUpperCase() !== currency) {
+        throw badRequest(`La devise du portefeuille (${walletForCreation.currency}) ne correspond pas à celle de la commande (${currency}).`);
+      }
     }
 
     const order = await prisma.$transaction(async (tx) => {
       const orderId = await nextOrderId(tx);
       const externalOrderId = payload.externalOrderId || randomUUID();
+      let orderStatusValue = 'AWAITING_PAYMENT';
+      if (paymentMethod === 'CASH') orderStatusValue = 'CONFIRMED_CASH';
+      if (paymentMethod === 'WALLET') orderStatusValue = 'PAID';
+
+      let walletAfterDebit = null;
+      if (paymentMethod === 'WALLET') {
+        const locked = await tx.walletAccount.findUnique({
+          where: { id: walletForCreation.id },
+          select: { id: true, balance: true, currency: true, status: true, version: true },
+        });
+        if (!locked || Number(locked.balance || 0) < Number(totalAmount)) {
+          throw badRequest('Solde du portefeuille insuffisant (concurrent). Veuillez réessayer.');
+        }
+        walletAfterDebit = await tx.walletAccount.update({
+          where: { id: walletForCreation.id },
+          data: { balance: { decrement: Number(totalAmount) } },
+        });
+        await tx.walletLedgerEntry.create({
+          data: {
+            walletAccountId: walletForCreation.id,
+            direction: 'DEBIT',
+            amount: Number(totalAmount),
+            currency: walletAfterDebit.currency || currency,
+            status: 'COMPLETED',
+            referenceType: 'ORDER_PAYMENT',
+            referenceId: String(orderId),
+            description: `Paiement commande #${orderId}`,
+            postedAt: new Date(),
+          },
+        });
+      }
+
       const created = await tx.order.create({
         data: {
           ...pick(payload, ORDER_FIELDS),
@@ -160,8 +205,8 @@ async function createOrder(req, res, next) {
             cityId: quote?.cityId || restaurant.cityId,
           } : undefined,
           orderedAt: payload.orderedAt ? new Date(payload.orderedAt) : new Date(),
-          status: paymentMethod === 'CASH' ? 'CONFIRMED_CASH' : 'AWAITING_PAYMENT',
-          orderStatus: paymentMethod === 'CASH' ? 'CONFIRMED_CASH' : 'AWAITING_PAYMENT',
+          status: orderStatusValue,
+          orderStatus: orderStatusValue,
           retrievalOtp: generateRetrievalOtp(4),
           isOtpVerified: false,
         },
@@ -185,6 +230,24 @@ async function createOrder(req, res, next) {
             settlementStatus: 'PENDING_DELIVERY',
           },
         });
+      } else if (paymentMethod === 'WALLET') {
+        await tx.transaction.create({
+          data: {
+            transactionId: `WALLET-${orderId}-${randomUUID().replace(/-/g, '')}`,
+            orderId,
+            provider: 'wallet',
+            amount: totalAmount,
+            currency,
+            status: 'COMPLETED',
+            paymentMethod: 'WALLET',
+            subtotalAmount,
+            restaurantShare: Math.max(0, Number(subtotalAmount) - Number(reduction)),
+            deliveryFeeShare: deliveryFee,
+            commissionRate: 0,
+            commissionAmount: 0,
+            settlementStatus: isDelivery ? 'PENDING_DELIVERY' : 'SETTLED',
+          },
+        });
       }
 
       await tx.orderLine.createMany({
@@ -198,11 +261,20 @@ async function createOrder(req, res, next) {
           unitPrice,
         })),
       });
-      return created;
+      return { created, walletAfterDebit };
     });
 
-    const orderLines = await prisma.orderLine.findMany({ where: { orderId: String(order.orderId), deletedAt: null } });
-    return res.status(201).json({ data: { order, lines: orderLines } });
+    const { created: createdOrder, walletAfterDebit } = order;
+    const orderLines = await prisma.orderLine.findMany({ where: { orderId: String(createdOrder.orderId), deletedAt: null } });
+    const responseData = { order: createdOrder, lines: orderLines };
+    if (walletAfterDebit) {
+      responseData.wallet = {
+        id: walletAfterDebit.id,
+        balance: Number(walletAfterDebit.balance),
+        currency: walletAfterDebit.currency || currency,
+      };
+    }
+    return res.status(201).json({ data: responseData });
   } catch (error) {
     return handleControllerError(error, next);
   }
