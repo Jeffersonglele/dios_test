@@ -2,6 +2,14 @@ const prisma = require('../config/prisma');
 const { canAccessOrderChat } = require('../controllers/chat.controller');
 
 /**
+ * Vérifie si une chaîne ressemble à un UUID valide (format avec tirets, 36 caractères)
+ */
+function isValidUUID(str) {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+}
+
+/**
  * Enregistre les gestionnaires d'événements Socket.io pour la messagerie instantanée (Chat).
  * 
  * @param {import('socket.io').Server} io
@@ -26,7 +34,7 @@ function registerChatHandlers(io, socket) {
         where: {
           OR: [
             ...(Number.isInteger(parsedOrderId) ? [{ orderId: parsedOrderId }] : []),
-            { id: String(orderId) },
+            ...(isValidUUID(orderId) ? [{ id: String(orderId) }] : []),
           ],
           deletedAt: null,
         },
@@ -116,7 +124,7 @@ function registerChatHandlers(io, socket) {
         where: {
           OR: [
             ...(Number.isInteger(parsedOrderId) ? [{ orderId: parsedOrderId }] : []),
-            { id: String(rawOrderId) },
+            ...(isValidUUID(rawOrderId) ? [{ id: String(rawOrderId) }] : []),
           ],
           deletedAt: null,
         },

@@ -1,6 +1,14 @@
 const prisma = require('../config/prisma');
 
 /**
+ * Vérifie si une chaîne ressemble à un UUID valide (format avec tirets, 36 caractères)
+ */
+function isValidUUID(str) {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+}
+
+/**
  * Vérifie si un utilisateur est autorisé à accéder au chat d'une commande
  * (Client, Livreur assigné, ou Propriétaire du restaurant).
  */
@@ -75,7 +83,7 @@ async function getOrderMessages(req, res, next) {
       where: {
         OR: [
           ...(Number.isInteger(parsedOrderId) ? [{ orderId: parsedOrderId }] : []),
-          { id: String(orderId) },
+          ...(isValidUUID(orderId) ? [{ id: String(orderId) }] : []),
         ],
         deletedAt: null,
       },
