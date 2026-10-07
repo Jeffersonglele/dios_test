@@ -70,6 +70,25 @@ async function initiatePayment({ transactionId, amount, currency, customer, meta
   const config = configuration();
   const livemode = config.mode === 'live';
   const customerPhone = String(customer?.phone || '').replace(/[^\d+]/g, '') || undefined;
+  const restaurantLat = Number.isFinite(Number(restaurant?.latitude)) ? Number(restaurant.latitude) : null;
+  const restaurantLng = Number.isFinite(Number(restaurant?.longitude)) ? Number(restaurant.longitude) : null;
+  const deliveryLat = Number.isFinite(Number(delivery?.latitude)) ? Number(delivery.latitude) : null;
+  const deliveryLng = Number.isFinite(Number(delivery?.longitude)) ? Number(delivery.longitude) : null;
+
+  const metadataFields = {
+    ...metadata,
+    dios_transaction_id: transactionId,
+    restaurant_id: restaurant?.restaurantId || null,
+    restaurant_name: restaurant?.name || null,
+    restaurant_city_id: restaurant?.cityId || null,
+    delivery_mode: delivery?.deliveryMode || null,
+    delivery_address_id: delivery?.deliveryAddressId || null,
+  };
+  if (restaurantLat !== null) metadataFields.restaurant_latitude = restaurantLat;
+  if (restaurantLng !== null) metadataFields.restaurant_longitude = restaurantLng;
+  if (deliveryLat !== null) metadataFields.delivery_latitude = deliveryLat;
+  if (deliveryLng !== null) metadataFields.delivery_longitude = deliveryLng;
+
   const payload = {
     amount: amountAsInteger(amount),
     currency: String(currency || 'CDF').toUpperCase(),
@@ -79,19 +98,7 @@ async function initiatePayment({ transactionId, amount, currency, customer, meta
     description: `Commande Dios Delices ${transactionId}`,
     success_url: config.successUrl,
     cancel_url: config.cancelUrl,
-    metadata: {
-      ...metadata,
-      dios_transaction_id: transactionId,
-      restaurant_id: restaurant?.restaurantId || null,
-      restaurant_name: restaurant?.name || null,
-      restaurant_latitude: restaurant?.latitude,
-      restaurant_longitude: restaurant?.longitude,
-      restaurant_city_id: restaurant?.cityId || null,
-      delivery_mode: delivery?.deliveryMode || null,
-      delivery_address_id: delivery?.deliveryAddressId || null,
-      delivery_latitude: delivery?.latitude,
-      delivery_longitude: delivery?.longitude,
-    },
+    metadata: metadataFields,
   };
 
   try {

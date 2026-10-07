@@ -225,6 +225,37 @@ async function manageRestaurantLegacy(req, res, next) {
     let record;
     let mode = 'created';
     const legacyId = Number.isInteger(legacyIdRaw) ? legacyIdRaw : null;
+
+    // Fallback : si une adresse est liée (addressID/addressId) mais pas de coords directes,
+    // on charge les coordonnées depuis la table "addresses" (objectType=RESTAURANT).
+    if ((data.latitude == null || data.longitude == null) && (data.addressId != null)) {
+      try {
+        const addrNum = Number.parseInt(String(data.addressId), 10);
+        if (Number.isInteger(addrNum)) {
+          const linked = await prisma.address.findFirst({
+            where: {
+              OR: [
+                { addressId: addrNum, objectType: 'RESTAURANT' },
+                { addressId: addrNum },
+              ],
+              deletedAt: null,
+            },
+            orderBy: { updatedAt: 'desc' },
+          });
+          const linkedLat = linked?.latitude != null ? Number(linked.latitude) : null;
+          const linkedLng = linked?.longitude != null ? Number(linked.longitude) : null;
+          if (Number.isFinite(linkedLat) && Number.isFinite(linkedLng)) {
+            if (data.latitude == null) data.latitude = linkedLat;
+            if (data.longitude == null) data.longitude = linkedLng;
+            if (data.cityId == null && Number.isInteger(Number(linked.cityId))) {
+              data.cityId = Number(linked.cityId);
+            }
+            if (!data.country && linked.country) data.country = linked.country;
+          }
+        }
+      } catch (_) {}
+    }
+
     if (legacyId) {
       const existing = await prisma.restaurant.findFirst({ where: { restaurantId: legacyId, deletedAt: null } });
       if (existing) {

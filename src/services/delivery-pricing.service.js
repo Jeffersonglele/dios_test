@@ -63,6 +63,51 @@ function unavailable(reason, message, details = {}) {
   return { available: false, reason, message, currency: 'CDF', ...details };
 }
 
+async function resolveRestaurantLocation(restaurant) {
+  if (!restaurant) return { latitude: null, longitude: null, source: null };
+  const lat = toNumber(restaurant.latitude, null);
+  const lng = toNumber(restaurant.longitude, null);
+  if (Number.isFinite(lat) && Number.isFinite(lng)) {
+    return { latitude: lat, longitude: lng, source: 'RESTAURANT_COLUMNS' };
+  }
+  let geo = null;
+  try {
+    const rows = await prisma.$queryRawUnsafe(`
+      SELECT
+        CASE WHEN location IS NOT NULL THEN ST_Y(location::geometry) END AS latitude,
+        CASE WHEN location IS NOT NULL THEN ST_X(location::geometry) END AS longitude
+      FROM "Restaurant"
+      WHERE "restaurantId" = $1 AND "deletedAt" IS NULL
+      LIMIT 1
+    `, restaurant.restaurantId);
+    if (Array.isArray(rows) && rows[0]) {
+      const r = rows[0];
+      const pgLat = toNumber(r && typeof r === 'object' ? r.latitude : null, null);
+      const pgLng = toNumber(r && typeof r === 'object' ? r.longitude : null, null);
+      if (Number.isFinite(pgLat) && Number.isFinite(pgLng)) {
+        geo = { latitude: pgLat, longitude: pgLng, source: 'RESTAURANT_POSTGIS' };
+      }
+    }
+  } catch (_) {}
+  if (geo) return geo;
+  const address = await prisma.address.findFirst({
+    where: {
+      OR: [
+        { objectType: 'RESTAURANT', objectId: String(restaurant.restaurantId) },
+        { objectType: 'RESTAURANT', objectId: String(restaurant.id) },
+      ],
+      deletedAt: null,
+    },
+    orderBy: { updatedAt: 'desc' },
+  });
+  const aLat = toNumber(address?.latitude, null);
+  const aLng = toNumber(address?.longitude, null);
+  if (Number.isFinite(aLat) && Number.isFinite(aLng)) {
+    return { latitude: aLat, longitude: aLng, source: 'RESTAURANT_ADDRESS' };
+  }
+  return { latitude: null, longitude: null, source: null };
+}
+
 async function quoteDelivery({ restaurantId, addressId, userId }) {
   const numericRestaurantId = Number.parseInt(restaurantId, 10);
   const numericAddressId = Number.parseInt(addressId, 10);
@@ -76,16 +121,81 @@ async function quoteDelivery({ restaurantId, addressId, userId }) {
   ]);
   if (!restaurant) throw notFound('Restaurant');
   if (!address) throw notFound('Adresse de livraison');
-  if (![restaurant.latitude, restaurant.longitude, address.latitude, address.longitude].every(Number.isFinite)) {
-    return unavailable('MISSING_LOCATION', 'La position du marchand ou de livraison doit être définie.');
+
+  const resLoc = await resolveRestaurantLocation(restaurant);
+  const lat = Number.isFinite(resLoc.latitude) ? resLoc.latitude : toNumber(restaurant.latitude, null);
+  const lng = Number.isFinite(resLoc.longitude) ? resLoc.longitude : toNumber(restaurant.longitude, null);
+  const addressLat = toNumber(address.latitude, null);
+  const addressLng = toNumber(address.longitude, null);
+
+  const restaurantDeliveryFee = toNumber(restaurant.deliveryFee, 0);
+  const fallbackCityConfig = (address.cityId != null)
+    ? await configurationForCity(address.cityId)
+    : await configurationForCity(null);
+  const fallbackFee = restaurantDeliveryFee > 0
+    ? { fee: restaurantDeliveryFee, currency: restaurant.currency || fallbackCityConfig.currency, source: 'RESTAURANT_FIXED_FEE' }
+    : { fee: fallbackCityConfig.baseFee, currency: fallbackCityConfig.currency, source: fallbackCityConfig.source };
+
+  const hasFullGps = [lat, lng, addressLat, addressLng].every(Number.isFinite);
+  if (!hasFullGps) {
+    const missingRestaurant = !(Number.isFinite(lat) && Number.isFinite(lng));
+    const missingCustomer = !(Number.isFinite(addressLat) && Number.isFinite(addressLng));
+    return {
+      available: true,
+      reason: null,
+      currency: fallbackFee.currency,
+      deliveryFee: fallbackFee.fee,
+      estimatedDistanceKm: null,
+      distanceKind: 'NO_GPS_FALLBACK',
+      cityId: address.cityId || restaurant.cityId || null,
+      city: address.city || null,
+      noGpsFallback: true,
+      missingRestaurantLocation: missingRestaurant,
+      missingCustomerLocation: missingCustomer,
+      pricing: {
+        source: `NO_GPS_${fallbackFee.source}`,
+        baseFee: fallbackFee.fee,
+        includedDistanceKm: 0,
+        perKmRate: 0,
+        maxDistanceKm: fallbackCityConfig.maxDistanceKm,
+        fuelSurcharge: 0,
+        demandMultiplier: 1,
+        weatherMultiplier: 1,
+      },
+      warning: missingRestaurant
+        ? "Position du restaurant non définie — utilisation d'un tarif de livraison forfaitaire. Veuillez définir les coordonnées du restaurant."
+        : missingCustomer
+            ? "Position de livraison non définie — utilisation d'un tarif forfaitaire."
+            : "Utilisation d'un tarif de livraison forfaitaire.",
+    };
   }
 
   const [restaurantCity, customerCity] = await Promise.all([
-    resolveCoveredCity(restaurant.latitude, restaurant.longitude),
-    resolveCoveredCity(address.latitude, address.longitude),
+    resolveCoveredCity(lat, lng),
+    resolveCoveredCity(addressLat, addressLng),
   ]);
   if (!restaurantCity || !customerCity) {
-    return unavailable('OUTSIDE_COVERED_CITY', 'Le marchand ou votre adresse est hors des villes couvertes.');
+    return {
+      available: true,
+      currency: fallbackFee.currency,
+      deliveryFee: fallbackFee.fee,
+      estimatedDistanceKm: null,
+      distanceKind: 'OUTSIDE_CITY_FALLBACK',
+      cityId: customerCity?.cityId || address.cityId || restaurant.cityId || null,
+      city: customerCity?.name || address.city || null,
+      noGpsFallback: true,
+      pricing: {
+        source: `OUTSIDE_CITY_${fallbackFee.source}`,
+        baseFee: fallbackFee.fee,
+        includedDistanceKm: 0,
+        perKmRate: 0,
+        maxDistanceKm: fallbackCityConfig.maxDistanceKm,
+        fuelSurcharge: 0,
+        demandMultiplier: 1,
+        weatherMultiplier: 1,
+      },
+      warning: 'Hors ville couverte — utilisation du tarif forfaitaire.',
+    };
   }
   if (restaurantCity.cityId !== customerCity.cityId) {
     return unavailable('DIFFERENT_CITY', 'Marchand hors de votre zone de livraison.', {
@@ -94,13 +204,9 @@ async function quoteDelivery({ restaurantId, addressId, userId }) {
     });
   }
 
-  // Priorité 1: Utiliser deliveryFee du restaurant si défini et > 0
-  const restaurantDeliveryFee = toNumber(restaurant.deliveryFee, 0);
   let config;
   let pricingSource;
-
   if (restaurantDeliveryFee > 0) {
-    // Le restaurant a son propre tarif fixe
     config = {
       ...DEFAULT_CONFIG,
       baseFee: restaurantDeliveryFee,
@@ -110,18 +216,11 @@ async function quoteDelivery({ restaurantId, addressId, userId }) {
     };
     pricingSource = 'RESTAURANT_FEE';
   } else {
-    // Priorité 2: Utiliser la configuration DeliveryConfig pour la ville
-    // Priorité 3: Fallback sur la configuration par défaut du pays
     config = await configurationForCity(customerCity.cityId);
     pricingSource = config.source;
   }
 
-  const straightLineDistanceKm = haversineKm(
-    restaurant.latitude,
-    restaurant.longitude,
-    address.latitude,
-    address.longitude,
-  );
+  const straightLineDistanceKm = haversineKm(lat, lng, addressLat, addressLng);
   const routeFactor = Math.max(1, Number(process.env.ROUTE_DISTANCE_FACTOR) || 1.25);
   const estimatedDistanceKm = straightLineDistanceKm * routeFactor;
   if (estimatedDistanceKm > config.maxDistanceKm) {
@@ -154,7 +253,10 @@ async function quoteDelivery({ restaurantId, addressId, userId }) {
       demandMultiplier: config.demandMultiplier,
       weatherMultiplier: config.weatherMultiplier,
     },
+    resolvedRestaurantLocation: Number.isFinite(resLoc.latitude)
+      ? { latitude: resLoc.latitude, longitude: resLoc.longitude, source: resLoc.source }
+      : undefined,
   };
 }
 
-module.exports = { configurationForCity, haversineKm, quoteDelivery, roundedCdf };
+module.exports = { configurationForCity, haversineKm, quoteDelivery, resolveRestaurantLocation, roundedCdf };

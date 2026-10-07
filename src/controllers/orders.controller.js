@@ -4,7 +4,7 @@ const prisma = require('../config/prisma');
 const { createCrudController } = require('./crud.controller');
 const { badRequest, handleControllerError, notFound, pagination, pick, sendPage } = require('./controller.utils');
 const { startDispatchForOrder } = require('../services/delivery-dispatch.service');
-const { quoteDelivery } = require('../services/delivery-pricing.service');
+const { quoteDelivery, resolveRestaurantLocation, configurationForCity } = require('../services/delivery-pricing.service');
 const { broadcastDeliveryStatus } = require('../sockets/socket.manager');
 
 const ORDER_FIELDS = [
@@ -78,6 +78,18 @@ async function createOrder(req, res, next) {
     if (!restaurant) throw notFound('Restaurant');
     if (restaurant.isOpen === 0) throw badRequest('Ce marchand est actuellement fermé.');
 
+    const resolvedLocation = await resolveRestaurantLocation(restaurant);
+    const resolvedLat = Number.isFinite(resolvedLocation.latitude) ? resolvedLocation.latitude : Number(restaurant.latitude);
+    const resolvedLng = Number.isFinite(resolvedLocation.longitude) ? resolvedLocation.longitude : Number(restaurant.longitude);
+    if (resolvedLocation.source && (resolvedLat !== Number(restaurant.latitude) || resolvedLng !== Number(restaurant.longitude))) {
+      try {
+        await prisma.restaurant.updateMany({
+          where: { restaurantId, deletedAt: null },
+          data: { latitude: resolvedLat, longitude: resolvedLng },
+        });
+      } catch (_) {}
+    }
+
     const requestedDishIds = lines.map((line) => Number.parseInt(line.dishId, 10));
     if (requestedDishIds.some((dishId) => !Number.isInteger(dishId))) {
       throw badRequest('Chaque ligne doit référencer un plat valide.');
@@ -108,10 +120,29 @@ async function createOrder(req, res, next) {
       const addressId = Number.parseInt(payload.deliveryAddressId || payload.addressId, 10);
       if (!Number.isInteger(addressId)) throw badRequest('Une adresse de livraison est obligatoire.');
       quote = await quoteDelivery({ restaurantId, addressId, userId });
-      if (!quote.available) throw badRequest(quote.message);
+      const gpsReasons = new Set(['MISSING_LOCATION', 'NO_GPS_FALLBACK', null, undefined]);
+      const isGpsTolerable = quote.available === true
+        || quote.noGpsFallback === true
+        || gpsReasons.has(String(quote.reason || '').toUpperCase())
+        || (quote.missingRestaurantLocation === true)
+        || (quote.missingCustomerLocation === true)
+        || (typeof quote.deliveryFee === 'number' && Number.isFinite(quote.deliveryFee) && quote.deliveryFee > 0);
+      if (!quote.available && !isGpsTolerable) throw badRequest(quote.message);
       deliveryAddress = await prisma.address.findFirst({ where: { addressId, objectId: userId, deletedAt: null } });
     }
-    const deliveryFee = Number(quote?.deliveryFee || 0);
+    let deliveryFee = Number(
+      (quote && Number.isFinite(Number(quote.deliveryFee))) ? quote.deliveryFee : (quote?.deliveryFee || 0)
+    );
+    if (isDelivery && (!Number.isFinite(deliveryFee) || deliveryFee <= 0)) {
+      const resDeliveryFee = Number(restaurant.deliveryFee || 0);
+      if (Number.isFinite(resDeliveryFee) && resDeliveryFee > 0) {
+        deliveryFee = resDeliveryFee;
+      } else {
+        const addressCityId = deliveryAddress?.cityId != null ? Number(deliveryAddress.cityId) : null;
+        const fallbackCfg = await configurationForCity(addressCityId ?? null);
+        deliveryFee = Number(fallbackCfg?.baseFee || 0);
+      }
+    }
     const requestedReduction = Number(payload.reduction || 0);
     const reduction = Number.isFinite(requestedReduction) && requestedReduction > 0 ? requestedReduction : 0;
     const totalAmount = Math.max(0, Number(subtotalAmount) + Number(deliveryFee) - Number(reduction));
@@ -200,9 +231,10 @@ async function createOrder(req, res, next) {
             restaurantId: restaurant.restaurantId,
             name: restaurant.name,
             address: restaurant.address,
-            latitude: restaurant.latitude,
-            longitude: restaurant.longitude,
+            latitude: Number.isFinite(resolvedLat) ? resolvedLat : restaurant.latitude,
+            longitude: Number.isFinite(resolvedLng) ? resolvedLng : restaurant.longitude,
             cityId: quote?.cityId || restaurant.cityId,
+            resolvedSource: resolvedLocation.source,
           } : undefined,
           orderedAt: payload.orderedAt ? new Date(payload.orderedAt) : new Date(),
           status: orderStatusValue,
