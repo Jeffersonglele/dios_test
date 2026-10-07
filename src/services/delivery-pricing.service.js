@@ -72,39 +72,52 @@ async function resolveRestaurantLocation(restaurant) {
   }
   let geo = null;
   try {
-    const rows = await prisma.$queryRawUnsafe(`
-      SELECT
-        CASE WHEN location IS NOT NULL THEN ST_Y(location::geometry) END AS latitude,
-        CASE WHEN location IS NOT NULL THEN ST_X(location::geometry) END AS longitude
-      FROM "Restaurant"
-      WHERE "restaurantId" = $1 AND "deletedAt" IS NULL
-      LIMIT 1
-    `, restaurant.restaurantId);
-    if (Array.isArray(rows) && rows[0]) {
-      const r = rows[0];
-      const pgLat = toNumber(r && typeof r === 'object' ? r.latitude : null, null);
-      const pgLng = toNumber(r && typeof r === 'object' ? r.longitude : null, null);
-      if (Number.isFinite(pgLat) && Number.isFinite(pgLng)) {
-        geo = { latitude: pgLat, longitude: pgLng, source: 'RESTAURANT_POSTGIS' };
+    const numericRestoId = Number.isInteger(restaurant.restaurantId)
+      ? restaurant.restaurantId
+      : Number.parseInt(String(restaurant.restaurantId ?? ''), 10);
+    if (Number.isInteger(numericRestoId)) {
+      const rows = await prisma.$queryRawUnsafe(`
+        SELECT
+          CASE WHEN location IS NOT NULL THEN ST_Y(location::geometry) END AS latitude,
+          CASE WHEN location IS NOT NULL THEN ST_X(location::geometry) END AS longitude
+        FROM "restaurants"
+        WHERE "restaurantId" = $1 AND "deletedAt" IS NULL
+        LIMIT 1
+      `, numericRestoId);
+      if (Array.isArray(rows) && rows[0]) {
+        const r = rows[0];
+        const pgLat = toNumber(r && typeof r === 'object' ? r.latitude : null, null);
+        const pgLng = toNumber(r && typeof r === 'object' ? r.longitude : null, null);
+        if (Number.isFinite(pgLat) && Number.isFinite(pgLng)) {
+          geo = { latitude: pgLat, longitude: pgLng, source: 'RESTAURANT_POSTGIS' };
+        }
       }
     }
   } catch (_) {}
   if (geo) return geo;
-  const address = await prisma.address.findFirst({
-    where: {
-      OR: [
-        { objectType: 'RESTAURANT', objectId: String(restaurant.restaurantId) },
-        { objectType: 'RESTAURANT', objectId: String(restaurant.id) },
-      ],
-      deletedAt: null,
-    },
-    orderBy: { updatedAt: 'desc' },
-  });
-  const aLat = toNumber(address?.latitude, null);
-  const aLng = toNumber(address?.longitude, null);
-  if (Number.isFinite(aLat) && Number.isFinite(aLng)) {
-    return { latitude: aLat, longitude: aLng, source: 'RESTAURANT_ADDRESS' };
-  }
+  try {
+    const numRestaurantId = Number.parseInt(String(restaurant.restaurantId ?? ''), 10);
+    const numId = Number.parseInt(String(restaurant.id ?? ''), 10);
+    const orClauses = [];
+    if (Number.isInteger(numRestaurantId)) {
+      orClauses.push({ objectType: 'RESTAURANT', objectId: numRestaurantId });
+    }
+    if (Number.isInteger(numId) && numId !== numRestaurantId) {
+      orClauses.push({ objectType: 'RESTAURANT', objectId: numId });
+    }
+    let address = null;
+    if (orClauses.length > 0) {
+      address = await prisma.address.findFirst({
+        where: { OR: orClauses, deletedAt: null },
+        orderBy: { updatedAt: 'desc' },
+      });
+    }
+    const aLat = toNumber(address?.latitude, null);
+    const aLng = toNumber(address?.longitude, null);
+    if (Number.isFinite(aLat) && Number.isFinite(aLng)) {
+      return { latitude: aLat, longitude: aLng, source: 'RESTAURANT_ADDRESS' };
+    }
+  } catch (_) {}
   return { latitude: null, longitude: null, source: null };
 }
 
@@ -115,9 +128,16 @@ async function quoteDelivery({ restaurantId, addressId, userId }) {
     throw badRequest('restaurantId et addressId sont obligatoires.');
   }
 
+  const numericUserId = Number.isInteger(userId) ? userId : Number.parseInt(String(userId ?? ''), 10);
   const [restaurant, address] = await Promise.all([
     prisma.restaurant.findFirst({ where: { restaurantId: numericRestaurantId, deletedAt: null } }),
-    prisma.address.findFirst({ where: { addressId: numericAddressId, objectId: userId, deletedAt: null } }),
+    prisma.address.findFirst({
+      where: {
+        addressId: numericAddressId,
+        ...(Number.isInteger(numericUserId) ? { objectId: numericUserId } : {}),
+        deletedAt: null,
+      },
+    }),
   ]);
   if (!restaurant) throw notFound('Restaurant');
   if (!address) throw notFound('Adresse de livraison');

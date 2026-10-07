@@ -128,7 +128,14 @@ async function createOrder(req, res, next) {
         || (quote.missingCustomerLocation === true)
         || (typeof quote.deliveryFee === 'number' && Number.isFinite(quote.deliveryFee) && quote.deliveryFee > 0);
       if (!quote.available && !isGpsTolerable) throw badRequest(quote.message);
-      deliveryAddress = await prisma.address.findFirst({ where: { addressId, objectId: userId, deletedAt: null } });
+      const numericUserId = Number.isInteger(userId) ? userId : Number.parseInt(String(userId ?? ''), 10);
+      deliveryAddress = await prisma.address.findFirst({
+        where: {
+          addressId,
+          ...(Number.isInteger(numericUserId) ? { objectId: numericUserId } : {}),
+          deletedAt: null,
+        },
+      });
     }
     let deliveryFee = Number(
       (quote && Number.isFinite(Number(quote.deliveryFee))) ? quote.deliveryFee : (quote?.deliveryFee || 0)

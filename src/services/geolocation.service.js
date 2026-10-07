@@ -87,9 +87,14 @@ async function updateCustomerAddressLocation({ addressId, userId, latitude, long
   const point = coordinates(latitude, longitude);
   const numericAddressId = Number.parseInt(addressId, 10);
   if (!Number.isInteger(numericAddressId)) throw badRequest('addressId est obligatoire.');
+  const numericUserId = Number.isInteger(userId) ? userId : Number.parseInt(String(userId ?? ''), 10);
 
   const address = await prisma.address.findFirst({
-    where: { addressId: numericAddressId, objectId: userId, deletedAt: null },
+    where: {
+      addressId: numericAddressId,
+      ...(Number.isInteger(numericUserId) ? { objectId: numericUserId } : {}),
+      deletedAt: null,
+    },
   });
   if (!address) throw notFound('Adresse cliente');
 
