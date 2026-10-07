@@ -153,6 +153,14 @@ async function createCheckout(req, res, next, kind = 'ORDER') {
       },
     });
     const user = await prisma.user.findFirst({ where: { userId: req.auth.userId, deletedAt: null } });
+    const restaurant = await prisma.restaurant.findFirst({ where: { restaurantId: order.restaurantId, deletedAt: null }, select: { restaurantId: true, id: true, name: true, latitude: true, longitude: true, cityId: true } });
+    const delivery = order.deliveryMode === 'DELIVERY'
+      ? await prisma.delivery.findFirst({
+          where: { orderId: order.orderId },
+          select: { deliveryMode: true, deliveryAddressId: true, deliveryLatitude: true, deliveryLongitude: true },
+        })
+      : null;
+    const deliverySnapshot = order.deliveryAddressSnapshot || {};
     let gateway;
     try {
       gateway = await initiatePayment({
@@ -165,6 +173,19 @@ async function createCheckout(req, res, next, kind = 'ORDER') {
           phone: user?.telephoneE164 || user?.telephone,
         },
         metadata: { order_id: String(order.orderId), kind },
+        restaurant: {
+          restaurantId: restaurant?.restaurantId || order.restaurantId,
+          name: restaurant?.name || undefined,
+          latitude: Number.isFinite(Number(restaurant?.latitude)) ? Number(restaurant.latitude) : undefined,
+          longitude: Number.isFinite(Number(restaurant?.longitude)) ? Number(restaurant.longitude) : undefined,
+          cityId: restaurant?.cityId || undefined,
+        },
+        delivery: delivery ? {
+          deliveryMode: delivery.deliveryMode || 'DELIVERY',
+          deliveryAddressId: delivery.deliveryAddressId || undefined,
+          latitude: Number.isFinite(Number(delivery.deliveryLatitude)) ? Number(delivery.deliveryLatitude) : Number.isFinite(Number(deliverySnapshot?.latitude)) ? Number(deliverySnapshot.latitude) : undefined,
+          longitude: Number.isFinite(Number(delivery.deliveryLongitude)) ? Number(delivery.deliveryLongitude) : Number.isFinite(Number(deliverySnapshot?.longitude)) ? Number(deliverySnapshot.longitude) : undefined,
+        } : undefined,
       });
     } catch (error) {
       await prisma.transaction.update({
@@ -251,6 +272,7 @@ async function initializeTip(req, res, next) {
       return { tip, created };
     });
     const user = await prisma.user.findFirst({ where: { userId: req.auth.userId, deletedAt: null } });
+    const restaurant = await prisma.restaurant.findFirst({ where: { restaurantId: order.restaurantId, deletedAt: null }, select: { restaurantId: true, id: true, name: true, latitude: true, longitude: true, cityId: true } });
     let gateway;
     try {
       gateway = await initiatePayment({
@@ -259,6 +281,13 @@ async function initializeTip(req, res, next) {
         currency: 'CDF',
         customer: { name: [user?.firstname, user?.lastname].filter(Boolean).join(' '), email: user?.email, phone: user?.telephoneE164 || user?.telephone },
         metadata: { order_id: String(order.orderId), kind: 'TIP', tip_id: tip.id },
+        restaurant: {
+          restaurantId: restaurant?.restaurantId || order.restaurantId,
+          name: restaurant?.name || undefined,
+          latitude: Number.isFinite(Number(restaurant?.latitude)) ? Number(restaurant.latitude) : undefined,
+          longitude: Number.isFinite(Number(restaurant?.longitude)) ? Number(restaurant.longitude) : undefined,
+          cityId: restaurant?.cityId || undefined,
+        },
       });
     } catch (error) {
       await prisma.transaction.update({ where: { id: created.id }, data: { status: 'FAILED', providerData: { ...(created.providerData || {}), initiationError: error.message } } });

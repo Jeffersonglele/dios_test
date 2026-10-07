@@ -66,19 +66,32 @@ function providerError(error, fallback) {
   return wrapped;
 }
 
-async function initiatePayment({ transactionId, amount, currency, customer, metadata = {} }) {
+async function initiatePayment({ transactionId, amount, currency, customer, metadata = {}, restaurant, delivery }) {
   const config = configuration();
   const livemode = config.mode === 'live';
+  const customerPhone = String(customer?.phone || '').replace(/[^\d+]/g, '') || undefined;
   const payload = {
     amount: amountAsInteger(amount),
     currency: String(currency || 'CDF').toUpperCase(),
     customer_name: customer?.name || 'Client Dios Delices',
     customer_email: customer?.email || undefined,
-    customer_phone: customer?.phone || undefined,
+    customer_phone: customerPhone,
     description: `Commande Dios Delices ${transactionId}`,
     success_url: config.successUrl,
     cancel_url: config.cancelUrl,
-    metadata: { ...metadata, dios_transaction_id: transactionId },
+    metadata: {
+      ...metadata,
+      dios_transaction_id: transactionId,
+      restaurant_id: restaurant?.restaurantId || null,
+      restaurant_name: restaurant?.name || null,
+      restaurant_latitude: restaurant?.latitude,
+      restaurant_longitude: restaurant?.longitude,
+      restaurant_city_id: restaurant?.cityId || null,
+      delivery_mode: delivery?.deliveryMode || null,
+      delivery_address_id: delivery?.deliveryAddressId || null,
+      delivery_latitude: delivery?.latitude,
+      delivery_longitude: delivery?.longitude,
+    },
   };
 
   try {
@@ -102,7 +115,23 @@ async function initiatePayment({ transactionId, amount, currency, customer, meta
       raw: result,
     };
   } catch (error) {
-    throw providerError(error, 'Nyole a refusé la création de la session de paiement.');
+    const responseData = error.response?.data;
+    const responseMessage = responseData?.error || responseData?.message || responseData?.description || '';
+    const nyoleMessage = typeof responseMessage === 'string' ? responseMessage : '';
+    const raw = JSON.stringify(responseData || '');
+    const missingRestaurantLocation = !restaurant
+      || !Number.isFinite(Number(restaurant?.latitude))
+      || !Number.isFinite(Number(restaurant?.longitude));
+    const hint = missingRestaurantLocation
+      ? " — le restaurant n'a pas de coordonnées GPS valides dans la base (latitude/longitude)."
+      : ` — coordonnées restaurant (${restaurant?.latitude}, ${restaurant?.longitude}) et livraison (${delivery?.latitude}, ${delivery?.longitude}) envoyées.`;
+    const fallback = `Nyole a refusé la création de la session de paiement${hint}`;
+    const wrapped = new Error(nyoleMessage ? `${nyoleMessage}${hint}` : fallback);
+    wrapped.statusCode = error.statusCode || 502;
+    wrapped.providerRaw = raw;
+    wrapped.providerMessage = nyoleMessage;
+    wrapped.missingRestaurantLocation = missingRestaurantLocation;
+    throw wrapped;
   }
 }
 
