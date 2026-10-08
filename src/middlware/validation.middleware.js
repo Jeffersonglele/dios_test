@@ -18,7 +18,13 @@ function validate(schema) {
   };
 }
 
-const uuidParam = Joi.object({ id: Joi.string().guid({ version: 'uuidv4' }).required() });
+const flexIdParam = Joi.object({
+  id: Joi.alternatives().try(
+    Joi.string().guid({ version: 'uuidv4' }),
+    Joi.number().integer().min(1),
+    Joi.string().pattern(/^\d+$/),
+  ).required(),
+});
 const paginationQuery = Joi.object({
   page: Joi.number().integer().min(1),
   pageSize: Joi.number().integer().min(1).max(100),
@@ -28,7 +34,7 @@ const paginationQuery = Joi.object({
 
 const validators = {
   emptyBody: Joi.object({ body: Joi.object().max(0), params: Joi.object(), query: Joi.object() }),
-  id: Joi.object({ params: uuidParam, query: Joi.object().unknown(true), body: Joi.object().unknown(true) }),
+  id: Joi.object({ params: flexIdParam, query: Joi.object().unknown(true), body: Joi.object().unknown(true) }),
   pagination: Joi.object({ params: Joi.object().unknown(true), query: paginationQuery, body: Joi.object().unknown(true) }),
   login: Joi.object({
     body: Joi.object({

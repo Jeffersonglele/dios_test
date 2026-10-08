@@ -62,9 +62,22 @@ function createCrudController({
 
     async getById(req, res, next) {
       try {
-        const where = { id: req.params.id };
+        const idParam = String(req.params.id);
+        const parsedIntId = Number.parseInt(idParam, 10);
+        const idCol = `${delegate}Id`;
+        const where = {
+          OR: [
+            { id: idParam },
+            ...(Number.isInteger(parsedIntId) ? [{ [idCol]: parsedIntId }] : []),
+          ],
+        };
         if (hasSoftDelete) where.deletedAt = null;
-        const record = await repository.findFirst({ where });
+        let record = null;
+        try {
+          record = await repository.findFirst({ where });
+        } catch (_) {
+          record = await repository.findFirst({ where: { id: idParam, ...(hasSoftDelete ? { deletedAt: null } : {}) } });
+        }
         if (!record) throw notFound(resource);
         return res.status(200).json({ data: record });
       } catch (error) {
