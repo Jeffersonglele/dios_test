@@ -402,27 +402,40 @@ async function listAvailableDeliveries(req, res, next) {
 
     const deliveries = await prisma.$queryRaw`
       SELECT
-        o."orderId",
-        o."id",
+        o."commande_id" as "orderId",
+        o."id" as "orderUuid",
         o."totalAmount",
         o."paymentProvider",
-        o."orderedAt",
-        o."deliveryAddressSnapshot",
-        o."restaurantId",
+        o."date_commande" as "orderedAt",
+        o."delivery_address_snapshot" as "deliveryAddressSnapshot",
+        o."restau_id" as "restaurantId",
+        o."frais_livraison" as "deliveryFee",
+        o."fraisLivraison" as "legacyDeliveryFee",
+        o."delivery_distance_km" as "deliveryDistanceKm",
         r."name" as "restaurantName",
-        r."address" as "restaurantAddress",
+        r."adress" as "restaurantAddress",
         r."location" as "restaurantLocation",
         d."id" as "deliveryId",
+        d."delivery_id",
         d."status" as "deliveryStatus",
-        d."quotedDistanceKm"
+        d."quoted_distance_km" as "quotedDistanceKm",
+        d."quoted_distance_km" as "distanceKm",
+        o."currency",
+        CASE
+          WHEN o."paymentProvider" IS NOT NULL THEN UPPER(o."paymentProvider")
+          ELSE 'CARD'
+        END as "paymentMethod",
+        o."frais_livraison" as "courierFee",
+        o."totalAmount" as "cashAmount",
+        o."totalAmount" as "cashToCollect"
       FROM "orders" o
-      INNER JOIN "restaurants" r ON o."restaurantId" = r."restaurantId"
-      INNER JOIN "deliveries" d ON o."orderId" = d."orderId"
+      INNER JOIN "restaurants" r ON o."restau_id" = r."restaurantId"
+      INNER JOIN "deliveries" d ON o."commande_id" = d."commande_id"
       WHERE o."deletedAt" IS NULL
         AND r."deletedAt" IS NULL
-        AND d."deletedAt" IS NULL
+        AND d."cancelled_at" IS NULL
         AND o."deliveryMode" = 'DELIVERY'
-        AND o."delivererId" IS NULL
+        AND o."livreur_id" IS NULL
         AND d."status" = 'SEARCHING'
         AND r."location" IS NOT NULL
         AND ST_DWithin(
@@ -430,7 +443,7 @@ async function listAvailableDeliveries(req, res, next) {
           ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography,
           ${radiusKm * 1000}
         )
-      ORDER BY o."orderedAt" ASC
+      ORDER BY o."date_commande" ASC
       LIMIT 50
     `;
 
@@ -444,10 +457,10 @@ const MAX_CASH_ON_HAND = 50000;
 
 async function acceptOrder(req, res, next) {
   try {
-    const orderId = req.params.orderId;
+    const orderId = Number.parseInt(req.params.orderId, 10);
     const delivererId = req.auth.userId;
 
-    if (!orderId) throw badRequest('orderId est obligatoire');
+    if (!Number.isInteger(orderId)) throw badRequest('orderId invalide');
 
     const user = await prisma.user.findFirst({
       where: { userId: delivererId, deletedAt: null },
@@ -455,8 +468,8 @@ async function acceptOrder(req, res, next) {
     });
     if (!user) throw notFound('Livreur introuvable');
 
-    const order = await prisma.order.findFirst({
-      where: { id: orderId, deletedAt: null },
+    const order = await prisma.order.findUnique({
+      where: { orderId },
       select: {
         id: true,
         orderId: true,
@@ -484,7 +497,7 @@ async function acceptOrder(req, res, next) {
 
     const result = await prisma.$transaction(async (tx) => {
       const recheckOrder = await tx.order.findUnique({
-        where: { id: orderId },
+        where: { orderId },
         select: { delivererId: true },
       });
 
@@ -493,7 +506,7 @@ async function acceptOrder(req, res, next) {
       }
 
       const updatedOrder = await tx.order.update({
-        where: { id: orderId },
+        where: { orderId },
         data: {
           delivererId: user.userId,
           status: 'ACCEPTED',
@@ -501,7 +514,7 @@ async function acceptOrder(req, res, next) {
       });
 
       const updatedDelivery = await tx.delivery.update({
-        where: { orderId: order.orderId },
+        where: { orderId },
         data: {
           delivererId: user.userId,
           status: 'ASSIGNED',
