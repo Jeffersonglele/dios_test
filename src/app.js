@@ -4,6 +4,7 @@ const cors = require('cors');
 const express = require('express');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const path = require('path');
 
 const apiRoutes = require('./routes');
 const { errorHandler, notFoundHandler } = require('./middlware/error.middleware');
@@ -36,6 +37,14 @@ app.use('/api/v1/payments/nyole/webhook', express.raw({
 app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || '1mb' }));
 app.use(express.urlencoded({ extended: false, limit: process.env.JSON_BODY_LIMIT || '1mb' }));
 app.use('/uploads', express.static(uploadDirectory(), { fallthrough: false, maxAge: '7d' }));
+
+// Configuration spécifique pour le dossier des cartes PMTiles
+app.use('/maps', cors(), express.static(path.join(__dirname, 'public/maps'), {
+  acceptRanges: true, // TRÈS IMPORTANT : Permet à Flutter de ne télécharger que les morceaux (tuiles) dont il a besoin
+  setHeaders: (res, path) => {
+    res.set('Access-Control-Allow-Origin', '*');
+  }
+}));
 
 app.get('/health', async (req, res) => {
   const health = await getHealth();
