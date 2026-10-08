@@ -25,6 +25,7 @@ const flexIdParam = Joi.object({
     Joi.string().pattern(/^\d+$/),
   ).required(),
 });
+const uuidParam = flexIdParam;
 const paginationQuery = Joi.object({
   page: Joi.number().integer().min(1),
   pageSize: Joi.number().integer().min(1).max(100),
@@ -76,7 +77,7 @@ const validators = {
     }).or('lines', 'orderLines'), params: Joi.object(), query: Joi.object(),
   }),
   verifyRetrieval: Joi.object({
-    params: uuidParam,
+    params: flexIdParam,
     body: Joi.object({
       otp: Joi.string().trim().alphanum().length(4).required(),
       proofPhotoUrl: Joi.string().trim().uri().max(1024),
