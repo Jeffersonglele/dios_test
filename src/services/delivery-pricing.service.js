@@ -2,7 +2,7 @@ const prisma = require('../config/prisma');
 const { badRequest, notFound } = require('../controllers/controller.utils');
 const { resolveCoveredCity } = require('./geolocation.service');
 
-const DEFAULT_CONFIG = Object.freeze({
+const DEFAULT_CONFIG_CDF = Object.freeze({
   baseFee: 2000,
   perKmRate: 500,
   includedDistanceKm: 2.5,
@@ -13,6 +13,20 @@ const DEFAULT_CONFIG = Object.freeze({
   roundingIncrement: 50,
   currency: 'CDF',
 });
+
+const DEFAULT_CONFIG_XOF = Object.freeze({
+  baseFee: 700,
+  perKmRate: 500,
+  includedDistanceKm: 2.5,
+  maxDistanceKm: 10,
+  fuelSurcharge: 0,
+  demandMultiplier: 1,
+  weatherMultiplier: 1,
+  roundingIncrement: 50,
+  currency: 'XOF',
+});
+
+const DEFAULT_CONFIG = DEFAULT_CONFIG_CDF;
 
 function toNumber(value, fallback) {
   if (value === null || value === undefined) return fallback;
@@ -34,27 +48,40 @@ function roundedCdf(amount, increment) {
   return Math.ceil(amount / increment) * increment;
 }
 
-async function configurationForCity(cityId) {
-  const cityConfig = await prisma.deliveryConfig.findFirst({
+async function configurationForCity(cityId, hintCountry = null) {
+  let cityInfo = null;
+  if (cityId) {
+    try {
+      cityInfo = await prisma.city.findFirst({ where: { cityId, deletedAt: null } });
+    } catch (_) {}
+  }
+  const isBeninOrXof = hintCountry === 'BJ' || hintCountry === 'BENIN' || hintCountry === 'XOF'
+    || cityInfo?.countryCode === 'BJ'
+    || String(cityInfo?.country || '').toUpperCase().includes('BENIN')
+    || String(cityInfo?.country || '').toUpperCase().includes('BÉNIN');
+
+  const defaultConfig = isBeninOrXof ? DEFAULT_CONFIG_XOF : DEFAULT_CONFIG_CDF;
+
+  const cityConfig = cityId ? await prisma.deliveryConfig.findFirst({
     where: { cityId, active: true }, orderBy: { updatedAt: 'desc' },
-  });
+  }) : null;
   const fallbackConfig = cityConfig || await prisma.deliveryConfig.findFirst({
     where: { cityId: null, active: true }, orderBy: { updatedAt: 'desc' },
   });
   const source = fallbackConfig ? 'CITY_CONFIGURATION' : 'DEFAULT_CONFIGURATION';
   return {
     source,
-    ...DEFAULT_CONFIG,
+    ...defaultConfig,
     ...(fallbackConfig ? {
-      baseFee: toNumber(fallbackConfig.baseFee, DEFAULT_CONFIG.baseFee),
-      perKmRate: toNumber(fallbackConfig.perKmRate, DEFAULT_CONFIG.perKmRate),
-      includedDistanceKm: toNumber(fallbackConfig.includedDistanceKm, DEFAULT_CONFIG.includedDistanceKm),
-      maxDistanceKm: toNumber(fallbackConfig.maxDistanceKm, DEFAULT_CONFIG.maxDistanceKm),
-      fuelSurcharge: toNumber(fallbackConfig.fuelSurcharge, DEFAULT_CONFIG.fuelSurcharge),
-      demandMultiplier: toNumber(fallbackConfig.demandMultiplier, DEFAULT_CONFIG.demandMultiplier),
-      weatherMultiplier: toNumber(fallbackConfig.weatherMultiplier, DEFAULT_CONFIG.weatherMultiplier),
-      roundingIncrement: toNumber(fallbackConfig.roundingIncrement, DEFAULT_CONFIG.roundingIncrement),
-      currency: fallbackConfig.currency || DEFAULT_CONFIG.currency,
+      baseFee: toNumber(fallbackConfig.baseFee, defaultConfig.baseFee),
+      perKmRate: toNumber(fallbackConfig.perKmRate, defaultConfig.perKmRate),
+      includedDistanceKm: toNumber(fallbackConfig.includedDistanceKm, defaultConfig.includedDistanceKm),
+      maxDistanceKm: toNumber(fallbackConfig.maxDistanceKm, defaultConfig.maxDistanceKm),
+      fuelSurcharge: toNumber(fallbackConfig.fuelSurcharge, defaultConfig.fuelSurcharge),
+      demandMultiplier: toNumber(fallbackConfig.demandMultiplier, defaultConfig.demandMultiplier),
+      weatherMultiplier: toNumber(fallbackConfig.weatherMultiplier, defaultConfig.weatherMultiplier),
+      roundingIncrement: toNumber(fallbackConfig.roundingIncrement, defaultConfig.roundingIncrement),
+      currency: fallbackConfig.currency || defaultConfig.currency,
     } : {}),
   };
 }
@@ -149,9 +176,10 @@ async function quoteDelivery({ restaurantId, addressId, userId }) {
   const addressLng = toNumber(address.longitude, null);
 
   const restaurantDeliveryFee = toNumber(restaurant.deliveryFee, 0);
+  const countryHint = restaurant.country || restaurant.currency || address.country;
   const fallbackCityConfig = (address.cityId != null)
-    ? await configurationForCity(address.cityId)
-    : await configurationForCity(null);
+    ? await configurationForCity(address.cityId, countryHint)
+    : await configurationForCity(restaurant.cityId || null, countryHint);
   const fallbackFee = restaurantDeliveryFee > 0
     ? { fee: restaurantDeliveryFee, currency: restaurant.currency || fallbackCityConfig.currency, source: 'RESTAURANT_FIXED_FEE' }
     : { fee: fallbackCityConfig.baseFee, currency: fallbackCityConfig.currency, source: fallbackCityConfig.source };
