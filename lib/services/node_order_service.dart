@@ -92,6 +92,102 @@ class NodeOrderService {
         .toList();
   }
 
+  static Future<List<Map<String, dynamic>>> listForRestaurant({
+    required String token,
+    int? restaurateurId,
+    int? restaurantId,
+    bool includeLines = true,
+  }) async {
+    final results = <Map<String, dynamic>>[];
+    final seenOrderIds = <String>{};
+
+    Future<void> fetchWithFilter(Map<String, String> extra) async {
+      final response = await NodeAuthService.getJson(
+        '/orders',
+        token: token,
+        queryParameters: {
+          ...extra,
+          'pageSize': '100',
+          if (includeLines) 'includeLines': 'true',
+        },
+      );
+      final data = response['data'];
+      if (data is! List) return;
+      for (final row in data.whereType<Map>()) {
+        final key = (row['orderId'] ?? row['id'] ?? row['commandeID']).toString();
+        if (seenOrderIds.contains(key)) continue;
+        seenOrderIds.add(key);
+        results.add(Map<String, dynamic>.from(row));
+      }
+    }
+
+    if (restaurateurId != null) {
+      await fetchWithFilter({'restaurateurId': '$restaurateurId'});
+    }
+    if (restaurantId != null) {
+      await fetchWithFilter({'restaurantId': '$restaurantId'});
+    }
+    return results;
+  }
+
+  static Future<List<Map<String, dynamic>>> listForDeliverer({
+    required String token,
+    required int delivererId,
+    bool includeLines = true,
+  }) async {
+    final response = await NodeAuthService.getJson(
+      '/orders',
+      token: token,
+      queryParameters: {
+        'delivererId': '$delivererId',
+        'pageSize': '100',
+        if (includeLines) 'includeLines': 'true',
+      },
+    );
+    final data = response['data'];
+    if (data is! List) return const [];
+    return data
+        .whereType<Map>()
+        .map((row) => Map<String, dynamic>.from(row))
+        .toList();
+  }
+
+  static Future<Map<String, dynamic>?> getDetails({
+    required String token,
+    required String orderId,
+    bool includeLines = true,
+  }) async {
+    final response = await NodeAuthService.getJson(
+      '/orders/$orderId/details',
+      token: token,
+      queryParameters: {
+        if (includeLines) 'includeLines': 'true',
+      },
+    );
+    final data = response['data'];
+    if (data is! Map) return null;
+    return Map<String, dynamic>.from(data);
+  }
+
+  static List<Map<String, dynamic>> mergeOrders(
+    List<Map<String, dynamic>> a,
+    List<Map<String, dynamic>> b,
+  ) {
+    final seen = <String>{};
+    final result = <Map<String, dynamic>>[];
+    void addAll(List<Map<String, dynamic>> list) {
+      for (final row in list) {
+        final key = (row['orderId'] ?? row['id'] ?? row['commandeID']).toString();
+        if (seen.contains(key)) continue;
+        seen.add(key);
+        result.add(row);
+      }
+    }
+    addAll(a);
+    addAll(b);
+    return result;
+  }
+
   static Future<Map<String, dynamic>> updateStatus({
     required String token,
     required String orderId,

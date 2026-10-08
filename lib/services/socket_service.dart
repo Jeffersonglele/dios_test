@@ -23,6 +23,9 @@ class SocketService {
   final StreamController<Map<String, dynamic>> _courierMovedController =
       StreamController<Map<String, dynamic>>.broadcast();
 
+  final StreamController<Map<String, dynamic>> _driverLocationUpdatedController =
+      StreamController<Map<String, dynamic>>.broadcast();
+
   final StreamController<Map<String, dynamic>> _deliveryStatusController =
       StreamController<Map<String, dynamic>>.broadcast();
 
@@ -49,6 +52,10 @@ class SocketService {
 
   /// Flux de positions GPS du livreur en direct
   Stream<Map<String, dynamic>> get onCourierMoved => _courierMovedController.stream;
+
+  /// Flux de positions GPS du livreur en direct (événement normalisé spec)
+  Stream<Map<String, dynamic>> get onDriverLocationUpdated =>
+      _driverLocationUpdatedController.stream;
 
   /// Flux d'événements de cycle de livraison
   Stream<Map<String, dynamic>> get onDeliveryStatusChanged => _deliveryStatusController.stream;
@@ -109,6 +116,7 @@ class SocketService {
 
         if (_currentOrderId != null) {
           joinOrderTracking(_currentOrderId!);
+          joinOrderRoom(_currentOrderId!);
         }
         if (_currentChatOrderId != null) {
           joinOrderChat(_currentChatOrderId!);
@@ -130,6 +138,7 @@ class SocketService {
         _connectionController.add(true);
         if (_currentOrderId != null) {
           joinOrderTracking(_currentOrderId!);
+          joinOrderRoom(_currentOrderId!);
         }
         if (_currentChatOrderId != null) {
           joinOrderChat(_currentChatOrderId!);
@@ -146,6 +155,26 @@ class SocketService {
           _courierMovedController.add(data);
         } else if (data is Map) {
           _courierMovedController.add(Map<String, dynamic>.from(data));
+        }
+      });
+
+      _socket!.on('driver_location_updated', (data) {
+        final map = data is Map<String, dynamic>
+            ? data
+            : data is Map
+                ? Map<String, dynamic>.from(data)
+                : null;
+        if (map == null) return;
+        _driverLocationUpdatedController.add(map);
+        // Assure la compatibilité ascendante : retransmet aussi via onCourierMoved
+        final lat = map['lat'] ?? map['latitude'];
+        final lng = map['lng'] ?? map['longitude'];
+        if (lat != null && lng != null) {
+          _courierMovedController.add({
+            ...map,
+            if (!map.containsKey('latitude')) 'latitude': lat,
+            if (!map.containsKey('longitude')) 'longitude': lng,
+          });
         }
       });
 
@@ -233,6 +262,36 @@ class SocketService {
     if (_currentOrderId == orderId) {
       _currentOrderId = null;
     }
+  }
+
+  /// Rejoint la room de suivi d'une commande (spec v2).
+  void joinOrderRoom(String orderId) {
+    _currentOrderId ??= orderId;
+    if (_socket == null || !_socket!.connected) return;
+    _socket!.emit('join_order_room', orderId);
+  }
+
+  /// Quitte la room de suivi d'une commande (spec v2).
+  void leaveOrderRoom(String orderId) {
+    if (_socket != null && _socket!.connected) {
+      _socket!.emit('leave_order_room', orderId);
+    }
+  }
+
+  /// Émet la position GPS du livreur vers le serveur (spec v2).
+  /// Corps : { orderId, lat, lng, heading }
+  void emitUpdateLocation({
+    required dynamic orderId,
+    required double lat,
+    required double lng,
+    double? heading,
+  }) {
+    emit('update_location', {
+      'orderId': orderId.toString(),
+      'lat': lat,
+      'lng': lng,
+      if (heading != null && !heading.isNaN) 'heading': heading,
+    });
   }
 
   void emitCourierLocation({
@@ -335,6 +394,7 @@ class SocketService {
   void dispose() {
     disconnect();
     _courierMovedController.close();
+    _driverLocationUpdatedController.close();
     _deliveryStatusController.close();
     _connectionController.close();
     _newMessageController.close();

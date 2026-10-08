@@ -586,9 +586,15 @@ class _SettingsState extends ConsumerState<Settings> {
       ),
     );
 
-    currentPwdCtrl.dispose();
-    newPwdCtrl.dispose();
-    confirmPwdCtrl.dispose();
+    // ⚠️ Le dialogue vient d'être fermé, mais ses champs de texte sont encore
+    // à l'écran pendant l'animation de fermeture. Libérer les contrôleurs tout
+    // de suite provoque une cascade d'erreurs (écran rouge). On attend donc la
+    // fin de l'animation.
+    Future.delayed(const Duration(milliseconds: 600), () {
+      currentPwdCtrl.dispose();
+      newPwdCtrl.dispose();
+      confirmPwdCtrl.dispose();
+    });
   }
 
   /// Voile plein écran non fermable avec Swirling. Retourne la fonction

@@ -37,8 +37,12 @@ import '../../widgets/animations.dart';
 import '../../widgets/delivery_unavailable.dart';
 import '../../widgets/dios_image.dart';
 import '../../widgets/cart_widgets.dart';
+import '../navigation/curved_navigation_user.dart';
+import '../../utils/payment_provider_label.dart';
 import '../orders/order_tracking_page.dart';
 import '../payment/nyole_payment_page.dart';
+import '../../services/wallet_service.dart';
+import '../wallet/wallet_screen.dart';
 
 class Cart extends ConsumerStatefulWidget {
   const Cart({super.key, this.restaurantId});
@@ -55,6 +59,10 @@ class _CartState extends ConsumerState<Cart> {
   PromoApplication? _appliedPromo;
   bool _isSubmittingPayment = false;
   bool _payOnline = false;
+  bool _payWallet = false;
+  /// Commande déjà créée mais pas encore payée (solde insuffisant) :
+  /// réutilisée au prochain essai pour ne pas créer de doublon.
+  String? _walletPendingOrderId;
   bool _isUsingCurrentLocation = false;
   DeliveryAvailability? _cartDeliveryAvailability;
   RestaurantOpeningStatus? _cartOpeningStatus;
@@ -1098,24 +1106,39 @@ class _CartState extends ConsumerState<Cart> {
             child: CartSectionCard(
               icon: Icons.account_balance_wallet_rounded,
               title: l10n.cart_payment_section,
-              child: Row(
+              child: Column(
                 children: [
-                  Expanded(
-                    child: CartPaymentOption(
-                      icon: Icons.payments_outlined,
-                      label: l10n.cart_payment_cod,
-                      selected: !_payOnline,
-                      onTap: () => setState(() => _payOnline = false),
-                    ),
+                  _PaymentRowTile(
+                    icon: Icons.payments_outlined,
+                    label: l10n.cart_payment_cod,
+                    subtitle: 'Payer en espèces à la réception',
+                    selected: !_payOnline && !_payWallet,
+                    onTap: () => setState(() {
+                      _payOnline = false;
+                      _payWallet = false;
+                    }),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: CartPaymentOption(
-                      icon: Icons.credit_card_outlined,
-                      label: l10n.cart_payment_fedapay,
-                      selected: _payOnline,
-                      onTap: () => setState(() => _payOnline = true),
-                    ),
+                  const SizedBox(height: 10),
+                  _PaymentRowTile(
+                    icon: Icons.credit_card_outlined,
+                    label: l10n.cart_payment_fedapay,
+                    subtitle: 'Paiement en ligne sécurisé',
+                    selected: _payOnline,
+                    onTap: () => setState(() {
+                      _payOnline = true;
+                      _payWallet = false;
+                    }),
+                  ),
+                  const SizedBox(height: 10),
+                  _PaymentRowTile(
+                    icon: Icons.account_balance_wallet_rounded,
+                    label: 'Portefeuille Dios',
+                    subtitle: 'Payer avec votre solde',
+                    selected: _payWallet,
+                    onTap: () => setState(() {
+                      _payWallet = true;
+                      _payOnline = false;
+                    }),
                   ),
                 ],
               ),
@@ -1143,7 +1166,9 @@ class _CartState extends ConsumerState<Cart> {
                     await showRestaurantClosedSheet(context);
                     return;
                   }
-                  if (_payOnline) {
+                  if (_payWallet) {
+                    await _handleWalletPayment();
+                  } else if (_payOnline) {
                     await _handleOnlinePayment();
                   } else {
                     await _handleOrder();
@@ -1277,13 +1302,169 @@ class _CartState extends ConsumerState<Cart> {
               context,
               MaterialPageRoute(
                   builder: (_) =>
-                      OrderConfirmationPage(commandeId: commandeId)));
+                      OrderConfirmationPage(
+                            commandeId: commandeId,
+                            paymentProvider: 'confirmed_cash',
+                          )));
         }
       } else {
         Toast(context, l10n.cart_order_failed, false);
       }
     } catch (_) {
       Toast(context, l10n.cart_order_error_retry, false);
+    } finally {
+      if (mounted) setState(() => _isSubmittingPayment = false);
+    }
+  }
+
+  /// SnackBar rouge « Solde insuffisant » avec action « Recharger ».
+  void _showInsufficientBalance() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.error,
+          duration: const Duration(seconds: 8),
+          content: const Row(
+            children: [
+              Icon(Icons.error_outline_rounded, color: Colors.white),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Solde insuffisant',
+                  style: TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ),
+          action: SnackBarAction(
+            label: 'Recharger',
+            textColor: Colors.white,
+            onPressed: () {
+              if (!mounted) return;
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const WalletScreen()),
+              );
+            },
+          ),
+        ),
+      );
+  }
+
+  /// Paiement par portefeuille : crée la commande puis la règle avec le solde.
+  Future<void> _handleWalletPayment() async {
+    final option = ref.read(selectedDeliveryProvider);
+    final l10n = AppLocalizations.of(context)!;
+    if (option == kDeliveryOptionLivraison && selectedAddress == null) {
+      Toast(context, l10n.cart_choose_address_warning, false);
+      return;
+    }
+    if (option == kDeliveryOptionLivraison && selectedAddress != null) {
+      final inZone = await _checkAddressInZone(selectedAddress!);
+      if (!inZone) return;
+    }
+    final cartItems = _itemsForRestaurant(ref.read(cartStateProvider));
+    await _refreshCartDeliveryAvailability(cartItems);
+    if (_cartDeliveryAvailability != null &&
+        !_cartDeliveryAvailability!.canOrder) {
+      await showDeliveryUnavailableSheet(context);
+      return;
+    }
+    if (_cartOpeningStatus != null && !_cartOpeningStatus!.isOpen) {
+      await showRestaurantClosedSheet(context);
+      return;
+    }
+    final cartNotifier = ref.read(cartStateProvider.notifier);
+    final items = List<Map<String, dynamic>>.from(cartItems);
+    final country = _countryFromCart(items);
+    final cc = _currencyCode(country);
+    final fee = option == kDeliveryOptionLivraison
+        ? await calculateDeliveryFee(items)
+        : 0.0;
+    final discount = _appliedPromo?.discountAmount ?? 0.0;
+
+    setState(() => _isSubmittingPayment = true);
+    try {
+      // 1. Commande (ou reprise de celle restée impayée)
+      final hasNodeSession = await SessionService.hasNodeSession();
+      final wasAlreadyCreated = _walletPendingOrderId != null;
+      var commandeId = _walletPendingOrderId;
+      if (commandeId == null) {
+        commandeId = await createOrder(
+          cartItems,
+          fee,
+          option == kDeliveryOptionLivraison
+              ? selectedAddress?.addressID
+              : null,
+          null,
+          ref,
+          currencyCode: cc,
+          country: country,
+          reduction: discount,
+          promoCode: _appliedPromo?.code,
+          cityID: _userCityId,
+          deliveryMode: option,
+        );
+        if (commandeId == null) {
+          if (mounted) Toast(context, l10n.cart_order_failed, false);
+          return;
+        }
+        _walletPendingOrderId = commandeId;
+      }
+
+      // 2. Paiement par le portefeuille (si la commande n'a pas déjà été débitée lors du createOrder Node)
+      if (!hasNodeSession || wasAlreadyCreated) {
+        try {
+          await WalletService.payOrderWithWallet(commandeId);
+        } on WalletException catch (e) {
+          // Afficher le message d'erreur spécifique du portefeuille
+          if (mounted) {
+            Toast(context, e.message, false);
+            setState(() => _isSubmittingPayment = false);
+          }
+          return; // la commande reste en attente, le panier est conservé
+        }
+      }
+      _walletPendingOrderId = null;
+
+      // 3. Succès : même suite que pour une commande classique
+      if (!mounted) return;
+      Toast(context, l10n.cart_order_confirm_message, true);
+      final restaurantId = int.tryParse(
+              cartItems.first['restaurant']['restau_id'].toString()) ??
+          0;
+      final restaurantsList = await Restaurant.fetchRestaurantsFromDB();
+      final currentRestaurant = Restaurant.getRestaurantByRestaurantId(
+          restaurantsList, restaurantId);
+      if (currentRestaurant != null) {
+        final total = _subtotal(items) + fee - discount;
+        NotificationService.sendOrderNotificationToRestaurateur(
+          restaurateurId: currentRestaurant.userID,
+          restaurantName: currentRestaurant.name,
+          totalAmount: total.clamp(0.0, double.infinity),
+          orderId: int.tryParse(commandeId),
+          currencySymbol: CurrencyUtil.symbol(CurrencyUtil.code(country)),
+        );
+      }
+      await cartNotifier.clearRestaurantCart(restaurantId);
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => OrderConfirmationPage(
+              commandeId: commandeId!,
+              paymentProvider: 'wallet',
+            ),
+          ),
+        );
+      }
+    } on WalletException catch (e) {
+      if (mounted) Toast(context, e.message, false);
+    } catch (_) {
+      if (mounted) Toast(context, l10n.cart_order_error_retry, false);
     } finally {
       if (mounted) setState(() => _isSubmittingPayment = false);
     }
@@ -1414,6 +1595,7 @@ class _CartState extends ConsumerState<Cart> {
                       builder: (_) => OrderConfirmationPage(
                             commandeId: commandeId,
                             paymentPending: true,
+                            paymentProvider: 'awaiting_payment',
                           )));
             } else if (paymentResult == false && mounted) {
               // Si le paiement a échoué ou été annulé, on reste sur la page du panier
@@ -1474,7 +1656,8 @@ class _CartState extends ConsumerState<Cart> {
         lines: lines,
         deliveryMode: deliveryMode,
         addressId: idAdresse,
-        paymentMethod: idPaiement ?? (_payOnline ? 'NYOLE' : 'CASH'),
+        paymentMethod: idPaiement ??
+            (_payWallet ? 'WALLET' : (_payOnline ? 'NYOLE' : 'CASH')),
         reduction: reduction,
         promoCode: promoCode,
         cityId: cityID,
@@ -1590,40 +1773,20 @@ class _SectionTitle extends StatelessWidget {
 }
 
 class _SummaryRow extends StatelessWidget {
-  const _SummaryRow(this.label, this.value,
-      {this.isBold = false, this.valueColor});
+  const _SummaryRow(this.label, this.value);
   final String label;
   final String value;
-  final bool isBold;
-  final Color? valueColor;
 
   @override
   Widget build(BuildContext context) {
+    final color = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: isBold
-                ? AppTypography.titleMedium(
-                    color: AppColors.resolve(AppColors.ink, AppDarkColors.ink),
-                  ).copyWith(fontSize: 16)
-                : AppTypography.bodyLarge(
-                    color: AppColors.resolve(AppColors.ink, AppDarkColors.ink),
-                  ),
-          ),
-          Text(value,
-              style: (isBold
-                  ? AppTypography.titleMedium(
-                      color:
-                          AppColors.resolve(AppColors.ink, AppDarkColors.ink),
-                    ).copyWith(fontSize: 16)
-                  : AppTypography.bodyLarge(
-                      color:
-                          AppColors.resolve(AppColors.ink, AppDarkColors.ink),
-                    )))
+          Text(label, style: AppTypography.bodyLarge(color: color)),
+          Text(value, style: AppTypography.bodyLarge(color: color)),
         ],
       ),
     );
@@ -1807,58 +1970,208 @@ class OrderConfirmationPage extends StatelessWidget {
   final String commandeId;
   final bool paymentPending;
 
+  /// Valeur `paymentProvider` de la commande (awaiting_payment, confirmed_cash,
+  /// wallet) : affichée sous forme de libellé lisible, masquée si absente.
+  final String? paymentProvider;
+
   const OrderConfirmationPage({
     super.key,
     required this.commandeId,
     this.paymentPending = false,
+    this.paymentProvider,
   });
+
+  /// Le panier est un onglet de CurvedNavigationUser : le `pushReplacement`
+  /// qui ouvre cette page a remplacé tout ce shell, il ne reste rien dessous.
+  /// On reconstruit donc le shell sur l'onglet Accueil en vidant la pile.
+  Future<void> _goHome(BuildContext context) async {
+    final session = await SessionService.readSession();
+    if (!context.mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (_) => CurvedNavigationUser(
+          specified_index: 0,
+          country: session.country,
+        ),
+      ),
+      (route) => false,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final ink = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
+    final muted = AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
+    final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+    final cardBg = AppColors.resolve(AppColors.card, AppDarkColors.card);
+    final line = AppColors.resolve(AppColors.border, AppDarkColors.border);
+    final warm =
+        AppColors.resolve(AppColors.surfaceWarm, AppDarkColors.surfaceWarm);
+    final payLabel = paymentProviderLabel(paymentProvider);
+
     final content = SafeArea(
       child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              paymentPending
-                  ? const Icon(Icons.hourglass_top_rounded,
-                      size: 76, color: Colors.orange)
-                  : const AnimatedSuccessCheck(),
-              const SizedBox(height: 28),
-              Text(
-                  paymentPending
-                      ? l10n.pending
-                      : l10n.cart_order_confirm_message,
-                  style: AppTypography.headlineMedium(
-                    color: AppColors.resolve(AppColors.ink, AppDarkColors.ink),
-                  ),
-                  textAlign: TextAlign.center),
-              const SizedBox(height: 12),
-              Text(
-                paymentPending
-                    ? l10n.tracking_pending_label
-                    : l10n.cart_order_confirmed_message(commandeId),
-                style: AppTypography.bodyLarge(
-                  color: AppColors.resolve(AppColors.ink, AppDarkColors.ink),
-                ),
-                textAlign: TextAlign.center,
+              // ── Icône ──
+              FadeSlideIn(
+                index: 0,
+                child: paymentPending
+                    ? Container(
+                        width: 112,
+                        height: 112,
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withValues(alpha: 0.14),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.hourglass_top_rounded,
+                            size: 56, color: Colors.orange),
+                      )
+                    : const AnimatedSuccessCheck(),
               ),
-              const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          OrderTrackingPage(highlightedCommandeId: commandeId),
+              const SizedBox(height: 28),
+
+              // ── Titre + message ──
+              FadeSlideIn(
+                index: 1,
+                child: Column(
+                  children: [
+                    Text(
+                      paymentPending
+                          ? l10n.pending
+                          : l10n.cart_order_confirm_message,
+                      style: AppTypography.headlineMedium(color: ink),
+                      textAlign: TextAlign.center,
                     ),
+                    const SizedBox(height: 10),
+                    Text(
+                      paymentPending
+                          ? l10n.tracking_pending_label
+                          : l10n.cart_order_confirmed_message(commandeId),
+                      style: AppTypography.bodyLarge(color: muted),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 28),
+
+              // ── Récapitulatif ──
+              FadeSlideIn(
+                index: 2,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: cardBg,
+                    borderRadius: BorderRadius.circular(AppRadius.xl),
+                    border: Border.all(color: line.withValues(alpha: 0.7)),
+                    boxShadow: [AppShadows.subtle],
                   ),
-                  child: Text(l10n.cart_track_order),
+                  child: Column(
+                    children: [
+                      _ConfirmRow(
+                        icon: Icons.receipt_long_rounded,
+                        label: 'Commande',
+                        value: '#$commandeId',
+                      ),
+                      if (payLabel != null) ...[
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          child: Divider(
+                              height: 1, color: line.withValues(alpha: 0.6)),
+                        ),
+                        _ConfirmRow(
+                          icon: paymentProviderIcon(paymentProvider),
+                          label: 'Mode de paiement',
+                          value: payLabel,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 28),
+
+              // ── Actions ──
+              FadeSlideIn(
+                index: 3,
+                child: Column(
+                  children: [
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(colors: [
+                            brand,
+                            Color.lerp(brand, Colors.black, 0.18)!,
+                          ]),
+                          borderRadius: BorderRadius.circular(AppRadius.lg),
+                          boxShadow: [
+                            BoxShadow(
+                              color: brand.withValues(alpha: 0.30),
+                              blurRadius: 14,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(AppRadius.lg),
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => OrderTrackingPage(
+                                    highlightedCommandeId: commandeId),
+                              ),
+                            ),
+                            child: Center(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.delivery_dining_rounded,
+                                      color: Colors.white, size: 22),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    l10n.cart_track_order,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: OutlinedButton.icon(
+                        onPressed: () => _goHome(context),
+                        icon: const Icon(Icons.home_rounded),
+                        label: const Text("Retour à l'accueil"),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: brand,
+                          backgroundColor: warm,
+                          side: BorderSide(color: line),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppRadius.lg),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -1866,10 +2179,73 @@ class OrderConfirmationPage extends StatelessWidget {
         ),
       ),
     );
-    return Scaffold(
-      backgroundColor:
-          AppColors.resolve(AppColors.surface, AppDarkColors.surface),
-      body: paymentPending ? content : OrderConfettiCelebration(child: content),
+
+    // le bouton « retour » du téléphone ramène à l'accueil (sans quoi il
+    // fermerait l'application, la page étant la seule de la pile)
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _goHome(context);
+      },
+      child: Scaffold(
+        backgroundColor:
+            AppColors.resolve(AppColors.surface, AppDarkColors.surface),
+        body:
+            paymentPending ? content : OrderConfettiCelebration(child: content),
+      ),
+    );
+  }
+}
+
+/// Ligne « icône · libellé · valeur » du récapitulatif de confirmation.
+class _ConfirmRow extends StatelessWidget {
+  const _ConfirmRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+    return Row(
+      children: [
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: AppColors.resolve(
+                AppColors.brandSurface, AppDarkColors.brandSurface),
+            borderRadius: BorderRadius.circular(AppRadius.md),
+          ),
+          child: Icon(icon, color: brand, size: 20),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            label,
+            style: AppTypography.bodyMedium(
+                color:
+                    AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted)),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: AppTypography.labelLarge(
+                    color: AppColors.resolve(AppColors.ink, AppDarkColors.ink))
+                .copyWith(fontWeight: FontWeight.w800),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -2128,6 +2504,96 @@ class _DeliveryAddressModalState extends State<DeliveryAddressModal> {
         controller: ctrl,
         keyboardType: keyboardType,
         decoration: InputDecoration(hintText: hint, isDense: true),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// Option de paiement (ligne pleine largeur + bouton radio) — les 3 modes
+// partagent ce même composant pour être parfaitement alignés.
+// ═══════════════════════════════════════════════════════════
+class _PaymentRowTile extends StatelessWidget {
+  const _PaymentRowTile({
+    required this.icon,
+    required this.label,
+    required this.subtitle,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final String subtitle;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
+        constraints: const BoxConstraints(minHeight: 66),
+        decoration: BoxDecoration(
+          color: selected ? CC.brandSurface : CC.card,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: Border.all(
+            color: selected ? CC.brand : CC.border,
+            width: selected ? 1.5 : 0.5,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 26, color: selected ? CC.brand : CC.inkMuted),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: AppTypography.labelMedium(
+                        color: selected ? CC.brand : CC.ink),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: AppTypography.bodyMedium(color: CC.inkMuted)
+                        .copyWith(fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            // bouton radio
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: selected ? CC.brand : CC.border,
+                  width: 2,
+                ),
+              ),
+              child: Center(
+                child: AnimatedScale(
+                  scale: selected ? 1 : 0,
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOutBack,
+                  child: Container(
+                    width: 10,
+                    height: 10,
+                    decoration:
+                        BoxDecoration(shape: BoxShape.circle, color: CC.brand),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

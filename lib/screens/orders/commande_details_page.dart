@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show File;
 import 'dart:math' as math;
 import 'package:dios_delices/core/app_role.dart';
 import 'package:dios_delices/core/commande_status.dart';
@@ -10,6 +11,7 @@ import 'package:dios_delices/models/ligne_commande.dart';
 import 'package:dios_delices/models/restaurant.dart';
 import 'package:dios_delices/models/users.dart';
 import 'package:dios_delices/services/commande_api.dart';
+import 'package:dios_delices/services/node_order_service.dart';
 import 'package:dios_delices/services/session_service.dart';
 import 'package:dios_delices/services/socket_service.dart';
 import 'package:dios_delices/theme/app_theme.dart';
@@ -21,6 +23,46 @@ import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../chat/chat_screen.dart';
 import '../../widgets/rating_dialog.dart';
+import '../../widgets/order_otp_widgets.dart';
+import '../../widgets/order_dispute_sheet.dart';
+import '../../utils/payment_provider_label.dart';
+
+// ── Code OTP de remise : accès tolérant aux champs de la commande ──────────
+// (ils renvoient null / false tant que le modèle Commande n'a pas
+//  `retrievalOtp` et `isOtpVerified`)
+String? _otpOf(Commande c) {
+  try {
+    final v = (c as dynamic).retrievalOtp;
+    return v?.toString();
+  } catch (_) {
+    return null;
+  }
+}
+
+bool _otpVerifiedOf(Commande c) {
+  try {
+    return (c as dynamic).isOtpVerified == true;
+  } catch (_) {
+    return false;
+  }
+}
+
+bool _isPickupOrder(Commande c) =>
+    orderOtpModeFrom(deliveryMode: c.deliveryMode) == OrderOtpMode.pickup;
+
+// ── Fenêtre de litige : 60 minutes après la livraison ──────────────────────
+const Duration _kDisputeWindow = Duration(minutes: 60);
+
+/// Date de livraison (`deliveredAt`), lue de façon tolérante.
+/// Renvoie null tant que le modèle Commande ne l'expose pas.
+DateTime? _deliveredAtOf(Commande c) {
+  try {
+    final v = (c as dynamic).deliveredAt;
+    if (v is DateTime) return v.toLocal();
+    if (v != null) return DateTime.tryParse(v.toString())?.toLocal();
+  } catch (_) {}
+  return null;
+}
 
 class CommandeDetailsPage extends StatefulWidget {
   final Commande commande;
@@ -46,6 +88,8 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage>
   bool _canAssignLivreur = false;
   bool _isRestaurantView = false;
   Timer? _trackingTimer;
+  Timer? _disputeTimer;
+  bool _disputeSent = false;
   String _country = 'RDC';
 
   // ── Live tracking state ──────────────────────────────────
@@ -76,11 +120,16 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage>
     _animLng = _commande.livreurLng ?? 0;
     _loadData();
     _startTracking();
+    // la fenêtre de 60 min peut se refermer pendant que l'écran est ouvert
+    _disputeTimer = Timer.periodic(const Duration(seconds: 20), (_) {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
   void dispose() {
     _trackingTimer?.cancel();
+    _disputeTimer?.cancel();
     _courierMovedSub?.cancel();
     _deliveryStatusSub?.cancel();
     _connectionSub?.cancel();
@@ -232,33 +281,72 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage>
       _isRestaurantView =
           session.role.isAdmin || session.role == AppRole.microRestaurant;
 
-      // Recharger les commandes depuis le backend Node.js si disponible
-      await Commande.refreshLocalCommandes();
+      // Récupérer les détails de commande depuis le backend Node.js avec les lignes
+      final token = await SessionService.readNodeToken();
+      print('📦 Loading order details for orderId: ${_commande.commandeID}');
+      print('📦 Token: ${token != null ? "present" : "null"}');
 
-      await Future.wait([
-        LigneCommande.getAllLignesCommande(),
-        Address.getAllAdressesDetails(),
-      ]);
+      Map<String, dynamic>? orderDetails;
+      if (token != null && token.isNotEmpty) {
+        try {
+          orderDetails = await NodeOrderService.getDetails(
+            token: token,
+            orderId: _commande.commandeID.toString(),
+            includeLines: true,
+          );
+          print('📦 Order details from backend: ${orderDetails != null ? "success" : "null"}');
+        } catch (e) {
+          print('📦 Backend order details failed: $e');
+          orderDetails = null;
+        }
+      }
 
       final results = await Future.wait([
         Dish.fetchDishesFromDB(),
         Restaurant.fetchRestaurantsFromDB(),
         Users.fetchUsersFromDB(),
-        LigneCommande.fetchLignesCommandeByCommandeID(_commande.commandeID),
         Address.fetchAddressesFromDB(),
       ]);
 
       final allD = results[0] as List<Dish>;
       final allR = results[1] as List<Restaurant>;
       final allU = results[2] as List<Users>;
-      final lignes = results[3] as List<LigneCommande>;
-      final allA = results[4] as List<Address>;
+      final allA = results[3] as List<Address>;
 
-      // Recharger la commande depuis la base locale après la synchronisation
-      final allC = await Commande.fetchCommandesFromDB();
-      final updated = allC.where((c) => c.commandeID == _commande.commandeID);
-      if (updated.isNotEmpty) {
-        _commande = updated.first;
+      // Convertir les lignes du backend en LigneCommande
+      List<LigneCommande> lignes = [];
+      if (orderDetails != null && orderDetails['lines'] != null) {
+        final linesData = orderDetails['lines'] as List;
+        double parseD(dynamic v) {
+          if (v == null) return 0.0;
+          if (v is num) return v.toDouble();
+          return double.tryParse(v.toString()) ?? 0.0;
+        }
+        int parseI(dynamic v, {int fallback = 0}) {
+          if (v == null) return fallback;
+          if (v is int) return v;
+          if (v is num) return v.toInt();
+          return int.tryParse(v.toString()) ?? fallback;
+        }
+        lignes = linesData.map((line) {
+          final lineMap = line as Map<String, dynamic>;
+          return LigneCommande(
+            ligneID: lineMap['id']?.toString() ?? lineMap['ligneID']?.toString() ?? '',
+            commandeID: _commande.commandeID.toString(),
+            platID: parseI(lineMap['dishId'] ?? lineMap['platID']),
+            quantite: parseI(lineMap['quantity'] ?? lineMap['quantite'], fallback: 1),
+            prixUnitaire: parseD(lineMap['unitPrice'] ?? lineMap['prixUnitaire']),
+            reduction: parseD(lineMap['discount'] ?? lineMap['reduction']),
+            nomPlat: lineMap['dishName'] ?? lineMap['nomPlat'],
+          );
+        }).toList();
+        print('📦 Loaded ${lignes.length} lines from backend');
+      }
+
+      // Si aucune ligne depuis le backend, essayer la base locale
+      if (lignes.isEmpty) {
+        lignes = await LigneCommande.fetchLignesCommandeByCommandeID(_commande.commandeID);
+        print('📦 Loaded ${lignes.length} lines from local DB');
       }
 
       final dn = <int, String>{};
@@ -309,7 +397,9 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage>
         _deliveryAddress = deliveryAddress;
         _isLoading = false;
       });
-    } catch (_) {
+    } catch (e, stack) {
+      print('📦 Error loading order details: $e');
+      print('📦 Stack trace: $stack');
       if (mounted) setState(() {
         _hasError = true;
         _isLoading = false;
@@ -401,7 +491,30 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage>
     }
   }
 
+  /// Commande « À emporter » prête, pas encore remise au client.
+  bool _canValidatePickup(String status) =>
+      _isRestaurantView &&
+      _isPickupOrder(_commande) &&
+      status == CommandeStatus.ready &&
+      !_otpVerifiedOf(_commande);
+
+  /// Dialogue « Valider le retrait du client » (code à 4 caractères).
+  Future<void> _validatePickup() async {
+    final ok = await showRestaurateurOtpDialog(
+      context,
+      orderId: _commande.commandeID,
+    );
+    if (ok == true && mounted) {
+      await _loadData();
+    }
+  }
+
   double get _subtotal {
+    // Utiliser le sous-total de la commande si disponible depuis le backend
+    if (_commande.subtotalAmount != null && _commande.subtotalAmount! > 0) {
+      return _commande.subtotalAmount!;
+    }
+    // Sinon calculer à partir des lignes
     double sum = 0;
     for (final l in _lignes) {
       sum += l.prixUnitaire * l.quantite;
@@ -465,6 +578,20 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage>
                                 children: [
                               _buildHeader(status, statusColor),
                               const SizedBox(height: 20),
+                              // Code de remise (OTP) à communiquer au livreur /
+                              // présenter au restaurateur
+                              if (!_isRestaurantView &&
+                                  !isCancelled &&
+                                  (_otpOf(_commande) ?? '').trim().isNotEmpty) ...[
+                                OrderOtpCard(
+                                  otp: _otpOf(_commande),
+                                  mode: orderOtpModeFrom(
+                                      deliveryMode: _commande.deliveryMode),
+                                  verified: _otpVerifiedOf(_commande),
+                                ),
+                                const SizedBox(height: 20),
+                              ],
+                              ..._buildDisputeSection(isDelivered),
                               _buildStatusTimeline(status),
                               const SizedBox(height: 20),
                               _buildInfoSection(),
@@ -780,21 +907,11 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage>
   }
 
   String get _paymentLabel {
-    // Vérifier d'abord le paymentProvider (nouveau champ Node.js stocké dans paymentStatus)
-    final provider = _commande.paymentStatus?.toLowerCase();
-    if (provider == 'nyole' || provider == 'mobile money') {
-      return 'Mobile Money (Nyole)';
-    }
-    if (provider == 'cash') {
-      return AppLocalizations.of(context)!.commande_details_cash;
-    }
-    // Sinon, utiliser le moyenPaiementID legacy
-    switch (_commande.moyenPaiementID) {
-      case 1:
-        return AppLocalizations.of(context)!.commande_details_cash;
-      default:
-        return AppLocalizations.of(context)!.commande_details_cinetpay;
-    }
+    return paymentProviderLabel(
+          _commande.paymentStatus,
+          moyenPaiementID: _commande.moyenPaiementID,
+        ) ??
+        AppLocalizations.of(context)!.commande_details_cash;
   }
 
   // ── Articles ──────────────────────────────────────────
@@ -1228,6 +1345,94 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage>
   }
 
   // ── Actions ───────────────────────────────────────────
+  // ── Litige (client, 60 min après la livraison) ─────────
+  bool _disputeWindowOpen(bool isDelivered) {
+    if (_isRestaurantView || !isDelivered) return false;
+    final deliveredAt = _deliveredAtOf(_commande);
+    if (deliveredAt == null) return false; // date inconnue : pas de bouton
+    return DateTime.now().difference(deliveredAt).inMinutes <
+        _kDisputeWindow.inMinutes;
+  }
+
+  List<Widget> _buildDisputeSection(bool isDelivered) {
+    if (_disputeSent && !_isRestaurantView) {
+      return [
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.success.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+          ),
+          child: Row(children: [
+            const Icon(Icons.check_circle_rounded, color: AppColors.success),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Réclamation envoyée. Notre équipe vous répondra rapidement.',
+                style: AppTypography.bodyMedium(color: AppColors.success)
+                    .copyWith(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ]),
+        ),
+        const SizedBox(height: 20),
+      ];
+    }
+    if (!_disputeWindowOpen(isDelivered)) return const [];
+
+    final deliveredAt = _deliveredAtOf(_commande)!;
+    final deadline = deliveredAt.add(_kDisputeWindow);
+    final left = deadline.difference(DateTime.now()).inMinutes + 1;
+    return [
+      DisputeButton(onPressed: () => _openDispute(deadline)),
+      const SizedBox(height: 6),
+      Center(
+        child: Text(
+          'Encore $left min pour signaler un problème',
+          style: AppTypography.bodyMedium(
+                  color: AppColors.resolve(
+                      AppColors.inkMuted, AppDarkColors.inkMuted))
+              .copyWith(fontSize: 12),
+        ),
+      ),
+      const SizedBox(height: 20),
+    ];
+  }
+
+  Future<void> _openDispute(DateTime deadline) async {
+    final sent = await showOrderDisputeSheet(
+      context,
+      orderId: _commande.commandeID,
+      deadline: deadline,
+      uploadPhoto: _uploadDisputePhoto,
+    );
+    if (sent == true && mounted) {
+      setState(() => _disputeSent = true);
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(
+          backgroundColor: AppColors.success,
+          content: Text('Réclamation envoyée'),
+        ));
+    }
+  }
+
+  /// Envoi de la photo de preuve (stockage Parse, comme les autres images de
+  /// l'app). Remplacez le corps si votre upload passe par un autre service.
+  Future<String> _uploadDisputePhoto(File photo) async {
+    final file = ParseFile(
+      photo,
+      name:
+          'dispute_${_commande.commandeID}_${DateTime.now().millisecondsSinceEpoch}.jpg',
+    );
+    final res = await file.save();
+    final url = file.url;
+    if (!res.success || url == null || url.isEmpty) {
+      throw Exception("Échec de l'envoi de la photo");
+    }
+    return url;
+  }
+
   Widget _buildActions(bool canCancel, bool canConfirm, String status) {
     return Container(
       decoration: BoxDecoration(
@@ -1295,6 +1500,13 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage>
                     icon: Icons.check_circle_rounded,
                     label: AppLocalizations.of(context)!.confirm,
                     onPressed: () => _updateStatus(CommandeStatus.confirmed),
+                    backgroundColor: AppColors.success,
+                  ),
+                if (_canValidatePickup(status))
+                  _actionButton(
+                    icon: Icons.storefront_rounded,
+                    label: 'Valider le retrait du client',
+                    onPressed: _validatePickup,
                     backgroundColor: AppColors.success,
                   ),
                 if (_canAssignLivreur)

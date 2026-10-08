@@ -14,12 +14,29 @@ import 'package:dios_delices/utils/currency_util.dart';
 import 'package:dios_delices/utils/delivery_fee_calculator.dart';
 import 'package:dios_delices/utils/toast.dart';
 import 'package:dios_delices/widgets/dios_image.dart';
+import 'package:dios_delices/widgets/order_otp_widgets.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 // ═══════════════════════════════════════════════════════════
 // HomeMicroRestau — Dashboard cuisinier / vendeur
 // ═══════════════════════════════════════════════════════════
+
+// ── Retrait « À emporter » : accès tolérant aux champs de la commande ──────
+// (isOtpVerified : false tant que le modèle Commande ne l'expose pas)
+bool _otpVerifiedOf(Commande c) {
+  try {
+    return (c as dynamic).isOtpVerified == true;
+  } catch (_) {
+    return false;
+  }
+}
+
+/// Commande « À emporter » prête, pas encore remise au client.
+bool _canValidatePickup(Commande c) =>
+    orderOtpModeFrom(deliveryMode: c.deliveryMode) == OrderOtpMode.pickup &&
+    CommandeStatus.normalize(c.status) == CommandeStatus.ready &&
+    !_otpVerifiedOf(c);
 
 class HomeMicroRestau extends StatefulWidget {
   const HomeMicroRestau({super.key});
@@ -95,9 +112,15 @@ class _HomeMicroRestauState extends State<HomeMicroRestau> {
           .where((d) => d.restauID == session.restaurantId)
           .toList()
         ..sort((a, b) => b.nb_orders.compareTo(a.nb_orders));
-      final restCmds = allCommandes
-          .where((c) => c.restaurateurID == session.userId)
-          .toList()
+      final matchRestaurantId = session.restaurantId;
+      final restCmds = allCommandes.where((c) {
+        final matchRid = c.restaurateurID == session.userId &&
+            c.restaurateurID != 0;
+        final matchRsid = matchRestaurantId != null &&
+            c.restauID == matchRestaurantId &&
+            c.restauID != 0;
+        return matchRid || matchRsid;
+      }).toList()
         ..sort((a, b) => b.dateCommande.compareTo(a.dateCommande));
 
       final cmdIds = restCmds.map((c) => c.commandeID.toString()).toSet();
@@ -220,7 +243,10 @@ class _HomeMicroRestauState extends State<HomeMicroRestau> {
                     restaurant: _restaurant!,
                     onRefresh: _refreshRemoteData,
                   ),
-                  _RecentOrders(commandes: _commandes),
+                  _RecentOrders(
+                    commandes: _commandes,
+                    onRefresh: _refreshRemoteData,
+                  ),
                   _DishAvailability(
                     dishes: _dishes,
                     onToggle: _toggleDish,
@@ -838,13 +864,19 @@ class _ActionTile extends StatelessWidget {
 // _RecentOrders — 3 dernières commandes
 // ═══════════════════════════════════════════════════════════
 class _RecentOrders extends StatelessWidget {
-  const _RecentOrders({required this.commandes});
+  const _RecentOrders({required this.commandes, required this.onRefresh});
   final List<Commande> commandes;
+  final Future<void> Function() onRefresh;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final recent = commandes.take(3).toList();
+    // Les retraits à valider passent en premier : une commande « À emporter »
+    // prête ne doit pas disparaître sous les 3 dernières commandes.
+    final toValidate = commandes.where(_canValidatePickup).toList();
+    final others = commandes.where((c) => !_canValidatePickup(c)).toList();
+    final limit = toValidate.length > 3 ? toValidate.length : 3;
+    final recent = [...toValidate, ...others].take(limit).toList();
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -883,7 +915,7 @@ class _RecentOrders extends StatelessWidget {
           else
             for (var i = 0; i < recent.length; i++) ...[
               const _Hairline(),
-              _OrderRow(commande: recent[i]),
+              _OrderRow(commande: recent[i], onRefresh: onRefresh),
             ],
         ]),
       ),
@@ -892,8 +924,9 @@ class _RecentOrders extends StatelessWidget {
 }
 
 class _OrderRow extends StatelessWidget {
-  const _OrderRow({required this.commande});
+  const _OrderRow({required this.commande, required this.onRefresh});
   final Commande commande;
+  final Future<void> Function() onRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -911,7 +944,8 @@ class _OrderRow extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.lg, vertical: AppSpacing.md),
-        child: Row(children: [
+        child: Column(children: [
+          Row(children: [
           _IconChip(icon: Icons.receipt_rounded, color: statusColor, size: 40),
           const SizedBox(width: AppSpacing.md),
           Expanded(
@@ -947,6 +981,22 @@ class _OrderRow extends StatelessWidget {
                   color: statusColor, fontSize: 11, fontWeight: FontWeight.w600),
             ),
           ),
+          ]),
+          // « À emporter » prête : le client donne son code, on valide le retrait
+          if (_canValidatePickup(commande)) ...[
+            const SizedBox(height: AppSpacing.md),
+            OtpGradientButton(
+              label: 'Valider le retrait client',
+              icon: Icons.storefront_rounded,
+              onPressed: () async {
+                final ok = await showRestaurateurOtpDialog(
+                  context,
+                  orderId: commande.commandeID,
+                );
+                if (ok == true) await onRefresh(); // recharge le statut
+              },
+            ),
+          ],
         ]),
       ),
     );

@@ -2,6 +2,8 @@ import 'package:hive/hive.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 
 import '../db/database_helper.dart';
+import '../services/session_service.dart';
+import '../services/node_auth_service.dart';
 
 part 'address.g.dart';
 
@@ -93,6 +95,45 @@ class Address extends HiveObject {
     int cityID = 1,
     String? nominatimPlaceId,
   }) async {
+    final nodeToken = await SessionService.readNodeToken();
+    if (nodeToken != null) {
+      try {
+        final body = <String, dynamic>{
+          'fullAddress': fullAddress,
+          'city': city,
+          'state': state,
+          if (lat != null) 'latitude': double.tryParse(lat),
+          if (long != null) 'longitude': double.tryParse(long),
+          if (cityID != 0) 'cityId': cityID,
+          if (nominatimPlaceId != null && nominatimPlaceId.trim().isNotEmpty)
+            'nominatimPlaceId': nominatimPlaceId.trim(),
+        };
+        final response = addressID != null
+            ? await NodeAuthService.patchJson('/addresses/$addressID', token: nodeToken, body: body)
+            : await NodeAuthService.postJson('/addresses', token: nodeToken, body: body);
+
+        final data = response['data'] as Map<String, dynamic>?;
+        if (data != null) {
+          final newAddressID = int.tryParse((data['addressId'] ?? data['addressID'])?.toString() ?? '') ?? addressID ?? 0;
+          Address newAddress = Address(
+            addressID: newAddressID,
+            object: object,
+            objectID: objectID,
+            city: city,
+            state: state,
+            fullAddress: fullAddress,
+            lat: lat,
+            long: long,
+            cityID: cityID,
+          );
+          await DatabaseHelper.addAddress(newAddress);
+          return newAddressID;
+        }
+      } catch (e) {
+        print('Address.manageAddress Node error: $e');
+      }
+    }
+
     // Choix de la Cloud Function (ajout ou mise à jour)
     String functionName = addressID == null ? 'addAddress' : 'updateAddress';
     var cloudFunction = ParseCloudFunction(functionName);

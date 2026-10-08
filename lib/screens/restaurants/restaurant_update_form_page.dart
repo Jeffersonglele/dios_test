@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geocoding/geocoding.dart' as geo;
+import 'package:geolocator/geolocator.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'dart:io';
 import '../../constants/constant.dart';
@@ -16,6 +17,7 @@ import '../../utils/phone_number.dart';
 import '../../services/node_admin_service.dart';
 import '../../services/session_service.dart';
 import '../../services/upload_service.dart';
+import '../../services/geocoding_api_service.dart';
 import '../../utils/toast.dart';
 import '../../widgets/brand_avatar_logo.dart';
 import '../../widgets/dios_image.dart';
@@ -42,13 +44,78 @@ class _RestaurantUpdateFormPageState
   final TextEditingController _categoriesController = TextEditingController();
   final TextEditingController _openingHoursController = TextEditingController();
   final TextEditingController _deliveryFeeController = TextEditingController();
+  final TextEditingController _latitudeController = TextEditingController();
+  final TextEditingController _longitudeController = TextEditingController();
   bool _isOpen = true;
+  bool _isDetecting = false;
   List<String> _selectedHashtags = [];
   List<String> _selectedDays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
 
   static const _allDays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
   XFile? _image;
+
+  Future<void> _detectPosition() async {
+    setState(() => _isDetecting = true);
+    try {
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        if (context.mounted) Toast(context, 'Service de localisation désactivé', false);
+        return;
+      }
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        if (context.mounted) Toast(context, 'Permission de localisation refusée', false);
+        return;
+      }
+
+      Position? position;
+      try {
+        position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+          timeLimit: const Duration(seconds: 15),
+        );
+      } catch (e) {
+        position = await Geolocator.getLastKnownPosition();
+      }
+
+      if (position == null) {
+        if (context.mounted) Toast(context, 'Impossible de détecter votre position GPS', false);
+        return;
+      }
+
+      _latitudeController.text = position.latitude.toStringAsFixed(6);
+      _longitudeController.text = position.longitude.toStringAsFixed(6);
+
+      try {
+        final reverse = await GeocodingApiService.reverse(
+          position.latitude,
+          position.longitude,
+        );
+        final parts = <String>[
+          if (reverse.thoroughfare != null && reverse.thoroughfare!.isNotEmpty) reverse.thoroughfare!,
+          if (reverse.street != null && reverse.street!.isNotEmpty) reverse.street!,
+          if (reverse.subLocality != null && reverse.subLocality!.isNotEmpty) reverse.subLocality!,
+          if (reverse.locality != null && reverse.locality!.isNotEmpty) reverse.locality!,
+          if (reverse.country != null && reverse.country!.isNotEmpty) reverse.country!,
+        ];
+        final addressText = parts.isNotEmpty
+            ? parts.join(', ')
+            : (reverse.displayName ?? '${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}');
+        if (addressText.isNotEmpty && _addressController.text.trim().isEmpty) {
+          _addressController.text = addressText;
+        }
+      } catch (_) {}
+      if (context.mounted) Toast(context, 'Position GPS détectée avec succès !', true);
+    } catch (e) {
+      if (context.mounted) Toast(context, 'Erreur lors de la détection GPS', false);
+    } finally {
+      if (mounted) setState(() => _isDetecting = false);
+    }
+  }
 
   // Méthode pour ouvrir l'image picker
   Future<void> _pickImage() async {
@@ -77,6 +144,8 @@ class _RestaurantUpdateFormPageState
     _categoriesController.dispose();
     _openingHoursController.dispose();
     _deliveryFeeController.dispose();
+    _latitudeController.dispose();
+    _longitudeController.dispose();
     super.dispose();
   }
 
@@ -109,6 +178,13 @@ class _RestaurantUpdateFormPageState
     _deliveryFeeController.text =
         widget.restaurant.deliveryFee.toStringAsFixed(2);
     _isOpen = widget.restaurant.isOpen == 1;
+    // Pré-remplir les coordonnées GPS si disponibles
+    if (widget.restaurant.latitude != null) {
+      _latitudeController.text = widget.restaurant.latitude.toString();
+    }
+    if (widget.restaurant.longitude != null) {
+      _longitudeController.text = widget.restaurant.longitude.toString();
+    }
   }
 
   @override
@@ -241,6 +317,42 @@ class _RestaurantUpdateFormPageState
                     },
                   ),
                   SizedBox(height: size.height * 0.02),
+                  // Coordonnées GPS & Détection
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildTextField(
+                          controller: _latitudeController,
+                          hintText: 'Latitude (optionnel)',
+                          icon: Icons.my_location,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+                          inputFormatters: <TextInputFormatter>[
+                            FilteringTextInputFormatter.allow(RegExp(r'^-?\d*\.?\d+')),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _buildTextField(
+                          controller: _longitudeController,
+                          hintText: 'Longitude (optionnel)',
+                          icon: Icons.my_location,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+                          inputFormatters: <TextInputFormatter>[
+                            FilteringTextInputFormatter.allow(RegExp(r'^-?\d*\.?\d+')),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: _isDetecting ? null : _detectPosition,
+                        icon: _isDetecting
+                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Icon(Icons.gps_fixed, color: Colors.red),
+                        tooltip: 'Actualiser ma position GPS',
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: size.height * 0.02),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     title: Text(l10n.restaurant_form_open_now),
@@ -310,13 +422,15 @@ class _RestaurantUpdateFormPageState
                             Toast(context, l10n.restaurant_form_day_required, false);
                             return;
                           }
-                          final isAddressValid =
-                              await _isValidAddress(_addressController.text);
+                          final manualLat = double.tryParse(_latitudeController.text.trim());
+                          final manualLng = double.tryParse(_longitudeController.text.trim());
+                          final hasCoords = manualLat != null && manualLng != null && manualLat.isFinite && manualLng.isFinite;
+                          final isAddressValid = hasCoords || await _isValidAddress(_addressController.text);
 
                           if (!isAddressValid) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text("L'adresse saisie est invalide."),
+                              const SnackBar(
+                                content: Text("L'adresse saisie est invalide. Veuillez utiliser la détection GPS."),
                               ),
                             );
                             return;
@@ -343,6 +457,32 @@ class _RestaurantUpdateFormPageState
                             }
 
                             // Now call the method to manage the restaurant
+                            double? geoLat = widget.restaurant.latitude;
+                            double? geoLng = widget.restaurant.longitude;
+                            final addressChanged = _addressController.text.trim() != widget.restaurant.location;
+                            final manualLat = double.tryParse(_latitudeController.text.trim());
+                            final manualLng = double.tryParse(_longitudeController.text.trim());
+
+                            // Priorité: coordonnées manuelles > géocodage si adresse changée > coordonnées existantes
+                            if (manualLat != null && manualLng != null) {
+                              geoLat = manualLat;
+                              geoLng = manualLng;
+                              print('🚚 Using manual coordinates: $geoLat, $geoLng');
+                            } else if (addressChanged) {
+                              try {
+                                final geo = await GeocodingApiService.search(_addressController.text, limit: 3).timeout(const Duration(seconds: 10));
+                                final lat = geo.isNotEmpty ? geo.first.latitude : 0.0;
+                                final lng = geo.isNotEmpty ? geo.first.longitude : 0.0;
+                                if (lat.isFinite && lng.isFinite && (lat != 0.0 || lng != 0.0)) {
+                                  geoLat = lat;
+                                  geoLng = lng;
+                                  print('🚚 Geocoded restaurant ${widget.restaurant.restaurantID}: $geoLat, $geoLng');
+                                }
+                              } catch (e) {
+                                print('🚚 Geocoding failed: $e');
+                              }
+                            }
+
                             String createResult =
                                 await Restaurant.manageRestaurant(
                               restaurantID: widget.restaurant.restaurantID,
@@ -364,6 +504,8 @@ class _RestaurantUpdateFormPageState
                               isOpen: _isOpen ? 1 : 0,
                               image: null, // On utilise imageUrl à la place
                               img_url: imageUrl ?? widget.restaurant.image,
+                              latitude: geoLat,
+                              longitude: geoLng,
                             );
 
                             if (createResult == "success") {

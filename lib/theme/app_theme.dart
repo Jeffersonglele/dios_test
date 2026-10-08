@@ -380,10 +380,6 @@ class AppTheme {
         behavior: SnackBarBehavior.fixed,
         backgroundColor: AppColors.ink,
         contentTextStyle: AppTypography.bodyMedium(color: Colors.white),
-        shape: RoundedRectangleBorder(
-          borderRadius:
-              BorderRadius.vertical(top: Radius.circular(AppRadius.md)),
-        ),
       ),
       progressIndicatorTheme: const ProgressIndicatorThemeData(
         color: AppColors.brand,

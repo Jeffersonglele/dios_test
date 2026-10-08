@@ -228,6 +228,8 @@ class NodeCatalogService {
     double deliveryRadius = 10,
     String closedDates = '',
     String openingHoursByDay = '',
+    double? latitude,
+    double? longitude,
   }) async {
     final body = <String, dynamic>{
       if (restaurantID != null) 'restaurantID': restaurantID,
@@ -261,6 +263,8 @@ class NodeCatalogService {
       'deliveryRadius': deliveryRadius,
       'closedDates': closedDates,
       'openingHoursByDay': openingHoursByDay,
+      if (latitude != null && latitude.isFinite) 'latitude': latitude,
+      if (longitude != null && longitude.isFinite) 'longitude': longitude,
     };
     final res = restaurantID != null
         ? await NodeAuthService.patchJson(

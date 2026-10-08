@@ -76,6 +76,10 @@ class Commande extends HiveObject {
   @HiveField(20)
   DateTime? paymentDate;
 
+  // Backend UUID field (required for Node.js API calls)
+  @HiveField(21)
+  String? orderUuid;
+
   // Earnings calculated by Parse when the delivery is completed.
   double? delivererBasePay;
   double? delivererDistancePay;
@@ -114,6 +118,7 @@ class Commande extends HiveObject {
     this.pourboire,
     this.paymentStatus,
     this.paymentDate,
+    this.orderUuid,
     this.delivererBasePay,
     this.delivererDistancePay,
     this.delivererEarningsStatus,
@@ -128,6 +133,7 @@ class Commande extends HiveObject {
       moyenPaiementID: map['moyenPaiementID'],
       fraisLivraison: map['fraisLivraison']?.toDouble() ?? 0.0,
       reduction: map['reduction']?.toDouble() ?? 0.0,
+      orderUuid: map['orderUuid']?.toString() ?? map['uuid']?.toString() ?? map['id']?.toString(),
       dateCommande: DateTime.parse(map['dateCommande']),
       heure: map['heure'],
       addressID: map['addressID'],
@@ -188,6 +194,7 @@ class Commande extends HiveObject {
         'pourboire': pourboire,
         'paymentStatus': paymentStatus,
         'paymentDate': paymentDate?.toIso8601String(),
+        'orderUuid': orderUuid,
         'delivererBasePay': delivererBasePay,
         'delivererDistancePay': delivererDistancePay,
         'delivererEarningsStatus': delivererEarningsStatus,
@@ -295,10 +302,32 @@ class Commande extends HiveObject {
     final nodeToken = await SessionService.readNodeToken();
     if (nodeToken != null) {
       final session = await SessionService.readSession();
-      final orders = await NodeOrderService.listMine(
+      final userOrders = await NodeOrderService.listMine(
         token: nodeToken,
         userId: session.userId,
         includeLines: true,
+      );
+      final isRestaurantOwner =
+          session.role.isProfessional || session.restaurantId != null;
+      final restaurantOrders = isRestaurantOwner
+          ? await NodeOrderService.listForRestaurant(
+              token: nodeToken,
+              restaurateurId: session.userId,
+              restaurantId: session.restaurantId,
+              includeLines: true,
+            )
+          : const <Map<String, dynamic>>[];
+      final isDeliverer = session.role.isDelivery;
+      final delivererOrders = isDeliverer
+          ? await NodeOrderService.listForDeliverer(
+              token: nodeToken,
+              delivererId: session.userId,
+              includeLines: true,
+            )
+          : const <Map<String, dynamic>>[];
+      final orders = NodeOrderService.mergeOrders(
+        NodeOrderService.mergeOrders(userOrders, restaurantOrders),
+        delivererOrders,
       );
       final box = await Hive.openBox<Commande>('commande');
       await box.clear();

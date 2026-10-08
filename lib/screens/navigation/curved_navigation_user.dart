@@ -81,23 +81,38 @@ class _CurvedNavigationUserState extends ConsumerState<CurvedNavigationUser> {
         .where((id) => id.isNotEmpty)
         .toSet()
         .length;
-    return Scaffold(
-      backgroundColor:
-          AppColors.resolve(AppColors.surface, AppDarkColors.surface),
-      body: SafeArea(
-          child: PageView(
-        controller: _pageController,
-        onPageChanged: (index) => setState(() => _activePage = index),
-        children: _pages,
-      )),
-      bottomNavigationBar: DiosNavBar(
-        currentIndex: _activePage,
-        items: _navItems,
-        badges: {if (basketCount > 0) 1: basketCount},
-        onTap: (index) {
-          setState(() => _activePage = index);
-          _pageController.jumpToPage(index);
-        },
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) {
+        if (didPop) return;
+        if (_activePage != 0) {
+          setState(() => _activePage = 0);
+          _pageController.jumpToPage(0);
+          return;
+        }
+        final nav = Navigator.of(context);
+        if (nav.canPop()) {
+          nav.pop();
+        }
+      },
+      child: Scaffold(
+        backgroundColor:
+            AppColors.resolve(AppColors.surface, AppDarkColors.surface),
+        body: SafeArea(
+            child: PageView(
+          controller: _pageController,
+          onPageChanged: (index) => setState(() => _activePage = index),
+          children: _pages,
+        )),
+        bottomNavigationBar: DiosNavBar(
+          currentIndex: _activePage,
+          items: _navItems,
+          badges: {if (basketCount > 0) 1: basketCount},
+          onTap: (index) {
+            setState(() => _activePage = index);
+            _pageController.jumpToPage(index);
+          },
+        ),
       ),
     );
   }

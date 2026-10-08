@@ -73,6 +73,12 @@ class SearchResult {
 class GeocodingApiService {
   const GeocodingApiService._();
 
+  // Cache simple pour éviter les requêtes répétées
+  static final Map<String, List<SearchResult>> _searchCache = {};
+  static final Map<String, GeocodingResult> _reverseCache = {};
+  static DateTime? _lastApiCall;
+  static const Duration _apiCooldown = Duration(milliseconds: 1100); // > 1 sec pour Nominatim
+
   static double? _parseDouble(dynamic value) {
     if (value == null) return null;
     final s = value.toString().trim().replaceAll(',', '.');
@@ -89,16 +95,33 @@ class GeocodingApiService {
     return null;
   }
 
+  /// Attend si nécessaire pour respecter le cooldown de l'API
+  static Future<void> _respectCooldown() async {
+    if (_lastApiCall != null) {
+      final elapsed = DateTime.now().difference(_lastApiCall!);
+      if (elapsed < _apiCooldown) {
+        await Future.delayed(_apiCooldown - elapsed);
+      }
+    }
+    _lastApiCall = DateTime.now();
+  }
+
   /// Reverse géocodage : coordonnées GPS → adresse textuelle.
   ///
-  /// Priorité : backend `/geocoding/reverse` → fallback plugin `geocoding`.
+  /// Priorité : cache → backend `/geocoding/reverse` → fallback plugin `geocoding`.
   static Future<GeocodingResult> reverse(
     double latitude,
     double longitude, {
     List<String>? countryCodes,
   }) async {
+    final cacheKey = '${latitude.toStringAsFixed(6)},${longitude.toStringAsFixed(6)}';
+    if (_reverseCache.containsKey(cacheKey)) {
+      return _reverseCache[cacheKey]!;
+    }
+
     GeocodingResult? result;
     try {
+      await _respectCooldown();
       result = await _reverseViaApi(latitude, longitude, countryCodes: countryCodes);
     } catch (error, stack) {
       if (kDebugMode) {
@@ -106,21 +129,32 @@ class GeocodingApiService {
             'Fall back sur le plugin geocoding.\n$stack');
       }
     }
-    if (result != null) return result;
+    if (result != null) {
+      _reverseCache[cacheKey] = result;
+      return result;
+    }
 
-    return _reverseViaPlugin(latitude, longitude);
+    final fallback = await _reverseViaPlugin(latitude, longitude);
+    _reverseCache[cacheKey] = fallback;
+    return fallback;
   }
 
   /// Recherche textuelle d'adresse.
   ///
-  /// Priorité : backend `/geocoding/search` → fallback plugin `geocoding`.
+  /// Priorité : cache → backend `/geocoding/search` → fallback plugin `geocoding`.
   static Future<List<SearchResult>> search(
     String query, {
     int limit = 5,
     List<String>? countryCodes,
   }) async {
+    final cacheKey = '${query.trim().toLowerCase()}_$limit';
+    if (_searchCache.containsKey(cacheKey)) {
+      return _searchCache[cacheKey]!;
+    }
+
     List<SearchResult>? result;
     try {
+      await _respectCooldown();
       result = await _searchViaApi(query, limit: limit, countryCodes: countryCodes);
     } catch (error, stack) {
       if (kDebugMode) {
@@ -128,9 +162,16 @@ class GeocodingApiService {
             'Fall back sur le plugin geocoding.\n$stack');
       }
     }
-    if (result != null) return result;
+    if (result != null && result.isNotEmpty) {
+      _searchCache[cacheKey] = result;
+      return result;
+    }
 
-    return _searchViaPlugin(query, limit: limit);
+    final fallback = await _searchViaPlugin(query, limit: limit);
+    if (fallback.isNotEmpty) {
+      _searchCache[cacheKey] = fallback;
+    }
+    return fallback;
   }
 
   // ---------------------------------------------------------------------------

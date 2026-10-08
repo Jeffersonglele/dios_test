@@ -11,6 +11,7 @@ import '../services/delivery_availability_service.dart';
 import '../services/cart_sync_service.dart';
 import '../services/node_auth_service.dart';
 import '../services/node_catalog_service.dart';
+import '../services/geocoding_api_service.dart';
 
 class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
   CartNotifier() : super([]) {
@@ -214,6 +215,26 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
         );
       }
 
+      // Auto-geocode restaurant if coordinates are missing
+      if (restaurant != null && (restaurant.latitude == null || restaurant.longitude == null)) {
+        try {
+          final address = restaurant.location ?? '';
+          if (address.isNotEmpty) {
+            final geo = await GeocodingApiService.search(address, limit: 1);
+            if (geo.isNotEmpty) {
+              restauLat = geo.first.latitude;
+              restauLng = geo.first.longitude;
+              print('🚚 Auto-geocoded restaurant ${restaurant.restaurantID}: $restauLat, $restauLng');
+            }
+          }
+        } catch (e) {
+          print('🚚 Auto-geocode failed for restaurant ${restaurant.restaurantID}: $e');
+        }
+      } else if (restaurant != null) {
+        restauLat = restaurant.latitude;
+        restauLng = restaurant.longitude;
+      }
+
       if (currentUser == null || restaurant == null) return 'error';
 
       if (!restaurant.isCurrentlyOpen) {
@@ -234,21 +255,29 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
         }
       }
 
-      // Récupérer les coordonnées du restaurant depuis son adresse
-      if (nodeToken == null) {
-        try {
+      // Récupérer les coordonnées du restaurant depuis son adresse (fallback Parse + restaurant.latitude directement)
+      try {
+        if (restauLat == null || restauLng == null) {
+          restauLat = restaurant?.latitude;
+          restauLng = restaurant?.longitude;
+        }
+        if ((restauLat == null || restauLng == null) && restaurant?.userID != null) {
           final addresses = await addr.Address.fetchAddressesFromDB();
           final restauAddr = addresses.cast<addr.Address?>().firstWhere(
             (a) =>
-                a?.object == 'Restaurant' && a?.objectID == restaurant!.userID,
+                (a?.object == 'Restaurant' ||
+                    a?.object == 'restaurant' ||
+                    a?.object == 'RESTAURANT') &&
+                (a?.objectID == restaurant!.userID ||
+                    a?.objectID?.toString() == restaurant!.restaurantID.toString()),
             orElse: () => null,
           );
           if (restauAddr != null) {
             restauLat = double.tryParse(restauAddr.lat ?? '');
             restauLng = double.tryParse(restauAddr.long ?? '');
           }
-        } catch (_) {}
-      }
+        }
+      } catch (_) {}
 
       double finalPrice = price + optionPrice;
 
@@ -358,18 +387,12 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
     _saveCart();
   }
 
-  Future<void> _saveCart({bool syncRemote = true}) async {
+  Future<void> _saveCart() async {
     final userId = _activeUserId;
     if (userId == null || userId <= 0) return;
     final snapshot = List<Map<String, dynamic>>.from(state);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_storageKey(userId), jsonEncode(snapshot));
-    
-    // Ne plus synchroniser avec Parse car on migre vers Node.js
-    // La synchronisation Parse causait l'erreur "params.id must be a valid GUID"
-    // if (syncRemote && !await SessionService.hasNodeSession()) {
-    //   await CartSyncService.saveCart(snapshot);
-    // }
   }
 
   Future<void> clearCart() async {

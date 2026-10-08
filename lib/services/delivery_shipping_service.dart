@@ -36,35 +36,7 @@ class DeliveryShippingService {
     required double deliveryLng,
   }) async {
     try {
-      final base = AppConfig.nodeBackendUrl.replaceFirst(RegExp(r'/+$'), '');
-      final uri = Uri.parse('$base/api/v1/catalog/cart/calculate-shipping');
-      
-      debugPrint('🚚 Shipping service URL: $uri');
-      debugPrint('🚚 Request body: ${jsonEncode({
-        'restaurantId': restaurantId,
-        'deliveryLat': deliveryLat,
-        'deliveryLng': deliveryLng,
-      })}');
-      
-      final response = await http.post(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'restaurantId': restaurantId,
-          'deliveryLat': deliveryLat,
-          'deliveryLng': deliveryLng,
-        }),
-      ).timeout(const Duration(seconds: 10));
-
-      debugPrint('🚚 Response status: ${response.statusCode}');
-      debugPrint('🚚 Response body: ${response.body}');
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        if (data['success'] == true) {
-          return ShippingQuote.fromJson(data);
-        }
-      }
+      // Route obsolète : désactivée pour éviter les requêtes 404 superflues
       return null;
     } catch (e) {
       debugPrint('🚚 Shipping service exception: $e');

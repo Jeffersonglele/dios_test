@@ -510,9 +510,7 @@ class _LoginState extends ConsumerState<Login>
     var restau = await Restaurant.getRestaurantByUser(_restaus, user.userID);
 
     // Si non trouvé en cache local, tenter la recherche directe API pour ce vendeur
-    if (restau == null) {
-      restau = await Restaurant.fetchRestaurantByUserIdFromAPI(user.userID);
-    }
+    restau ??= await Restaurant.fetchRestaurantByUserIdFromAPI(user.userID);
 
     if (!mounted) return;
 

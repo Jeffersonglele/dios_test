@@ -3,6 +3,7 @@ import 'package:dios_delices/models/restaurant.dart';
 import 'package:dios_delices/models/users.dart';
 import 'package:dios_delices/models/address.dart' as address_model;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
@@ -41,6 +42,8 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
   final TextEditingController _ibanController = TextEditingController();
   final TextEditingController _bankNameController = TextEditingController();
   final TextEditingController _accountHolderController = TextEditingController();
+  final TextEditingController _latitudeController = TextEditingController();
+  final TextEditingController _longitudeController = TextEditingController();
 
   XFile? _imageFile;
   List<String> _selectedHashtags = [];
@@ -112,6 +115,8 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
     _ibanController.dispose();
     _bankNameController.dispose();
     _accountHolderController.dispose();
+    _latitudeController.dispose();
+    _longitudeController.dispose();
     super.dispose();
   }
 
@@ -310,6 +315,36 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
                   SizedBox(height: size.height * 0.02),
 
                   _buildPaymentSection(),
+                  SizedBox(height: size.height * 0.02),
+
+                  // Coordonnées GPS
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildTextField(
+                          controller: _latitudeController,
+                          hintText: 'Latitude (optionnel)',
+                          icon: Icons.my_location,
+                          keyboardType: TextInputType.numberWithOptions(decimal: true, signed: true),
+                          inputFormatters: <TextInputFormatter>[
+                            FilteringTextInputFormatter.allow(RegExp(r'^-?\d*\.?\d+')),
+                          ],
+                        ),
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: _buildTextField(
+                          controller: _longitudeController,
+                          hintText: 'Longitude (optionnel)',
+                          icon: Icons.my_location,
+                          keyboardType: TextInputType.numberWithOptions(decimal: true, signed: true),
+                          inputFormatters: <TextInputFormatter>[
+                            FilteringTextInputFormatter.allow(RegExp(r'^-?\d*\.?\d+')),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                   SizedBox(height: size.height * 0.02),
 
                   _buildImageSection(),
@@ -627,12 +662,26 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
             }
 
             int? addressID;
+            double? geoLat;
+            double? geoLng;
             final addressChanged = !widget.isEditing || addressText != (widget.restaurant?.location ?? '');
-            if (addressChanged && addressText.isNotEmpty) {
+            final manualLat = double.tryParse(_latitudeController.text.trim());
+            final manualLng = double.tryParse(_longitudeController.text.trim());
+
+            // Priorité: coordonnées manuelles > géocodage si adresse changée
+            if (manualLat != null && manualLng != null) {
+              geoLat = manualLat;
+              geoLng = manualLng;
+              print('🚚 Using manual coordinates: $geoLat, $geoLng');
+            } else if (addressChanged && addressText.isNotEmpty) {
               try {
                 final geo = await GeocodingApiService.search(addressText, limit: 3).timeout(const Duration(seconds: 10));
                 final lat = geo.isNotEmpty ? geo.first.latitude : 0.0;
                 final lng = geo.isNotEmpty ? geo.first.longitude : 0.0;
+                if (lat.isFinite && lng.isFinite && (lat != 0.0 || lng != 0.0)) {
+                  geoLat = lat;
+                  geoLng = lng;
+                }
                 final placeId = geo.isNotEmpty ? geo.first.placeId : null;
                 final result = await address_model.Address.manageAddress(
                   city: '',
@@ -648,6 +697,9 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
                 );
                 if (result is int) addressID = result;
               } catch (_) {}
+            } else if (widget.isEditing) {
+              geoLat = widget.restaurant?.latitude;
+              geoLng = widget.restaurant?.longitude;
             }
 
             final openingHours = '${_formatTime(_openingTime)} - ${_formatTime(_closingTime)}';
@@ -677,6 +729,8 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
             iban: _paymentMethod == 'bank_transfer' ? _ibanController.text.trim() : '',
             bankName: _paymentMethod == 'bank_transfer' ? _bankNameController.text.trim() : '',
             accountHolder: _paymentMethod == 'bank_transfer' ? _accountHolderController.text.trim() : '',
+            latitude: geoLat,
+            longitude: geoLng,
           );
 
           if (result == "success") {
@@ -827,6 +881,7 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
     String? Function(String?)? validator,
     TextInputType? keyboardType,
     int? maxLines = 1,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return TextFormField(
       controller: controller,
@@ -837,6 +892,7 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
       ),
       validator: validator,
       keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
       maxLines: maxLines,
     );
   }

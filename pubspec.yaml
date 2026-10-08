@@ -6,7 +6,7 @@ publish_to: "none"
 version: 1.0.0+1
 
 environment:
-  sdk: ">=2.18.1"
+  sdk: ">=3.0.0"
 
 dependencies:
   flutter:
@@ -17,7 +17,7 @@ dependencies:
   english_words: ^4.0.0
   flutter_launcher_icons: ^0.14.4
   google_fonts: ^8.1.0
-  lottie: ^1.4.2
+  lottie: 3.6.1
   email_validator: ^2.1.17
   flutter_pw_validator: ^1.6.0
   curved_navigation_bar: ^1.0.3
@@ -33,6 +33,7 @@ dependencies:
   flutter_riverpod: ^2.4.10
   flutter_map: ^7.0.2
   latlong2: ^0.9.1
+  maplibre_gl: ^0.27.1
   gpassword: ^0.0.1
   path: ^1.8.3
   http: ^1.2.0
@@ -68,6 +69,7 @@ dependencies:
   record: ^7.1.1
   audioplayers: ^6.0.0
   permission_handler: ^11.3.1
+  http_parser: ^4.0.2
 
 dev_dependencies:
   flutter_test:

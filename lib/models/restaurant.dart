@@ -90,7 +90,11 @@ class Restaurant extends HiveObject {
   String bankName;
   String accountHolder;
   String rccm;
+
+  @HiveField(16)
   final double? latitude;
+
+  @HiveField(17)
   final double? longitude;
 
   Restaurant(
@@ -165,6 +169,8 @@ class Restaurant extends HiveObject {
       'bankName': bankName,
       'accountHolder': accountHolder,
       'rccm': rccm,
+      'latitude': latitude,
+      'longitude': longitude,
     };
   }
 
@@ -254,6 +260,8 @@ class Restaurant extends HiveObject {
     String? bankName,
     String? accountHolder,
     String? rccm,
+    double? latitude,
+    double? longitude,
   }) {
     return Restaurant(
         restaurantID: restaurantID ?? this.restaurantID,
@@ -287,7 +295,9 @@ class Restaurant extends HiveObject {
         iban: iban ?? this.iban,
         bankName: bankName ?? this.bankName,
         accountHolder: accountHolder ?? this.accountHolder,
-        rccm: rccm ?? this.rccm);
+        rccm: rccm ?? this.rccm,
+        latitude: latitude ?? this.latitude,
+        longitude: longitude ?? this.longitude);
   }
 
   static Future<String> manageRestaurant({
@@ -325,6 +335,8 @@ class Restaurant extends HiveObject {
     double deliveryRadius = 10,
     String closedDates = '',
     String openingHoursByDay = '',
+    double? latitude,
+    double? longitude,
   }) async {
     final session = await SessionService.readSession();
     final effectiveCountry = country.trim().isEmpty ? session.country : country;
@@ -378,6 +390,8 @@ class Restaurant extends HiveObject {
           deliveryRadius: deliveryRadius,
           closedDates: closedDates,
           openingHoursByDay: openingHoursByDay,
+          latitude: latitude,
+          longitude: longitude,
         );
         final updatedRestauID = res['restaurantID'] as int;
         final restaurant = Restaurant(
@@ -403,6 +417,8 @@ class Restaurant extends HiveObject {
           currency: effectiveCurrency,
           country: effectiveCountry,
           rccm: rccm,
+          latitude: latitude,
+          longitude: longitude,
         );
         if (restaurantID == null) {
           await DatabaseHelper.createRestaurant(restaurant);
@@ -503,6 +519,8 @@ class Restaurant extends HiveObject {
             currency: effectiveCurrency,
             country: effectiveCountry,
             rccm: rccm,
+            latitude: latitude,
+            longitude: longitude,
           );
 
           if (restaurantID == null) {

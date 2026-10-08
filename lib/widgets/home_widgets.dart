@@ -756,7 +756,7 @@ class _HomeRestaurantCardState extends State<HomeRestaurantCard> {
         : colorScheme.onSurface;
     final tags = _tags();
     
-    // Affichage dynamique basé sur le cache GPS ou libellé harmonisé "Dès X"
+    /** Affichage dynamique basé sur le cache GPS ou libellé harmonisé "Dès X"
     final cachedPos = LocationCacheService.instance.cachedPosition;
     final String deliveryLabel;
     final bool isFreeDelivery;
@@ -772,7 +772,7 @@ class _HomeRestaurantCardState extends State<HomeRestaurantCard> {
       deliveryLabel =
           DeliveryFeeCalculator.getStartingFeeLabel(widget.restaurant);
       isFreeDelivery = false;
-    }
+    } **/
 
     return HomePressable(
       onTap: widget.onTap,
@@ -1005,14 +1005,14 @@ class _HomeRestaurantCardState extends State<HomeRestaurantCard> {
                     ),
 
                   // Frais de livraison (sur l'image)
-                  Positioned(
+                  /** Positioned(
                     bottom: 10,
                     right: 10,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 9, vertical: 5),
                       decoration: BoxDecoration(
-                        color: isFreeDelivery
+                        //color: isFreeDelivery
                             ? HC.success
                             : Colors.white.withValues(alpha: 0.96),
                         borderRadius: BorderRadius.circular(999),
@@ -1042,7 +1042,7 @@ class _HomeRestaurantCardState extends State<HomeRestaurantCard> {
                         ),
                       ),
                     ),
-                  ),
+                  ), **/
                 ],
               ),
             ),

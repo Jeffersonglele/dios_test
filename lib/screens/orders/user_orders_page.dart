@@ -23,6 +23,30 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../chat/chat_screen.dart';
 import 'commande_details_page.dart';
 import '../../widgets/rating_dialog.dart';
+import '../../widgets/order_otp_widgets.dart';
+
+// ── Code OTP de remise : accès tolérant aux champs de la commande ──────────
+// (ils renvoient null / false tant que le modèle Commande n'a pas
+//  `retrievalOtp` et `isOtpVerified`)
+String? _otpOf(Commande c) {
+  try {
+    final v = (c as dynamic).retrievalOtp;
+    return v?.toString();
+  } catch (_) {
+    return null;
+  }
+}
+
+bool _otpVerifiedOf(Commande c) {
+  try {
+    return (c as dynamic).isOtpVerified == true;
+  } catch (_) {
+    return false;
+  }
+}
+
+bool _isPickupOrder(Commande c) =>
+    orderOtpModeFrom(deliveryMode: c.deliveryMode) == OrderOtpMode.pickup;
 
 class UserOrdersPage extends StatefulWidget {
   final bool showRestaurantOrders;
@@ -125,11 +149,17 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
     }
 
     var filtered = <Commande>[];
+    final restaurantId = session.restaurantId;
     for (var c in allC) {
       if (session.role.isAdmin) {
         filtered.add(c);
       } else if (widget.showRestaurantOrders) {
-        if (c.restaurateurID == session.userId) {
+        final matchRestaurateurId = c.restaurateurID == session.userId &&
+            c.restaurateurID != 0;
+        final matchRestaurantId = restaurantId != null &&
+            c.restauID == restaurantId &&
+            c.restauID != 0;
+        if (matchRestaurateurId || matchRestaurantId) {
           filtered.add(c);
         }
       } else {
@@ -207,6 +237,25 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
           setState(() => isLoading = false);
         }
       }
+    }
+  }
+
+  /// Commande « À emporter » prête, pas encore remise au client.
+  bool _canValidatePickup(Commande c, String status) =>
+      widget.showRestaurantOrders &&
+      _isPickupOrder(c) &&
+      status == CommandeStatus.ready &&
+      !_otpVerifiedOf(c);
+
+  /// Dialogue « Valider le retrait du client » (code à 4 caractères).
+  Future<void> _validatePickup(Commande c) async {
+    final ok = await showRestaurateurOtpDialog(
+      context,
+      orderId: c.commandeID,
+    );
+    if (ok == true && mounted) {
+      await Commande.refreshLocalCommandes();
+      await loadOrders();
     }
   }
 
@@ -472,6 +521,15 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
                                   'En attente d’un livreur',
                                   style: AppTypography.labelMedium(
                                       color: AppColors.brand),
+                                ),
+                              ),
+                            if (_canValidatePickup(c, status))
+                              Expanded(
+                                child: _PrimaryActionButton(
+                                  label: 'Valider le retrait du client',
+                                  icon: Icons.storefront_rounded,
+                                  color: AppColors.success,
+                                  onTap: () => _validatePickup(c),
                                 ),
                               ),
                             if (canCancel) ...[
@@ -947,9 +1005,13 @@ class _PrimaryActionButton extends StatelessWidget {
           children: [
             Icon(icon, color: color, size: 15),
             const SizedBox(width: 5),
-            Text(label,
-                style: AppTypography.labelMedium(color: color)
-                    .copyWith(fontWeight: FontWeight.w700)),
+            Flexible(
+              child: Text(label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.labelMedium(color: color)
+                      .copyWith(fontWeight: FontWeight.w700)),
+            ),
           ],
         ),
       ),

@@ -120,24 +120,38 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    return Scaffold(
-      backgroundColor: AppColors.surface,
-      appBar: AppBar(title: Text(l10n.order_tracking_title)),
-      body: RefreshIndicator(
-        color: AppColors.brand,
-        onRefresh: _load,
-        child: isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : commandes.isEmpty
-                ? ListView(children: [
-                    const SizedBox(height: 120),
-                    Center(child: Text("Aucune commande à suivre.",
-                        style: AppTypography.bodyMedium())),
-                  ])
-                : ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
-                    children: commandes.map(_buildCard).toList(),
-                  ),
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) {
+        if (didPop) return;
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.surface,
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
+            tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+          ),
+          title: Text(l10n.order_tracking_title),
+        ),
+        body: RefreshIndicator(
+          color: AppColors.brand,
+          onRefresh: _load,
+          child: isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : commandes.isEmpty
+                  ? ListView(children: [
+                      const SizedBox(height: 120),
+                      Center(child: Text("Aucune commande à suivre.",
+                          style: AppTypography.bodyMedium())),
+                    ])
+                  : ListView(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
+                      children: commandes.map(_buildCard).toList(),
+                    ),
+        ),
       ),
     );
   }
