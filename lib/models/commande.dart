@@ -85,6 +85,20 @@ class Commande extends HiveObject {
   double? delivererDistancePay;
   String? delivererEarningsStatus;
 
+  /// Fournisseur de paiement renvoyé par le backend
+  /// (awaiting_payment, confirmed_cash, wallet…) — voir paymentProviderLabel().
+  String? paymentProvider;
+
+  /// Code de remise (OTP, 4 caractères). Le backend ne doit le renvoyer
+  /// qu'au CLIENT propriétaire de la commande.
+  String? retrievalOtp;
+
+  /// `true` une fois le code validé (remise au client / retrait confirmé).
+  bool isOtpVerified;
+
+  /// Date de livraison effective (fenêtre de litige de 60 minutes).
+  DateTime? deliveredAt;
+
   double totalAmount;
   String? deliveryMode;
   String? promoCode;
@@ -122,6 +136,10 @@ class Commande extends HiveObject {
     this.delivererBasePay,
     this.delivererDistancePay,
     this.delivererEarningsStatus,
+    this.paymentProvider,
+    this.retrievalOtp,
+    this.isOtpVerified = false,
+    this.deliveredAt,
   });
 
   factory Commande.fromMap(Map<String, dynamic> map) {
@@ -164,6 +182,12 @@ class Commande extends HiveObject {
       delivererBasePay: (map['delivererBasePay'] as num?)?.toDouble(),
       delivererDistancePay: (map['delivererDistancePay'] as num?)?.toDouble(),
       delivererEarningsStatus: map['delivererEarningsStatus']?.toString(),
+      paymentProvider: map['paymentProvider']?.toString(),
+      retrievalOtp: map['retrievalOtp']?.toString(),
+      isOtpVerified: map['isOtpVerified'] == true,
+      deliveredAt: map['deliveredAt'] == null
+          ? null
+          : DateTime.tryParse(map['deliveredAt'].toString()),
     );
   }
 
@@ -198,6 +222,10 @@ class Commande extends HiveObject {
         'delivererBasePay': delivererBasePay,
         'delivererDistancePay': delivererDistancePay,
         'delivererEarningsStatus': delivererEarningsStatus,
+        'paymentProvider': paymentProvider,
+        'retrievalOtp': retrievalOtp,
+        'isOtpVerified': isOtpVerified,
+        'deliveredAt': deliveredAt?.toIso8601String(),
       };
 
   static Future<String> manageCommande({

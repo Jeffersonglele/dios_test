@@ -20,6 +20,8 @@ class _RestaurantEarningsPageState extends State<RestaurantEarningsPage> {
   bool _isLoading = true;
   List<_DailyPoint> _dailyData = [];
   String _country = 'RDC';
+  DateTime? _startDate;
+  DateTime? _endDate;
 
   @override
   void initState() {
@@ -38,10 +40,17 @@ class _RestaurantEarningsPageState extends State<RestaurantEarningsPage> {
         return;
       }
       final fn = ParseCloudFunction('getRestaurantEarnings');
-      final response = await fn.execute(parameters: {
+      final params = <String, dynamic>{
         'restauID': restauID,
         'period': _period,
-      });
+      };
+      if (_startDate != null) {
+        params['startDate'] = _startDate!.toIso8601String().split('T')[0];
+      }
+      if (_endDate != null) {
+        params['endDate'] = _endDate!.toIso8601String().split('T')[0];
+      }
+      final response = await fn.execute(parameters: params);
       if (mounted && response.success && response.result != null) {
         final data = response.result as Map<String, dynamic>;
         final raw = (data['dailyData'] as List?)?.cast<Map<String, dynamic>>() ?? [];
@@ -65,7 +74,32 @@ class _RestaurantEarningsPageState extends State<RestaurantEarningsPage> {
 
   void _setPeriod(String p) {
     setState(() => _period = p);
+    if (p != 'custom') {
+      _startDate = null;
+      _endDate = null;
+    }
     _load();
+  }
+
+  Future<void> _selectDateRange() async {
+    final DateTimeRange? picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2024),
+      lastDate: DateTime.now().add(const Duration(days: 1)),
+      initialDateRange: _startDate != null && _endDate != null
+          ? DateTimeRange(start: _startDate!, end: _endDate!)
+          : null,
+      locale: const Locale('fr', 'FR'),
+    );
+
+    if (picked != null && mounted) {
+      setState(() {
+        _period = 'custom';
+        _startDate = picked.start;
+        _endDate = picked.end;
+      });
+      _load();
+    }
   }
 
   String _shortDate(String iso) {
@@ -77,7 +111,12 @@ class _RestaurantEarningsPageState extends State<RestaurantEarningsPage> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final periodLabel = _period == 'today' ? l10n.delivery_today : _period == 'week' ? l10n.delivery_this_week : l10n.delivery_this_month;
+    String periodLabel;
+    if (_period == 'custom' && _startDate != null && _endDate != null) {
+      periodLabel = '${_shortDate(_startDate!.toIso8601String())} - ${_shortDate(_endDate!.toIso8601String())}';
+    } else {
+      periodLabel = _period == 'today' ? l10n.delivery_today : _period == 'week' ? l10n.delivery_this_week : l10n.delivery_this_month;
+    }
     final hasData = _dailyData.any((d) => d.gains > 0);
     return Scaffold(
       backgroundColor: AppColors.resolve(AppColors.surface, AppDarkColors.surface),
@@ -178,9 +217,37 @@ class _RestaurantEarningsPageState extends State<RestaurantEarningsPage> {
                         Expanded(child: _PeriodChip('week', l10n.delivery_this_week)),
                         const SizedBox(width: 4),
                         Expanded(child: _PeriodChip('month', l10n.delivery_this_month)),
+                        const SizedBox(width: 4),
+                        Expanded(child: _PeriodChip('custom', 'Personnalisé')),
                       ],
                     ),
                   ),
+                  if (_period == 'custom' && _startDate != null && _endDate != null)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.resolve(AppColors.brandSurface, AppDarkColors.brandSurface),
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.calendar_today_rounded, size: 16, color: AppColors.brand),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Du ${_shortDate(_startDate!.toIso8601String())} au ${_shortDate(_endDate!.toIso8601String())}',
+                              style: AppTypography.bodyMedium(color: AppColors.brand),
+                            ),
+                            const Spacer(),
+                            GestureDetector(
+                              onTap: _selectDateRange,
+                              child: Icon(Icons.edit_rounded, size: 16, color: AppColors.brand),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   const SizedBox(height: 16),
                   // ── Graphique ─────────────────────────────
                   if (hasData)

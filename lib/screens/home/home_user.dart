@@ -22,13 +22,11 @@ import '../../services/node_home_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/home_widgets.dart';
 import '../explore/food_categories.dart';
+import '../wallet/wallet_screen.dart';
 import 'near_me_meals.dart';
 import '../restaurants/near_me_restaurants.dart';
 import '../restaurants/restaurant_details.dart';
 
-// ═══════════════════════════════════════════════════════════
-// HomeUser  (logique inchangée — UI dans widgets/home_widgets.dart)
-// ═══════════════════════════════════════════════════════════
 
 class HomeUser extends StatefulWidget {
   const HomeUser({super.key});
@@ -50,9 +48,6 @@ class _HomeUserState extends State<HomeUser> {
   int _currentUserRestau = 0;
   int _selectedCategoryIndex = 0;
   bool _isLoading = true;
-
-  /// Passe à true dès que le PREMIER chargement est terminé (succès ou échec).
-  /// Tant qu'il est false, on affiche le skeleton de toute la page.
   bool _firstLoadDone = false;
 
   String _liveAddress = '';
@@ -478,6 +473,17 @@ class _HomeUserState extends State<HomeUser> {
         (country != null && country.trim().isNotEmpty);
   }
 
+  final GlobalKey<HomeWalletBannerState> _walletBannerKey = GlobalKey();
+
+  void _openWallet({bool topUp = false}) {
+    Navigator.push(
+      context,
+      CupertinoPageRoute(
+        builder: (_) => WalletScreen(openTopUpOnStart: topUp),
+      ),
+    ).then((_) => _walletBannerKey.currentState?.refresh());
+  }
+
   Widget _buildContent(AppLocalizations l10n, bool showAddressBanner) {
     return RefreshIndicator(
       key: const ValueKey('home_content'),
@@ -532,10 +538,22 @@ class _HomeUserState extends State<HomeUser> {
             child: HomeReveal(index: 1, child: HomeWelcomeBanner()),
           ),
 
-          // ── Catégories rondes ─────────────────────
+          // ── Bannière Wallet ──────────────────────
           SliverToBoxAdapter(
             child: HomeReveal(
               index: 2,
+              child: HomeWalletBanner(
+                key: _walletBannerKey,
+                onTap: () => _openWallet(),
+                onAdd: () => _openWallet(topUp: true),
+              ),
+            ),
+          ),
+
+          // ── Catégories rondes ─────────────────────
+          SliverToBoxAdapter(
+            child: HomeReveal(
+              index: 3,
               child: HomeRoundCategories(
                 categories: _categories,
                 selectedIndex: _selectedCategoryIndex,
@@ -543,8 +561,10 @@ class _HomeUserState extends State<HomeUser> {
                   setState(() => _selectedCategoryIndex = i);
                   _filterByCategory();
                 },
-                onSeeAll: () => Navigator.push(context,
-                    CupertinoPageRoute(builder: (_) => FoodCategories())),
+                onSeeAll: () => Navigator.push(
+                    context,
+                    CupertinoPageRoute(
+                        builder: (_) => const FoodCategories())),
               ),
             ),
           ),

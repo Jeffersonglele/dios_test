@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:dios_delices/core/commande_status.dart';
 import 'package:dios_delices/models/commande.dart';
 import 'package:dios_delices/models/restaurant.dart';
+import 'package:dios_delices/services/session_service.dart';
 import 'package:dios_delices/services/socket_service.dart';
 import 'package:dios_delices/theme/app_theme.dart';
 import 'package:flutter/material.dart';
@@ -44,6 +45,8 @@ class LivreurMapPage extends StatefulWidget {
   final Commande? commande;
 
   /// `true` : l'écran est ouvert par le livreur (GPS du téléphone).
+  /// Même si ce flag est oublié, le mode livreur est détecté automatiquement
+  /// quand `commande.livreurID` correspond à l'utilisateur connecté.
   final bool courierMode;
 
   /// Point de livraison du client si vous le connaissez déjà
@@ -57,8 +60,7 @@ class LivreurMapPage extends StatefulWidget {
   final VoidCallback? onCallCourier;
 
   @override
-  State<LivreurMapPage> createState() =>
-      _LivreurMapPageState();
+  State<LivreurMapPage> createState() => _LivreurMapPageState();
 }
 
 class _LivreurMapPageState extends State<LivreurMapPage>
@@ -68,8 +70,11 @@ class _LivreurMapPageState extends State<LivreurMapPage>
   bool _follow = true; // la caméra suit tant que l'utilisateur ne la touche pas
   bool _expanded = false;
 
+  /// Mode livreur effectif (paramètre OU détection via la session).
+  late bool _isCourier = widget.courierMode;
+
   // ── Données de course ────────────────────────────────────
-  String _status = 'assigned'; // Valeur par défaut quand commande est null
+  String _status = 'assigned';
   LatLng? _restaurantPos;
   String? _restaurantName;
   String? _restaurantAddress;
@@ -94,7 +99,7 @@ class _LivreurMapPageState extends State<LivreurMapPage>
   StreamSubscription<Map<String, dynamic>>? _statusSub;
   StreamSubscription<Position>? _gpsSub;
   SocketService? _socket;
-  bool _socketConnectedLocally = false;
+  bool _socketJoined = false;
   String? _gpsProblem; // message affiché si le GPS est refusé / coupé
 
   // ═════════════════════════════════════════════════════════
@@ -105,24 +110,13 @@ class _LivreurMapPageState extends State<LivreurMapPage>
     super.initState();
     // à chaque image de l'animation, la caméra suit le marqueur (auto-follow)
     _move.addListener(_followTick);
-    if (widget.commande != null) {
-      _status = DeliveryStatus.normalize(widget.commande!.deliveryStatus);
-      _destination = widget.destination ?? _coordsOf(widget.commande!, _destKeys);
 
-      // position connue au moment d'ouvrir l'écran
-      final la = _num(() => (widget.commande! as dynamic).livreurLat);
-      final lo = _num(() => (widget.commande! as dynamic).livreurLng);
-      final start = _valid(la, lo);
-      if (start != null && !widget.courierMode) _onCourierPosition(start);
-
-      _loadRestaurant();
-      if (widget.courierMode) {
-        _startGps();
-      } else {
-        _startSocket();
-        _resolveClientPosition();
-      }
+    final c = widget.commande;
+    if (c != null) {
+      _status = DeliveryStatus.normalize(c.deliveryStatus);
+      _destination = widget.destination ?? _coordsOf(c, _destKeys);
     }
+    _bootstrap();
   }
 
   @override
@@ -131,14 +125,131 @@ class _LivreurMapPageState extends State<LivreurMapPage>
     _driverLocSub?.cancel();
     _statusSub?.cancel();
     _gpsSub?.cancel();
-    if (_socket != null && widget.commande != null) {
+    if (_socket != null && _socketJoined && widget.commande != null) {
       final id = widget.commande!.commandeID.toString();
       _socket?.leaveOrderRoom(id);
       _socket?.leaveOrderTracking(id);
     }
+    _move.removeListener(_followTick);
     _move.dispose();
     _pulse.dispose();
     super.dispose();
+  }
+
+  /// Démarrage : détecte le rôle, synchronise le statut, lance GPS / socket.
+  Future<void> _bootstrap() async {
+    Commande? c = widget.commande;
+
+    // Si aucune commande n'est passée, essayer de récupérer la commande active du livreur
+    if (c == null) {
+      print('[LivreurMapPage] Aucune commande passée en paramètre, recherche commande active...');
+      try {
+        final session = await SessionService.readSession();
+        final all = await Commande.fetchCommandesFromDB();
+        for (final cmd in all) {
+          if (cmd.livreurID == session.userId) {
+            final deliveryStatus = DeliveryStatus.normalize(cmd.deliveryStatus);
+            final orderStatus = CommandeStatus.normalize(cmd.status);
+            if (deliveryStatus != DeliveryStatus.delivered &&
+                orderStatus != CommandeStatus.cancelled &&
+                orderStatus != CommandeStatus.refused) {
+              c = cmd;
+              print('[LivreurMapPage] Commande active trouvée: ${c.commandeID}');
+              break;
+            }
+          }
+        }
+      } catch (e) {
+        print('[LivreurMapPage] Erreur recherche commande active: $e');
+      }
+    }
+
+    if (c == null) {
+      print('[LivreurMapPage] Aucune commande active trouvée');
+      return;
+    }
+
+    print('[LivreurMapPage] Bootstrap - commandeID: ${c.commandeID}');
+    print('[LivreurMapPage] courierMode param: ${widget.courierMode}');
+
+    // 1. Détection automatique du mode livreur (même si courierMode oublié)
+    if (!_isCourier) {
+      try {
+        final session = await SessionService.readSession();
+        print('[LivreurMapPage] Session userId: ${session.userId}, commande livreurID: ${c.livreurID}');
+        if (session.userId == c.livreurID) {
+          _isCourier = true;
+          print('[LivreurMapPage] Mode livreur détecté automatiquement');
+        }
+      } catch (e) {
+        print('[LivreurMapPage] Erreur lecture session: $e');
+      }
+      if (!mounted) return;
+      if (_isCourier) setState(() {});
+    }
+
+    print('[LivreurMapPage] Mode livreur final: $_isCourier');
+
+    // 2. Position connue sur la commande (mode client)
+    if (!_isCourier) {
+      final la = _num(() => (c as dynamic).livreurLat);
+      final lo = _num(() => (c as dynamic).livreurLng);
+      final start = _valid(la, lo);
+      if (start != null) _onCourierPosition(start);
+    }
+
+    // 3. Restaurant + statut réel (en parallèle, sans bloquer le GPS)
+    unawaited(_loadRestaurant());
+    unawaited(_refreshStatus());
+
+    // 4. Temps réel
+    if (_isCourier) {
+      print('[LivreurMapPage] Démarrage GPS en mode livreur');
+      await _startGps();
+    } else {
+      print('[LivreurMapPage] Démarrage socket en mode client');
+      await _startSocket();
+      await _resolveClientPosition();
+    }
+  }
+
+  // ═════════════════════════════════════════════════════════
+  // Statut
+  // ═════════════════════════════════════════════════════════
+  static int _rank(String s) {
+    final flow = [
+      DeliveryStatus.assigned,
+      DeliveryStatus.atPickup,
+      DeliveryStatus.pickedUp,
+      DeliveryStatus.inTransit,
+      DeliveryStatus.delivered,
+    ];
+    return flow.indexOf(s);
+  }
+
+  /// [force] = true pour un évènement socket (source de vérité, même recul).
+  void _applyStatus(String? raw, {bool force = false}) {
+    if (raw == null || !mounted) return;
+    final s = DeliveryStatus.normalize(raw);
+    if (s == _status) return;
+    if (!force && _rank(s) < _rank(_status)) return; // jamais reculer via cache
+    setState(() => _status = s);
+    _fit();
+  }
+
+  /// Relit la commande en base locale pour rattraper un statut plus récent.
+  Future<void> _refreshStatus() async {
+    final c = widget.commande;
+    if (c == null) return;
+    try {
+      final all = await Commande.fetchCommandesFromDB();
+      for (final x in all) {
+        if (x.commandeID == c.commandeID) {
+          _applyStatus(x.deliveryStatus);
+          break;
+        }
+      }
+    } catch (_) {}
   }
 
   // ═════════════════════════════════════════════════════════
@@ -164,18 +275,34 @@ class _LivreurMapPageState extends State<LivreurMapPage>
     } catch (_) {}
   }
 
-  /// Mode client : temps réel via Socket.io.
-  Future<void> _startSocket() async {
-    if (widget.commande == null) return;
-    final socket = SocketService();
+  /// Connexion socket + écoute du statut (utilisé dans les deux modes).
+  Future<SocketService?> _ensureSocket() async {
+    if (widget.commande == null) return null;
+    final id = widget.commande!.commandeID.toString();
+    final socket = _socket ?? SocketService();
     _socket = socket;
     try {
-      await socket.connect();
-      _socketConnectedLocally = true;
+      await socket.connect().timeout(const Duration(seconds: 8));
     } catch (_) {}
+    if (!mounted) return null;
+    if (!_socketJoined) {
+      socket.joinOrderRoom(id);
+      socket.joinOrderTracking(id);
+      _socketJoined = true;
+      _statusSub = socket.onDeliveryStatusChanged.listen((data) {
+        if (data['orderId']?.toString() != id) return;
+        _applyStatus(data['status']?.toString(), force: true);
+      });
+    }
+    return socket;
+  }
+
+  /// Mode client : positions du livreur en temps réel via Socket.io.
+  Future<void> _startSocket() async {
+    final socket = await _ensureSocket();
+    if (socket == null || widget.commande == null) return;
     final id = widget.commande!.commandeID.toString();
-    socket.joinOrderRoom(id);
-    socket.joinOrderTracking(id);
+
     // évènement hérité « courier_moved » (clé latitude/longitude)
     _movedSub = socket.onCourierMoved.listen((data) {
       if (data['orderId']?.toString() != id) return;
@@ -197,16 +324,9 @@ class _LivreurMapPageState extends State<LivreurMapPage>
       final heading = (data['heading'] as num?)?.toDouble();
       if (p != null && mounted) _onCourierPosition(p, heading: heading);
     });
-    _statusSub = socket.onDeliveryStatusChanged.listen((data) {
-      if (data['orderId']?.toString() != id) return;
-      final s = data['status']?.toString();
-      if (s != null && mounted) {
-        setState(() => _status = DeliveryStatus.normalize(s));
-        _fit();
-      }
-    });
   }
 
+  // ── Permissions GPS ──────────────────────────────────────
   /// Vérifie service + permission de localisation (message affiché sinon).
   Future<bool> _ensureLocationPermission() async {
     try {
@@ -218,8 +338,12 @@ class _LivreurMapPageState extends State<LivreurMapPage>
       if (perm == LocationPermission.denied) {
         perm = await Geolocator.requestPermission();
       }
-      if (perm == LocationPermission.denied ||
-          perm == LocationPermission.deniedForever) {
+      if (perm == LocationPermission.deniedForever) {
+        _setGpsProblem(
+            'Localisation bloquée : autorisez-la dans les réglages du téléphone');
+        return false;
+      }
+      if (perm == LocationPermission.denied) {
         _setGpsProblem('Autorisez la localisation pour partager votre position');
         return false;
       }
@@ -229,49 +353,102 @@ class _LivreurMapPageState extends State<LivreurMapPage>
     }
   }
 
-  void _setGpsProblem(String m) {
+  void _setGpsProblem(String? m) {
     if (mounted) setState(() => _gpsProblem = m);
   }
 
-  /// Mode livreur : GPS réel du téléphone → carte locale + WebSocket serveur.
+  // ── GPS livreur ──────────────────────────────────────────
+  /// Mode livreur : permission → position immédiate → flux GPS continu.
+  /// Le socket est connecté en parallèle et ne bloque JAMAIS l'affichage.
   Future<void> _startGps() async {
-    final orderId = widget.commande?.commandeID.toString();
-    try {
-      final s = SocketService();
-      _socket = s;
-      await s.connect();
-      _socketConnectedLocally = true;
-      if (orderId != null) {
-        s.joinOrderRoom(orderId);
-        s.joinOrderTracking(orderId);
-      }
-    } catch (_) {}
-    if (!mounted) return;
-    if (!await _ensureLocationPermission() || !mounted) return;
+    // Nettoyer l'ancien subscription s'il existe
+    if (_gpsSub != null) {
+      await _gpsSub?.cancel();
+      _gpsSub = null;
+    }
 
-    _gpsSub = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 5, // mètres
-      ),
-    ).listen((pos) {
-      final p = LatLng(pos.latitude, pos.longitude);
-      // le cap n'est fiable qu'en mouvement (à l'arrêt il vaut souvent 0)
-      final reliable =
-          pos.speed > 1.0 && pos.heading >= 0 && pos.heading <= 360;
-      if (mounted) {
-        if (_gpsProblem != null) setState(() => _gpsProblem = null);
-        _onCourierPosition(p, heading: reliable ? pos.heading : null);
+    if (!await _ensureLocationPermission() || !mounted) return;
+    _setGpsProblem(null);
+
+    print('[LivreurMapPage] Démarrage GPS...');
+
+    unawaited(_ensureSocket());
+    await _primeCourierPosition();
+    if (!mounted || _gpsSub != null) return;
+
+    try {
+      _gpsSub = Geolocator.getPositionStream(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 5, // mètres
+        ),
+      ).listen(
+        _onGpsPosition,
+        onError: (e) {
+          print('[LivreurMapPage] Erreur GPS: $e');
+          _setGpsProblem('Signal GPS indisponible');
+        },
+        onDone: () {
+          print('[LivreurMapPage] GPS stream terminé');
+        },
+      );
+      print('[LivreurMapPage] GPS stream démarré');
+    } catch (e) {
+      print('[LivreurMapPage] Erreur démarrage GPS: $e');
+      _setGpsProblem('Impossible de démarrer le GPS');
+    }
+  }
+
+  /// Position immédiate (dernière connue puis position courante) : le flux
+  /// avec distanceFilter n'émet souvent rien tant que le livreur ne bouge pas.
+  Future<void> _primeCourierPosition() async {
+    print('[LivreurMapPage] Recherche position GPS initiale...');
+
+    try {
+      final last = await Geolocator.getLastKnownPosition();
+      if (last != null) {
+        print('[LivreurMapPage] Dernière position connue: ${last.latitude}, ${last.longitude}');
+        if (mounted && _to == null) _onGpsPosition(last);
+      } else {
+        print('[LivreurMapPage] Pas de dernière position connue');
       }
-      if (orderId != null) {
+    } catch (e) {
+      print('[LivreurMapPage] Erreur dernière position: $e');
+    }
+
+    try {
+      print('[LivreurMapPage] Récupération position courante...');
+      final cur = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 10),
+      );
+      print('[LivreurMapPage] Position courante: ${cur.latitude}, ${cur.longitude}');
+      if (mounted) _onGpsPosition(cur);
+    } catch (e) {
+      print('[LivreurMapPage] Erreur position courante: $e');
+      if (_to == null) _setGpsProblem('Signal GPS indisponible');
+    }
+  }
+
+  void _onGpsPosition(Position pos) {
+    final p = LatLng(pos.latitude, pos.longitude);
+    // le cap n'est fiable qu'en mouvement (à l'arrêt il vaut souvent 0)
+    final reliable = pos.speed > 1.0 && pos.heading >= 0 && pos.heading <= 360;
+    if (!mounted) return;
+    if (_gpsProblem != null) setState(() => _gpsProblem = null);
+    _onCourierPosition(p, heading: reliable ? pos.heading : null);
+
+    final orderId = widget.commande?.commandeID.toString();
+    if (orderId != null) {
+      try {
         _socket?.emitUpdateLocation(
           orderId: orderId,
           lat: pos.latitude,
           lng: pos.longitude,
           heading: pos.heading,
         );
-      }
-    }, onError: (_) => _setGpsProblem('Signal GPS indisponible'));
+      } catch (_) {}
+    }
   }
 
   /// Mode client sans adresse GPS sur la commande : on utilise le téléphone.
@@ -405,12 +582,37 @@ class _LivreurMapPageState extends State<LivreurMapPage>
     ));
   }
 
-  void _recenter() {
+  /// Bouton de recentrage : relance le GPS si besoin, puis centre sur le
+  /// livreur ; à défaut de position, cadre les points connus et informe.
+  Future<void> _recenter() async {
     setState(() => _follow = true);
+
+    if (_isCourier) {
+      if (_gpsSub == null) await _startGps(); // relance permission + flux
+      if (_to == null) await _primeCourierPosition();
+    }
+    if (!mounted) return;
+
+    final p = _animatedPos() ?? _to;
+    if (p != null && _mapReady) {
+      _map.move(p, math.max(_map.camera.zoom, 16).toDouble());
+      return;
+    }
+
     _fit();
+    final msg = _isCourier
+        ? (_gpsProblem ?? 'Position GPS en cours de recherche…')
+        : 'En attente de la position du livreur…';
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text(msg),
+        duration: const Duration(seconds: 2),
+      ));
   }
 
   void _zoom(double delta) {
+    if (!_mapReady) return;
     final cam = _map.camera;
     _map.move(cam.center, (cam.zoom + delta).clamp(10, 18).toDouble());
     if (_follow) setState(() => _follow = false);
@@ -461,8 +663,8 @@ class _LivreurMapPageState extends State<LivreurMapPage>
     return LatLng(la, lo);
   }
 
-  /// Lit `o.<champLat>` / `o.<champLng>` sans connaître le nom exact : on passe
-  /// par noSuchMethod dynamique, chaque essai étant protégé.
+  /// Lit `o.<champLat>` / `o.<champLng>` sans connaître le nom exact : chaque
+  /// essai est protégé (un champ absent renvoie simplement null).
   LatLng? _coordsOf(dynamic o, List<List<String>> keys) {
     for (final k in keys) {
       final la = _dyn(o, k[0]);
@@ -474,28 +676,46 @@ class _LivreurMapPageState extends State<LivreurMapPage>
   }
 
   double? _dyn(dynamic o, String field) {
-    // Dart ne permet pas o.$field : on énumère les noms attendus.
     return _num(() {
       switch (field) {
-        case 'deliveryLat': return o.deliveryLat;
-        case 'deliveryLng': return o.deliveryLng;
-        case 'clientLat': return o.clientLat;
-        case 'clientLng': return o.clientLng;
-        case 'destLat': return o.destLat;
-        case 'destLng': return o.destLng;
-        case 'destinationLat': return o.destinationLat;
-        case 'destinationLng': return o.destinationLng;
-        case 'adresseLat': return o.adresseLat;
-        case 'adresseLng': return o.adresseLng;
-        case 'latitude': return o.latitude;
-        case 'longitude': return o.longitude;
-        case 'lat': return o.lat;
-        case 'lng': return o.lng;
-        case 'lon': return o.lon;
-        case 'restaurantLat': return o.restaurantLat;
-        case 'restaurantLng': return o.restaurantLng;
-        case 'pickupLat': return o.pickupLat;
-        case 'pickupLng': return o.pickupLng;
+        case 'deliveryLat':
+          return o.deliveryLat;
+        case 'deliveryLng':
+          return o.deliveryLng;
+        case 'clientLat':
+          return o.clientLat;
+        case 'clientLng':
+          return o.clientLng;
+        case 'destLat':
+          return o.destLat;
+        case 'destLng':
+          return o.destLng;
+        case 'destinationLat':
+          return o.destinationLat;
+        case 'destinationLng':
+          return o.destinationLng;
+        case 'adresseLat':
+          return o.adresseLat;
+        case 'adresseLng':
+          return o.adresseLng;
+        case 'latitude':
+          return o.latitude;
+        case 'longitude':
+          return o.longitude;
+        case 'lat':
+          return o.lat;
+        case 'lng':
+          return o.lng;
+        case 'lon':
+          return o.lon;
+        case 'restaurantLat':
+          return o.restaurantLat;
+        case 'restaurantLng':
+          return o.restaurantLng;
+        case 'pickupLat':
+          return o.pickupLat;
+        case 'pickupLng':
+          return o.pickupLng;
       }
       return null;
     });
@@ -573,7 +793,8 @@ class _LivreurMapPageState extends State<LivreurMapPage>
             ),
             children: [
               TileLayer(
-                urlTemplate: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+                urlTemplate:
+                    'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
                 userAgentPackageName: kTileUserAgent,
                 maxZoom: 19,
               ),
@@ -667,7 +888,7 @@ class _LivreurMapPageState extends State<LivreurMapPage>
         child: _pin(
           icon: Icons.home_rounded,
           color: _blue,
-          label: widget.courierMode ? 'Client' : 'Vous',
+          label: _isCourier ? 'Client' : 'Vous',
           filledLabel: true,
         ),
       ));
@@ -854,7 +1075,7 @@ class _LivreurMapPageState extends State<LivreurMapPage>
             final subtitle = _delivered
                 ? 'Course terminée'
                 : waiting
-                    ? (widget.courierMode
+                    ? (_isCourier
                         ? (_gpsProblem ?? 'Recherche de votre position GPS…')
                         : 'En attente de la position du livreur…')
                     : eta == null
@@ -937,7 +1158,7 @@ class _LivreurMapPageState extends State<LivreurMapPage>
                         ),
                         const SizedBox(height: 2),
                         Text(subtitle,
-                            maxLines: 1,
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(fontSize: 13, color: _muted)),
                       ],
@@ -1032,12 +1253,11 @@ class _LivreurMapPageState extends State<LivreurMapPage>
     if (widget.commande == null) return const SizedBox.shrink();
     final l10n = AppLocalizations.of(context)!;
     final c = widget.commande!;
-    final personName =
-        widget.courierMode ? 'Client #${c.userID}' : _courierDisplayName;
+    final personName = _isCourier ? 'Client #${c.userID}' : _courierDisplayName;
     final destAddress = _str(() => (c as dynamic).adresseLivraison) ??
         _str(() => (c as dynamic).deliveryAddress) ??
         _str(() => (c as dynamic).adresse) ??
-        (widget.courierMode ? 'Adresse du client' : 'Votre position');
+        (_isCourier ? 'Adresse du client' : 'Votre position');
 
     return Container(
       decoration: BoxDecoration(
@@ -1099,7 +1319,7 @@ class _LivreurMapPageState extends State<LivreurMapPage>
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
-                          widget.courierMode
+                          _isCourier
                               ? Icons.person_rounded
                               : Icons.delivery_dining_rounded,
                           color: Colors.white,

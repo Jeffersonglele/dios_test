@@ -454,12 +454,7 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage>
         await CommandeApi.updateOrderStatus(
             _commande.commandeID.toString(), newStatus);
         await Commande.refreshLocalCommandes();
-        final allC = await Commande.fetchCommandesFromDB();
-        final updated =
-            allC.where((c) => c.commandeID == _commande.commandeID);
-        if (updated.isNotEmpty && mounted) {
-          setState(() => _commande = updated.first);
-        }
+        await _loadData();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -539,11 +534,11 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage>
   Widget build(BuildContext context) {
     final status = CommandeStatus.normalize(_commande.status);
     final statusColor = CommandeStatus.color(status);
-    final bool isCancelled = status == CommandeStatus.cancelled;
-    final bool isConfirmed = status == CommandeStatus.confirmed;
+    final bool isCancelled = status == CommandeStatus.cancelled || status == CommandeStatus.refused;
+    final bool isConfirmed = status == CommandeStatus.confirmed || status == CommandeStatus.preparing || status == CommandeStatus.ready;
     final bool isDelivered = status == CommandeStatus.delivered;
-    final bool canCancel = !isCancelled && !isConfirmed && !isDelivered;
-    final bool canConfirm = !isConfirmed && !isCancelled;
+    final bool canCancel = !isCancelled && !isDelivered;
+    final bool canConfirm = !isConfirmed && !isCancelled && !isDelivered;
 
     return Scaffold(
       backgroundColor: AppColors.resolve(AppColors.surface, AppDarkColors.surface),

@@ -105,7 +105,7 @@ class _RestaurantUpdateFormPageState
         final addressText = parts.isNotEmpty
             ? parts.join(', ')
             : (reverse.displayName ?? '${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}');
-        if (addressText.isNotEmpty && _addressController.text.trim().isEmpty) {
+        if (addressText.isNotEmpty) {
           _addressController.text = addressText;
         }
       } catch (_) {}
@@ -244,18 +244,43 @@ class _RestaurantUpdateFormPageState
                   SizedBox(height: size.height * 0.02),
                   _buildOpeningDays(l10n),
                   SizedBox(height: size.height * 0.02),
-                  _buildTextField(
-                    controller: _addressController,
-                    hintText: l10n.restaurant_form_address_hint,
-                    icon: Icons.location_city,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return l10n.restaurant_form_address_required;
-                      } else if (value.length < 4) {
-                        return l10n.restaurant_form_name_min_length;
-                      }
-                      return null;
-                    },
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: _buildTextField(
+                          controller: _addressController,
+                          hintText: l10n.restaurant_form_address_hint,
+                          icon: Icons.location_city,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return l10n.restaurant_form_address_required;
+                            } else if (value.length < 4) {
+                              return l10n.restaurant_form_name_min_length;
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: IconButton(
+                          onPressed: _isDetecting ? null : _detectPosition,
+                          icon: _isDetecting
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Icon(Icons.gps_fixed, color: Colors.red),
+                          tooltip: 'Actualiser ma position GPS',
+                          style: IconButton.styleFrom(
+                            backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   SizedBox(height: size.height * 0.02),
                   HashtagTextInputFormatter(

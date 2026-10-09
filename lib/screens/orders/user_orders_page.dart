@@ -24,6 +24,7 @@ import '../chat/chat_screen.dart';
 import 'commande_details_page.dart';
 import '../../widgets/rating_dialog.dart';
 import '../../widgets/order_otp_widgets.dart';
+import '../../utils/payment_provider_label.dart';
 
 // ── Code OTP de remise : accès tolérant aux champs de la commande ──────────
 // (ils renvoient null / false tant que le modèle Commande n'a pas
@@ -179,6 +180,7 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
       restoNames = rn;
       commandes = filtered;
       isLoading = false;
+      _loadedOnce = true;
     });
   }
 
@@ -276,9 +278,30 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
     }
   }
 
+  // ── Raccourcis couleurs (thème clair / sombre) ───────────
+  Color get _ink => AppColors.resolve(AppColors.ink, AppDarkColors.ink);
+  Color get _muted =>
+      AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
+  Color get _subtle =>
+      AppColors.resolve(AppColors.inkSubtle, AppDarkColors.inkSubtle);
+  Color get _cardBg => AppColors.resolve(AppColors.card, AppDarkColors.card);
+  Color get _warm =>
+      AppColors.resolve(AppColors.surfaceWarm, AppDarkColors.surfaceWarm);
+  Color get _line => AppColors.resolve(AppColors.border, AppDarkColors.border);
+  Color get _brandC => AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+
+  /// `true` après le premier chargement (squelettes au tout premier affichage).
+  bool _loadedOnce = false;
+
+  void _openDetails(Commande c) => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => CommandeDetailsPage(commande: c)),
+      );
+
   @override
   Widget build(BuildContext context) {
     final isSmallScreen = MediaQuery.of(context).size.width < 600;
+    final showSkeleton = isLoading && !_loadedOnce && commandes.isEmpty;
     return Scaffold(
       backgroundColor:
           AppColors.resolve(AppColors.surface, AppDarkColors.surface),
@@ -301,26 +324,58 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
           ? _buildPendingFullPage()
           : Column(children: [
               _buildFilters(isSmallScreen),
+              // fine barre de progression pendant un rafraîchissement
+              SizedBox(
+                height: 2,
+                child: (isLoading && !showSkeleton)
+                    ? LinearProgressIndicator(
+                        minHeight: 2,
+                        color: _brandC,
+                        backgroundColor: Colors.transparent,
+                      )
+                    : null,
+              ),
               Expanded(
-                child: isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : commandes.isEmpty
-                        ? _EmptyOrders(
-                            isRestaurant: widget.showRestaurantOrders)
-                        : ListView.builder(
-                            padding: const EdgeInsets.fromLTRB(16, 4, 16, 40),
-                            itemCount: commandes.length,
-                            itemBuilder: (_, i) =>
-                                _buildCard(commandes[i], isSmallScreen),
-                          ),
+                child: showSkeleton
+                    ? ListView(
+                        physics: const NeverScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
+                        children: const [
+                          _OrderSkeleton(),
+                          _OrderSkeleton(),
+                          _OrderSkeleton(),
+                        ],
+                      )
+                    : RefreshIndicator(
+                        onRefresh: loadOrders,
+                        color: _brandC,
+                        child: commandes.isEmpty
+                            ? ListView(
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                children: [
+                                  const SizedBox(height: 60),
+                                  _EmptyOrders(
+                                      isRestaurant: widget.showRestaurantOrders),
+                                ],
+                              )
+                            : ListView.builder(
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                padding:
+                                    const EdgeInsets.fromLTRB(16, 8, 16, 40),
+                                itemCount: commandes.length,
+                                itemBuilder: (_, i) =>
+                                    _buildCard(commandes[i], isSmallScreen),
+                              ),
+                      ),
               ),
             ]),
     );
   }
 
   Widget _buildFilters(bool isSmall) {
+    final allLabel = AppLocalizations.of(context)!.all;
     final statuses = [
-      AppLocalizations.of(context)!.all,
+      allLabel,
       CommandeStatus.pending,
       CommandeStatus.paid,
       CommandeStatus.confirmed,
@@ -331,13 +386,13 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
     ];
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: statuses.map((s) {
-          final active = statusFilter ==
-              (s == AppLocalizations.of(context)!.all ? null : s);
-          final label = s == AppLocalizations.of(context)!.all
-              ? AppLocalizations.of(context)!.all
+          final isAll = s == allLabel;
+          final active = statusFilter == (isAll ? null : s);
+          final label = isAll
+              ? allLabel
               : s == CommandeStatus.pending
                   ? AppLocalizations.of(context)!.pending
                   : s;
@@ -345,8 +400,7 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
             padding: const EdgeInsets.only(right: 8),
             child: GestureDetector(
               onTap: () {
-                setState(() => statusFilter =
-                    s == AppLocalizations.of(context)!.all ? null : s);
+                setState(() => statusFilter = isAll ? null : s);
                 loadOrders();
               },
               child: AnimatedContainer(
@@ -354,25 +408,37 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
-                  color: active
-                      ? AppColors.resolve(AppColors.brand, AppDarkColors.brand)
-                      : AppColors.resolve(AppColors.card, AppDarkColors.card),
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  color: active ? _brandC : _cardBg,
+                  borderRadius: BorderRadius.circular(999),
                   border: Border.all(
-                      color: active
-                          ? AppColors.resolve(
-                              AppColors.brand, AppDarkColors.brand)
-                          : AppColors.resolve(
-                              AppColors.border, AppDarkColors.border),
-                      width: 0.5),
+                      color: active ? _brandC : _line, width: 0.6),
                 ),
-                child: Text(label,
-                    style: AppTypography.labelMedium(
-                        color: active
-                            ? AppColors.resolve(
-                                AppColors.card, AppDarkColors.card)
-                            : AppColors.resolve(
-                                AppColors.inkMuted, AppDarkColors.inkMuted))),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (!isAll) ...[
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: BoxDecoration(
+                          color: active
+                              ? Colors.white
+                              : CommandeStatus.color(CommandeStatus.normalize(s)),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                    ],
+                    Text(
+                      label,
+                      style: AppTypography.labelMedium(
+                              color: active ? Colors.white : _muted)
+                          .copyWith(
+                              fontWeight:
+                                  active ? FontWeight.w800 : FontWeight.w600),
+                    ),
+                  ],
+                ),
               ),
             ),
           );
@@ -382,6 +448,7 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
   }
 
   Widget _buildCard(Commande c, bool isSmall) {
+    final l10n = AppLocalizations.of(context)!;
     final status = CommandeStatus.normalize(c.status);
     final statusColor = CommandeStatus.color(status);
     final isRestaurantView = widget.showRestaurantOrders;
@@ -412,338 +479,275 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
       }
     }
     final dateStr = c.dateCommande.toLocal().toString().split(' ')[0];
+    final isPickup = c.deliveryMode?.toUpperCase() == 'PICKUP';
+    final payLabel = paymentProviderLabel(_paymentProviderOf(c));
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.resolve(AppColors.card, AppDarkColors.card),
-        borderRadius: BorderRadius.circular(AppRadius.xl),
-        border: Border.all(
-          color: statusColor.withValues(alpha: 0.30),
-          width: 0.8,
-        ),
-        boxShadow: [AppShadows.subtle],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadius.xl),
-        child: IntrinsicHeight(
+    // bouton principal du restaurateur (les cas s'excluent mutuellement)
+    Widget? primary;
+    if (isRestaurantView && !isCancelled) {
+      if (nextRestaurantStatus != null) {
+        primary = _PrimaryActionButton(
+          label: nextRestaurantLabel!,
+          icon: Icons.check_rounded,
+          color: AppColors.success,
+          onTap: () => updateStatus(c.commandeID, nextRestaurantStatus!),
+        );
+      } else if (status == CommandeStatus.ready && !isPickup) {
+        primary = Container(
+          height: 46,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: _brandC.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(AppRadius.md),
+          ),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              // ── Barre colorée gauche (indicateur statut) ─
-              Container(
-                width: 4,
-                decoration: BoxDecoration(
-                  color: statusColor,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(AppRadius.xl),
-                    bottomLeft: Radius.circular(AppRadius.xl),
-                  ),
-                ),
-              ),
-              // ── Contenu principal ────────────────────────
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // ── En-tête : ID + date + badge statut ─
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(AppSpacing.md,
-                          AppSpacing.md, AppSpacing.md, AppSpacing.xs),
-                      child: Row(
-                        children: [
-                          // Icône commande
-                          Container(
-                            width: 38,
-                            height: 38,
-                            decoration: BoxDecoration(
-                              color: statusColor.withValues(alpha: 0.10),
-                              borderRadius: BorderRadius.circular(AppRadius.sm),
-                            ),
-                            child: Icon(Icons.receipt_rounded,
-                                color: statusColor, size: 18),
-                          ),
-                          const SizedBox(width: AppSpacing.sm),
-                          // ID + nom/date
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  isRestaurantView
-                                      ? '${AppLocalizations.of(context)!.orders} #${c.commandeID}'
-                                      : restoNames[c.restauID] ??
-                                          '${AppLocalizations.of(context)!.orders} #${c.commandeID}',
-                                  style: AppTypography.labelLarge(
-                                      color: AppColors.resolve(
-                                          AppColors.ink, AppDarkColors.ink)),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  '$dateStr · ${c.heure}',
-                                  style: AppTypography.labelMedium(
-                                          color: AppColors.resolve(
-                                              AppColors.inkSubtle,
-                                              AppDarkColors.inkSubtle))
-                                      .copyWith(fontSize: 11),
-                                ),
-                              ],
-                            ),
-                          ),
-                          // Badge statut
-                          _StatusBadge(status: status, color: statusColor),
-                        ],
-                      ),
-                    ),
-                    // ── Actions PRIMAIRES restaurateur ───────
-                    if (isRestaurantView && !isCancelled) ...[
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(
-                            AppSpacing.md, 0, AppSpacing.md, AppSpacing.sm),
-                        child: Row(
-                          children: [
-                            if (nextRestaurantStatus != null)
-                              Expanded(
-                                child: _PrimaryActionButton(
-                                  label: nextRestaurantLabel!,
-                                  icon: Icons.check_rounded,
-                                  color: AppColors.success,
-                                  onTap: () => updateStatus(
-                                      c.commandeID, nextRestaurantStatus!),
-                                ),
-                              ),
-                            if (nextRestaurantStatus != null)
-                              const SizedBox(width: AppSpacing.xs),
-                            if (status == CommandeStatus.ready &&
-                                c.deliveryMode?.toUpperCase() != 'PICKUP')
-                              Expanded(
-                                child: Text(
-                                  'En attente d’un livreur',
-                                  style: AppTypography.labelMedium(
-                                      color: AppColors.brand),
-                                ),
-                              ),
-                            if (_canValidatePickup(c, status))
-                              Expanded(
-                                child: _PrimaryActionButton(
-                                  label: 'Valider le retrait du client',
-                                  icon: Icons.storefront_rounded,
-                                  color: AppColors.success,
-                                  onTap: () => _validatePickup(c),
-                                ),
-                              ),
-                            if (canCancel) ...[
-                              if (nextRestaurantStatus != null ||
-                                  (status == CommandeStatus.ready &&
-                                      c.deliveryMode?.toUpperCase() != 'PICKUP'))
-                                const SizedBox(width: AppSpacing.xs),
-                              _IconActionButton(
-                                icon: Icons.close_rounded,
-                                color: AppColors.error,
-                                onTap: () => updateStatus(
-                                    c.commandeID,
-                                    isRestaurantView
-                                        ? CommandeStatus.refused
-                                        : CommandeStatus.cancelled),
-                              ),
-                            ],
-                            const SizedBox(width: AppSpacing.xs),
-                            _IconActionButton(
-                              icon: Icons.chat_rounded,
-                              color: AppColors.inkMuted,
-                              onTap: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (_) => ChatScreen(
-                                          orderId: c.commandeID,
-                                          recipientName:
-                                              'Client #${c.commandeID}'))),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                    // ── Voir le détail + actions ──────────
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                          AppSpacing.md, 0, AppSpacing.md, AppSpacing.sm),
-                      child: Wrap(
-                        spacing: AppSpacing.sm,
-                        runSpacing: AppSpacing.sm,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          GestureDetector(
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    CommandeDetailsPage(commande: c),
-                              ),
-                            ),
-                            child: Text(
-                                AppLocalizations.of(context)!
-                                    .user_orders_see_detail,
-                                style: AppTypography.labelMedium(
-                                        color: AppColors.brand)
-                                    .copyWith(fontSize: 12)),
-                          ),
-                          if (!isRestaurantView && isDelivered) ...[
-                            ElevatedButton.icon(
-                              onPressed: () =>
-                                  _showRate(c.commandeID, c.restauID),
-                              icon: Icon(Icons.star_rounded,
-                                  size: 15,
-                                  color: AppColors.resolve(
-                                      AppColors.accent, AppDarkColors.accent)),
-                              label: Text(AppLocalizations.of(context)!
-                                  .user_orders_rate),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.resolve(
-                                    AppColors.accentLight,
-                                    AppDarkColors.accentLight),
-                                foregroundColor: AppColors.resolve(
-                                    AppColors.accent, AppDarkColors.accent),
-                                minimumSize: Size.zero,
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 8),
-                              ),
-                            ),
-                            if (c.livreurID != null)
-                              ElevatedButton.icon(
-                                onPressed: () => _showRateLivreur(c.livreurID!),
-                                icon: const Icon(Icons.star_rounded,
-                                    size: 15, color: AppColors.success),
-                                label: Text(AppLocalizations.of(context)!
-                                    .user_orders_rate_driver),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.resolve(
-                                      AppColors.success.withValues(alpha: 0.12),
-                                      AppDarkColors.success
-                                          .withValues(alpha: 0.12)),
-                                  foregroundColor: AppColors.resolve(
-                                      AppColors.success, AppDarkColors.success),
-                                  minimumSize: Size.zero,
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 8),
-                                ),
-                              ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    // ── Liste des plats ─────────────────────
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                          AppSpacing.md, 0, AppSpacing.md, AppSpacing.sm),
-                      child: FutureBuilder<List<LigneCommande>>(
-                        future: getLignes(c.commandeID),
-                        builder: (_, snap) {
-                          if (!snap.hasData) return const SizedBox.shrink();
-                          final lignes = snap.data!;
-                          final subtotal = lignes.fold<double>(
-                              0, (s, l) => s + l.prixUnitaire * l.quantite);
-                          return Container(
-                            padding: const EdgeInsets.all(AppSpacing.md),
-                            decoration: BoxDecoration(
-                              color: AppColors.resolve(AppColors.surfaceWarm,
-                                  AppDarkColors.surfaceWarm),
-                              borderRadius: BorderRadius.circular(AppRadius.md),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                ...lignes.map((l) => Padding(
-                                      padding: const EdgeInsets.only(bottom: 4),
-                                      child: Row(
-                                        children: [
-                                          Container(
-                                            width: 24,
-                                            height: 24,
-                                            decoration: BoxDecoration(
-                                              color: AppColors.resolve(
-                                                  AppColors.brandSurface,
-                                                  AppDarkColors.brandSurface),
-                                              borderRadius:
-                                                  BorderRadius.circular(6),
-                                            ),
-                                            child: Center(
-                                              child: Text('${l.quantite}',
-                                                  style:
-                                                      AppTypography.labelMedium(
-                                                              color: AppColors
-                                                                  .brand)
-                                                          .copyWith(
-                                                              fontSize: 11)),
-                                            ),
-                                          ),
-                                          const SizedBox(width: AppSpacing.sm),
-                                          Expanded(
-                                            child: Text(
-                                              (l.nomPlat?.trim().isNotEmpty == true
-                                                      ? l.nomPlat!.trim()
-                                                      : null) ??
-                                                  dishNames[l.platID] ??
-                                                  'Plat #${l.platID}',
-                                              style: AppTypography.bodyMedium(),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ),
-                                          Text(
-                                            CurrencyUtil.formatPrice(
-                                                l.prixUnitaire, _country),
-                                            style: AppTypography.labelMedium(
-                                                color: AppColors.brand),
-                                          ),
-                                        ],
-                                      ),
-                                    )),
-                                const Divider(height: 8),
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(AppLocalizations.of(context)!.subtotal,
-                                        style: AppTypography.bodyMedium(
-                                                color: AppColors.resolve(
-                                                    AppColors.inkMuted,
-                                                    AppDarkColors.inkMuted))
-                                            .copyWith(fontSize: 12)),
-                                    Text(
-                                        CurrencyUtil.formatPrice(
-                                            subtotal, _country),
-                                        style: AppTypography.labelMedium(
-                                                color: AppColors.resolve(
-                                                    AppColors.ink,
-                                                    AppDarkColors.ink))
-                                            .copyWith(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w700)),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    // ── Suivi livraison client ───────────────
-                    if (!isRestaurantView && !isCancelled)
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(
-                            AppSpacing.md, 0, AppSpacing.md, AppSpacing.md),
-                        child: _DeliveryTracker(
-                          orderStatus: status,
-                          status: c.deliveryStatus,
-                          lat: c.livreurLat,
-                          lng: c.livreurLng,
-                        ),
-                      ),
-                  ],
+              Icon(Icons.hourglass_top_rounded, size: 16, color: _brandC),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  'En attente d’un livreur',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.labelMedium(color: _brandC)
+                      .copyWith(fontWeight: FontWeight.w700),
                 ),
               ),
             ],
           ),
+        );
+      } else if (_canValidatePickup(c, status)) {
+        primary = _PrimaryActionButton(
+          label: 'Valider le retrait du client',
+          icon: Icons.storefront_rounded,
+          color: AppColors.success,
+          onTap: () => _validatePickup(c),
+        );
+      }
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSpacing.md),
+      decoration: BoxDecoration(
+        color: _cardBg,
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+        border: Border.all(color: _line.withValues(alpha: 0.7), width: 0.8),
+        boxShadow: [AppShadows.subtle],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── En-tête cliquable : commande, date, statut ──
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => _openDetails(c),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.md, AppSpacing.md, AppSpacing.md, 12),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: statusColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                        ),
+                        child: Icon(Icons.receipt_long_rounded,
+                            color: statusColor, size: 20),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              isRestaurantView
+                                  ? '${l10n.orders} #${c.commandeID}'
+                                  : restoNames[c.restauID] ??
+                                      '${l10n.orders} #${c.commandeID}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTypography.labelLarge(color: _ink)
+                                  .copyWith(fontWeight: FontWeight.w800),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              isRestaurantView
+                                  ? '$dateStr · ${c.heure}'
+                                  : '#${c.commandeID} · $dateStr · ${c.heure}',
+                              style: AppTypography.labelMedium(color: _subtle)
+                                  .copyWith(fontSize: 11),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      _StatusBadge(status: status, color: statusColor),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // ── Mode de remise · paiement · total ──
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md, 0, AppSpacing.md, AppSpacing.sm),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        _MetaChip(
+                          icon: isPickup
+                              ? Icons.storefront_rounded
+                              : Icons.delivery_dining_rounded,
+                          label: isPickup ? 'À emporter' : 'Livraison',
+                        ),
+                        if (payLabel != null)
+                          _MetaChip(
+                            icon: paymentProviderIcon(_paymentProviderOf(c)),
+                            label: payLabel,
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    CurrencyUtil.formatPrice(c.totalAmount, _country),
+                    style: AppTypography.labelLarge(color: _brandC)
+                        .copyWith(fontWeight: FontWeight.w800),
+                  ),
+                ],
+              ),
+            ),
+
+            // ── Plats (repliable) ──
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md, 0, AppSpacing.md, AppSpacing.sm),
+              child: _OrderDishes(
+                key: ValueKey('order_dishes_${c.commandeID}'),
+                orderId: c.commandeID,
+                loader: getLignes,
+                dishNames: dishNames,
+                country: _country,
+                subtotalLabel: l10n.subtotal,
+              ),
+            ),
+
+            // ── Actions restaurateur ──
+            if (isRestaurantView && !isCancelled)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.md, 0, AppSpacing.md, AppSpacing.sm),
+                child: Row(
+                  children: [
+                    if (primary != null) Expanded(child: primary),
+                    if (primary == null) const Spacer(),
+                    if (canCancel) ...[
+                      const SizedBox(width: AppSpacing.sm),
+                      _IconActionButton(
+                        icon: Icons.close_rounded,
+                        color: AppColors.error,
+                        onTap: () => updateStatus(
+                            c.commandeID,
+                            isRestaurantView
+                                ? CommandeStatus.refused
+                                : CommandeStatus.cancelled),
+                      ),
+                    ],
+                    const SizedBox(width: AppSpacing.sm),
+                    _IconActionButton(
+                      icon: Icons.chat_rounded,
+                      color: AppColors.inkMuted,
+                      onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => ChatScreen(
+                                  orderId: c.commandeID,
+                                  recipientName: 'Client #${c.commandeID}'))),
+                    ),
+                  ],
+                ),
+              ),
+
+            // ── Évaluations (client, commande livrée) ──
+            if (!isRestaurantView && isDelivered)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.md, 0, AppSpacing.md, AppSpacing.sm),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _RateButton(
+                        label: l10n.user_orders_rate,
+                        color: AppColors.resolve(
+                            AppColors.accent, AppDarkColors.accent),
+                        onTap: () => _showRate(c.commandeID, c.restauID),
+                      ),
+                    ),
+                    if (c.livreurID != null) ...[
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: _RateButton(
+                          label: l10n.user_orders_rate_driver,
+                          color: AppColors.resolve(
+                              AppColors.success, AppDarkColors.success),
+                          onTap: () => _showRateLivreur(c.livreurID!),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
+            // ── Suivi livraison client ──
+            if (!isRestaurantView && !isCancelled)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.md, 4, AppSpacing.md, AppSpacing.md),
+                child: _DeliveryTracker(
+                  orderStatus: status,
+                  status: c.deliveryStatus,
+                  lat: c.livreurLat,
+                  lng: c.livreurLng,
+                ),
+              ),
+
+            // ── Pied : voir le détail ──
+            Divider(height: 1, color: _line.withValues(alpha: 0.5)),
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => _openDetails(c),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md, vertical: 12),
+                  child: Row(
+                    children: [
+                      Text(
+                        l10n.user_orders_see_detail,
+                        style: AppTypography.labelMedium(color: _brandC)
+                            .copyWith(
+                                fontSize: 12, fontWeight: FontWeight.w700),
+                      ),
+                      const Spacer(),
+                      Icon(Icons.chevron_right_rounded,
+                          size: 20, color: _brandC),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -975,7 +979,18 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
   }
 }
 
-// ── Bouton action primaire (pleine largeur) ───────────────
+// ── Valeur `paymentProvider` de la commande (accès tolérant) ─────────────
+String? _paymentProviderOf(Commande c) {
+  try {
+    final v = (c as dynamic).paymentProvider;
+    final s = v?.toString().trim();
+    return (s == null || s.isEmpty || s == 'null') ? null : s;
+  } catch (_) {
+    return null;
+  }
+}
+
+// ── Bouton action primaire (plein) ────────────────────────
 class _PrimaryActionButton extends StatelessWidget {
   const _PrimaryActionButton({
     required this.label,
@@ -991,28 +1006,47 @@ class _PrimaryActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 9),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.10),
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          border: Border.all(color: color.withValues(alpha: 0.25), width: 0.8),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: color, size: 15),
-            const SizedBox(width: 5),
-            Flexible(
-              child: Text(label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTypography.labelMedium(color: color)
-                      .copyWith(fontWeight: FontWeight.w700)),
+    final radius = BorderRadius.circular(AppRadius.md);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: radius,
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.28),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: color,
+        borderRadius: radius,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: radius,
+          child: Container(
+            height: 46,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            alignment: Alignment.center,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, color: Colors.white, size: 18),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -1033,17 +1067,94 @@ class _IconActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          border: Border.all(color: color.withValues(alpha: 0.20), width: 0.8),
+    final radius = BorderRadius.circular(AppRadius.md);
+    return Material(
+      color: color.withValues(alpha: 0.08),
+      shape: RoundedRectangleBorder(
+        borderRadius: radius,
+        side: BorderSide(color: color.withValues(alpha: 0.22), width: 0.8),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: radius,
+        child: SizedBox(
+          width: 46,
+          height: 46,
+          child: Icon(icon, color: color, size: 20),
         ),
-        child: Icon(icon, color: color, size: 16),
+      ),
+    );
+  }
+}
+
+// ── Bouton « noter » (étoile) ─────────────────────────────
+class _RateButton extends StatelessWidget {
+  const _RateButton({
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(AppRadius.md);
+    return Material(
+      color: color.withValues(alpha: 0.12),
+      borderRadius: radius,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: radius,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.star_rounded, size: 17, color: color),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      color: color, fontSize: 12, fontWeight: FontWeight.w800),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Petite pastille d'information (mode de remise, paiement) ─
+class _MetaChip extends StatelessWidget {
+  const _MetaChip({required this.icon, required this.label});
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: AppColors.resolve(AppColors.surfaceWarm, AppDarkColors.surfaceWarm),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: muted),
+          const SizedBox(width: 5),
+          Text(label,
+              style: TextStyle(
+                  color: muted, fontSize: 11, fontWeight: FontWeight.w700)),
+        ],
       ),
     );
   }
@@ -1058,15 +1169,26 @@ class _StatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(999),
       ),
-      child: Text(
-        status,
-        style:
-            TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            status,
+            style: TextStyle(
+                color: color, fontSize: 11, fontWeight: FontWeight.w700),
+          ),
+        ],
       ),
     );
   }
@@ -1079,7 +1201,6 @@ class _PendingBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     if (count == 0) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(right: AppSpacing.md),
@@ -1099,6 +1220,240 @@ class _PendingBadge extends StatelessWidget {
   }
 }
 
+// ── Liste des plats repliable ─────────────────────────────
+class _OrderDishes extends StatefulWidget {
+  const _OrderDishes({
+    super.key,
+    required this.orderId,
+    required this.loader,
+    required this.dishNames,
+    required this.country,
+    required this.subtotalLabel,
+  });
+  final int orderId;
+  final Future<List<LigneCommande>> Function(int id) loader;
+  final Map<int, String> dishNames;
+  final String country;
+  final String subtotalLabel;
+
+  @override
+  State<_OrderDishes> createState() => _OrderDishesState();
+}
+
+class _OrderDishesState extends State<_OrderDishes> {
+  late final Future<List<LigneCommande>> _future;
+  bool _open = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // chargé une seule fois (avant : rechargé à chaque rebuild de la liste)
+    _future = widget.loader(widget.orderId);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ink = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
+    final muted = AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
+    final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+    final warm =
+        AppColors.resolve(AppColors.surfaceWarm, AppDarkColors.surfaceWarm);
+
+    return FutureBuilder<List<LigneCommande>>(
+      future: _future,
+      builder: (_, snap) {
+        if (!snap.hasData || snap.data!.isEmpty) return const SizedBox.shrink();
+        final lignes = snap.data!;
+        final count = lignes.fold<int>(0, (s, l) => s + l.quantite.toInt());
+        final subtotal =
+            lignes.fold<double>(0, (s, l) => s + l.prixUnitaire * l.quantite);
+
+        return Container(
+          decoration: BoxDecoration(
+            color: warm,
+            borderRadius: BorderRadius.circular(AppRadius.md),
+          ),
+          child: Column(
+            children: [
+              InkWell(
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                onTap: () => setState(() => _open = !_open),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md, vertical: 10),
+                  child: Row(
+                    children: [
+                      Icon(Icons.restaurant_menu_rounded,
+                          size: 16, color: brand),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '$count article${count > 1 ? 's' : ''} · ${CurrencyUtil.formatPrice(subtotal, widget.country)}',
+                          style: AppTypography.labelMedium(color: ink)
+                              .copyWith(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                      AnimatedRotation(
+                        turns: _open ? 0.5 : 0,
+                        duration: AppMotion.fast,
+                        child: Icon(Icons.keyboard_arrow_down_rounded,
+                            color: muted),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              AnimatedSize(
+                duration: AppMotion.fast,
+                alignment: Alignment.topCenter,
+                child: _open
+                    ? Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                            AppSpacing.md, 0, AppSpacing.md, AppSpacing.md),
+                        child: Column(
+                          children: [
+                            ...lignes.map((l) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 6),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 24,
+                                        height: 24,
+                                        decoration: BoxDecoration(
+                                          color: AppColors.resolve(
+                                              AppColors.brandSurface,
+                                              AppDarkColors.brandSurface),
+                                          borderRadius:
+                                              BorderRadius.circular(6),
+                                        ),
+                                        child: Center(
+                                          child: Text('${l.quantite}',
+                                              style: AppTypography.labelMedium(
+                                                      color: brand)
+                                                  .copyWith(fontSize: 11)),
+                                        ),
+                                      ),
+                                      const SizedBox(width: AppSpacing.sm),
+                                      Expanded(
+                                        child: Text(
+                                          (l.nomPlat?.trim().isNotEmpty == true
+                                                  ? l.nomPlat!.trim()
+                                                  : null) ??
+                                              widget.dishNames[l.platID] ??
+                                              'Plat #${l.platID}',
+                                          style: AppTypography.bodyMedium(),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      Text(
+                                        CurrencyUtil.formatPrice(
+                                            l.prixUnitaire, widget.country),
+                                        style: AppTypography.labelMedium(
+                                            color: brand),
+                                      ),
+                                    ],
+                                  ),
+                                )),
+                            const Divider(height: 10),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(widget.subtotalLabel,
+                                    style: AppTypography.bodyMedium(
+                                            color: muted)
+                                        .copyWith(fontSize: 12)),
+                                Text(
+                                    CurrencyUtil.formatPrice(
+                                        subtotal, widget.country),
+                                    style: AppTypography.labelMedium(
+                                            color: ink)
+                                        .copyWith(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700)),
+                              ],
+                            ),
+                          ],
+                        ),
+                      )
+                    : const SizedBox(width: double.infinity),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ── Squelette de carte (premier chargement) ───────────────
+class _OrderSkeleton extends StatefulWidget {
+  const _OrderSkeleton();
+
+  @override
+  State<_OrderSkeleton> createState() => _OrderSkeletonState();
+}
+
+class _OrderSkeletonState extends State<_OrderSkeleton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 900))
+    ..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bone = AppColors.resolve(AppColors.border, AppDarkColors.border)
+        .withValues(alpha: 0.55);
+    Widget box(double w, double h, [double r = 8]) => Container(
+          width: w,
+          height: h,
+          decoration: BoxDecoration(
+              color: bone, borderRadius: BorderRadius.circular(r)),
+        );
+    return FadeTransition(
+      opacity: Tween(begin: 0.45, end: 1.0).animate(_c),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: AppSpacing.md),
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: AppColors.resolve(AppColors.card, AppDarkColors.card),
+          borderRadius: BorderRadius.circular(AppRadius.xl),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              box(42, 42, 12),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    box(150, 14),
+                    const SizedBox(height: 6),
+                    box(100, 10)
+                  ],
+                ),
+              ),
+              box(70, 22, 999),
+            ]),
+            const SizedBox(height: 14),
+            Row(children: [box(80, 22, 999), const SizedBox(width: 6), box(110, 22, 999)]),
+            const SizedBox(height: 14),
+            box(double.infinity, 44, 12),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 // ── Empty state ───────────────────────────────────────────
 class _EmptyOrders extends StatelessWidget {
   const _EmptyOrders({required this.isRestaurant});
@@ -1107,46 +1462,41 @@ class _EmptyOrders extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 72,
-              height: 72,
-              decoration: BoxDecoration(
-                  color: AppColors.resolve(
-                      AppColors.brandSurface, AppDarkColors.brandSurface),
-                  shape: BoxShape.circle),
-              child: Icon(Icons.receipt_long_outlined,
-                  color:
-                      AppColors.resolve(AppColors.brand, AppDarkColors.brand),
-                  size: 34),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              isRestaurant
-                  ? AppLocalizations.of(context)!.noOrderReceived
-                  : AppLocalizations.of(context)!.noOrderFound,
-              style: AppTypography.titleMedium(
-                  color: AppColors.resolve(
-                      AppColors.surface, AppDarkColors.surface)),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              isRestaurant
-                  ? AppLocalizations.of(context)!.user_orders_new_orders_hint
-                  : AppLocalizations.of(context)!.user_orders_past_orders_hint,
-              style: AppTypography.bodyMedium(
-                  color: AppColors.resolve(
-                      AppColors.inkMuted, AppDarkColors.inkMuted)),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 84,
+            height: 84,
+            decoration: BoxDecoration(
+                color: AppColors.resolve(
+                    AppColors.brandSurface, AppDarkColors.brandSurface),
+                shape: BoxShape.circle),
+            child: Icon(Icons.receipt_long_outlined,
+                color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+                size: 40),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            isRestaurant ? l10n.noOrderReceived : l10n.noOrderFound,
+            // (avant : couleur « surface » = texte invisible)
+            style: AppTypography.titleMedium(
+                color: AppColors.resolve(AppColors.ink, AppDarkColors.ink)),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            isRestaurant
+                ? l10n.user_orders_new_orders_hint
+                : l10n.user_orders_past_orders_hint,
+            style: AppTypography.bodyMedium(
+                color:
+                    AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted)),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }
@@ -1387,61 +1737,84 @@ class _DeliveryTracker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final idx = _stepIndex();
+    final labels = _labels(context);
+    final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+    final off = AppColors.resolve(AppColors.border, AppDarkColors.border);
+    final offIcon =
+        AppColors.resolve(AppColors.inkSubtle, AppDarkColors.inkSubtle);
     final hasMap = DeliveryStatus.normalize(status) == DeliveryStatus.inTransit &&
         lat != null &&
         lng != null;
 
+    Widget segment(bool done) => AnimatedContainer(
+          duration: AppMotion.fast,
+          height: 3,
+          decoration: BoxDecoration(
+            color: done ? brand : off,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        );
+
     return Column(
       children: [
+        // Étapes : le trait relie bien les pastilles entre elles
         Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: List.generate(5, (i) {
             final done = i <= idx;
+            final current = i == idx;
             return Expanded(
               child: Column(
                 children: [
-                  if (i > 0)
-                    Row(children: [
-                      Expanded(
-                        child: Container(
-                          height: 2,
-                          color: i <= idx
-                              ? AppColors.resolve(
-                                  AppColors.brand, AppDarkColors.brand)
-                              : AppColors.resolve(
-                                  AppColors.border, AppDarkColors.border),
+                  SizedBox(
+                    height: 34,
+                    child: Row(
+                      children: [
+                        Expanded(
+                            child: i == 0
+                                ? const SizedBox.shrink()
+                                : segment(i <= idx)),
+                        AnimatedContainer(
+                          duration: AppMotion.fast,
+                          width: current ? 34 : 28,
+                          height: current ? 34 : 28,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: done ? brand : off,
+                            boxShadow: current
+                                ? [
+                                    BoxShadow(
+                                      color: brand.withValues(alpha: 0.35),
+                                      blurRadius: 10,
+                                      spreadRadius: 2,
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          child: Icon(_icons[i],
+                              size: current ? 17 : 14,
+                              color: done ? Colors.white : offIcon),
                         ),
-                      ),
-                    ]),
-                  Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: done
-                          ? AppColors.resolve(
-                              AppColors.brand, AppDarkColors.brand)
-                          : AppColors.resolve(
-                              AppColors.border, AppDarkColors.border),
+                        Expanded(
+                            child: i == 4
+                                ? const SizedBox.shrink()
+                                : segment(i + 1 <= idx)),
+                      ],
                     ),
-                    child: Icon(_icons[i],
-                        size: 14,
-                        color: done
-                            ? AppColors.resolve(
-                                AppColors.surface, AppDarkColors.surface)
-                            : AppColors.resolve(
-                                AppColors.border, AppDarkColors.inkSubtle)),
                   ),
-                  const SizedBox(height: 4),
-                  Text(_labels(context)[i],
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w600,
-                          color: done
-                              ? AppColors.resolve(
-                                  AppColors.brand, AppDarkColors.brand)
-                              : AppColors.resolve(
-                                  AppColors.border, AppDarkColors.inkSubtle))),
+                  const SizedBox(height: 6),
+                  Text(
+                    labels[i],
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 10,
+                      height: 1.15,
+                      fontWeight: current ? FontWeight.w800 : FontWeight.w600,
+                      color: done ? brand : offIcon,
+                    ),
+                  ),
                 ],
               ),
             );
@@ -1457,14 +1830,11 @@ class _DeliveryTracker extends StatelessWidget {
               ),
             ),
             child: Container(
-              margin: const EdgeInsets.only(top: AppSpacing.sm),
+              margin: const EdgeInsets.only(top: AppSpacing.md),
               height: 160,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(AppRadius.md),
-                border: Border.all(
-                    color:
-                        AppColors.resolve(AppColors.brand, AppDarkColors.brand)
-                            .withValues(alpha: 0.3)),
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+                border: Border.all(color: brand.withValues(alpha: 0.3)),
               ),
               clipBehavior: Clip.antiAlias,
               child: Stack(children: [
@@ -1484,34 +1854,76 @@ class _DeliveryTracker extends StatelessWidget {
                     MarkerLayer(markers: [
                       Marker(
                         point: LatLng(lat!, lng!),
-                        width: 40,
-                        height: 40,
-                        child: Icon(Icons.delivery_dining,
-                            color: AppColors.resolve(
-                                AppColors.brand, AppDarkColors.brand),
-                            size: 28),
+                        width: 44,
+                        height: 44,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: brand,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2.5),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.25),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(Icons.delivery_dining_rounded,
+                              color: Colors.white, size: 24),
+                        ),
                       ),
                     ]),
                   ],
                 ),
                 Positioned(
-                  bottom: 4,
+                  top: 8,
+                  left: 8,
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.success,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.sensors_rounded,
+                            size: 12, color: Colors.white),
+                        SizedBox(width: 4),
+                        Text('En direct',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800)),
+                      ],
+                    ),
+                  ),
+                ),
+                Positioned(
+                  bottom: 6,
                   right: 8,
                   child: Container(
                     padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: AppColors.resolve(AppColors.ink, AppDarkColors.ink)
-                          .withValues(alpha: 0.7),
-                      borderRadius: BorderRadius.circular(4),
+                      color: Colors.black.withValues(alpha: 0.65),
+                      borderRadius: BorderRadius.circular(6),
                     ),
-                    child: Text(
-                        AppLocalizations.of(context)!
-                            .user_orders_tap_to_enlarge,
-                        style: TextStyle(
-                            color: AppColors.resolve(
-                                AppColors.surface, AppDarkColors.surface),
-                            fontSize: 10)),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.open_in_full_rounded,
+                            size: 11, color: Colors.white),
+                        const SizedBox(width: 4),
+                        Text(
+                            AppLocalizations.of(context)!
+                                .user_orders_tap_to_enlarge,
+                            style: const TextStyle(
+                                color: Colors.white, fontSize: 10)),
+                      ],
+                    ),
                   ),
                 ),
               ]),

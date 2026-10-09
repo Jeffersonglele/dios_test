@@ -34,6 +34,7 @@ class CommandeStatus {
       case 'en preparation':
       case 'preparing':
       case 'in preparation':
+      case 'en_preparation':
         return preparing;
       case 'prête':
       case 'prete':
@@ -44,6 +45,7 @@ class CommandeStatus {
       case 'refusee':
       case 'refused':
       case 'rejected':
+      case 'refused':
         return refused;
       case 'annulée':
       case 'annulee':

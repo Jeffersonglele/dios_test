@@ -11,6 +11,7 @@ import 'package:dios_delices/screens/profile/profile_page.dart';
 import 'package:dios_delices/services/currency_service.dart';
 import 'package:dios_delices/services/favorites_service.dart';
 import 'package:dios_delices/services/location_cache_service.dart';
+import 'package:dios_delices/services/wallet_service.dart';
 import 'package:dios_delices/theme/app_theme.dart';
 import 'package:dios_delices/utils/currency_util.dart';
 import 'package:dios_delices/utils/delivery_fee_calculator.dart';
@@ -427,6 +428,268 @@ class HomeWelcomeBanner extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _bubble(double size, Color color) => Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+      );
+}
+
+// ═══════════════════════════════════════════════════════════
+// Bannière Wallet
+// ═══════════════════════════════════════════════════════════
+class HomeWalletBanner extends StatefulWidget {
+  const HomeWalletBanner({super.key, this.onTap, this.onAdd});
+  final VoidCallback? onTap;
+  final VoidCallback? onAdd;
+
+  @override
+  State<HomeWalletBanner> createState() => HomeWalletBannerState();
+}
+
+class HomeWalletBannerState extends State<HomeWalletBanner> {
+  static const String _walletSourceCurrency = 'XOF';
+
+  double? _balanceSource;
+  bool _loading = true;
+  bool _hasError = false;
+  bool _hidden = false;
+
+  void refresh() => _load();
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final data = await WalletService.fetchWallet();
+      if (!mounted) return;
+      setState(() {
+        _balanceSource = data.balance;
+        _loading = false;
+        _hasError = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _hasError = true;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return HomePressable(
+      onTap: widget.onTap ?? () {},
+      child: AnimatedBuilder(
+        animation: CurrencyService.instance,
+        builder: (context, _) {
+          final currency = CurrencyService.instance.activeCurrency;
+          final isAuto = CurrencyService.instance.isAutoCurrency;
+
+          String balanceText = '—';
+          if (!_hasError && _balanceSource != null) {
+            final converted = CurrencyService.instance.convertBetween(
+              _balanceSource!,
+              _walletSourceCurrency,
+              currency,
+            );
+            balanceText = CurrencyUtil.formatAmount(converted, currency);
+          }
+
+          return Container(
+            margin: const EdgeInsets.fromLTRB(
+                AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 0),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.xl),
+              color: HC.brand,
+              boxShadow: [
+                BoxShadow(
+                  color: HC.brand.withValues(alpha: 0.32),
+                  blurRadius: 22,
+                  offset: const Offset(0, 12),
+                ),
+              ],
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned(
+                  right: -30,
+                  top: -36,
+                  child: _bubble(110, Colors.white.withValues(alpha: 0.08)),
+                ),
+                Positioned(
+                  right: 50,
+                  bottom: -46,
+                  child: _bubble(90, Colors.white.withValues(alpha: 0.06)),
+                ),
+
+                // Jeton / pièce décorative (même esprit que les images
+                // de la bannière de bienvenue).
+                Positioned(
+                  right: 4,
+                  bottom: -10,
+                  child: Opacity(
+                    opacity: 0.9,
+                    child: Transform.rotate(
+                      angle: -0.12,
+                      child: Image.asset(
+                        'assets/images/token.png',
+                        width: 86,
+                        height: 86,
+                      ),
+                    ),
+                  ),
+                ),
+
+                Padding(
+                  // On réserve de la place à droite pour laisser respirer le token.
+                  padding: const EdgeInsets.fromLTRB(20, 16, 96, 18),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.20),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                                Icons.account_balance_wallet_rounded,
+                                color: Colors.white,
+                                size: 17),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Mon portefeuille',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.85),
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.18),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (isAuto)
+                                  const Padding(
+                                    padding: EdgeInsets.only(right: 4),
+                                    child: Icon(Icons.my_location_rounded,
+                                        size: 11, color: Colors.white70),
+                                  ),
+                                Text(
+                                  currency,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.4,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => setState(() => _hidden = !_hidden),
+                            child: Icon(
+                              _hidden
+                                  ? Icons.visibility_off_rounded
+                                  : Icons.visibility_rounded,
+                              color: Colors.white.withValues(alpha: 0.85),
+                              size: 20,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            child: _loading
+                                ? _balanceSkeleton()
+                                : Text(
+                                    _hidden ? '••••••' : balanceText,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 26,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: 0.2,
+                                    ),
+                                  ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Bouton + (recharge) — en overlay pour rester bien visible
+                // même avec le token décoratif derrière.
+                Positioned(
+                  right: 16,
+                  bottom: 16,
+                  child: GestureDetector(
+                    onTap: widget.onAdd,
+                    child: Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.15),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Icon(Icons.add_rounded, color: HC.brand, size: 24),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _balanceSkeleton() {
+    return Container(
+      width: 120,
+      height: 26,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.25),
+        borderRadius: BorderRadius.circular(8),
       ),
     );
   }

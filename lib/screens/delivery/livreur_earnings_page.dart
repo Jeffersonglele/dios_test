@@ -20,6 +20,8 @@ class _LivreurEarningsPageState extends State<LivreurEarningsPage> {
   bool _isLoading = true;
   List<_DailyPoint> _dailyData = [];
   String _country = 'RDC';
+  DateTime? _startDate;
+  DateTime? _endDate;
 
   @override
   void initState() {
@@ -32,12 +34,24 @@ class _LivreurEarningsPageState extends State<LivreurEarningsPage> {
     try {
       final session = await SessionService.readSession();
       _country = session.country;
-      final result = await LivreurApi.getLivreurEarnings(session.userId, period: _period);
+
+      Map<String, dynamic>? result;
+      if (_period == 'custom' && _startDate != null && _endDate != null) {
+        result = await LivreurApi.getLivreurEarnings(
+          session.userId,
+          period: 'custom',
+          startDate: _startDate,
+          endDate: _endDate,
+        );
+      } else {
+        result = await LivreurApi.getLivreurEarnings(session.userId, period: _period);
+      }
+
       if (mounted) {
-        final raw = (result['dailyData'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+        final raw = (result?['dailyData'] as List?)?.cast<Map<String, dynamic>>() ?? [];
         setState(() {
-          _totalDeliveries = (result['totalLivraisons'] as num?)?.toInt() ?? 0;
-          _totalGains = (result['totalGains'] as num?)?.toDouble() ?? 0;
+          _totalDeliveries = (result?['totalLivraisons'] as num?)?.toInt() ?? 0;
+          _totalGains = (result?['totalGains'] as num?)?.toDouble() ?? 0;
           _dailyData = raw.map((m) => _DailyPoint(
             date: m['date']?.toString() ?? '',
             gains: (m['gains'] as num?)?.toDouble() ?? 0,
@@ -53,7 +67,32 @@ class _LivreurEarningsPageState extends State<LivreurEarningsPage> {
 
   void _setPeriod(String p) {
     setState(() => _period = p);
+    if (p != 'custom') {
+      _startDate = null;
+      _endDate = null;
+    }
     _load();
+  }
+
+  Future<void> _selectDateRange() async {
+    final DateTimeRange? picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2024),
+      lastDate: DateTime.now().add(const Duration(days: 1)),
+      initialDateRange: _startDate != null && _endDate != null
+          ? DateTimeRange(start: _startDate!, end: _endDate!)
+          : null,
+      locale: const Locale('fr', 'FR'),
+    );
+
+    if (picked != null && mounted) {
+      setState(() {
+        _period = 'custom';
+        _startDate = picked.start;
+        _endDate = picked.end;
+      });
+      _load();
+    }
   }
 
   String _shortDate(String iso) {
@@ -65,7 +104,12 @@ class _LivreurEarningsPageState extends State<LivreurEarningsPage> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final periodLabel = _period == 'today' ? l10n.delivery_today : _period == 'week' ? l10n.delivery_this_week : l10n.delivery_this_month;
+    String periodLabel;
+    if (_period == 'custom' && _startDate != null && _endDate != null) {
+      periodLabel = '${_shortDate(_startDate!.toIso8601String())} - ${_shortDate(_endDate!.toIso8601String())}';
+    } else {
+      periodLabel = _period == 'today' ? l10n.delivery_today : _period == 'week' ? l10n.delivery_this_week : l10n.delivery_this_month;
+    }
     final hasData = _dailyData.any((d) => d.gains > 0);
     return Scaffold(
       backgroundColor: AppColors.resolve(AppColors.surface, AppDarkColors.surface),
@@ -117,9 +161,37 @@ class _LivreurEarningsPageState extends State<LivreurEarningsPage> {
                         _PeriodButton(label: l10n.delivery_period_7days, period: 'week', selected: _period == 'week', onTap: () => _setPeriod('week')),
                         const SizedBox(width: 8),
                         _PeriodButton(label: l10n.delivery_period_30days, period: 'month', selected: _period == 'month', onTap: () => _setPeriod('month')),
+                        const SizedBox(width: 8),
+                        _PeriodButton(label: 'Personnalisé', period: 'custom', selected: _period == 'custom', onTap: _selectDateRange),
                       ],
                     ),
                   ),
+                  if (_period == 'custom' && _startDate != null && _endDate != null)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.resolve(AppColors.brandSurface, AppDarkColors.brandSurface),
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.calendar_today_rounded, size: 16, color: AppColors.brand),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Du ${_shortDate(_startDate!.toIso8601String())} au ${_shortDate(_endDate!.toIso8601String())}',
+                              style: AppTypography.bodyMedium(color: AppColors.brand),
+                            ),
+                            const Spacer(),
+                            GestureDetector(
+                              onTap: _selectDateRange,
+                              child: Icon(Icons.edit_rounded, size: 16, color: AppColors.brand),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   const SizedBox(height: 24),
                   if (_dailyData.isNotEmpty && hasData)
                     Container(

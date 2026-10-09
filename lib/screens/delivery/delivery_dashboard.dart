@@ -65,7 +65,8 @@ class _DeliveryDashboardState extends State<DeliveryDashboard>
     _locationTimer?.cancel();
     _positionStreamSub?.cancel();
     if (sub != null) liveQuery.client.unSubscribe(sub!);
-    SocketService().disconnect();
+    // Ne pas déconnecter le socket car c'est un singleton partagé
+    // Le socket restera connecté tant que l'application est ouverte
     super.dispose();
   }
 
@@ -248,24 +249,50 @@ class _DeliveryDashboardState extends State<DeliveryDashboard>
     }
   }
 
-  void _startSharingLocation([int? commandeID]) {
+  Future<void> _startSharingLocation([int? commandeID]) async {
     _locationTimer?.cancel();
     _positionStreamSub?.cancel();
     if (commandeID != null) activeCommandeID = commandeID;
 
-    // Use a continuous GPS stream for real-time Socket.io emission.
-    // The stream fires every ~5 seconds with high accuracy.
-    _positionStreamSub = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 10, // metres – avoid noisy updates when stationary
-      ),
-    ).listen(_onPositionUpdate, onError: (_) {});
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        serviceEnabled = await Geolocator.openLocationSettings();
+        if (!serviceEnabled) return;
+      }
 
-    // Fallback: still run a periodic timer in case the stream stalls
-    // (e.g. background mode on some devices).
-    _locationTimer =
-        Timer.periodic(const Duration(seconds: 30), (_) => _sendLocationOnce());
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) return;
+      }
+      if (permission == LocationPermission.deniedForever) return;
+
+      // Ensure Socket.io connection is ready
+      unawaited(SocketService().connect());
+
+      // Force instant API save on startup / online toggle
+      _lastApiSave = DateTime(2000);
+
+      // 1. Immediate position capture right now when going online
+      await _sendLocationOnce();
+
+      // 2. Continuous GPS stream with 5m filter for real-time movement
+      _positionStreamSub = Geolocator.getPositionStream(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 5,
+        ),
+      ).listen(_onPositionUpdate, onError: (_) {});
+
+      // 3. Fallback heartbeat timer every 15s to keep location fresh
+      _locationTimer = Timer.periodic(
+        const Duration(seconds: 15),
+        (_) => _sendLocationOnce(),
+      );
+    } catch (e) {
+      debugPrint('⚠️ Erreur partage position livreur: $e');
+    }
   }
 
   void _stopSharingLocation() {
@@ -275,12 +302,11 @@ class _DeliveryDashboardState extends State<DeliveryDashboard>
     activeCommandeID = null;
   }
 
-  /// Called on every GPS position update from the stream.
-  /// Emits to Socket.io instantly, but throttles HTTP API calls.
+  /// Called on every GPS position update from stream or heartbeat.
   void _onPositionUpdate(Position pos) {
     if (!isOnline) return;
 
-    // 1. Emit real-time via Socket.io (instant, every update) tant qu'une course est active
+    // 1. Emit real-time via Socket.io (instant, every update) if order active
     final currentOrderId = activeCommandeID ?? _currentActiveDeliveryId();
     if (currentOrderId != null) {
       SocketService().emit('courier_location_update', {
@@ -292,9 +318,9 @@ class _DeliveryDashboardState extends State<DeliveryDashboard>
       });
     }
 
-    // 2. Throttled HTTP API save (every 30 seconds)
+    // 2. Throttled HTTP API save to update PostGIS location (every 15s)
     final now = DateTime.now();
-    if (now.difference(_lastApiSave).inSeconds >= 30) {
+    if (now.difference(_lastApiSave).inSeconds >= 15) {
       _lastApiSave = now;
       LivreurApi.updatePosition(
         driverID,
@@ -306,12 +332,17 @@ class _DeliveryDashboardState extends State<DeliveryDashboard>
     }
   }
 
-  /// Single-shot location push (fallback timer).
+  /// Single-shot location push (instant fetch & fallback heartbeat).
   Future<void> _sendLocationOnce() async {
     if (!isOnline) return;
     try {
+      final last = await Geolocator.getLastKnownPosition();
+      if (last != null) _onPositionUpdate(last);
+
       final pos = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high);
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 8),
+      );
       _onPositionUpdate(pos);
     } catch (_) {}
   }

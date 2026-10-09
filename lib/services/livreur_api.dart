@@ -21,15 +21,28 @@ class LivreurApi {
   }
 
   // Calculer les gains d'un livreur
-  static Future<Map<String, dynamic>> getLivreurEarnings(int livreurID, {String period = 'week'}) async {
+  static Future<Map<String, dynamic>> getLivreurEarnings(
+    int livreurID, {
+    String period = 'week',
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
     final token = await SessionService.readNodeToken();
     if (token == null) return {'success': false, 'totalLivraisons': 0, 'totalGains': 0};
 
     try {
+      final params = <String, String>{'period': period};
+      if (startDate != null) {
+        params['startDate'] = startDate.toIso8601String().split('T')[0];
+      }
+      if (endDate != null) {
+        params['endDate'] = endDate.toIso8601String().split('T')[0];
+      }
+
       final response = await NodeAuthService.getJson(
-        '/couriers/me/earnings', 
+        '/couriers/me/earnings',
         token: token,
-        queryParameters: {'period': period},
+        queryParameters: params,
       );
       if (response['data'] != null) {
         return Map<String, dynamic>.from(response['data'] as Map);

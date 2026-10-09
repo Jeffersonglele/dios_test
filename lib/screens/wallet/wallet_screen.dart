@@ -5,10 +5,12 @@ import 'package:dios_delices/widgets/swirling_loader.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../services/currency_service.dart';
 import '../../services/wallet_service.dart';
 
 class WalletScreen extends StatefulWidget {
-  const WalletScreen({super.key});
+  const WalletScreen({super.key, this.openTopUpOnStart = false});
+  final bool openTopUpOnStart;
 
   @override
   State<WalletScreen> createState() => _WalletScreenState();
@@ -24,6 +26,9 @@ class _WalletScreenState extends State<WalletScreen> {
   void initState() {
     super.initState();
     _load();
+    if (widget.openTopUpOnStart) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _openTopUp());
+    }
   }
 
   Future<void> _load() async {
@@ -46,7 +51,15 @@ class _WalletScreenState extends State<WalletScreen> {
     }
   }
 
-  String _money(double v) => '${CurrencyUtil.symbol('CDF')} ${v.toStringAsFixed(2)}';
+  String _money(double v) {
+    final currency = CurrencyService.instance.activeCurrency;
+    final converted = CurrencyService.instance.convertBetween(
+      v,
+      CurrencyService.instance.sourceCurrency,
+      currency,
+    );
+    return CurrencyUtil.formatAmount(converted, currency);
+  }
 
   Future<void> _openTopUp() async {
     final message = await showModalBottomSheet<String>(
@@ -78,46 +91,51 @@ class _WalletScreenState extends State<WalletScreen> {
         AppColors.resolve(AppColors.surfaceWarm, AppDarkColors.surfaceWarm);
     final ink = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
 
-    return Scaffold(
-      backgroundColor: surface,
-      appBar: AppBar(
-        backgroundColor: surface,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        title: Text('Mon portefeuille',
-            style: AppTypography.titleMedium(color: ink)
-                .copyWith(fontWeight: FontWeight.w800)),
-      ),
-      body: _loading
-          ? Center(child: Swirling(size: 56, color: AppColors.brand))
-          : RefreshIndicator(
-              color: AppColors.brand,
-              onRefresh: _load,
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
-                children: [
-                  _BalanceCard(
-                    balance: _wallet == null ? null : _money(_wallet!.balance),
-                    hidden: _hideBalance,
-                    onToggle: () =>
-                        setState(() => _hideBalance = !_hideBalance),
+    return ListenableBuilder(
+      listenable: CurrencyService.instance,
+      builder: (context, _) {
+        return Scaffold(
+          backgroundColor: surface,
+          appBar: AppBar(
+            backgroundColor: surface,
+            elevation: 0,
+            scrolledUnderElevation: 0,
+            title: Text('Mon portefeuille',
+                style: AppTypography.titleMedium(color: ink)
+                    .copyWith(fontWeight: FontWeight.w800)),
+          ),
+          body: _loading
+              ? Center(child: Swirling(size: 56, color: AppColors.brand))
+              : RefreshIndicator(
+                  color: AppColors.brand,
+                  onRefresh: _load,
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+                    children: [
+                      _BalanceCard(
+                        balance: _wallet == null ? null : _money(_wallet!.balance),
+                        hidden: _hideBalance,
+                        onToggle: () =>
+                            setState(() => _hideBalance = !_hideBalance),
+                      ),
+                      const SizedBox(height: 18),
+                      OtpGradientButton(
+                        label: 'Recharger mon solde',
+                        icon: Icons.add_card_rounded,
+                        onPressed: _openTopUp,
+                      ),
+                      const SizedBox(height: 28),
+                      Text('Dernières transactions',
+                          style: AppTypography.titleMedium(color: ink)
+                              .copyWith(fontWeight: FontWeight.w800)),
+                      const SizedBox(height: 12),
+                      ..._historySection(),
+                    ],
                   ),
-                  const SizedBox(height: 18),
-                  OtpGradientButton(
-                    label: 'Recharger mon solde',
-                    icon: Icons.add_card_rounded,
-                    onPressed: _openTopUp,
-                  ),
-                  const SizedBox(height: 28),
-                  Text('Dernières transactions',
-                      style: AppTypography.titleMedium(color: ink)
-                          .copyWith(fontWeight: FontWeight.w800)),
-                  const SizedBox(height: 12),
-                  ..._historySection(),
-                ],
-              ),
-            ),
+                ),
+        );
+      },
     );
   }
 
@@ -170,6 +188,9 @@ class _BalanceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
     final radius = BorderRadius.circular(28);
+
+    final currency = CurrencyService.instance.activeCurrency;
+    final isAuto = CurrencyService.instance.isAutoCurrency;
 
     return Container(
       decoration: BoxDecoration(
@@ -224,6 +245,36 @@ class _BalanceCard extends StatelessWidget {
                               fontWeight: FontWeight.w600,
                               fontSize: 14)),
                     ),
+                    // Badge de la devise active
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (isAuto)
+                            const Padding(
+                              padding: EdgeInsets.only(right: 4),
+                              child: Icon(Icons.my_location_rounded,
+                                  size: 11, color: Colors.white70),
+                            ),
+                          Text(
+                            currency,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.4,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 4),
                     IconButton(
                       onPressed: onToggle,
                       tooltip: hidden ? 'Afficher' : 'Masquer',
@@ -443,9 +494,6 @@ class _TopUpSheetState extends State<_TopUpSheet> {
       _error = null;
     });
     try {
-      // Simulation de l'appel à l'agrégateur Mobile Money (comme avant) :
-      // à remplacer par le vrai paiement ; le backend doit vérifier le
-      // referenceId auprès de l'agrégateur avant de créditer le solde.
       await Future.delayed(const Duration(seconds: 2));
       if (!mounted) return;
       final res = await WalletService.requestTopUp(
@@ -487,6 +535,7 @@ class _TopUpSheetState extends State<_TopUpSheet> {
     final card = AppColors.resolve(AppColors.card, AppDarkColors.card);
     final ink = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
     final muted = AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
+    final currency = CurrencyService.instance.activeCurrency;
 
     return PopScope(
       canPop: !_submitting, // pas de fermeture pendant l'appel
@@ -539,7 +588,7 @@ class _TopUpSheetState extends State<_TopUpSheet> {
                           ],
                           textInputAction: TextInputAction.next,
                           decoration: _decoration(
-                              'Montant (CDF)', Icons.payments_rounded, 'Ex. 5000'),
+                              'Montant ($currency)', Icons.payments_rounded, 'Ex. 5000'),
                           validator: (_) {
                             final a = _amount;
                             if (a == null || a <= 0) {

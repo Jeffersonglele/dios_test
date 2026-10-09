@@ -230,6 +230,11 @@ class NodeOrderService {
     } else if (paymentProvider == 'NYOLE') {
       moyenPaiementId = 2; // Mobile Money
     }
+
+    // Mapper le statut du backend vers le statut frontend
+    final backendStatus = order['status']?.toString() ?? 'PENDING';
+    final mappedStatus = _mapBackendStatusToFrontend(backendStatus);
+
     return Commande(
       commandeID: id,
       userID: _int(order['userId'] ?? order['userID']),
@@ -241,7 +246,7 @@ class NodeOrderService {
       dateCommande: date,
       heure: order['orderedTime']?.toString() ?? _time(date),
       addressID: _nullableInt(order['deliveryAddressId'] ?? order['addressId']),
-      status: order['status']?.toString() ?? 'PENDING',
+      status: mappedStatus,
       deliveryStatus: order['deliveryStatus']?.toString(),
       livreurID: _nullableInt(order['delivererId'] ?? order['livreurID']),
       livreurLat: _nullableDouble(order['delivererLatitude'] ?? order['livreurLat']),
@@ -252,7 +257,43 @@ class NodeOrderService {
       deliveryMode: order['deliveryMode']?.toString(),
       country: order['country']?.toString() ?? 'RDC',
       paymentStatus: paymentProvider,
+      paymentProvider: paymentProvider,
+      retrievalOtp: order['retrievalOtp']?.toString(),
+      isOtpVerified: order['isOtpVerified'] == true,
+      deliveredAt: DateTime.tryParse(order['deliveredAt']?.toString() ?? ''),
+      orderUuid: (order['orderUuid'] ?? order['uuid'] ?? order['id'])?.toString(),
     );
+  }
+
+  static String _mapBackendStatusToFrontend(String backendStatus) {
+    final normalized = backendStatus.toUpperCase().trim();
+    switch (normalized) {
+      case 'PENDING':
+        return 'En attente';
+      case 'WAITING_PAYMENT':
+        return 'En attente';
+      case 'PAID':
+        return 'Payée';
+      case 'EN_PREPARATION':
+        return 'En préparation';
+      case 'PREPARING':
+        return 'En préparation';
+      case 'READY':
+      case 'PRETE':
+        return 'Prête';
+      case 'REFUSED':
+      case 'REFUSEE':
+        return 'Refusée';
+      case 'CANCELLED':
+      case 'CANCELED':
+        return 'Annulée';
+      case 'DELIVERED':
+        return 'Livrée';
+      case 'CONFIRMED':
+        return 'Confirmée';
+      default:
+        return backendStatus;
+    }
   }
 
   static int _int(Object? value, {int fallback = 0}) =>

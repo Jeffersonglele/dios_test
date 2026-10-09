@@ -38,13 +38,14 @@ class CommandeAdapter extends TypeAdapter<Commande> {
       pourboire: fields[18] as double?,
       paymentStatus: fields[19] as String?,
       paymentDate: fields[20] as DateTime?,
+      orderUuid: fields[21] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, Commande obj) {
     writer
-      ..writeByte(21)
+      ..writeByte(22)
       ..writeByte(0)
       ..write(obj.commandeID)
       ..writeByte(1)
@@ -86,7 +87,9 @@ class CommandeAdapter extends TypeAdapter<Commande> {
       ..writeByte(19)
       ..write(obj.paymentStatus)
       ..writeByte(20)
-      ..write(obj.paymentDate);
+      ..write(obj.paymentDate)
+      ..writeByte(21)
+      ..write(obj.orderUuid);
   }
 
   @override

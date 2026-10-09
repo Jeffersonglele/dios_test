@@ -1463,8 +1463,17 @@ class _CartState extends ConsumerState<Cart> {
       }
     } on WalletException catch (e) {
       if (mounted) Toast(context, e.message, false);
-    } catch (_) {
-      if (mounted) Toast(context, l10n.cart_order_error_retry, false);
+    } on NodeAuthException catch (e) {
+      if (mounted) Toast(context, e.message, false);
+    } catch (e) {
+      if (mounted) {
+        final msg = e.toString().replaceAll('Exception: ', '').trim();
+        Toast(
+          context,
+          msg.isNotEmpty ? msg : l10n.cart_order_error_retry,
+          false,
+        );
+      }
     } finally {
       if (mounted) setState(() => _isSubmittingPayment = false);
     }

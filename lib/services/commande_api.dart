@@ -58,12 +58,13 @@ class CommandeApi {
     final nodeToken = await SessionService.readNodeToken();
     if (nodeToken != null) {
       final session = await SessionService.readSession();
+      final isRestaurantOwner =
+          session.role.isProfessional || session.restaurantId != null;
+
       final userOrders = await NodeOrderService.listMine(
         token: nodeToken,
         userId: session.userId,
       );
-      final isRestaurantOwner =
-          session.role.isProfessional || session.restaurantId != null;
       final restaurantOrders = isRestaurantOwner
           ? await NodeOrderService.listForRestaurant(
               token: nodeToken,
@@ -93,10 +94,12 @@ class CommandeApi {
       if (uuid == null || uuid.isEmpty) {
         throw StateError('Commande Node introuvable.');
       }
+
+      final mappedStatus = _mapStatusForBackend(status, isRestaurantOwner);
       await NodeOrderService.updateStatus(
         token: nodeToken,
         orderId: uuid,
-        status: status,
+        status: mappedStatus,
       );
       return;
     }
@@ -115,5 +118,30 @@ class CommandeApi {
     if (result['success'] != true) {
       throw Exception(result['error'] ?? 'Erreur inconnue');
     }
+  }
+
+  static String _mapStatusForBackend(String status, bool isRestaurantOwner) {
+    final normalized = status.toLowerCase().trim();
+
+    if (isRestaurantOwner) {
+      if (normalized == 'confirmée' || normalized == 'confirmee' || normalized == 'confirmed' || normalized == 'en_preparation' || normalized == 'en préparation') {
+        return 'EN_PREPARATION';
+      }
+      if (normalized == 'annulée' || normalized == 'annulee' || normalized == 'cancelled' || normalized == 'canceled' || normalized == 'refusé' || normalized == 'refuse' || normalized == 'refusée') {
+        return 'REFUSED';
+      }
+      if (normalized == 'prête' || normalized == 'prete' || normalized == 'ready') {
+        return 'READY';
+      }
+    } else {
+      if (normalized == 'annulée' || normalized == 'annulee' || normalized == 'cancelled' || normalized == 'canceled') {
+        return 'CANCELLED';
+      }
+      if (normalized == 'confirmée' || normalized == 'confirmee' || normalized == 'confirmed') {
+        return 'CONFIRMED';
+      }
+    }
+
+    return status.toUpperCase();
   }
 }
