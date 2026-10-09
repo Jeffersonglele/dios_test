@@ -226,7 +226,12 @@ async function manageRestaurantLegacy(req, res, next) {
     let mode = 'created';
     const legacyId = Number.isInteger(legacyIdRaw) ? legacyIdRaw : null;
 
-    // Fallback : si une adresse est liée (addressID/addressId) mais pas de coords directes,
+    if (data.latitude != null) data.latitude = Number.parseFloat(String(data.latitude));
+    if (data.longitude != null) data.longitude = Number.parseFloat(String(data.longitude));
+    if (!Number.isFinite(data.latitude)) data.latitude = null;
+    if (!Number.isFinite(data.longitude)) data.longitude = null;
+
+    // Fallback 1 : si une adresse est liée (addressID/addressId) mais pas de coords directes,
     // on charge les coordonnées depuis la table "addresses" (objectType=RESTAURANT).
     if ((data.latitude == null || data.longitude == null) && (data.addressId != null)) {
       try {
@@ -251,6 +256,21 @@ async function manageRestaurantLegacy(req, res, next) {
               data.cityId = Number(linked.cityId);
             }
             if (!data.country && linked.country) data.country = linked.country;
+          }
+        }
+      } catch (_) {}
+    }
+
+    // Fallback 2 : Géocodage automatique de l'adresse littérale si les coordonnées GPS sont absentes
+    if ((data.latitude == null || data.longitude == null) && data.address && String(data.address).trim().length >= 3) {
+      try {
+        const { searchAddress } = require('../services/nominatim.service');
+        const geoRes = await searchAddress(data.address, { limit: 1 });
+        if (geoRes?.results?.length > 0) {
+          const first = geoRes.results[0];
+          if (Number.isFinite(first.latitude) && Number.isFinite(first.longitude)) {
+            data.latitude = first.latitude;
+            data.longitude = first.longitude;
           }
         }
       } catch (_) {}
