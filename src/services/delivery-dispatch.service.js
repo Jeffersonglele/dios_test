@@ -16,6 +16,10 @@ function safeFloat(val, fallback = 0.0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function isValidUUID(str) {
+  return typeof str === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str.trim());
+}
+
 function configuredCourierRoleIds() {
   return String(process.env.LIVREUR_ROLE_IDS || '')
     .split(',')
@@ -111,11 +115,12 @@ async function startDispatchForOrder(order) {
   // Fallback if pickup is missing: fetch from restaurant table
   if (!pickup && order.restaurantId) {
     const parsedRestauId = safeInt(order.restaurantId);
+    const restauIdStr = String(order.restaurantId ?? '').trim();
     const restaurant = await prisma.restaurant.findFirst({
       where: {
         OR: [
           ...(parsedRestauId ? [{ restaurantId: parsedRestauId }] : []),
-          { id: String(order.restaurantId) },
+          ...(isValidUUID(restauIdStr) ? [{ id: restauIdStr }] : []),
         ],
         deletedAt: null,
       },
