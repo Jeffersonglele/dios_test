@@ -463,8 +463,8 @@ async function updateOrderStatus(req, res, next) {
     const requestedStatus = String(req.body.status).toUpperCase();
     const isAdmin = hasRole('ADMIN', req.auth.roleId);
     const restaurant = await prisma.restaurant.findFirst({ where: { restaurantId: order.restaurantId, deletedAt: null } });
-    const isRestaurantOwner = restaurant?.userId === req.auth.userId;
-    const isCustomer = order.userId === req.auth.userId;
+    const isRestaurantOwner = Number(restaurant?.userId) === Number(req.auth.userId);
+    const isCustomer = Number(order.userId) === Number(req.auth.userId);
     const restaurantWorkflowStatuses = ['EN_PREPARATION', 'PRETE', 'READY', 'REFUSED'];
     const restaurantDispatchStatuses = ['PRETE', 'READY'];
     const customerCancellationStatuses = ['CANCELLED', 'CANCELED'];
