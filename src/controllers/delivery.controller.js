@@ -414,7 +414,7 @@ async function listAvailableDeliveries(req, res, next) {
         o."delivery_distance_km" as "deliveryDistanceKm",
         r."name" as "restaurantName",
         r."adress" as "restaurantAddress",
-        r."location" as "restaurantLocation",
+        ST_AsGeoJSON(r."location") as "restaurantLocation",
         d."id" as "deliveryId",
         d."delivery_id",
         d."status" as "deliveryStatus",

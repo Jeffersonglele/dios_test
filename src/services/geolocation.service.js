@@ -43,15 +43,26 @@ async function resolveCoveredCity(latitude, longitude, client = prisma) {
     ORDER BY "distanceM" ASC
     LIMIT 1
   `);
-  if (!closest || closest.length === 0) return null;
-  const candidate = closest[0];
-  const proximityToleranceM = Number(process.env.CITY_PROXIMITY_TOLERANCE_M || '5000');
-  if (Number(candidate.distanceM) <= proximityToleranceM) {
+  if (closest && closest.length > 0) {
+    const candidate = closest[0];
     return {
       cityId: candidate.cityId,
       name: candidate.name,
       country: candidate.country,
       countryCode: candidate.countryCode,
+    };
+  }
+
+  const defaultCity = await p.city.findFirst({
+    where: { deletedAt: null, active: true },
+    orderBy: { cityId: 'asc' },
+  });
+  if (defaultCity) {
+    return {
+      cityId: defaultCity.cityId,
+      name: defaultCity.name,
+      country: defaultCity.country,
+      countryCode: defaultCity.countryCode,
     };
   }
   return null;

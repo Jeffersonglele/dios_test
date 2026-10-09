@@ -131,8 +131,8 @@ async function startDispatchForOrder(order) {
         restaurantId: restaurant.restaurantId,
         name: restaurant.name,
         address: restaurant.address,
-        latitude: safeFloat(restaurant.latitude, 6.3719577),
-        longitude: safeFloat(restaurant.longitude, 2.4465128),
+        latitude: safeFloat(restaurant.latitude, 0.0),
+        longitude: safeFloat(restaurant.longitude, 0.0),
         cityId: safeInt(restaurant.cityId, 1),
       };
       if (!cityId) cityId = safeInt(restaurant.cityId);
@@ -150,8 +150,8 @@ async function startDispatchForOrder(order) {
         destination = {
           addressId: addr.addressId,
           fullAddress: addr.fullAddress || addr.name,
-          latitude: safeFloat(addr.latitude, 6.3720404),
-          longitude: safeFloat(addr.longitude, 2.443187),
+          latitude: safeFloat(addr.latitude, 0.0),
+          longitude: safeFloat(addr.longitude, 0.0),
           cityId: safeInt(addr.cityId, 1),
         };
         if (!cityId) cityId = safeInt(addr.cityId);
@@ -173,10 +173,10 @@ async function startDispatchForOrder(order) {
       orderId: orderIdInt,
       cityId: cityId,
       restaurantId: restaurantId || safeInt(pickup?.restaurantId),
-      pickupLatitude: safeFloat(pickup.latitude, 6.3719577),
-      pickupLongitude: safeFloat(pickup.longitude, 2.4465128),
-      deliveryLatitude: safeFloat(destination.latitude, 6.3720404),
-      deliveryLongitude: safeFloat(destination.longitude, 2.443187),
+      pickupLatitude: safeFloat(pickup.latitude, 0.0),
+      pickupLongitude: safeFloat(pickup.longitude, 0.0),
+      deliveryLatitude: safeFloat(destination.latitude, 0.0),
+      deliveryLongitude: safeFloat(destination.longitude, 0.0),
       quotedDistanceKm: safeFloat(order.deliveryDistanceKm, 1.0),
       status: 'SEARCHING',
       dispatchAttempt: 1,
