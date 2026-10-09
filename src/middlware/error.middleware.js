@@ -17,6 +17,7 @@ function errorHandler(error, req, res, next) { // eslint-disable-line no-unused-
   }
 
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    console.error('[Prisma Request Error]', { code: error.code, message: error.message, meta: error.meta });
     if (error.code === 'P2002') {
       statusCode = 409;
       message = 'Cette valeur existe déjà.';
@@ -25,7 +26,7 @@ function errorHandler(error, req, res, next) { // eslint-disable-line no-unused-
       message = 'Ressource introuvable.';
     } else {
       statusCode = 400;
-      message = 'La requête ne respecte pas les contraintes de données.';
+      message = `La requête ne respecte pas les contraintes de données. (${error.code}${error.meta?.target ? `: ${error.meta.target}` : ''})`;
     }
   }
 

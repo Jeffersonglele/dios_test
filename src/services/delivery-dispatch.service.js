@@ -1,7 +1,20 @@
+const { randomUUID } = require('crypto');
 const { Prisma } = require('@prisma/client');
 
 const prisma = require('../config/prisma');
 const { badRequest, conflict, notFound } = require('../controllers/controller.utils');
+
+function safeInt(val, fallback = null) {
+  if (val === undefined || val === null) return fallback;
+  const parsed = Number.parseInt(String(val).trim(), 10);
+  return Number.isInteger(parsed) ? parsed : fallback;
+}
+
+function safeFloat(val, fallback = 0.0) {
+  if (val === undefined || val === null) return fallback;
+  const parsed = Number.parseFloat(String(val).trim());
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
 
 function configuredCourierRoleIds() {
   return String(process.env.LIVREUR_ROLE_IDS || '')
@@ -70,10 +83,11 @@ async function offerDelivery(deliveryId) {
   if (couriers.length > 0) {
     await prisma.deliveryOffer.createMany({
       data: couriers.map((courier, index) => ({
+        id: randomUUID(),
         deliveryId: delivery.id,
-        delivererId: Number(courier.delivererId),
+        delivererId: safeInt(courier.delivererId),
         rank: index + 1,
-        distanceToPickupKm: Number(courier.distanceToPickupKm),
+        distanceToPickupKm: safeFloat(courier.distanceToPickupKm),
         expiresAt,
       })),
       skipDuplicates: true,
@@ -86,71 +100,79 @@ async function offerDelivery(deliveryId) {
 }
 
 async function startDispatchForOrder(order) {
-  if (!order || !Number.isInteger(order.orderId)) throw badRequest('La commande est invalide.');
+  const orderIdInt = safeInt(order?.orderId);
+  if (!order || !orderIdInt) throw badRequest('La commande est invalide.');
   
   let pickup = order.pickupSnapshot;
   let destination = order.deliveryAddressSnapshot;
-  let cityId = order.cityId;
+  let cityId = safeInt(order.cityId);
+  let restaurantId = safeInt(order.restaurantId);
 
   // Fallback if pickup is missing: fetch from restaurant table
   if (!pickup && order.restaurantId) {
-    const parsedRestauId = Number.parseInt(order.restaurantId, 10);
+    const parsedRestauId = safeInt(order.restaurantId);
     const restaurant = await prisma.restaurant.findFirst({
       where: {
         OR: [
-          ...(Number.isInteger(parsedRestauId) ? [{ restaurantId: parsedRestauId }] : []),
+          ...(parsedRestauId ? [{ restaurantId: parsedRestauId }] : []),
           { id: String(order.restaurantId) },
         ],
         deletedAt: null,
       },
     });
     if (restaurant) {
+      if (!restaurantId) restaurantId = safeInt(restaurant.restaurantId);
       pickup = {
         restaurantId: restaurant.restaurantId,
         name: restaurant.name,
         address: restaurant.address,
-        latitude: restaurant.latitude || 6.3719577,
-        longitude: restaurant.longitude || 2.4465128,
-        cityId: restaurant.cityId || 1,
+        latitude: safeFloat(restaurant.latitude, 6.3719577),
+        longitude: safeFloat(restaurant.longitude, 2.4465128),
+        cityId: safeInt(restaurant.cityId, 1),
       };
-      if (!cityId) cityId = restaurant.cityId;
+      if (!cityId) cityId = safeInt(restaurant.cityId);
     }
   }
 
   // Fallback if destination is missing: fetch from address table
   if (!destination && order.addressId) {
-    const addr = await prisma.address.findFirst({
-      where: { addressId: Number(order.addressId), deletedAt: null },
-    });
-    if (addr) {
-      destination = {
-        addressId: addr.addressId,
-        fullAddress: addr.fullAddress || addr.name,
-        latitude: addr.latitude || 6.3720404,
-        longitude: addr.longitude || 2.443187,
-        cityId: addr.cityId || 1,
-      };
-      if (!cityId) cityId = addr.cityId;
+    const addrId = safeInt(order.addressId);
+    if (addrId) {
+      const addr = await prisma.address.findFirst({
+        where: { addressId: addrId, deletedAt: null },
+      });
+      if (addr) {
+        destination = {
+          addressId: addr.addressId,
+          fullAddress: addr.fullAddress || addr.name,
+          latitude: safeFloat(addr.latitude, 6.3720404),
+          longitude: safeFloat(addr.longitude, 2.443187),
+          cityId: safeInt(addr.cityId, 1),
+        };
+        if (!cityId) cityId = safeInt(addr.cityId);
+      }
     }
   }
 
-  if (!cityId) cityId = pickup?.cityId || destination?.cityId || 1;
+  if (!cityId) cityId = safeInt(pickup?.cityId) || safeInt(destination?.cityId) || 1;
 
   if (!pickup || !destination) {
     throw badRequest('La commande doit contenir un devis et des points de retrait/livraison validés.');
   }
 
-  const existing = await prisma.delivery.findFirst({ where: { orderId: order.orderId } });
+  const existing = await prisma.delivery.findFirst({ where: { orderId: orderIdInt } });
   const delivery = existing || await prisma.delivery.create({
     data: {
-      orderId: order.orderId,
+      id: randomUUID(),
+      deliveryId: randomUUID(),
+      orderId: orderIdInt,
       cityId: cityId,
-      restaurantId: order.restaurantId,
-      pickupLatitude: Number(pickup.latitude || 6.3719577),
-      pickupLongitude: Number(pickup.longitude || 2.4465128),
-      deliveryLatitude: Number(destination.latitude || 6.3720404),
-      deliveryLongitude: Number(destination.longitude || 2.443187),
-      quotedDistanceKm: Number(order.deliveryDistanceKm || 1.0),
+      restaurantId: restaurantId || safeInt(pickup?.restaurantId),
+      pickupLatitude: safeFloat(pickup.latitude, 6.3719577),
+      pickupLongitude: safeFloat(pickup.longitude, 2.4465128),
+      deliveryLatitude: safeFloat(destination.latitude, 6.3720404),
+      deliveryLongitude: safeFloat(destination.longitude, 2.443187),
+      quotedDistanceKm: safeFloat(order.deliveryDistanceKm, 1.0),
       status: 'SEARCHING',
       dispatchAttempt: 1,
     },
