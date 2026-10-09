@@ -174,11 +174,23 @@ async function createOrder(req, res, next) {
       walletForCreation = await prisma.walletAccount.findUnique({ where: { userId } });
       if (!walletForCreation) throw badRequest('Portefeuille introuvable. Veuillez initialiser votre portefeuille.');
       if (walletForCreation.status !== 'ACTIVE') throw badRequest('Portefeuille inactif. Veuillez activer votre portefeuille.');
-      if (Number(walletForCreation.balance || 0) < Number(totalAmount)) {
-        throw badRequest('Solde du portefeuille insuffisant. Veuillez recharger votre portefeuille.');
-      }
+      
+      // Ajustement automatique de la devise si le solde est 0
       if (walletForCreation.currency && String(walletForCreation.currency).toUpperCase() !== currency) {
-        throw badRequest(`La devise du portefeuille (${walletForCreation.currency}) ne correspond pas à celle de la commande (${currency}).`);
+        if (Number(walletForCreation.balance || 0) === 0) {
+          walletForCreation = await prisma.walletAccount.update({
+            where: { id: walletForCreation.id },
+            data: { currency },
+          });
+        } else {
+          throw badRequest(`La devise du portefeuille (${walletForCreation.currency}) ne correspond pas à celle de la commande (${currency}).`);
+        }
+      }
+
+      if (Number(walletForCreation.balance || 0) < Number(totalAmount)) {
+        const currentBalance = Number(walletForCreation.balance || 0);
+        const walletCurr = walletForCreation.currency || currency;
+        throw badRequest(`Solde du portefeuille insuffisant (${currentBalance} ${walletCurr}). Total commande: ${totalAmount} ${currency}. Veuillez recharger votre portefeuille.`);
       }
     }
 
@@ -729,8 +741,14 @@ async function payOrderWithWallet(req, res, next) {
       throw badRequest('Cette commande ne peut plus être payée (statut invalide)');
     }
 
-    if (order.paymentProvider === 'WALLET') {
-      throw badRequest('Cette commande est déjà payée avec le portefeuille');
+    if (order.paymentProvider === 'WALLET' || order.status === 'PAID') {
+      return res.status(200).json({
+        data: {
+          success: true,
+          message: 'Cette commande est déjà payée avec le portefeuille.',
+          order,
+        },
+      });
     }
 
     const wallet = await prisma.walletAccount.findUnique({
