@@ -257,17 +257,19 @@ function initializeSocketIO(io) {
 
         const parsedOrderId = Number.parseInt(orderId, 10);
         const orderIdStr = String(orderId ?? '').trim();
-        // Verify this courier is assigned to this delivery or order
-        const delivery = await prisma.delivery.findFirst({
-          where: {
-            OR: [
-              ...(Number.isInteger(parsedOrderId) ? [{ orderId: parsedOrderId }] : []),
-              { deliveryId: orderIdStr },
-              ...(isValidUUID(orderIdStr) ? [{ id: orderIdStr }] : []),
-            ],
-          },
-          select: { delivererId: true, status: true, orderId: true },
-        });
+
+        const orConditions = [
+          ...(Number.isInteger(parsedOrderId) ? [{ orderId: parsedOrderId }] : []),
+          ...(isValidUUID(orderIdStr) ? [{ deliveryId: orderIdStr }, { id: orderIdStr }] : []),
+        ];
+
+        let delivery = null;
+        if (orConditions.length > 0) {
+          delivery = await prisma.delivery.findFirst({
+            where: { OR: orConditions },
+            select: { delivererId: true, status: true, orderId: true },
+          });
+        }
 
         if (delivery && delivery.delivererId && delivery.delivererId !== socket.user.userId) {
           socket.emit('error', { message: 'Not authorized for this delivery' });

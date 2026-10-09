@@ -2,7 +2,7 @@ const { randomUUID } = require('crypto');
 
 const prisma = require('../config/prisma');
 const { createCrudController } = require('./crud.controller');
-const { badRequest, handleControllerError, notFound, pick } = require('./controller.utils');
+const { badRequest, handleControllerError, isValidUUID, notFound, pick } = require('./controller.utils');
 
 const PAYMENT_METHOD_FIELDS = [
   'paymentMethodId', 'externalId', 'name', 'label', 'userId', 'stripePaymentId',
@@ -63,7 +63,20 @@ async function updateTransactionStatus(req, res, next) {
 
 async function confirmCashCollection(req, res, next) {
   try {
-    const order = await prisma.order.findFirst({ where: { id: req.params.id, deletedAt: null } });
+    const rawParam = String(req.params.id || '').trim();
+    const parsedOrderId = Number.parseInt(rawParam, 10);
+    const orderConditions = [
+      ...(Number.isInteger(parsedOrderId) ? [{ orderId: parsedOrderId }] : []),
+      ...(isValidUUID(rawParam) ? [{ id: rawParam }] : []),
+    ];
+    if (orderConditions.length === 0) throw notFound('Commande');
+
+    const order = await prisma.order.findFirst({
+      where: {
+        OR: orderConditions,
+        deletedAt: null,
+      },
+    });
     if (!order) throw notFound('Commande');
     if (String(order.paymentProvider || '').toUpperCase() !== 'CASH') {
       throw badRequest('Cette commande n’est pas réglée en espèces.');

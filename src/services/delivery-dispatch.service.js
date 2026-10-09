@@ -217,33 +217,67 @@ async function rejectOffer({ offerId, delivererId }) {
 }
 
 const STATUS_TRANSITIONS = Object.freeze({
-  ASSIGNED: ['AT_PICKUP'],
-  AT_PICKUP: ['PICKED_UP'],
-  PICKED_UP: ['IN_TRANSIT'],
+  SEARCHING: ['ASSIGNED', 'AT_PICKUP', 'PICKED_UP', 'IN_TRANSIT', 'DELIVERED'],
+  ASSIGNED: ['AT_PICKUP', 'PICKED_UP', 'IN_TRANSIT', 'DELIVERED'],
+  AT_PICKUP: ['PICKED_UP', 'IN_TRANSIT', 'DELIVERED'],
+  PICKED_UP: ['IN_TRANSIT', 'DELIVERED'],
   IN_TRANSIT: ['DELIVERED'],
 });
 
 async function advanceDelivery({ deliveryId, delivererId, status }) {
-  const nextStatus = String(status || '').toUpperCase();
-  const delivery = await prisma.delivery.findFirst({ where: { id: deliveryId, delivererId } });
-  if (!delivery) throw notFound('Livraison');
-  if (!(STATUS_TRANSITIONS[delivery.status] || []).includes(nextStatus)) {
+  const nextStatus = String(status || '').toUpperCase().trim();
+  const parsedOrderId = safeInt(deliveryId);
+  const rawIdStr = String(deliveryId || '').trim();
+
+  const whereOr = [
+    ...(parsedOrderId ? [{ orderId: parsedOrderId }] : []),
+    ...(isValidUUID(rawIdStr) ? [{ deliveryId: rawIdStr }, { id: rawIdStr }] : []),
+  ];
+
+  if (whereOr.length === 0) {
+    throw notFound('Livraison introuvable');
+  }
+
+  const delivery = await prisma.delivery.findFirst({
+    where: {
+      OR: whereOr,
+      ...(delivererId ? { delivererId: safeInt(delivererId) } : {}),
+    },
+  });
+
+  if (!delivery) throw notFound('Livraison introuvable');
+
+  const allowedNext = STATUS_TRANSITIONS[delivery.status] || ['ASSIGNED', 'AT_PICKUP', 'PICKED_UP', 'IN_TRANSIT', 'DELIVERED'];
+  if (!allowedNext.includes(nextStatus) && delivery.status !== nextStatus) {
     throw conflict(`Transition impossible de ${delivery.status} vers ${nextStatus}.`);
   }
+
   const timestamps = {
+    ...(nextStatus === 'AT_PICKUP' ? { driverArrivedAt: new Date() } : {}),
     ...(nextStatus === 'PICKED_UP' ? { pickedUpAt: new Date() } : {}),
     ...(nextStatus === 'DELIVERED' ? { deliveredAt: new Date() } : {}),
   };
-  const updated = await prisma.delivery.update({ where: { id: delivery.id }, data: { status: nextStatus, ...timestamps } });
+
+  const updated = await prisma.delivery.update({
+    where: { id: delivery.id },
+    data: { status: nextStatus, ...timestamps },
+  });
+
+  await prisma.order.updateMany({
+    where: { orderId: delivery.orderId, deletedAt: null },
+    data: {
+      deliveryStatus: nextStatus,
+      ...(nextStatus === 'DELIVERED' ? { status: 'LIVREE', orderStatus: 'LIVREE' } : {}),
+    },
+  });
+
   if (nextStatus === 'DELIVERED') {
-    await prisma.$transaction([
-      prisma.user.updateMany({ where: { userId: delivererId, deletedAt: null }, data: { courierStatus: 'ACTIVE' } }),
-      prisma.order.updateMany({
-        where: { orderId: delivery.orderId, deletedAt: null },
-        data: { status: 'LIVREE', orderStatus: 'LIVREE', deliveryStatus: 'DELIVERED' },
-      }),
-    ]);
+    await prisma.user.updateMany({
+      where: { userId: delivererId, deletedAt: null },
+      data: { courierStatus: 'ACTIVE' },
+    });
   }
+
   return updated;
 }
 
