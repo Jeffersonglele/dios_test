@@ -333,6 +333,25 @@ async function getRestaurantById(req, res, next) {
 async function createRestaurant(req, res, next) {
   try {
     const data = { ...pick(req.body, RESTAURANT_FIELDS) };
+    if (data.latitude != null) data.latitude = Number.parseFloat(String(data.latitude));
+    if (data.longitude != null) data.longitude = Number.parseFloat(String(data.longitude));
+    if (!Number.isFinite(data.latitude)) data.latitude = null;
+    if (!Number.isFinite(data.longitude)) data.longitude = null;
+
+    if ((data.latitude == null || data.longitude == null) && data.address && String(data.address).trim().length >= 3) {
+      try {
+        const { searchAddress } = require('../services/nominatim.service');
+        const geoRes = await searchAddress(data.address, { limit: 1 });
+        if (geoRes?.results?.length > 0) {
+          const first = geoRes.results[0];
+          if (Number.isFinite(first.latitude) && Number.isFinite(first.longitude)) {
+            data.latitude = first.latitude;
+            data.longitude = first.longitude;
+          }
+        }
+      } catch (_) {}
+    }
+
     if (data.valid === undefined || data.valid === null) data.valid = 0;
     let record = await prisma.restaurant.create({ data });
 
