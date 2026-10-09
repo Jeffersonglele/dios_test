@@ -43,9 +43,30 @@ function issueToken(user) {
   );
 }
 
-function registrationRoleId() {
+function courierRoleId() {
+  const configured = Number.parseInt(process.env.COURIER_ROLE_ID || '5', 10);
+  return Number.isInteger(configured) ? configured : 5;
+}
+
+function restaurateurRoleId() {
+  const configured = Number.parseInt(process.env.RESTAURATEUR_ROLE_ID || '3', 10);
+  return Number.isInteger(configured) ? configured : 3;
+}
+
+function defaultUserRoleId() {
   const configured = Number.parseInt(process.env.DEFAULT_USER_ROLE_ID || '2', 10);
   return Number.isInteger(configured) ? configured : 2;
+}
+
+function resolveRegistrationRole(accountTypeInput) {
+  const type = String(accountTypeInput || '').trim().toUpperCase();
+  if (type === 'LIVREUR' || type === 'COURIER' || type === 'DELIVERY' || type === 'DELIVERER') {
+    return { roleId: courierRoleId(), accountType: 'LIVREUR' };
+  }
+  if (type === 'RESTAURATEUR' || type === 'RESTAURANT') {
+    return { roleId: restaurateurRoleId(), accountType: 'RESTAURATEUR' };
+  }
+  return { roleId: defaultUserRoleId(), accountType: 'CLIENT' };
 }
 
 async function nextLegacyUserId(tx) {
@@ -72,9 +93,12 @@ async function recoverOrphanedRegistration(existing, req, normalizedUsername, no
   const profileData = pick(req.body, REGISTRATION_FIELDS);
   return prisma.$transaction(async (tx) => {
     const userId = existing.legacyUserId || await nextLegacyUserId(tx);
+    const { roleId, accountType } = resolveRegistrationRole(profileData.accountType);
+    profileData.accountType = accountType;
+
     const data = {
       ...profileData,
-      roleId: registrationRoleId(),
+      roleId,
       userId,
       username: normalizedUsername,
       email: normalizedEmail,
@@ -141,6 +165,8 @@ async function register(req, res, next) {
     const user = await prisma.$transaction(async (tx) => {
       // Role, verification and account status are server-controlled fields.
       const profileData = pick(req.body, REGISTRATION_FIELDS);
+      const { roleId, accountType } = resolveRegistrationRole(profileData.accountType);
+      profileData.accountType = accountType;
 
       await tx.authUser.create({
         data: {
@@ -159,9 +185,7 @@ async function register(req, res, next) {
       return tx.user.create({
         data: {
           ...profileData,
-          // Un compte public commence avec le rôle client. Les rôles
-          // sensibles restent attribués par le serveur après validation.
-          roleId: registrationRoleId(),
+          roleId,
 
           username: normalizedUsername,
           email: normalizedEmail,
