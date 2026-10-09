@@ -4,6 +4,10 @@ const jwt = require('jsonwebtoken');
 const prisma = require('../config/prisma');
 const { registerChatHandlers } = require('./chat.handler');
 
+function isValidUUID(str) {
+  return typeof str === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str.trim());
+}
+
 const JWT_SECRET = process.env.JWT_SECRET || 'dios_delices_super_secret_jwt_key_2026_production_safe';
 const LOCATION_SAVE_THROTTLE_MS = 10_000; // 10 seconds between DB saves
 
@@ -252,13 +256,14 @@ function initializeSocketIO(io) {
         }
 
         const parsedOrderId = Number.parseInt(orderId, 10);
+        const orderIdStr = String(orderId ?? '').trim();
         // Verify this courier is assigned to this delivery or order
         const delivery = await prisma.delivery.findFirst({
           where: {
             OR: [
               ...(Number.isInteger(parsedOrderId) ? [{ orderId: parsedOrderId }] : []),
-              { deliveryId: String(orderId) },
-              { id: String(orderId) },
+              { deliveryId: orderIdStr },
+              ...(isValidUUID(orderIdStr) ? [{ id: orderIdStr }] : []),
             ],
           },
           select: { delivererId: true, status: true, orderId: true },

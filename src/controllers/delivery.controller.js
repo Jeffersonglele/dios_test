@@ -457,10 +457,11 @@ const MAX_CASH_ON_HAND = 50000;
 
 async function acceptOrder(req, res, next) {
   try {
-    const orderId = Number.parseInt(req.params.orderId, 10);
-    const delivererId = req.auth.userId;
+    const rawOrderId = req.params.orderId;
+    const parsedOrderId = Number.parseInt(rawOrderId, 10);
+    const isValidUUIDStr = (str) => typeof str === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str.trim());
 
-    if (!Number.isInteger(orderId)) throw badRequest('orderId invalide');
+    const delivererId = req.auth.userId;
 
     const user = await prisma.user.findFirst({
       where: { userId: delivererId, deletedAt: null },
@@ -468,20 +469,18 @@ async function acceptOrder(req, res, next) {
     });
     if (!user) throw notFound('Livreur introuvable');
 
-    const order = await prisma.order.findUnique({
-      where: { orderId },
-      select: {
-        id: true,
-        orderId: true,
-        totalAmount: true,
-        paymentProvider: true,
-        delivererId: true,
-        status: true,
+    const order = await prisma.order.findFirst({
+      where: {
+        OR: [
+          ...(Number.isInteger(parsedOrderId) ? [{ orderId: parsedOrderId }] : []),
+          ...(isValidUUIDStr(rawOrderId) ? [{ id: rawOrderId }] : []),
+        ],
+        deletedAt: null,
       },
     });
     if (!order) throw notFound('Commande introuvable');
 
-    if (order.delivererId !== null) {
+    if (order.delivererId !== null && Number(order.delivererId) !== Number(user.userId)) {
       throw conflict('Cette commande a déjà été acceptée par un autre livreur.');
     }
 
@@ -497,30 +496,51 @@ async function acceptOrder(req, res, next) {
 
     const result = await prisma.$transaction(async (tx) => {
       const recheckOrder = await tx.order.findUnique({
-        where: { orderId },
+        where: { id: order.id },
         select: { delivererId: true },
       });
 
-      if (!recheckOrder || recheckOrder.delivererId !== null) {
+      if (!recheckOrder || (recheckOrder.delivererId !== null && Number(recheckOrder.delivererId) !== Number(user.userId))) {
         throw conflict('Cette commande a déjà été acceptée par un autre livreur.');
       }
 
       const updatedOrder = await tx.order.update({
-        where: { orderId },
+        where: { id: order.id },
         data: {
           delivererId: user.userId,
-          status: 'ACCEPTED',
+          deliveryStatus: 'ASSIGNED',
         },
       });
 
-      const updatedDelivery = await tx.delivery.update({
-        where: { orderId },
-        data: {
-          delivererId: user.userId,
-          status: 'ASSIGNED',
-          acceptedAt: new Date(),
-        },
+      let existingDelivery = await tx.delivery.findFirst({
+        where: { orderId: order.orderId },
       });
+
+      let updatedDelivery;
+      if (existingDelivery) {
+        updatedDelivery = await tx.delivery.update({
+          where: { id: existingDelivery.id },
+          data: {
+            delivererId: user.userId,
+            status: 'ASSIGNED',
+            acceptedAt: new Date(),
+          },
+        });
+      } else {
+        const { randomUUID } = require('crypto');
+        updatedDelivery = await tx.delivery.create({
+          data: {
+            id: randomUUID(),
+            deliveryId: randomUUID(),
+            orderId: order.orderId,
+            cityId: order.cityId || 1,
+            restaurantId: order.restaurantId,
+            delivererId: user.userId,
+            status: 'ASSIGNED',
+            acceptedAt: new Date(),
+          },
+        });
+      }
 
       await tx.user.update({
         where: { id: user.id },
