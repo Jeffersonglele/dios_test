@@ -172,7 +172,16 @@ async function createOrder(req, res, next) {
     let walletForCreation = null;
     if (paymentMethod === 'WALLET') {
       walletForCreation = await prisma.walletAccount.findUnique({ where: { userId } });
-      if (!walletForCreation) throw badRequest('Portefeuille introuvable. Veuillez initialiser votre portefeuille.');
+      if (!walletForCreation) {
+        walletForCreation = await prisma.walletAccount.create({
+          data: {
+            userId,
+            currency,
+            balance: 0,
+            status: 'ACTIVE',
+          },
+        });
+      }
       if (walletForCreation.status !== 'ACTIVE') throw badRequest('Portefeuille inactif. Veuillez activer votre portefeuille.');
       
       // Ajustement automatique de la devise si le solde est 0
@@ -751,12 +760,19 @@ async function payOrderWithWallet(req, res, next) {
       });
     }
 
-    const wallet = await prisma.walletAccount.findUnique({
+    let wallet = await prisma.walletAccount.findUnique({
       where: { userId },
     });
 
     if (!wallet) {
-      throw badRequest('Portefeuille introuvable. Veuillez initialiser votre portefeuille.');
+      wallet = await prisma.walletAccount.create({
+        data: {
+          userId,
+          currency: order.currency || 'CDF',
+          balance: 0,
+          status: 'ACTIVE',
+        },
+      });
     }
 
     if (wallet.status !== 'ACTIVE') {
