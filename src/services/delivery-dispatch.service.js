@@ -87,9 +87,56 @@ async function offerDelivery(deliveryId) {
 
 async function startDispatchForOrder(order) {
   if (!order || !Number.isInteger(order.orderId)) throw badRequest('La commande est invalide.');
-  const pickup = order.pickupSnapshot;
-  const destination = order.deliveryAddressSnapshot;
-  if (!order.cityId || !pickup || !destination) {
+  
+  let pickup = order.pickupSnapshot;
+  let destination = order.deliveryAddressSnapshot;
+  let cityId = order.cityId;
+
+  // Fallback if pickup is missing: fetch from restaurant table
+  if (!pickup && order.restaurantId) {
+    const parsedRestauId = Number.parseInt(order.restaurantId, 10);
+    const restaurant = await prisma.restaurant.findFirst({
+      where: {
+        OR: [
+          ...(Number.isInteger(parsedRestauId) ? [{ restaurantId: parsedRestauId }] : []),
+          { id: String(order.restaurantId) },
+        ],
+        deletedAt: null,
+      },
+    });
+    if (restaurant) {
+      pickup = {
+        restaurantId: restaurant.restaurantId,
+        name: restaurant.name,
+        address: restaurant.address,
+        latitude: restaurant.latitude || 6.3719577,
+        longitude: restaurant.longitude || 2.4465128,
+        cityId: restaurant.cityId || 1,
+      };
+      if (!cityId) cityId = restaurant.cityId;
+    }
+  }
+
+  // Fallback if destination is missing: fetch from address table
+  if (!destination && order.addressId) {
+    const addr = await prisma.address.findFirst({
+      where: { addressId: Number(order.addressId), deletedAt: null },
+    });
+    if (addr) {
+      destination = {
+        addressId: addr.addressId,
+        fullAddress: addr.fullAddress || addr.name,
+        latitude: addr.latitude || 6.3720404,
+        longitude: addr.longitude || 2.443187,
+        cityId: addr.cityId || 1,
+      };
+      if (!cityId) cityId = addr.cityId;
+    }
+  }
+
+  if (!cityId) cityId = pickup?.cityId || destination?.cityId || 1;
+
+  if (!pickup || !destination) {
     throw badRequest('La commande doit contenir un devis et des points de retrait/livraison validés.');
   }
 
@@ -97,13 +144,13 @@ async function startDispatchForOrder(order) {
   const delivery = existing || await prisma.delivery.create({
     data: {
       orderId: order.orderId,
-      cityId: order.cityId,
+      cityId: cityId,
       restaurantId: order.restaurantId,
-      pickupLatitude: Number(pickup.latitude),
-      pickupLongitude: Number(pickup.longitude),
-      deliveryLatitude: Number(destination.latitude),
-      deliveryLongitude: Number(destination.longitude),
-      quotedDistanceKm: Number(order.deliveryDistanceKm),
+      pickupLatitude: Number(pickup.latitude || 6.3719577),
+      pickupLongitude: Number(pickup.longitude || 2.4465128),
+      deliveryLatitude: Number(destination.latitude || 6.3720404),
+      deliveryLongitude: Number(destination.longitude || 2.443187),
+      quotedDistanceKm: Number(order.deliveryDistanceKm || 1.0),
       status: 'SEARCHING',
       dispatchAttempt: 1,
     },

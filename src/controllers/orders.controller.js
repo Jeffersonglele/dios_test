@@ -263,15 +263,15 @@ async function createOrder(req, res, next) {
             longitude: deliveryAddress.longitude,
             cityId: deliveryAddress.cityId,
           } : undefined,
-          pickupSnapshot: !isDelivery ? {
+          pickupSnapshot: {
             restaurantId: restaurant.restaurantId,
             name: restaurant.name,
             address: restaurant.address,
             latitude: Number.isFinite(resolvedLat) ? resolvedLat : restaurant.latitude,
             longitude: Number.isFinite(resolvedLng) ? resolvedLng : restaurant.longitude,
             cityId: quote?.cityId || restaurant.cityId,
-            resolvedSource: resolvedLocation.source,
-          } : undefined,
+            resolvedSource: resolvedLocation?.source,
+          },
           orderedAt: payload.orderedAt ? new Date(payload.orderedAt) : new Date(),
           status: orderStatusValue,
           orderStatus: orderStatusValue,
