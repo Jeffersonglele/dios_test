@@ -33,4 +33,23 @@ function currencyForCountry(value) {
   return code ? COUNTRIES[code].currency : 'CDF';
 }
 
-module.exports = { COUNTRIES, canonicalCountry, countryCode, currencyForCountry };
+/// Ville d'un compte ou d'un restaurant : celle demandée si elle existe et
+/// appartient au pays, sinon l'unique ville active du pays (ex. Cotonou).
+/// S'il y a plusieurs villes (RDC), renvoie null : la position GPS tranchera.
+async function resolveCityId(db, country, requestedCityId) {
+  const code = countryCode(country);
+  const cityId = Number.parseInt(requestedCityId, 10);
+  if (Number.isInteger(cityId)) {
+    const city = await db.city.findFirst({ where: { cityId, active: true, deletedAt: null } });
+    if (city && (!code || countryCode(city.countryCode) === code)) return city.cityId;
+  }
+  if (!code) return null;
+  const cities = await db.city.findMany({
+    where: { countryCode: code, active: true, deletedAt: null },
+    select: { cityId: true },
+    take: 2,
+  });
+  return cities.length === 1 ? cities[0].cityId : null;
+}
+
+module.exports = { COUNTRIES, canonicalCountry, countryCode, currencyForCountry, resolveCityId };

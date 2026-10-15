@@ -1,4 +1,5 @@
-const { handleControllerError, canonicalCountry, notFound } = require('./controller.utils');
+const { badRequest, handleControllerError, canonicalCountry, notFound } = require('./controller.utils');
+const { IDENTITY, isIdentityVerified } = require('../services/courier.service');
 const prisma = require('../config/prisma');
 const {
   sendSellerApprovedEmail,
@@ -365,7 +366,21 @@ async function getDeliveryDocuments(req, res, next) {
     }
     const data = identities.map((d) => {
       const copy = { ...d };
-      if (d.userId !== null && d.userId !== undefined) copy.user = usersMap.get(d.userId) || null;
+      const user = d.userId !== null && d.userId !== undefined ? usersMap.get(d.userId) || null : null;
+      if (user) {
+        const { password, ...safeUser } = user;
+        copy.user = safeUser;
+      } else {
+        copy.user = null;
+      }
+      // Champs lus par l'écran admin « Livreurs ».
+      copy.status = d.status === 'approved' ? 'validated' : (d.status || 'pending');
+      copy.userName = [user?.firstname, user?.lastname].filter(Boolean).join(' ') || user?.username || '';
+      copy.phone = user?.telephone || '';
+      copy.idCardUrl = d.identityFileUrl || '';
+      copy.licenseUrl = d.licenseUrl || '';
+      copy.photoUrl = d.photoUrl || '';
+      copy.vehicleType = d.vehicleType || user?.vehicleType || '';
       return copy;
     });
 
@@ -390,7 +405,12 @@ async function validateDeliveryDocuments(req, res, next) {
     const previous = await m.identity.findFirst({ where: whereClause });
     if (!previous) throw notFound('Vérification d’identité');
 
-    const normalizedStatus = String(status || '').trim();
+    // L'app admin envoie VALIDATED / REJECTED ; l'API historique approved / rejected.
+    const rawStatus = String(status || '').trim().toLowerCase();
+    const normalizedStatus = ['validated', 'approved', 'verified'].includes(rawStatus)
+      ? 'approved'
+      : ['rejected', 'refused'].includes(rawStatus) ? 'rejected' : null;
+    if (!normalizedStatus) throw badRequest('Le statut doit être VALIDATED ou REJECTED.');
     const isApproved = normalizedStatus === 'approved';
     const isRejected = normalizedStatus === 'rejected';
 
@@ -413,21 +433,20 @@ async function validateDeliveryDocuments(req, res, next) {
         if (targetUser.roleId !== newRole && !adminIds.includes(Number(targetUser.roleId))) {
           targetUser = await tx.user.update({
             where: { id: targetUser.id },
-            data: { roleId: newRole, accountType: 'LIVREUR', identity: 'Vérifiée' },
+            data: { roleId: newRole, accountType: 'LIVREUR', identity: IDENTITY.VERIFIED },
           });
-        } else if (targetUser.identity !== 'Vérifiée') {
+        } else if (targetUser.identity !== IDENTITY.VERIFIED) {
           targetUser = await tx.user.update({
             where: { id: targetUser.id },
-            data: { identity: 'Vérifiée' },
+            data: { identity: IDENTITY.VERIFIED },
           });
         }
       } else if (isRejected && targetUser) {
-        if (targetUser.identity === 'Vérifiée') {
-          targetUser = await tx.user.update({
-            where: { id: targetUser.id },
-            data: { identity: 'rejected' },
-          });
-        }
+        // Refus : le livreur ne peut plus travailler et doit renvoyer un dossier.
+        targetUser = await tx.user.update({
+          where: { id: targetUser.id },
+          data: { identity: IDENTITY.REJECTED, courierStatus: 'INACTIVE' },
+        });
       }
 
       const doc = await docPromise;
@@ -539,12 +558,17 @@ async function validateRestaurant(req, res, next) {
     if (!resto) throw notFound('Restaurant');
 
     const newValid = Number(valid);
-    const nowApproved = newValid === 1 && Number(resto.valid || 0) !== 1;
-    const nowRejected = newValid === 0 && Number(resto.valid || 0) !== 0 && reviewRemark;
+    if (![0, 1, 2].includes(newValid)) throw badRequest('valid doit valoir 0 (en attente), 1 (validé) ou 2 (refusé).');
+    const previousValid = Number(resto.valid || 0);
+    const nowApproved = newValid === 1 && previousValid !== 1;
+    // L'app admin refuse avec valid = 2 ; l'ancien format (0 + motif) reste accepté.
+    const nowRejected = (newValid === 2 && previousValid !== 2)
+      || (newValid === 0 && previousValid !== 0 && Boolean(reviewRemark));
 
     const result = await prisma.$transaction(async (tx) => {
+      // Le badge Pro ne vient plus de cette validation : il est accordé par
+      // l'examen des documents professionnels (« Devenir Pro »).
       const data = { valid: newValid, ...(reviewRemark ? { reviewRemark } : {}) };
-      if (nowApproved) data.isPro = true;
 
       const updatedResto = await tx.restaurant.update({ where: { id: resto.id }, data });
       let owner = null;
@@ -732,7 +756,89 @@ async function updateUserProfileByLegacyId(req, res, next) {
   }
 }
 
+/// Statut du dossier livreur tel qu'affiché dans l'admin.
+function courierFileStatus(user, latestFile) {
+  if (isIdentityVerified(user.identity)) return 'validated';
+  if (latestFile?.status === 'pending') return 'pending';
+  if (latestFile?.status === 'rejected' || String(user.identity || '').toLowerCase() === 'rejected') return 'rejected';
+  return 'missing';
+}
+
+function courierRow(user, latestFile) {
+  const { password, ...safeUser } = user;
+  const courierStatus = String(user.courierStatus || '').toUpperCase();
+  return {
+    ...safeUser,
+    isOnline: ['ACTIVE', 'ONLINE', 'AVAILABLE', 'BUSY'].includes(courierStatus),
+    isBusy: courierStatus === 'BUSY',
+    fileStatus: courierFileStatus(user, latestFile),
+    file: latestFile || null,
+  };
+}
+
+/// Liste des livreurs avec l'état de leur dossier (photo, pièce, permis).
+async function listCouriers(req, res, next) {
+  try {
+    const roleId = courierRoleId();
+    const where = { deletedAt: null, roleId };
+    const country = req.query?.country ? canonicalCountry(req.query.country) : null;
+    if (country) where.country = country;
+    const users = await prisma.user.findMany({ where, orderBy: { createdAt: 'desc' }, take: 500 });
+    const ids = users.map((u) => u.userId);
+    const files = ids.length
+      ? await prisma.identity.findMany({
+          where: { userId: { in: ids }, deletedAt: null },
+          orderBy: { createdAt: 'desc' },
+        })
+      : [];
+    const latestByUser = new Map();
+    for (const file of files) if (!latestByUser.has(file.userId)) latestByUser.set(file.userId, file);
+    return res.status(200).json({ data: users.map((u) => courierRow(u, latestByUser.get(u.userId))) });
+  } catch (error) {
+    return handleControllerError(error, next);
+  }
+}
+
+/// Fiche d'un livreur : profil, dernier dossier et activité.
+async function getCourier(req, res, next) {
+  try {
+    const userId = Number.parseInt(req.params.userId, 10);
+    if (!Number.isInteger(userId)) throw badRequest('userId invalide.');
+    const user = await prisma.user.findFirst({ where: { userId, deletedAt: null } });
+    if (!user) throw notFound('Livreur');
+    const [latestFile, delivered, active] = await Promise.all([
+      prisma.identity.findFirst({ where: { userId, deletedAt: null }, orderBy: { createdAt: 'desc' } }),
+      prisma.order.aggregate({
+        where: { delivererId: userId, deletedAt: null, status: { in: ['DELIVERED', 'LIVREE'] } },
+        _count: { _all: true },
+        _sum: { deliveryFee: true },
+      }),
+      prisma.order.count({
+        where: {
+          delivererId: userId,
+          deletedAt: null,
+          status: { notIn: ['DELIVERED', 'LIVREE', 'CANCELLED', 'REFUSED'] },
+        },
+      }),
+    ]);
+    return res.status(200).json({
+      data: {
+        ...courierRow(user, latestFile),
+        stats: {
+          deliveredCount: delivered._count._all,
+          deliveryFees: Number(delivered._sum.deliveryFee || 0),
+          activeCount: active,
+        },
+      },
+    });
+  } catch (error) {
+    return handleControllerError(error, next);
+  }
+}
+
 module.exports = {
+  listCouriers,
+  getCourier,
   getDashboardStats,
   sendEmail,
   forceDeleteUser,

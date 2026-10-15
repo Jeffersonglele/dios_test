@@ -8,6 +8,7 @@ const { createResourceRouter } = require('./resource.routes');
 const router = express.Router();
 
 router.get('/:id/details', authenticate, validate(validators.id), orders.order.getDetails);
+router.get('/:id/tracking', authenticate, validate(validators.id), orders.order.getTracking);
 router.patch('/:id/status', authenticate, validate(validators.id), orders.order.updateStatus);
 router.post('/:id/verify-retrieval', authenticate, validate(validators.verifyRetrieval), orders.order.verifyRetrieval);
 router.post('/:id/verify-pickup-otp', authenticate, validate(validators.verifyRetrieval), orders.order.verifyRetrieval);

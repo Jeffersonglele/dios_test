@@ -16,6 +16,8 @@ router.delete('/users/:userId/force', adminController.forceDeleteUser);
 router.get('/pro-documents', adminController.getProDocuments);
 router.patch('/pro-documents/validate', adminController.validateProDocuments);
 
+router.get('/couriers', adminController.listCouriers);
+router.get('/couriers/:userId', adminController.getCourier);
 router.get('/delivery-documents', adminController.getDeliveryDocuments);
 router.patch('/delivery-documents/validate', adminController.validateDeliveryDocuments);
 

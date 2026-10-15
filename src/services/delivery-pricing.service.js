@@ -209,7 +209,12 @@ async function quoteDelivery({ restaurantId, addressId, userId }) {
     : await configurationForCity(restaurant.cityId || null, countryHint);
   const fallbackFee = restaurantDeliveryFee > 0
     ? { fee: restaurantDeliveryFee, currency: restaurant.currency || fallbackCityConfig.currency, source: 'RESTAURANT_FIXED_FEE' }
-    : { fee: fallbackCityConfig.baseFee, currency: fallbackCityConfig.currency, source: fallbackCityConfig.source };
+    // Forfait sans GPS : jamais sous le minimum de la grille.
+    : {
+      fee: Math.max(fallbackCityConfig.baseFee, Number(fallbackCityConfig.minFee) || 0),
+      currency: fallbackCityConfig.currency,
+      source: fallbackCityConfig.source,
+    };
 
   const hasFullGps = [lat, lng, addressLat, addressLng].every(Number.isFinite);
   if (!hasFullGps) {

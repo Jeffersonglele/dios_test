@@ -5,6 +5,7 @@ const dispatch = require('../services/delivery-dispatch.service');
 const geolocation = require('../services/geolocation.service');
 const { quoteDelivery } = require('../services/delivery-pricing.service');
 const { broadcastDeliveryStatus } = require('../sockets/socket.manager');
+const dispatchCron = require('../cron/dispatch.cron');
 
 const CITY_FIELDS = ['cityId', 'name', 'country', 'countryCode', 'deliveryEnabled', 'active'];
 const ZONE_FIELDS = [
@@ -159,6 +160,8 @@ async function updateCityBoundary(req, res, next) {
 async function updateCourierAvailability(req, res, next) {
   try {
     const data = await geolocation.setCourierAvailability({ userId: req.auth.userId, status: req.body.status });
+    // Un livreur qui passe en ligne peut recevoir tout de suite une course en attente.
+    if (data?.courierStatus === 'ACTIVE') dispatchCron.kick();
     return res.status(200).json({ data });
   } catch (error) {
     return handleControllerError(error, next);
@@ -173,6 +176,7 @@ async function updateCourierLocation(req, res, next) {
       longitude: req.body.longitude,
       accuracyM: req.body.accuracyM,
     });
+    dispatchCron.kick();
     return res.status(201).json({ data });
   } catch (error) {
     return handleControllerError(error, next);
@@ -213,7 +217,10 @@ async function acceptDeliveryOffer(req, res, next) {
 
 async function rejectDeliveryOffer(req, res, next) {
   try {
-    return res.status(200).json({ data: await dispatch.rejectOffer({ offerId: req.params.id, delivererId: req.auth.userId }) });
+    const data = await dispatch.rejectOffer({ offerId: req.params.id, delivererId: req.auth.userId });
+    // Si c'était la dernière proposition en attente, la course part au livreur suivant.
+    dispatchCron.kick();
+    return res.status(200).json({ data });
   } catch (error) {
     return handleControllerError(error, next);
   }
@@ -453,7 +460,7 @@ async function listAvailableDeliveries(req, res, next) {
   }
 }
 
-const MAX_CASH_ON_HAND = 50000;
+const { MAX_CASH_ON_HAND } = dispatch;
 
 async function acceptOrder(req, res, next) {
   try {
@@ -495,22 +502,10 @@ async function acceptOrder(req, res, next) {
     }
 
     const result = await prisma.$transaction(async (tx) => {
-      const recheckOrder = await tx.order.findUnique({
-        where: { id: order.id },
-        select: { delivererId: true },
-      });
-
-      if (!recheckOrder || (recheckOrder.delivererId !== null && Number(recheckOrder.delivererId) !== Number(user.userId))) {
-        throw conflict('Cette commande a déjà été acceptée par un autre livreur.');
-      }
-
-      const updatedOrder = await tx.order.update({
-        where: { id: order.id },
-        data: {
-          delivererId: user.userId,
-          deliveryStatus: 'ASSIGNED',
-        },
-      });
+      // Réservation atomique : deux livreurs qui acceptent en même temps ne
+      // peuvent pas obtenir la même commande.
+      await dispatch.claimOrderForCourier(tx, order.orderId, user.userId);
+      const updatedOrder = await tx.order.findUnique({ where: { id: order.id } });
 
       let existingDelivery = await tx.delivery.findFirst({
         where: { orderId: order.orderId },
@@ -518,13 +513,24 @@ async function acceptOrder(req, res, next) {
 
       let updatedDelivery;
       if (existingDelivery) {
+        if (existingDelivery.delivererId && Number(existingDelivery.delivererId) !== Number(user.userId)) {
+          throw conflict('Cette commande a déjà été acceptée par un autre livreur.');
+        }
+        if (['CANCELLED', 'DELIVERED'].includes(existingDelivery.status)) {
+          throw conflict('Cette course n’est plus disponible.');
+        }
         updatedDelivery = await tx.delivery.update({
           where: { id: existingDelivery.id },
           data: {
             delivererId: user.userId,
             status: 'ASSIGNED',
-            acceptedAt: new Date(),
+            acceptedAt: existingDelivery.acceptedAt || new Date(),
           },
+        });
+        // Les propositions envoyées aux autres livreurs sont closes.
+        await tx.deliveryOffer.updateMany({
+          where: { deliveryId: existingDelivery.id, status: 'PENDING' },
+          data: { status: 'REJECTED', respondedAt: new Date() },
         });
       } else {
         const { randomUUID } = require('crypto');

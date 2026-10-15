@@ -3,7 +3,8 @@ const jwt = require('jsonwebtoken');
 const { randomInt } = require('crypto');
 
 const prisma = require('../config/prisma');
-const { canonicalCountry, countryCode } = require('../services/country.service');
+const { canonicalCountry, resolveCityId } = require('../services/country.service');
+const { normalizeVehicleType } = require('../services/courier.service');
 const {
   sendPasswordResetCodeEmail,
   sendVerificationCodeEmail,
@@ -18,7 +19,7 @@ const {
 
 const REGISTRATION_FIELDS = [
   'firstname', 'lastname', 'telephone', 'telephoneLocal', 'telephoneE164',
-  'country', 'cityId', 'accountType', 'ageConfirmed',
+  'country', 'cityId', 'accountType', 'ageConfirmed', 'vehicleType',
 ];
 
 const ME_PATCH_FIELDS = [
@@ -76,33 +77,20 @@ async function registrationProfile(body, tx) {
   const profileData = pick(body, REGISTRATION_FIELDS);
   const { roleId, accountType } = resolveRegistrationRole(profileData.accountType);
   profileData.accountType = accountType;
+  // Le véhicule ne concerne que les livreurs (moto par défaut).
+  if (accountType === 'LIVREUR') {
+    profileData.vehicleType = normalizeVehicleType(profileData.vehicleType) || 'moto';
+  } else {
+    delete profileData.vehicleType;
+  }
 
   if (profileData.country !== undefined && profileData.country !== null && profileData.country !== '') {
     const country = canonicalCountry(profileData.country);
     if (!country) throw badRequest('Ce pays n’est pas encore ouvert sur Dios Délices.');
     profileData.country = country;
   }
-  profileData.cityId = await resolveRegistrationCityId(tx, profileData.country, profileData.cityId);
+  profileData.cityId = await resolveCityId(tx, profileData.country, profileData.cityId);
   return { profileData, roleId };
-}
-
-/// Ville du compte : celle envoyée si elle existe et appartient au pays,
-/// sinon l'unique ville active du pays (ex. Cotonou). S'il y a plusieurs
-/// villes (RDC), elle reste vide et sera fixée par l'adresse du client.
-async function resolveRegistrationCityId(tx, country, requestedCityId) {
-  const code = countryCode(country);
-  const cityId = Number.parseInt(requestedCityId, 10);
-  if (Number.isInteger(cityId)) {
-    const city = await tx.city.findFirst({ where: { cityId, active: true, deletedAt: null } });
-    if (city && (!code || countryCode(city.countryCode) === code)) return city.cityId;
-  }
-  if (!code) return null;
-  const cities = await tx.city.findMany({
-    where: { countryCode: code, active: true, deletedAt: null },
-    select: { cityId: true },
-    take: 2,
-  });
-  return cities.length === 1 ? cities[0].cityId : null;
 }
 
 async function recoverOrphanedRegistration(existing, req, normalizedUsername, normalizedEmail, password) {
@@ -266,6 +254,54 @@ async function me(req, res, next) {
     const user = await prisma.user.findFirst({ where: { userId, deletedAt: null } });
     if (!user) throw notFound('Utilisateur');
     return res.status(200).json({ data: serializeUser(user) });
+  } catch (error) {
+    return handleControllerError(error, next);
+  }
+}
+
+/// État du compte lu sur Node : rôle à jour (une validation admin peut
+/// l'avoir changé depuis la connexion), demande vendeur et demande Pro.
+async function accountState(req, res, next) {
+  try {
+    const userId = req.auth?.userId;
+    if (!userId) throw notFound('Utilisateur authentifié');
+    const user = await prisma.user.findFirst({ where: { userId, deletedAt: null } });
+    if (!user) throw notFound('Utilisateur');
+    const [restaurant, proRequest, courierFile] = await Promise.all([
+      prisma.restaurant.findFirst({
+        where: { userId, deletedAt: null },
+        orderBy: { createdAt: 'asc' },
+        select: { restaurantId: true, valid: true, reviewRemark: true, isPro: true },
+      }),
+      prisma.proDocument.findFirst({
+        where: { userId, deletedAt: null },
+        orderBy: { createdAt: 'desc' },
+        select: { status: true, remark: true },
+      }),
+      prisma.identity.findFirst({
+        where: { userId, deletedAt: null },
+        orderBy: { createdAt: 'desc' },
+        select: { status: true, remark: true },
+      }),
+    ]);
+    return res.status(200).json({
+      data: {
+        userID: user.userId,
+        roleID: user.roleId,
+        country: user.country || '',
+        restaurantID: restaurant?.restaurantId ?? 0,
+        restaurantValid: restaurant ? Number(restaurant.valid ?? 0) : -1,
+        restaurantRemark: restaurant?.reviewRemark || '',
+        restaurantIsPro: restaurant?.isPro === true,
+        proRequestStatus: proRequest?.status || '',
+        proRequestRemark: proRequest?.remark || '',
+        identity: user.identity || '',
+        identityRemark: courierFile?.remark || '',
+        vehicleType: user.vehicleType || '',
+        vehiclePlate: user.vehiclePlate || '',
+        image: user.image || '',
+      },
+    });
   } catch (error) {
     return handleControllerError(error, next);
   }
@@ -497,9 +533,11 @@ async function changePassword(req, res, next) {
 }
 
 module.exports = {
+  accountState,
   changePassword,
   confirmEmailVerification,
   login,
+  issueToken,
   me,
   resetPassword,
   requestEmailVerification,

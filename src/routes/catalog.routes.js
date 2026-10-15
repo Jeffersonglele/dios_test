@@ -2,6 +2,7 @@ const express = require('express');
 
 const { catalog } = require('../controllers');
 const { authenticate, optionalAuthenticate } = require('../middlware/auth.middleware');
+const { authorize } = require('../middlware/authorization.middleware');
 const { validate, validators } = require('../middlware/validation.middleware');
 const { createResourceRouter } = require('./resource.routes');
 const deliveryPricing = require('../services/delivery-pricing.service');
@@ -15,7 +16,12 @@ restaurants.post('/legacy', authenticate, catalog.restaurant.manageLegacy);
 restaurants.patch('/legacy/:restaurantId', authenticate, catalog.restaurant.manageLegacy);
 restaurants.delete('/legacy/:restaurantId', authenticate, catalog.restaurant.deleteByLegacy);
 restaurants.patch('/:id/availability', authenticate, validate(validators.id), catalog.restaurant.setAvailability);
-restaurants.use('/', createResourceRouter(catalog.restaurant, { readMiddlewares: [optionalAuthenticate] }));
+// Les restaurateurs passent par /legacy (contrôle du propriétaire) ; les
+// écritures génériques sont réservées à l'administration.
+restaurants.use('/', createResourceRouter(catalog.restaurant, {
+  readMiddlewares: [optionalAuthenticate],
+  writeMiddlewares: [authenticate, authorize('ADMIN')],
+}));
 
 // Route pour calculer les frais de livraison par coordonnées GPS
 router.post('/cart/calculate-shipping', optionalAuthenticate, async (req, res, next) => {
@@ -112,8 +118,11 @@ router.post('/cart/calculate-shipping', optionalAuthenticate, async (req, res, n
 });
 
 router.use('/restaurants', restaurants);
+// Plats : le contrôleur limite le restaurateur à son propre restaurant validé.
 router.use('/dishes', createResourceRouter(catalog.dish));
-router.use('/categories', createResourceRouter(catalog.category));
-router.use('/gallery', createResourceRouter(catalog.gallery));
+// Catégories globales et galerie : écriture réservée à l'administration.
+const adminWrite = { writeMiddlewares: [authenticate, authorize('ADMIN')] };
+router.use('/categories', createResourceRouter(catalog.category, adminWrite));
+router.use('/gallery', createResourceRouter(catalog.gallery, adminWrite));
 
 module.exports = router;

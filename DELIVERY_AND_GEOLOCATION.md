@@ -213,6 +213,12 @@ affiché au client au moment de commander.
 
 ### Paramètres fixes initiaux, en francs congolais (CDF)
 
+> **Historique.** Cette grille de lancement (2 000 CDF jusqu'à 2,5 km, puis
+> 500 CDF/km) n'est plus celle du code. La grille appliquée aujourd'hui
+> (prise en charge + prix au km dès le premier mètre, avec un minimum, et une
+> grille propre au Bénin en FCFA) est décrite dans
+> [README.md](README.md#1-frais-de-livraison).
+
 Ces valeurs sont un point de départ pour la première ville activée. Elles sont
 enregistrées côté serveur et pourront être modifiées par ville, sans publier
 une nouvelle version de l'application.

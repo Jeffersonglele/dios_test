@@ -3,6 +3,7 @@ const prisma = require('./config/prisma');
 const { validateRuntimeConfig } = require('./config/env');
 const { verifySmtpReachability } = require('./services/email.service');
 const cacheCron = require('./cron/cache.cron');
+const dispatchCron = require('./cron/dispatch.cron');
 const { initializeSocketIO } = require('./sockets/socket.manager');
 
 const runtimeConfig = validateRuntimeConfig();
@@ -13,6 +14,7 @@ if (runtimeConfig.errors.length > 0) {
 }
 
 cacheCron.startScheduler({ runOnBoot: false, loud: true });
+dispatchCron.startScheduler({ loud: true });
 
 const http = require('http');
 const { Server } = require('socket.io');
@@ -45,6 +47,7 @@ async function shutdown(signal) {
   console.log(`${signal} reçu : arrêt du serveur…`);
   try {
     cacheCron.stopScheduler();
+    dispatchCron.stopScheduler();
   } catch (_) {}
   server.close(async (error) => {
     try {

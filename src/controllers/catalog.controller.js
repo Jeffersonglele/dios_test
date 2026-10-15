@@ -1,11 +1,13 @@
 const { Prisma } = require('@prisma/client');
 const prisma = require('../config/prisma');
 const { createCrudController } = require('./crud.controller');
-const { badRequest, handleControllerError, notFound, pagination, sendPage, canonicalCountry } = require('./controller.utils');
+const { badRequest, handleControllerError, notFound, pagination, pick, sendPage, canonicalCountry } = require('./controller.utils');
 const { resolveCoveredCity } = require('../services/geolocation.service');
+const { currencyForCountry, resolveCityId } = require('../services/country.service');
+const { sendAdminNotification } = require('../services/email.service');
 
 function configuredAdminRoleIds() {
-  return String(process.env.ADMIN_ROLE_IDS || '')
+  return String(process.env.ADMIN_ROLE_IDS || '1,4')
     .split(',')
     .map((value) => Number.parseInt(value.trim(), 10))
     .filter(Number.isInteger);
@@ -15,6 +17,54 @@ function isAdminUser(req) {
   const roleId = req?.auth?.roleId;
   if (roleId === undefined || roleId === null) return false;
   return configuredAdminRoleIds().includes(Number(roleId));
+}
+
+function forbidden(message) {
+  const error = new Error(message);
+  error.statusCode = 403;
+  return error;
+}
+
+function isRestaurantOwner(req, restaurant) {
+  const authUserId = req?.auth?.userId;
+  return authUserId !== undefined && authUserId !== null
+    && restaurant?.userId !== undefined && restaurant?.userId !== null
+    && Number(restaurant.userId) === Number(authUserId);
+}
+
+/// Coordonnées de reversement et motif de refus : visibles uniquement par
+/// le propriétaire et l'administration.
+const PRIVATE_RESTAURANT_FIELDS = [
+  'iban', 'bankName', 'accountHolder', 'mobileMoneyPhone', 'rccm', 'reviewRemark',
+];
+
+function restaurantForViewer(req, restaurant) {
+  if (!restaurant || isAdminUser(req) || isRestaurantOwner(req, restaurant)) return restaurant;
+  const copy = { ...restaurant };
+  for (const field of PRIVATE_RESTAURANT_FIELDS) delete copy[field];
+  return copy;
+}
+
+/// Champs qu'un restaurateur ne peut pas fixer lui-même : statut de
+/// validation, note, compteurs, badge Pro, ville et devise (déduites).
+const OWNER_LOCKED_FIELDS = [
+  'restaurantId', 'userId', 'valid', 'rating', 'orderCount', 'isPro', 'trainingCompleted',
+  'reviewRemark', 'professionalType', 'cityId', 'currency', 'dateCreation',
+];
+
+function notifyAdminsOfApplication(restaurant, owner, resubmitted) {
+  const ownerName = [owner?.firstname, owner?.lastname].filter(Boolean).join(' ') || owner?.username || '—';
+  const text = [
+    resubmitted ? 'Une demande vendeur refusée a été corrigée et renvoyée.' : 'Nouvelle demande vendeur à valider.',
+    '',
+    `Restaurant : ${restaurant.name || '—'} (n° ${restaurant.restaurantId})`,
+    `Adresse : ${restaurant.address || '—'}`,
+    `Pays : ${restaurant.country || '—'}`,
+    `Vendeur : ${ownerName}`,
+    `Téléphone : ${owner?.telephone || '—'}`,
+    `Email : ${owner?.email || '—'}`,
+  ].join('\n');
+  sendAdminNotification({ subject: 'Dios Délices — Demande vendeur à valider', text });
 }
 
 const RESTAURANT_FIELDS = [
@@ -112,7 +162,7 @@ async function getRestaurantMenu(req, res, next) {
       prisma.dish.count({ where: dishesWhere }),
     ]);
     return res.status(200).json({
-      data: { restaurant, dishes: dishesList },
+      data: { restaurant: restaurantForViewer(req, restaurant), dishes: dishesList },
       meta: { page: pageInfo.page, pageSize: pageInfo.pageSize, total, totalPages: Math.ceil(total / pageInfo.pageSize) },
     });
   } catch (error) {
@@ -125,8 +175,12 @@ async function listRestaurants(req, res, next) {
     const pageInfo = pagination(req.query);
     const where = { deletedAt: null };
     // Par défaut, seuls les restaurants validés par un admin sont affichés.
-    // Les admins peuvent passer ?showAll=true pour voir les non-validés.
-    if (req.query.showAll !== 'true') {
+    // ?showAll=true n'est honoré que pour un admin, ou pour le propriétaire
+    // qui consulte sa propre fiche (?userId = lui-même).
+    const ownListing = req.query.userId !== undefined
+      && req.auth?.userId !== undefined
+      && Number.parseInt(req.query.userId, 10) === Number(req.auth.userId);
+    if (req.query.showAll !== 'true' || !(isAdminUser(req) || ownListing)) {
       where.valid = 1;
     }
     const countryRaw = req.query.country;
@@ -143,7 +197,7 @@ async function listRestaurants(req, res, next) {
       prisma.restaurant.findMany({ where, skip: pageInfo.skip, take: pageInfo.take, orderBy: { name: 'asc' } }),
       prisma.restaurant.count({ where }),
     ]);
-    return sendPage(res, data, total, pageInfo);
+    return sendPage(res, data.map((r) => restaurantForViewer(req, r)), total, pageInfo);
   } catch (error) {
     return handleControllerError(error, next);
   }
@@ -173,12 +227,108 @@ async function listDishes(req, res, next) {
   }
 }
 
+/// Champs d'un plat qu'un restaurateur ne fixe pas lui-même : rattachement,
+/// pays, devise et ville sont déduits du restaurant ; note et compteur de
+/// commandes sont calculés par la plateforme.
+const DISH_OWNER_LOCKED_FIELDS = [
+  'dishId', 'userId', 'restaurantId', 'country', 'currency', 'cityId', 'rating', 'orderCount',
+];
+
+function dishParamWhere(idParam) {
+  const value = String(idParam);
+  return /^\d+$/.test(value)
+    ? { dishId: Number.parseInt(value, 10), deletedAt: null }
+    : { id: value, deletedAt: null };
+}
+
+function dishFieldsFromRestaurant(restaurant) {
+  return {
+    restaurantId: restaurant.restaurantId,
+    userId: restaurant.userId,
+    country: restaurant.country,
+    currency: restaurant.currency || currencyForCountry(restaurant.country),
+    cityId: restaurant.cityId,
+  };
+}
+
+function assertOwnsValidRestaurant(req, restaurant) {
+  if (!restaurant) throw notFound('Restaurant');
+  if (!isRestaurantOwner(req, restaurant)) throw forbidden('Ce restaurant ne vous appartient pas.');
+  if (Number(restaurant.valid) !== 1) {
+    throw forbidden('Votre restaurant doit être validé avant de gérer ses plats.');
+  }
+}
+
+/// Plat existant et son restaurant ; un restaurateur n'accède qu'aux plats
+/// de son propre restaurant validé.
+async function loadWritableDish(req) {
+  const dish = await prisma.dish.findFirst({ where: dishParamWhere(req.params.id) });
+  if (!dish) throw notFound('Plat');
+  if (isAdminUser(req)) return { dish, restaurant: null };
+  const restaurant = dish.restaurantId == null
+    ? null
+    : await prisma.restaurant.findFirst({ where: { restaurantId: dish.restaurantId, deletedAt: null } });
+  assertOwnsValidRestaurant(req, restaurant);
+  return { dish, restaurant };
+}
+
+async function createDish(req, res, next) {
+  try {
+    const data = pick(req.body, DISH_FIELDS);
+    if (!isAdminUser(req)) {
+      for (const field of DISH_OWNER_LOCKED_FIELDS) delete data[field];
+      // Un seul restaurant par compte ; restaurantId ne sert qu'à le désigner.
+      const requestedId = Number.parseInt(req.body.restaurantId, 10);
+      const restaurant = await prisma.restaurant.findFirst({
+        where: Number.isInteger(requestedId)
+          ? { restaurantId: requestedId, deletedAt: null }
+          : { userId: Number(req.auth?.userId), deletedAt: null },
+        orderBy: { createdAt: 'asc' },
+      });
+      assertOwnsValidRestaurant(req, restaurant);
+      Object.assign(data, dishFieldsFromRestaurant(restaurant), { rating: 0, orderCount: 0 });
+    }
+    const record = await prisma.dish.create({ data });
+    return res.status(201).json({ data: record });
+  } catch (error) {
+    return handleControllerError(error, next);
+  }
+}
+
+async function updateDish(req, res, next) {
+  try {
+    const { dish, restaurant } = await loadWritableDish(req);
+    const data = pick(req.body, DISH_FIELDS);
+    if (restaurant) {
+      for (const field of DISH_OWNER_LOCKED_FIELDS) delete data[field];
+      Object.assign(data, dishFieldsFromRestaurant(restaurant));
+    }
+    const record = await prisma.dish.update({ where: { id: dish.id }, data });
+    return res.status(200).json({ data: record });
+  } catch (error) {
+    return handleControllerError(error, next);
+  }
+}
+
+async function removeDish(req, res, next) {
+  try {
+    const { dish } = await loadWritableDish(req);
+    const record = await prisma.dish.update({ where: { id: dish.id }, data: { deletedAt: new Date() } });
+    return res.status(200).json({ data: record });
+  } catch (error) {
+    return handleControllerError(error, next);
+  }
+}
+
 async function setRestaurantAvailability(req, res, next) {
   try {
     const isOpen = req.body.isOpen;
     if (![0, 1, true, false].includes(isOpen)) throw badRequest('isOpen doit être un booléen.');
     const restaurant = await prisma.restaurant.findFirst({ where: { id: req.params.id, deletedAt: null } });
     if (!restaurant) throw notFound('Restaurant');
+    if (!isAdminUser(req) && !isRestaurantOwner(req, restaurant)) {
+      throw forbidden('Seul le propriétaire peut ouvrir ou fermer ce restaurant.');
+    }
     const updated = await prisma.restaurant.update({
       where: { id: restaurant.id }, data: { isOpen: isOpen === true ? 1 : isOpen === false ? 0 : isOpen },
     });
@@ -224,7 +374,39 @@ async function manageRestaurantLegacy(req, res, next) {
     if (raw.country) data.country = canonicalCountry(raw.country);
     let record;
     let mode = 'created';
-    const legacyId = Number.isInteger(legacyIdRaw) ? legacyIdRaw : null;
+    const legacyId = Number.isInteger(legacyIdRaw) && legacyIdRaw > 0 ? legacyIdRaw : null;
+    const isAdmin = isAdminUser(req);
+    const authUserId = Number(req.auth?.userId);
+
+    let existing = legacyId
+      ? await prisma.restaurant.findFirst({ where: { restaurantId: legacyId, deletedAt: null } })
+      : null;
+    let owner = null;
+    if (!isAdmin) {
+      if (!Number.isInteger(authUserId)) throw forbidden('Authentification requise.');
+      for (const field of OWNER_LOCKED_FIELDS) delete data[field];
+      if (existing && !isRestaurantOwner(req, existing)) {
+        throw forbidden('Ce restaurant ne vous appartient pas.');
+      }
+      // Un seul restaurant par compte : une nouvelle soumission reprend la
+      // fiche existante au lieu de créer un doublon.
+      if (!existing) {
+        existing = await prisma.restaurant.findFirst({
+          where: { userId: authUserId, deletedAt: null },
+          orderBy: { createdAt: 'asc' },
+        });
+      }
+      owner = await prisma.user.findFirst({ where: { userId: authUserId, deletedAt: null } });
+      if (!owner) throw notFound('Utilisateur');
+      // Le restaurant suit le pays du compte ; la devise en découle.
+      const ownerCountry = canonicalCountry(owner.country) || data.country || existing?.country;
+      if (ownerCountry) {
+        data.country = ownerCountry;
+        data.currency = currencyForCountry(ownerCountry);
+      }
+    } else if (data.country && !data.currency) {
+      data.currency = currencyForCountry(data.country);
+    }
 
     if (data.latitude != null) data.latitude = Number.parseFloat(String(data.latitude));
     if (data.longitude != null) data.longitude = Number.parseFloat(String(data.longitude));
@@ -276,24 +458,27 @@ async function manageRestaurantLegacy(req, res, next) {
       } catch (_) {}
     }
 
-    if (legacyId) {
-      const existing = await prisma.restaurant.findFirst({ where: { restaurantId: legacyId, deletedAt: null } });
-      if (existing) {
-        record = await prisma.restaurant.update({ where: { id: existing.id }, data });
-        mode = 'updated';
-      } else if (raw.userID || raw.userId) {
-          data.restaurantId = legacyId;
-          if (!data.dateCreation) data.dateCreation = new Date();
-          if (!data.valid) data.valid = 0;
-          if (data.isOpen === undefined) data.isOpen = 1;
-          record = await prisma.restaurant.create({ data });
-      } else {
-        throw badRequest('Impossible de créer un restaurant sans userId.');
+    let resubmitted = false;
+    if (existing) {
+      if (!isAdmin && Number(existing.valid) === 2) {
+        // Demande refusée puis corrigée : elle repart en validation.
+        data.valid = 0;
+        resubmitted = true;
       }
+      record = await prisma.restaurant.update({ where: { id: existing.id }, data });
+      mode = 'updated';
     } else {
-      if (!(raw.userID || raw.userId)) throw badRequest('userId est requis.');
+      if (isAdmin) {
+        if (!(raw.userID || raw.userId)) throw badRequest('userId est requis.');
+        if (legacyId) data.restaurantId = legacyId;
+      } else {
+        data.userId = authUserId;
+        data.valid = 0;
+        data.rating = 0;
+        data.orderCount = 0;
+      }
       if (!data.dateCreation) data.dateCreation = new Date();
-      if (!data.valid) data.valid = 0;
+      if (data.valid === undefined || data.valid === null) data.valid = 0;
       if (data.isOpen === undefined) data.isOpen = 1;
       record = await prisma.restaurant.create({ data });
     }
@@ -302,6 +487,17 @@ async function manageRestaurantLegacy(req, res, next) {
     if (data.latitude != null && data.longitude != null) {
       await _syncRestaurantLocation(record.id, data.latitude, data.longitude, data.country);
       record = await prisma.restaurant.findUnique({ where: { id: record.id } });
+    }
+    // Hors zone cartographiée : l'unique ville active du pays (ex. Cotonou).
+    if (record.cityId == null) {
+      const cityId = await resolveCityId(prisma, record.country, null);
+      if (cityId != null) {
+        record = await prisma.restaurant.update({ where: { id: record.id }, data: { cityId } });
+      }
+    }
+
+    if (!isAdmin && (mode === 'created' || resubmitted)) {
+      notifyAdminsOfApplication(record, owner, resubmitted);
     }
 
     return res.status(200).json({ data: record, meta: { mode } });
@@ -324,7 +520,7 @@ async function getRestaurantById(req, res, next) {
     const isAdmin = isAdminUser(req);
 
     if (!isOwner && !isAdmin && Number(restaurant.valid) !== 1) throw notFound('Restaurant');
-    return res.status(200).json({ data: restaurant });
+    return res.status(200).json({ data: restaurantForViewer(req, restaurant) });
   } catch (error) {
     return handleControllerError(error, next);
   }
@@ -382,7 +578,7 @@ async function getRestaurantByLegacy(req, res, next) {
     const isAdmin = isAdminUser(req);
 
     if (!isOwner && !isAdmin && Number(restaurant.valid) !== 1) throw notFound('Restaurant');
-    return res.status(200).json({ data: restaurant });
+    return res.status(200).json({ data: restaurantForViewer(req, restaurant) });
   } catch (error) {
     return handleControllerError(error, next);
   }
@@ -394,10 +590,39 @@ async function deleteRestaurantByLegacy(req, res, next) {
     if (!Number.isInteger(legacyId)) throw badRequest('restaurantId doit être un entier.');
     const restaurant = await prisma.restaurant.findFirst({ where: { restaurantId: legacyId, deletedAt: null } });
     if (!restaurant) throw notFound('Restaurant');
-    const deleted = await prisma.restaurant.update({
-      where: { id: restaurant.id }, data: { deletedAt: new Date() },
+    if (isAdminUser(req)) {
+      const deleted = await prisma.restaurant.update({
+        where: { id: restaurant.id }, data: { deletedAt: new Date() },
+      });
+      return res.status(200).json({ data: deleted });
+    }
+
+    // Le propriétaire peut seulement retirer une demande vendeur (restaurant
+    // pas encore validé) ; son compte redevient alors un compte client.
+    if (!isRestaurantOwner(req, restaurant)) throw forbidden('Ce restaurant ne vous appartient pas.');
+    if (Number(restaurant.valid) === 1) {
+      throw forbidden('Un restaurant validé ne peut pas être supprimé depuis l’application. Contactez le support.');
+    }
+    const { issueToken } = require('./auth.controller');
+    const clientRoleId = Number.parseInt(process.env.DEFAULT_USER_ROLE_ID || '2', 10) || 2;
+    const restaurateurRoleId = Number.parseInt(process.env.RESTAURATEUR_ROLE_ID || '3', 10) || 3;
+    const { deleted, user } = await prisma.$transaction(async (tx) => {
+      const removed = await tx.restaurant.update({
+        where: { id: restaurant.id }, data: { deletedAt: new Date() },
+      });
+      let account = await tx.user.findFirst({ where: { userId: restaurant.userId, deletedAt: null } });
+      if (account && Number(account.roleId) === restaurateurRoleId) {
+        account = await tx.user.update({
+          where: { id: account.id },
+          data: { roleId: clientRoleId, accountType: 'CLIENT' },
+        });
+      }
+      return { deleted: removed, user: account };
     });
-    return res.status(200).json({ data: deleted });
+    return res.status(200).json({
+      data: deleted,
+      meta: { roleId: user?.roleId ?? null, token: user ? issueToken(user) : null },
+    });
   } catch (error) {
     return handleControllerError(error, next);
   }
@@ -415,7 +640,9 @@ module.exports = {
     getByLegacy: getRestaurantByLegacy,
     deleteByLegacy: deleteRestaurantByLegacy,
   },
-  dish: { ...dishes, list: listDishes },
+  dish: {
+    ...dishes, list: listDishes, create: createDish, update: updateDish, remove: removeDish,
+  },
   category: categories,
   gallery,
   DISH_FIELDS,

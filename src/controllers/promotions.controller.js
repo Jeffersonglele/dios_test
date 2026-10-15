@@ -18,7 +18,7 @@ async function validatePromo(req, res, next) {
   try {
     const { code, subtotal, deliveryFee } = req.body;
     if (!code) throw badRequest('Le code promo est requis.');
-    
+
     const promo = await prisma.promoCode.findUnique({
       where: { code: code.toUpperCase() },
     });
@@ -71,8 +71,14 @@ async function validatePromo(req, res, next) {
 
 async function createReferral(req, res, next) {
   try {
-    const { userID } = req.body;
-    if (!userID) throw badRequest('L\'identifiant de l\'utilisateur est requis.');
+    // Le code de parrainage appartient au compte connecté (jamais à un autre),
+    // et chaque compte n'en a qu'un.
+    const userID = Number(req.auth?.userId);
+    if (!Number.isInteger(userID)) throw badRequest('Authentification requise.');
+    const existing = await prisma.promoCode.findFirst({
+      where: { code: { startsWith: `REF-${userID}-` }, deletedAt: null },
+    });
+    if (existing) return res.status(200).json({ success: true, data: existing });
     const code = `REF-${userID}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
     const promo = await prisma.promoCode.create({
       data: {
@@ -92,7 +98,7 @@ async function applyReferral(req, res, next) {
   try {
     const { code, newUserID } = req.body;
     if (!code || !newUserID) throw badRequest('Le code et le nouvel identifiant sont requis.');
-    
+
     const promo = await prisma.promoCode.findUnique({
       where: { code: code.toUpperCase() },
     });

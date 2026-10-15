@@ -70,6 +70,30 @@ async function uploadChatMedia(req, res, next) {
 
 router.post('/uploads/image', authenticate, upload.single('image'), uploadOne, uploadError);
 router.post('/uploads/images', authenticate, upload.array('images', 5), uploadMany, uploadError);
+/// Justificatifs (pièce d'identité, RCCM) : PDF, JPEG, PNG ou WebP, 5 Mo.
+async function uploadDocument(req, res, next) {
+  try {
+    const file = req.file;
+    if (!file?.buffer?.length) {
+      const error = new Error('Aucun document reçu.');
+      error.statusCode = 400;
+      throw error;
+    }
+    const isPdf = file.buffer.subarray(0, 5).toString('latin1') === '%PDF-';
+    const scope = req.body.scope || 'documents';
+    if (isPdf) {
+      const media = await uploadRawMedia({ ...file, mimetype: 'application/pdf', originalname: 'document.pdf' }, scope);
+      return res.status(201).json({ data: media });
+    }
+    // Les photos sont validées et normalisées comme les autres images.
+    const media = await uploadImage(file, scope);
+    return res.status(201).json({ data: media });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+router.post('/uploads/document', authenticate, upload.single('file'), uploadDocument, uploadError);
 router.post('/uploads/chat-media', authenticate, chatMediaUpload.single('file'), uploadChatMedia, uploadError);
 
 module.exports = router;

@@ -9,6 +9,7 @@ const router = express.Router();
 router.post('/register', validate(validators.register), auth.register);
 router.post('/login', validate(validators.login), auth.login);
 router.get('/me', authenticate, auth.me);
+router.get('/account-state', authenticate, auth.accountState);
 router.patch('/me', authenticate, auth.updateMe);
 router.post('/password/change', authenticate, auth.changePassword);
 router.post('/email-verification/request', authenticate, validate(validators.emptyBody), auth.requestEmailVerification);

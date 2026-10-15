@@ -1,6 +1,7 @@
 const { randomUUID } = require('crypto');
 
 const prisma = require('../config/prisma');
+const { evaluatePromo } = require('../services/promo.service');
 const { createCrudController } = require('./crud.controller');
 const { badRequest, handleControllerError, isValidUUID, notFound, pick } = require('./controller.utils');
 
@@ -111,31 +112,28 @@ async function confirmCashCollection(req, res, next) {
   }
 }
 
+/// Vérifie un code depuis le panier. Sous-total = plats (hors livraison),
+/// comme lors de la création de la commande.
 async function validatePromoCode(req, res, next) {
   try {
-    const code = String(req.body.code || '').trim().toUpperCase();
-    const orderAmount = Number(req.body.orderAmount);
-    if (!code || !Number.isFinite(orderAmount)) throw badRequest('code et orderAmount sont obligatoires.');
-    const now = new Date();
-    const promo = await prisma.promoCode.findFirst({
-      where: {
-        code,
-        active: true,
-        deletedAt: null,
-        OR: [{ validFrom: null }, { validFrom: { lte: now } }],
-        AND: [{ OR: [{ validUntil: null }, { validUntil: { gte: now } }] }],
+    const subtotal = req.body.subtotal ?? req.body.orderAmount;
+    const { promo, discount } = await evaluatePromo(prisma, {
+      code: req.body.code,
+      subtotal,
+      userId: req.auth?.userId,
+    });
+    return res.status(200).json({
+      success: true,
+      data: {
+        code: promo.code,
+        description: promo.description || null,
+        discountPercent: promo.discountPercent || null,
+        discountFixed: Number(promo.discountFixed) || 0,
+        minOrder: promo.minOrder !== null ? Number(promo.minOrder) : null,
+        discountAmount: discount,
+        discount,
       },
     });
-    if (!promo || (promo.maxUses !== null && promo.usedCount >= promo.maxUses)) {
-      throw badRequest('Ce code promo est invalide ou expiré.');
-    }
-    if (promo.minOrder !== null && orderAmount < Number(promo.minOrder)) {
-      throw badRequest('Le montant minimum de commande n’est pas atteint.');
-    }
-    const discount = promo.discountPercent !== null
-      ? (orderAmount * promo.discountPercent) / 100
-      : Number(promo.discountFixed || 0);
-    return res.status(200).json({ data: { promo, discount: Math.min(discount, orderAmount) } });
   } catch (error) {
     return handleControllerError(error, next);
   }

@@ -40,6 +40,15 @@ function broadcastDeliveryStatus({ orderId, status, courierId, extra }) {
   });
 }
 
+/**
+ * Envoie un évènement à un utilisateur précis (salon personnel `user_<id>`,
+ * rejoint automatiquement à la connexion). Sans effet avant l'initialisation.
+ */
+function emitToUser(userId, event, payload) {
+  if (!_io || userId === null || userId === undefined) return;
+  _io.to(`user_${userId}`).emit(event, payload);
+}
+
 // ── helpers ─────────────────────────────────────────────────
 function pointSql(latitude, longitude) {
   return Prisma.sql`ST_SetSRID(ST_MakePoint(${longitude}, ${latitude}), 4326)`;
@@ -154,6 +163,9 @@ function initializeSocketIO(io) {
   io.on('connection', (socket) => {
     console.log(`[socket] ✔ User connected: ${socket.user.userId}`);
 
+    // Salon personnel : propositions de course, notifications ciblées.
+    socket.join(`user_${socket.user.userId}`);
+
     // Initialiser les événements du chat en temps réel
     registerChatHandlers(io, socket);
 
@@ -181,10 +193,33 @@ function initializeSocketIO(io) {
         }
         const order = await prisma.order.findFirst({
           where: { OR: orderOr, deletedAt: null },
-          select: { orderId: true, userId: true, delivererId: true, status: true },
+          select: {
+            orderId: true, userId: true, delivererId: true, status: true,
+            restaurateurId: true, restaurantId: true,
+          },
         });
 
         if (!order) {
+          socket.emit('error', { message: 'Order not found' });
+          return;
+        }
+
+        // La position du livreur n'est visible que par les acteurs de la commande.
+        const viewerId = Number(socket.user?.userId);
+        const adminIds = String(process.env.ADMIN_ROLE_IDS || '1,4')
+          .split(',').map((v) => Number.parseInt(v.trim(), 10));
+        let allowed = adminIds.includes(Number(socket.user?.roleId))
+          || Number(order.userId) === viewerId
+          || Number(order.delivererId) === viewerId
+          || Number(order.restaurateurId) === viewerId;
+        if (!allowed && order.restaurantId != null) {
+          const restaurant = await prisma.restaurant.findFirst({
+            where: { restaurantId: order.restaurantId, deletedAt: null },
+            select: { userId: true },
+          });
+          allowed = Number(restaurant?.userId) === viewerId;
+        }
+        if (!allowed) {
           socket.emit('error', { message: 'Order not found' });
           return;
         }
@@ -321,4 +356,4 @@ function initializeSocketIO(io) {
   return io;
 }
 
-module.exports = { initializeSocketIO, getIO, broadcastDeliveryStatus };
+module.exports = { initializeSocketIO, getIO, broadcastDeliveryStatus, emitToUser };

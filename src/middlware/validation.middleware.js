@@ -52,6 +52,7 @@ const validators = {
       telephoneLocal: Joi.string().trim().max(32), telephoneE164: Joi.string().trim().max(32),
       country: Joi.string().trim().max(100), cityId: Joi.number().integer(),
       accountType: Joi.string().trim().max(50), ageConfirmed: Joi.boolean(),
+      vehicleType: Joi.string().trim().max(20),
     }).required(), params: Joi.object(), query: Joi.object(),
   }),
   resetRequest: Joi.object({ body: Joi.object({ email: Joi.string().email().required() }), params: Joi.object(), query: Joi.object() }),

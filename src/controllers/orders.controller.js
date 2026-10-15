@@ -4,9 +4,11 @@ const prisma = require('../config/prisma');
 const { createCrudController } = require('./crud.controller');
 const { badRequest, handleControllerError, notFound, pagination, pick, sendPage } = require('./controller.utils');
 const { startDispatchForOrder } = require('../services/delivery-dispatch.service');
+const { courierPublicProfile } = require('../services/courier.service');
 const { quoteDelivery, resolveRestaurantLocation, configurationForCity } = require('../services/delivery-pricing.service');
 const { broadcastDeliveryStatus } = require('../sockets/socket.manager');
 const { ensureWalletForUser } = require('../services/wallet.service');
+const { consumePromo, evaluatePromo, releasePromo } = require('../services/promo.service');
 
 /**
  * Vérifie si une chaîne ressemble à un UUID valide (format avec tirets, 36 caractères)
@@ -156,11 +158,16 @@ async function createOrder(req, res, next) {
       } else {
         const addressCityId = deliveryAddress?.cityId != null ? Number(deliveryAddress.cityId) : null;
         const fallbackCfg = await configurationForCity(addressCityId ?? null, restaurant.country || restaurant.currency);
-        deliveryFee = Number(fallbackCfg?.baseFee || 0);
+        deliveryFee = Math.max(Number(fallbackCfg?.baseFee || 0), Number(fallbackCfg?.minFee || 0));
       }
     }
-    const requestedReduction = Number(payload.reduction || 0);
-    const reduction = Number.isFinite(requestedReduction) && requestedReduction > 0 ? requestedReduction : 0;
+    // La réduction vient uniquement d'un code promo vérifié ici : le montant
+    // envoyé par l'app (payload.reduction) n'est jamais pris en compte.
+    const requestedPromo = String(payload.promoCode || payload.promo_code || '').trim();
+    const promoResult = requestedPromo
+      ? await evaluatePromo(prisma, { code: requestedPromo, subtotal: subtotalAmount, userId })
+      : null;
+    const reduction = promoResult ? promoResult.discount : 0;
     const totalAmount = Math.max(0, Number(subtotalAmount) + Number(deliveryFee) - Number(reduction));
     const defaultCurrency = String(payload.currency || payload.currencyCode || restaurant.currency || 'CDF').toUpperCase();
     const supportedCurrencies = new Set(['CDF', 'USD', 'XAF', 'XOF', 'EUR', 'GBP']);
@@ -184,7 +191,7 @@ async function createOrder(req, res, next) {
         });
       }
       if (walletForCreation.status !== 'ACTIVE') throw badRequest('Portefeuille inactif. Veuillez activer votre portefeuille.');
-      
+
       // Ajustement automatique de la devise si le solde est 0
       if (walletForCreation.currency && String(walletForCreation.currency).toUpperCase() !== currency) {
         if (Number(walletForCreation.balance || 0) === 0) {
@@ -205,6 +212,7 @@ async function createOrder(req, res, next) {
     }
 
     const order = await prisma.$transaction(async (tx) => {
+      if (promoResult) await consumePromo(tx, promoResult.promo);
       const orderId = await nextOrderId(tx);
       const externalOrderId = payload.externalOrderId || randomUUID();
       let orderStatusValue = 'AWAITING_PAYMENT';
@@ -241,7 +249,7 @@ async function createOrder(req, res, next) {
 
       const created = await tx.order.create({
         data: {
-          ...pick(payload, ORDER_FIELDS),
+          ...pick(payload, ORDER_FIELDS.filter((field) => !['reduction', 'globalReduction', 'promoCode'].includes(field))),
           orderId,
           externalOrderId,
           userId,
@@ -250,6 +258,7 @@ async function createOrder(req, res, next) {
           deliveryMode: isDelivery ? 'DELIVERY' : 'PICKUP',
           deliveryFee,
           reduction,
+          promoCode: promoResult ? promoResult.promo.code : null,
           subtotalAmount,
           totalAmount,
           currency,
@@ -344,6 +353,147 @@ async function createOrder(req, res, next) {
       };
     }
     return res.status(201).json({ data: responseData });
+  } catch (error) {
+    return handleControllerError(error, next);
+  }
+}
+
+/// Rôle du demandeur sur la commande (client, restaurant, livreur, admin).
+async function orderAccess(order, req) {
+  const userId = Number(req.auth.userId);
+  const isAdmin = hasRole('ADMIN', req.auth.roleId);
+  const isCustomer = Number(order.userId) === userId;
+  let isRestaurantOwner = Number(order.restaurateurId) === userId;
+  if (!isRestaurantOwner && !isAdmin && !isCustomer) {
+    const restaurant = await prisma.restaurant.findFirst({
+      where: { restaurantId: order.restaurantId, deletedAt: null },
+      select: { userId: true },
+    });
+    isRestaurantOwner = Number(restaurant?.userId) === userId;
+  }
+  let isDeliverer = Number(order.delivererId) === userId;
+  if (!isDeliverer && !isAdmin && !isCustomer && !isRestaurantOwner) {
+    const delivery = await prisma.delivery.findFirst({
+      where: { orderId: order.orderId, delivererId: userId },
+      select: { id: true },
+    });
+    isDeliverer = Boolean(delivery);
+  }
+  return { isAdmin, isCustomer, isRestaurantOwner, isDeliverer };
+}
+
+function finiteOrNull(value) {
+  const n = Number(value);
+  return Number.isFinite(n) && n !== 0 ? n : null;
+}
+
+function snapshotPoint(snapshot) {
+  if (!snapshot || typeof snapshot !== 'object') return {};
+  return {
+    latitude: finiteOrNull(snapshot.latitude ?? snapshot.lat),
+    longitude: finiteOrNull(snapshot.longitude ?? snapshot.lng),
+    address: snapshot.fullAddress || snapshot.address || snapshot.name || null,
+  };
+}
+
+/// Suivi : point de retrait (restaurant), point de livraison (client),
+/// livreur assigné (photo, nom, véhicule, plaque) et sa dernière position.
+async function getOrderTracking(req, res, next) {
+  try {
+    const orderId = req.params.id;
+    const parsedOrderId = Number.parseInt(orderId, 10);
+    const order = await prisma.order.findFirst({
+      where: {
+        OR: [
+          ...(Number.isInteger(parsedOrderId) ? [{ orderId: parsedOrderId }] : []),
+          ...(isValidUUID(orderId) ? [{ id: orderId }] : []),
+        ],
+        deletedAt: null,
+      },
+    });
+    if (!order) throw notFound('Commande');
+    const access = await orderAccess(order, req);
+    if (!access.isAdmin && !access.isCustomer && !access.isRestaurantOwner && !access.isDeliverer) {
+      throw notFound('Commande');
+    }
+
+    const [delivery, restaurant] = await Promise.all([
+      prisma.delivery.findFirst({ where: { orderId: order.orderId } }),
+      prisma.restaurant.findFirst({
+        where: { restaurantId: order.restaurantId, deletedAt: null },
+        select: { name: true, address: true, latitude: true, longitude: true, image: true },
+      }),
+    ]);
+
+    const pickupSnap = snapshotPoint(order.pickupSnapshot);
+    const pickup = {
+      name: restaurant?.name || order.pickupSnapshot?.name || null,
+      address: restaurant?.address || pickupSnap.address,
+      image: restaurant?.image || null,
+      latitude: finiteOrNull(delivery?.pickupLatitude) ?? pickupSnap.latitude ?? finiteOrNull(restaurant?.latitude),
+      longitude: finiteOrNull(delivery?.pickupLongitude) ?? pickupSnap.longitude ?? finiteOrNull(restaurant?.longitude),
+    };
+
+    const destSnap = snapshotPoint(order.deliveryAddressSnapshot);
+    let destination = {
+      address: destSnap.address,
+      latitude: finiteOrNull(delivery?.deliveryLatitude) ?? destSnap.latitude,
+      longitude: finiteOrNull(delivery?.deliveryLongitude) ?? destSnap.longitude,
+    };
+    const addressId = order.deliveryAddressId ?? order.addressId;
+    if ((destination.latitude == null || !destination.address) && addressId) {
+      const address = await prisma.address.findFirst({
+        where: { addressId: Number(addressId), deletedAt: null },
+        select: { fullAddress: true, name: true, latitude: true, longitude: true },
+      });
+      if (address) {
+        destination = {
+          address: destination.address || address.fullAddress || address.name || null,
+          latitude: destination.latitude ?? finiteOrNull(address.latitude),
+          longitude: destination.longitude ?? finiteOrNull(address.longitude),
+        };
+      }
+    }
+
+    const courierId = order.delivererId ?? delivery?.delivererId ?? null;
+    let courier = null;
+    if (courierId) {
+      const [user, lastLocation] = await Promise.all([
+        prisma.user.findFirst({ where: { userId: courierId, deletedAt: null } }),
+        prisma.courierLocation.findFirst({
+          where: { delivererId: courierId },
+          orderBy: { recordedAt: 'desc' },
+          select: { latitude: true, longitude: true, recordedAt: true },
+        }),
+      ]);
+      courier = courierPublicProfile(user, {
+        includePhone: access.isAdmin || access.isCustomer || access.isRestaurantOwner,
+      });
+      if (courier && lastLocation) {
+        courier.latitude = finiteOrNull(lastLocation.latitude);
+        courier.longitude = finiteOrNull(lastLocation.longitude);
+        courier.locationAt = lastLocation.recordedAt;
+      }
+    }
+
+    return res.status(200).json({
+      data: {
+        orderId: order.orderId,
+        status: order.status,
+        deliveryMode: order.deliveryMode,
+        deliveryStatus: delivery?.status || order.deliveryStatus || null,
+        pickup,
+        // Le livreur voit l'adresse du client ; le restaurant n'en a pas besoin.
+        destination: access.isRestaurantOwner && !access.isAdmin ? null : destination,
+        courier,
+        acceptedAt: delivery?.acceptedAt || null,
+        driverArrivedAt: delivery?.driverArrivedAt || null,
+        pickedUpAt: delivery?.pickedUpAt || null,
+        deliveredAt: delivery?.deliveredAt || null,
+        viewer: access.isDeliverer ? 'courier' : access.isRestaurantOwner ? 'restaurant'
+          : access.isCustomer ? 'customer' : 'admin',
+      },
+    });
   } catch (error) {
     return handleControllerError(error, next);
   }
@@ -537,6 +687,8 @@ async function refundOrderToWallet(tx, order, reason) {
 
 /// Effets financiers d'une annulation / d'un refus, dans la transaction SQL.
 async function settleCancelledOrder(tx, order, reason) {
+  // Le code promo de la commande redevient utilisable.
+  await releasePromo(tx, order);
   if (isPaidOnline(order)) return refundOrderToWallet(tx, order, reason);
   // Rien n'a été encaissé : on clôt les encaissements en attente.
   await tx.transaction.updateMany({
@@ -994,6 +1146,7 @@ module.exports = {
     create: createOrder,
     list: listOrders,
     getDetails: getOrderDetails,
+    getTracking: getOrderTracking,
     updateStatus: updateOrderStatus,
     verifyRetrieval: verifyRetrievalOrder,
     submitDispute,

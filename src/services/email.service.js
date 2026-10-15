@@ -898,8 +898,23 @@ Vous pouvez soumettre à nouveau ou contacter l'équipe depuis l'application.
   });
 }
 
+/// Alerte l'équipe (ADMIN_NOTIFICATION_EMAIL, adresses séparées par des
+/// virgules). Sans destinataire configuré, ne fait rien. Non bloquant.
+function sendAdminNotification({ subject, text }) {
+  const recipients = String(process.env.ADMIN_NOTIFICATION_EMAIL || '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+  if (recipients.length === 0) return;
+  setImmediate(() => {
+    sendEmail({ to: recipients.join(','), subject, text })
+      .catch((err) => console.error('[email] Notification admin impossible', { message: err?.message }));
+  });
+}
+
 module.exports = {
   EMAIL_PROVIDERS,
+  sendAdminNotification,
   emailConfig,
   brevoConfig,
   preferredProvider,

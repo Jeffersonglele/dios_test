@@ -5,6 +5,8 @@ const { authenticate } = require('../middlware/auth.middleware');
 const { authorize } = require('../middlware/authorization.middleware');
 const { createResourceRouter } = require('./resource.routes');
 
+const { requireVerifiedCourier } = require('../services/courier.service');
+
 const router = express.Router();
 const adminOnly = [authenticate, authorize('ADMIN')];
 
@@ -14,18 +16,18 @@ router.post('/delivery/quote', authenticate, delivery.quote);
 router.patch('/addresses/:addressId/location', authenticate, delivery.updateAddressLocation);
 router.patch('/restaurants/:restaurantId/location', authenticate, authorize('RESTAURATEUR'), delivery.updateRestaurantLocation);
 router.patch('/cities/:cityId/boundary', authenticate, authorize('ADMIN'), delivery.updateCityBoundary);
-router.patch('/couriers/me/availability', authenticate, authorize('LIVREUR'), delivery.updateCourierAvailability);
+router.patch('/couriers/me/availability', authenticate, authorize('LIVREUR'), requireVerifiedCourier({ allowGoingOffline: true }), delivery.updateCourierAvailability);
 router.post('/couriers/me/location', authenticate, authorize('LIVREUR'), delivery.updateCourierLocation);
 router.get('/couriers/me/offers', authenticate, authorize('LIVREUR'), delivery.listCourierOffers);
 router.get('/couriers/me/deliveries', authenticate, authorize('LIVREUR'), delivery.listCourierDeliveries);
 router.get('/couriers/me/earnings', authenticate, authorize('LIVREUR'), delivery.getCourierEarnings);
-router.post('/delivery-offers/:id/accept', authenticate, authorize('LIVREUR'), delivery.acceptDeliveryOffer);
+router.post('/delivery-offers/:id/accept', authenticate, authorize('LIVREUR'), requireVerifiedCourier(), delivery.acceptDeliveryOffer);
 router.post('/delivery-offers/:id/reject', authenticate, authorize('LIVREUR'), delivery.rejectDeliveryOffer);
 router.patch('/deliveries/:id/status', authenticate, authorize('LIVREUR'), delivery.updateDeliveryStatus);
 router.post('/deliveries/:orderId/arrive', authenticate, authorize('LIVREUR'), delivery.driverArrived);
 router.post('/deliveries/:orderId/client-unreachable', authenticate, authorize('LIVREUR'), delivery.clientUnreachable);
-router.get('/deliveries/available', authenticate, authorize('LIVREUR'), delivery.listAvailableDeliveries);
-router.post('/deliveries/:orderId/accept', authenticate, authorize('LIVREUR'), delivery.acceptOrder);
+router.get('/deliveries/available', authenticate, authorize('LIVREUR'), requireVerifiedCourier(), delivery.listAvailableDeliveries);
+router.post('/deliveries/:orderId/accept', authenticate, authorize('LIVREUR'), requireVerifiedCourier(), delivery.acceptOrder);
 router.use('/cities', createResourceRouter(delivery.city, { writeMiddlewares: adminOnly, removeMiddlewares: adminOnly }));
 router.use('/delivery-zones', createResourceRouter(delivery.zone, { writeMiddlewares: adminOnly, removeMiddlewares: adminOnly }));
 router.use('/delivery-configs', createResourceRouter(delivery.config, {

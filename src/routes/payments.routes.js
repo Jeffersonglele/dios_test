@@ -2,7 +2,7 @@ const express = require('express');
 
 const { payments } = require('../controllers');
 const nyole = require('../controllers/nyole.controller');
-const { authenticate } = require('../middlware/auth.middleware');
+const { authenticate, optionalAuthenticate } = require('../middlware/auth.middleware');
 const { authorize } = require('../middlware/authorization.middleware');
 const { validate, validators } = require('../middlware/validation.middleware');
 const { createResourceRouter } = require('./resource.routes');
@@ -19,10 +19,12 @@ router.get('/payments/nyole/:transactionId', authenticate, nyole.getPayment);
 router.post('/payments/nyole/test/:transactionId/confirm', authenticate, nyole.sandboxConfirm);
 router.post('/orders/:id/cash-collection', authenticate, authorize('LIVREUR'), validate(validators.id), payments.confirmCashCollection);
 
-router.post('/promo-codes/validate', payments.promoCode.validate);
+// Vérification d'un code depuis le panier (client connecté : usage unique vérifié).
+router.post('/promo-codes/validate', optionalAuthenticate, payments.promoCode.validate);
 router.patch('/transactions/:id/status', authenticate, validate(validators.id), payments.transaction.updateStatus);
 router.use('/payment-methods', createResourceRouter(payments.paymentMethod, { readMiddlewares: [authenticate] }));
 router.use('/transactions', createResourceRouter(payments.transaction, { readMiddlewares: [authenticate] }));
-router.use('/promo-codes', createResourceRouter(payments.promoCode));
+// La gestion des codes promo (liste, création…) est dans promotions.routes,
+// réservée à l'admin.
 
 module.exports = router;

@@ -109,6 +109,10 @@ model User {
   ageConfirmed        Boolean                               @default(false)
   mustChangePassword  Boolean                               @default(false)
   maxDeliveryDistance Float?                                @map("max_delivery_distance")
+  /// Véhicule du livreur : moto, velo ou voiture.
+  vehicleType         String?                               @map("vehicle_type")
+  /// Plaque d'immatriculation (moto, voiture), affichée au client et au restaurant.
+  vehiclePlate        String?                               @map("vehicle_plate")
   isSimplified        Boolean                               @default(false)
   cashDebtAmount      Decimal                               @default(0) @db.Decimal(14, 2)
   cashOnHand          Decimal                               @default(0) @db.Decimal(14, 2)
@@ -302,6 +306,10 @@ model Identity {
   userId          Int?
   identityFileUrl String?   @map("piece_identite")
   photoUrl        String?   @map("photo")
+  /// Permis de conduire (non exigé à vélo).
+  licenseUrl      String?   @map("license_url")
+  vehicleType     String?   @map("vehicle_type")
+  vehiclePlate    String?   @map("vehicle_plate")
   status          String?
   remark          String?
   deletedAt       DateTime?
