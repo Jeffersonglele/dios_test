@@ -6,6 +6,7 @@ const { badRequest, handleControllerError, notFound, pagination, pick, sendPage 
 const { startDispatchForOrder } = require('../services/delivery-dispatch.service');
 const { quoteDelivery, resolveRestaurantLocation, configurationForCity } = require('../services/delivery-pricing.service');
 const { broadcastDeliveryStatus } = require('../sockets/socket.manager');
+const { ensureWalletForUser } = require('../services/wallet.service');
 
 /**
  * Vérifie si une chaîne ressemble à un UUID valide (format avec tirets, 36 caractères)
@@ -362,9 +363,36 @@ async function getOrderDetails(req, res, next) {
       },
     });
     if (!order) throw notFound('Commande');
+
+    // Accès réservé aux acteurs de la commande. Le code de remise (OTP) est
+    // la preuve de livraison : seul le client (et l'admin) peut le voir.
+    const userId = Number(req.auth.userId);
+    const isAdmin = hasRole('ADMIN', req.auth.roleId);
+    const isCustomer = Number(order.userId) === userId;
+    let isRestaurantOwner = Number(order.restaurateurId) === userId;
+    if (!isRestaurantOwner && !isAdmin && !isCustomer) {
+      const restaurant = await prisma.restaurant.findFirst({
+        where: { restaurantId: order.restaurantId, deletedAt: null },
+        select: { userId: true },
+      });
+      isRestaurantOwner = Number(restaurant?.userId) === userId;
+    }
+    let isDeliverer = Number(order.delivererId) === userId;
+    if (!isDeliverer && !isAdmin && !isCustomer && !isRestaurantOwner) {
+      const delivery = await prisma.delivery.findFirst({
+        where: { orderId: order.orderId, delivererId: userId },
+        select: { id: true },
+      });
+      isDeliverer = Boolean(delivery);
+    }
+    if (!isAdmin && !isCustomer && !isRestaurantOwner && !isDeliverer) throw notFound('Commande');
+
+    const visibleOrder = (isCustomer || isAdmin) ? order : { ...order, retrievalOtp: null };
     const lines = await prisma.orderLine.findMany({ where: { orderId: String(order.orderId), deletedAt: null } });
-    const transactions = await prisma.transaction.findMany({ where: { orderId: order.orderId, deletedAt: null } });
-    return res.status(200).json({ data: { order, lines, transactions } });
+    const transactions = (isCustomer || isAdmin || isRestaurantOwner)
+      ? await prisma.transaction.findMany({ where: { orderId: order.orderId, deletedAt: null } })
+      : [];
+    return res.status(200).json({ data: { order: visibleOrder, lines, transactions } });
   } catch (error) {
     return handleControllerError(error, next);
   }
@@ -445,6 +473,83 @@ async function listOrders(req, res, next) {
   }
 }
 
+// ── Cycle de vie d'une commande (cahier des charges §4) ──────────────
+// Avant le début de la préparation : le client peut annuler sans pénalité
+// et une commande déjà payée est remboursée intégralement.
+const PRE_KITCHEN_STATUSES = ['PENDING', 'WAITING_PAYMENT', 'AWAITING_PAYMENT', 'CONFIRMED_CASH', 'PAID', 'PAYEE'];
+// Le restaurant ne commence à cuisiner qu'une commande réglée ou en espèces.
+const ACCEPTABLE_STATUSES = ['PENDING', 'CONFIRMED_CASH', 'PAID', 'PAYEE', 'CONFIRMED'];
+const PREPARING_STATUSES = ['EN_PREPARATION', 'PREPARING', 'CONFIRMED'];
+// Le restaurant peut refuser (rupture, saturation) jusqu'à ce que ce soit prêt.
+const REFUSABLE_STATUSES = [...PRE_KITCHEN_STATUSES, 'CONFIRMED', 'EN_PREPARATION', 'PREPARING'];
+const PAID_STATUSES = ['PAID', 'PAYEE'];
+
+/// La commande a-t-elle déjà été encaissée en ligne (portefeuille ou Nyole) ?
+function isPaidOnline(order) {
+  const provider = String(order.paymentProvider || '').toUpperCase();
+  const status = String(order.status || '').toUpperCase();
+  if (provider === 'WALLET') return true;
+  return provider === 'NYOLE' && PAID_STATUSES.includes(status);
+}
+
+/// Rembourse une commande payée en ligne sous forme d'avoir portefeuille
+/// (politique d'indemnisation du cahier des charges : Nyole n'a pas d'API
+/// de remboursement). Idempotent : une seule écriture par commande.
+async function refundOrderToWallet(tx, order, reason) {
+  const amount = Number(order.totalAmount || 0);
+  if (!(amount > 0)) return null;
+  const orderCurrency = String(order.currency || 'CDF').toUpperCase();
+  let wallet = await ensureWalletForUser(order.userId, tx);
+  if (String(wallet.currency).toUpperCase() !== orderCurrency) {
+    if (Number(wallet.balance || 0) !== 0) {
+      const error = new Error('Remboursement impossible automatiquement (devise du portefeuille différente). Contactez le support.');
+      error.statusCode = 409;
+      throw error;
+    }
+    wallet = await tx.walletAccount.update({ where: { id: wallet.id }, data: { currency: orderCurrency } });
+  }
+  const referenceId = String(order.orderId);
+  const already = await tx.walletLedgerEntry.findFirst({
+    where: { walletAccountId: wallet.id, referenceType: 'ORDER_REFUND', referenceId, direction: 'CREDIT' },
+  });
+  if (already) return { amount: Number(already.amount), currency: already.currency, alreadyRefunded: true };
+
+  await tx.walletLedgerEntry.create({
+    data: {
+      walletAccountId: wallet.id,
+      direction: 'CREDIT',
+      amount,
+      currency: orderCurrency,
+      status: 'COMPLETED',
+      referenceType: 'ORDER_REFUND',
+      referenceId,
+      description: `Remboursement commande #${order.orderId} (${reason})`,
+      postedAt: new Date(),
+    },
+  });
+  await tx.walletAccount.update({ where: { id: wallet.id }, data: { balance: { increment: amount } } });
+  await tx.transaction.updateMany({
+    where: { orderId: order.orderId, status: { in: ['PAID', 'COMPLETED'] }, deletedAt: null },
+    data: { settlementStatus: 'REFUNDED_TO_WALLET' },
+  });
+  return { amount, currency: orderCurrency, alreadyRefunded: false };
+}
+
+/// Effets financiers d'une annulation / d'un refus, dans la transaction SQL.
+async function settleCancelledOrder(tx, order, reason) {
+  if (isPaidOnline(order)) return refundOrderToWallet(tx, order, reason);
+  // Rien n'a été encaissé : on clôt les encaissements en attente.
+  await tx.transaction.updateMany({
+    where: {
+      orderId: order.orderId,
+      status: { in: ['INITIATED', 'PENDING', 'PENDING_CASH_COLLECTION'] },
+      deletedAt: null,
+    },
+    data: { status: 'CANCELLED', settlementStatus: 'CANCELLED' },
+  });
+  return null;
+}
+
 async function updateOrderStatus(req, res, next) {
   try {
     const orderId = req.params.id;
@@ -460,30 +565,66 @@ async function updateOrderStatus(req, res, next) {
     });
     if (!order) throw notFound('Commande');
     if (!req.body.status) throw badRequest('Le statut est obligatoire.');
-    const requestedStatus = String(req.body.status).toUpperCase();
+    let requestedStatus = String(req.body.status).toUpperCase();
+    if (requestedStatus === 'CANCELED') requestedStatus = 'CANCELLED';
+    if (requestedStatus === 'PRETE') requestedStatus = 'READY';
+    const currentStatus = String(order.status || '').toUpperCase();
+
     const isAdmin = hasRole('ADMIN', req.auth.roleId);
     const restaurant = await prisma.restaurant.findFirst({ where: { restaurantId: order.restaurantId, deletedAt: null } });
     const isRestaurantOwner = Number(restaurant?.userId) === Number(req.auth.userId);
     const isCustomer = Number(order.userId) === Number(req.auth.userId);
-    const restaurantWorkflowStatuses = ['EN_PREPARATION', 'PRETE', 'READY', 'REFUSED'];
-    const restaurantDispatchStatuses = ['PRETE', 'READY'];
-    const customerCancellationStatuses = ['CANCELLED', 'CANCELED'];
-    if (!isAdmin
-      && !(isRestaurantOwner && restaurantWorkflowStatuses.includes(requestedStatus))
-      && !(isCustomer && customerCancellationStatuses.includes(requestedStatus) && ['PENDING', 'WAITING_PAYMENT'].includes(String(order.status).toUpperCase()))) {
+
+    // Transitions autorisées selon le rôle et l'étape actuelle.
+    const restaurantTransitions = {
+      EN_PREPARATION: ACCEPTABLE_STATUSES,
+      READY: PREPARING_STATUSES,
+      REFUSED: REFUSABLE_STATUSES,
+    };
+    const restaurantAllowed = isRestaurantOwner
+      && (restaurantTransitions[requestedStatus] || []).includes(currentStatus);
+    const customerAllowed = isCustomer
+      && requestedStatus === 'CANCELLED'
+      && PRE_KITCHEN_STATUSES.includes(currentStatus);
+
+    if (!isAdmin && !restaurantAllowed && !customerAllowed) {
+      if (isCustomer && requestedStatus === 'CANCELLED') {
+        throw badRequest('La préparation a commencé : la commande ne peut plus être annulée.');
+      }
+      if (isRestaurantOwner && requestedStatus === 'EN_PREPARATION' && ['AWAITING_PAYMENT', 'WAITING_PAYMENT'].includes(currentStatus)) {
+        throw badRequest('Paiement Mobile Money pas encore confirmé : attendez avant de préparer.');
+      }
       throw badRequest('Vous ne pouvez pas appliquer ce statut à cette commande.');
     }
-    const updated = await prisma.order.update({
-      where: { id: order.id },
-      data: {
-        status: requestedStatus,
-        orderStatus: req.body.orderStatus || requestedStatus,
-        deliveryStatus: req.body.deliveryStatus,
-        ...(isAdmin ? { delivererId: req.body.delivererId, delivererName: req.body.delivererName } : {}),
-      },
+
+    const isCancellation = requestedStatus === 'CANCELLED' || requestedStatus === 'REFUSED';
+    const { updated, refund } = await prisma.$transaction(async (tx) => {
+      // Garde optimiste : le statut n'a pas changé entre la lecture et l'écriture.
+      const claimed = await tx.order.updateMany({
+        where: { id: order.id, status: order.status },
+        data: {
+          status: requestedStatus,
+          orderStatus: req.body.orderStatus || requestedStatus,
+          deliveryStatus: req.body.deliveryStatus,
+          ...(isAdmin ? { delivererId: req.body.delivererId, delivererName: req.body.delivererName } : {}),
+        },
+      });
+      if (claimed.count === 0) {
+        const error = new Error('La commande vient d’être modifiée. Rafraîchissez et réessayez.');
+        error.statusCode = 409;
+        throw error;
+      }
+      const refundResult = isCancellation
+        ? await settleCancelledOrder(tx, order, requestedStatus === 'REFUSED' ? 'refus du restaurant' : 'annulation client')
+        : null;
+      return {
+        updated: await tx.order.findUnique({ where: { id: order.id } }),
+        refund: refundResult,
+      };
     });
+
     let delivery = null;
-    if (restaurantDispatchStatuses.includes(requestedStatus) && updated.deliveryMode === 'DELIVERY') {
+    if (requestedStatus === 'READY' && updated.deliveryMode === 'DELIVERY') {
       const dispatched = await startDispatchForOrder(updated);
       delivery = dispatched.delivery;
     }
@@ -496,7 +637,7 @@ async function updateOrderStatus(req, res, next) {
         extra: { orderStatus: updated.orderStatus, status: updated.status },
       });
     }
-    return res.status(200).json({ data: { order: updated, delivery } });
+    return res.status(200).json({ data: { order: updated, delivery, refund } });
   } catch (error) {
     return handleControllerError(error, next);
   }
