@@ -26,6 +26,162 @@ function paymentPayload(transaction) {
   };
 }
 
+// ── Recharge du portefeuille ─────────────────────────────────
+// Une recharge n'est liée à aucune commande : la colonne commande_id
+// (obligatoire) reçoit 0 et le type est porté par providerData.kind.
+const WALLET_TOPUP_ORDER_ID = 0;
+
+/// Bornes par devise, surchargeables par variables d'environnement
+/// (WALLET_TOPUP_MIN_CDF, WALLET_TOPUP_MAX_USD…).
+const WALLET_TOPUP_DEFAULT_LIMITS = {
+  CDF: { min: 1000, max: 2000000 },
+  USD: { min: 1, max: 1000 },
+};
+
+function walletTopUpLimits(currency) {
+  const defaults = WALLET_TOPUP_DEFAULT_LIMITS[currency] || { min: 1, max: 1000000 };
+  const fromEnv = (name, fallback) => {
+    const value = Number(process.env[`WALLET_TOPUP_${name}_${currency}`]);
+    return Number.isFinite(value) && value > 0 ? value : fallback;
+  };
+  return { min: fromEnv('MIN', defaults.min), max: fromEnv('MAX', defaults.max) };
+}
+
+/// Crédite le portefeuille d'une recharge payée. Appelée dans la même
+/// transaction SQL que le passage à PAID ; la contrainte unique du grand
+/// livre empêche tout double crédit pour une même transaction.
+async function creditWalletTopUp(tx, transaction) {
+  const data = transaction.providerData || {};
+  const wallet = await tx.walletAccount.findUnique({ where: { id: data.walletAccountId } });
+  if (!wallet) throw notFound('Portefeuille');
+  const amount = Number(transaction.amount);
+  await tx.walletLedgerEntry.create({
+    data: {
+      walletAccountId: wallet.id,
+      direction: 'CREDIT',
+      amount,
+      currency: transaction.currency || wallet.currency,
+      status: 'COMPLETED',
+      referenceType: 'TOP_UP',
+      referenceId: transaction.transactionId,
+      description: 'Recharge Mobile Money',
+      postedAt: new Date(),
+    },
+  });
+  await tx.walletAccount.update({
+    where: { id: wallet.id },
+    data: { balance: { increment: amount } },
+  });
+}
+
+/// Vérifie que la transaction appartient à l'utilisateur connecté
+/// (commande, pourboire ou recharge de portefeuille).
+async function assertTransactionOwner(transaction, userId) {
+  if (transaction.providerData?.kind === 'TOP_UP') {
+    if (Number(transaction.providerData?.userId) !== Number(userId)) throw notFound('Transaction');
+    return;
+  }
+  const order = await prisma.order.findFirst({ where: { orderId: transaction.orderId, userId, deletedAt: null } });
+  if (!order) throw notFound('Transaction');
+}
+
+/// POST /wallet/top-ups { amount, currency? }
+/// Crée une session Nyole ; le portefeuille n'est crédité qu'à la
+/// confirmation serveur (webhook ou vérification de statut).
+async function initializeWalletTopUp(req, res, next) {
+  try {
+    const userId = req.auth.userId;
+    let wallet = await prisma.walletAccount.findUnique({ where: { userId } });
+    if (!wallet) {
+      wallet = await prisma.walletAccount.create({ data: { userId, currency: 'CDF', balance: 0, status: 'ACTIVE' } });
+    }
+    if (wallet.status !== 'ACTIVE') throw badRequest('Portefeuille inactif. Contactez le support.');
+
+    const requestedCurrency = String(req.body.currency || wallet.currency || 'CDF').trim().toUpperCase();
+    if (!WALLET_TOPUP_DEFAULT_LIMITS[requestedCurrency]) {
+      throw badRequest('Devise de recharge non prise en charge (CDF ou USD).');
+    }
+    if (requestedCurrency !== String(wallet.currency).toUpperCase()) {
+      // Même règle que pour les commandes : la devise ne change que si le
+      // portefeuille est vide, pour ne jamais mélanger deux devises.
+      if (Number(wallet.balance || 0) !== 0) {
+        throw badRequest(`Votre portefeuille est en ${wallet.currency} : rechargez dans cette devise.`);
+      }
+      wallet = await prisma.walletAccount.update({ where: { id: wallet.id }, data: { currency: requestedCurrency } });
+    }
+
+    const amount = Number(req.body.amount);
+    const { min, max } = walletTopUpLimits(requestedCurrency);
+    if (!Number.isInteger(amount) || amount < min || amount > max) {
+      throw badRequest(`Le montant doit être un nombre entier entre ${min} et ${max} ${requestedCurrency}.`);
+    }
+
+    const transactionId = `DD-TOPUP-${userId}-${randomUUID().replace(/-/g, '')}`;
+    const created = await prisma.transaction.create({
+      data: {
+        transactionId,
+        orderId: WALLET_TOPUP_ORDER_ID,
+        provider: 'nyole',
+        amount,
+        currency: requestedCurrency,
+        status: 'INITIATED',
+        paymentMethod: 'NYOLE',
+        commissionRate: 0,
+        commissionAmount: 0,
+        settlementStatus: 'PENDING',
+        providerData: {
+          mode: process.env.NYOLE_MODE === 'live' ? 'live' : 'test',
+          kind: 'TOP_UP',
+          userId,
+          walletAccountId: wallet.id,
+        },
+      },
+    });
+
+    const user = await prisma.user.findFirst({ where: { userId, deletedAt: null } });
+    let gateway;
+    try {
+      gateway = await initiatePayment({
+        transactionId,
+        amount,
+        currency: requestedCurrency,
+        description: 'Recharge portefeuille Dios Delices',
+        customer: {
+          name: [user?.firstname, user?.lastname].filter(Boolean).join(' '),
+          email: user?.email,
+          phone: user?.telephoneE164 || user?.telephone,
+        },
+        metadata: { kind: 'TOP_UP', user_id: String(userId), wallet_id: wallet.id },
+      });
+    } catch (error) {
+      await prisma.transaction.update({
+        where: { id: created.id },
+        data: { status: 'FAILED', providerData: { ...(created.providerData || {}), initiationError: error.message } },
+      });
+      throw error;
+    }
+
+    const transaction = await prisma.transaction.update({
+      where: { id: created.id },
+      data: {
+        status: gateway.status,
+        providerRef: gateway.providerRef,
+        providerData: {
+          ...(created.providerData || {}),
+          mode: gateway.mode,
+          livemode: gateway.livemode,
+          paymentUrl: gateway.paymentUrl,
+          providerOrderId: gateway.providerOrderId,
+          session: gateway.raw,
+        },
+      },
+    });
+    return res.status(201).json({ data: paymentPayload(transaction) });
+  } catch (error) {
+    return handleControllerError(error, next);
+  }
+}
+
 async function findOwnedOrder(orderUuid, userId) {
   const order = await prisma.order.findFirst({ where: { id: orderUuid, userId, deletedAt: null } });
   if (!order) throw notFound('Commande');
@@ -63,17 +219,24 @@ async function finalizeTransaction(externalId) {
     return prisma.$transaction(async (tx) => {
       const current = await tx.transaction.findUnique({ where: { id: transaction.id } });
       if (current.status === 'PAID') return { transaction: current, idempotent: true };
-      const paidTransaction = await tx.transaction.update({
-        where: { id: current.id },
+      // Passage à PAID conditionnel : si deux webhooks arrivent en même
+      // temps, un seul « gagne » et applique les effets (crédit, statut).
+      const claimed = await tx.transaction.updateMany({
+        where: { id: current.id, status: { not: 'PAID' } },
         data: {
           status: 'PAID',
           providerRef: verification.providerRef || current.providerRef,
           providerData,
-          settlementStatus: 'PENDING_PAYOUT',
+          settlementStatus: current.providerData?.kind === 'TOP_UP' ? 'SETTLED' : 'PENDING_PAYOUT',
           settledAt: new Date(),
         },
       });
-      if (current.providerData?.kind === 'TIP') {
+      const paidTransaction = await tx.transaction.findUnique({ where: { id: current.id } });
+      if (claimed.count === 0) return { transaction: paidTransaction, idempotent: true };
+
+      if (current.providerData?.kind === 'TOP_UP') {
+        await creditWalletTopUp(tx, paidTransaction);
+      } else if (current.providerData?.kind === 'TIP') {
         await tx.tip.updateMany({
           where: { transactionId: current.transactionId, status: 'PENDING' },
           data: { status: 'PAID', paidAt: new Date(), paymentMethod: 'NYOLE' },
@@ -349,8 +512,7 @@ async function getPayment(req, res, next) {
   try {
     const transaction = await prisma.transaction.findUnique({ where: { transactionId: req.params.transactionId } });
     if (!transaction) throw notFound('Transaction');
-    const order = await prisma.order.findFirst({ where: { orderId: transaction.orderId, userId: req.auth.userId, deletedAt: null } });
-    if (!order) throw notFound('Transaction');
+    await assertTransactionOwner(transaction, req.auth.userId);
     const resolved = ['PAID', 'FAILED', 'CANCELLED'].includes(String(transaction.status).toUpperCase())
       ? { transaction }
       : await finalizeTransaction(transaction.providerRef);
@@ -405,8 +567,7 @@ async function sandboxConfirm(req, res, next) {
   try {
     const transaction = await prisma.transaction.findUnique({ where: { transactionId: req.params.transactionId } });
     if (!transaction || transaction.provider !== 'nyole') throw notFound('Transaction');
-    const order = await prisma.order.findFirst({ where: { orderId: transaction.orderId, userId: req.auth.userId, deletedAt: null } });
-    if (!order) throw notFound('Transaction');
+    await assertTransactionOwner(transaction, req.auth.userId);
     await confirmSandbox(transaction.providerRef, req.body.success === false ? 'echec' : 'succes');
     const result = await finalizeTransaction(transaction.providerRef);
     return res.status(200).json({ data: { ...paymentPayload(result.transaction), idempotent: result.idempotent } });
@@ -420,4 +581,12 @@ function paymentReturn(req, res) {
   return res.status(200).type('html').send(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Paiement Dios Delices</title></head><body><main><h1>Paiement ${title}</h1><p>Vous pouvez revenir dans Dios Delices. La commande ne sera confirmée qu’après vérification côté serveur.</p></main></body></html>`);
 }
 
-module.exports = { getPayment, initialize, initializeTip, paymentReturn, sandboxConfirm, webhook };
+module.exports = {
+  getPayment,
+  initialize,
+  initializeTip,
+  initializeWalletTopUp,
+  paymentReturn,
+  sandboxConfirm,
+  webhook,
+};

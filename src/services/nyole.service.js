@@ -66,7 +66,7 @@ function providerError(error, fallback) {
   return wrapped;
 }
 
-async function initiatePayment({ transactionId, amount, currency, customer, metadata = {}, restaurant, delivery }) {
+async function initiatePayment({ transactionId, amount, currency, customer, metadata = {}, restaurant, delivery, description }) {
   const config = configuration();
   const livemode = config.mode === 'live';
   const customerPhone = String(customer?.phone || '').replace(/[^\d+]/g, '') || undefined;
@@ -95,7 +95,7 @@ async function initiatePayment({ transactionId, amount, currency, customer, meta
     customer_name: customer?.name || 'Client Dios Delices',
     customer_email: customer?.email || undefined,
     customer_phone: customerPhone,
-    description: `Commande Dios Delices ${transactionId}`,
+    description: description || `Commande Dios Delices ${transactionId}`,
     success_url: config.successUrl,
     cancel_url: config.cancelUrl,
     metadata: metadataFields,
@@ -126,10 +126,13 @@ async function initiatePayment({ transactionId, amount, currency, customer, meta
     const responseMessage = responseData?.error || responseData?.message || responseData?.description || '';
     const nyoleMessage = typeof responseMessage === 'string' ? responseMessage : '';
     const raw = JSON.stringify(responseData || '');
-    const missingRestaurantLocation = !restaurant
+    // Une recharge de portefeuille n'a ni restaurant ni livraison :
+    // l'indice sur les coordonnées n'a de sens que pour une commande.
+    const isOrderPayment = Boolean(restaurant || delivery);
+    const missingRestaurantLocation = isOrderPayment && (!restaurant
       || !Number.isFinite(Number(restaurant?.latitude))
-      || !Number.isFinite(Number(restaurant?.longitude));
-    const hint = missingRestaurantLocation
+      || !Number.isFinite(Number(restaurant?.longitude)));
+    const hint = !isOrderPayment ? '' : missingRestaurantLocation
       ? " — le restaurant n'a pas de coordonnées GPS valides dans la base (latitude/longitude)."
       : ` — coordonnées restaurant (${restaurant?.latitude}, ${restaurant?.longitude}) et livraison (${delivery?.latitude}, ${delivery?.longitude}) envoyées.`;
     const fallback = `Nyole a refusé la création de la session de paiement${hint}`;

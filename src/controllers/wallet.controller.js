@@ -71,74 +71,12 @@ async function walletLedger(req, res, next) {
   }
 }
 
-async function requestTopUp(req, res, next) {
-  const error = new Error('Le portefeuille Dios Delices est désactivé tant que le partenaire de paiement et le cadre RDC ne sont pas validés.');
-  error.statusCode = 503;
-  return next(error);
-}
-
+/// Ancienne recharge : créditait le solde sans aucun paiement réel.
+/// Désactivée ; la recharge passe par POST /wallet/top-ups (Nyole).
 async function topUpWallet(req, res, next) {
-  try {
-    const { amount, referenceId } = req.body;
-    const userId = req.auth.userId;
-
-    if (!amount || !Number.isFinite(amount) || amount <= 0) {
-      throw badRequest('Le montant doit être strictement positif');
-    }
-    if (!referenceId || typeof referenceId !== 'string' || referenceId.trim() === '') {
-      throw badRequest('referenceId est obligatoire');
-    }
-
-    const result = await prisma.$transaction(async (tx) => {
-      let wallet = await tx.walletAccount.findUnique({ where: { userId } });
-
-      if (!wallet) {
-        wallet = await tx.walletAccount.create({
-          data: {
-            userId,
-            currency: 'CDF',
-            balance: 0,
-            status: 'ACTIVE',
-          },
-        });
-      }
-
-      const ledgerEntry = await tx.walletLedgerEntry.create({
-        data: {
-          walletAccountId: wallet.id,
-          direction: 'CREDIT',
-          amount: Number(amount),
-          currency: wallet.currency,
-          status: 'COMPLETED',
-          referenceType: 'TOP_UP',
-          referenceId: referenceId.trim(),
-          description: 'Recharge de portefeuille',
-          postedAt: new Date(),
-        },
-      });
-
-      const updatedWallet = await tx.walletAccount.update({
-        where: { id: wallet.id },
-        data: {
-          balance: {
-            increment: Number(amount),
-          },
-        },
-      });
-
-      return { wallet: updatedWallet, ledgerEntry };
-    });
-
-    return res.status(200).json({
-      data: {
-        wallet: result.wallet,
-        ledgerEntry: result.ledgerEntry,
-        newBalance: Number(result.wallet.balance),
-      },
-    });
-  } catch (error) {
-    return handleControllerError(error, next);
-  }
+  const error = new Error('Cette recharge n’est plus disponible. Utilisez la recharge Mobile Money (POST /wallet/top-ups).');
+  error.statusCode = 410;
+  return next(error);
 }
 
 async function listMobileMoneyAccounts(req, res, next) {
@@ -206,7 +144,6 @@ module.exports = {
   createMobileMoneyAccount,
   listMobileMoneyAccounts,
   removeMobileMoneyAccount,
-  requestTopUp,
   setDefaultMobileMoneyAccount,
   topUpWallet,
   walletLedger,
