@@ -247,12 +247,22 @@ model Comment {
   target        Int?
   targetId      Int?
   description   String?
+  /// Note de 1 à 5 donnée par le client.
+  rating        Int?
+  /// Étiquettes choisies (« Rapide », « Bien emballé »…).
+  tags          Json?
+  /// Commande à l'origine de l'avis (un avis par commande et par cible).
+  orderId       Int?
+  /// Pseudo affiché avec l'avis.
+  username      String?
   deletedAt     DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
+  @@unique([userId, target, targetId, orderId])
   @@index([target, targetId])
   @@index([userId])
+  @@index([orderId])
   @@map("comments")
 }
 

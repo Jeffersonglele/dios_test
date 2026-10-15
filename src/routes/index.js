@@ -16,6 +16,7 @@ const wallet = require('./wallet.routes');
 const admin = require('./admin.routes');
 const chat = require('./chat.routes');
 const promotions = require('./promotions.routes');
+const reviews = require('./reviews.routes');
 const config = require('./config.routes');
 
 const router = express.Router();
@@ -34,6 +35,7 @@ router.use('/geocoding', geocoding);
 router.use('/', verification);
 router.use('/', communication);
 router.use('/chat', chat);
+router.use('/reviews', reviews);
 router.use('/', operations);
 router.use('/', wallet);
 router.use('/admin', admin);
