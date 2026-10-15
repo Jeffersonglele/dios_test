@@ -10,6 +10,7 @@ const {
   verifyWebhookSignature,
 } = require('../services/nyole.service');
 const { badRequest, handleControllerError, notFound } = require('./controller.utils');
+const { ensureWalletForUser } = require('../services/wallet.service');
 
 function paymentPayload(transaction) {
   const data = transaction.providerData || {};
@@ -36,6 +37,7 @@ const WALLET_TOPUP_ORDER_ID = 0;
 const WALLET_TOPUP_DEFAULT_LIMITS = {
   CDF: { min: 1000, max: 2000000 },
   USD: { min: 1, max: 1000 },
+  XOF: { min: 500, max: 500000 },
 };
 
 function walletTopUpLimits(currency) {
@@ -91,15 +93,12 @@ async function assertTransactionOwner(transaction, userId) {
 async function initializeWalletTopUp(req, res, next) {
   try {
     const userId = req.auth.userId;
-    let wallet = await prisma.walletAccount.findUnique({ where: { userId } });
-    if (!wallet) {
-      wallet = await prisma.walletAccount.create({ data: { userId, currency: 'CDF', balance: 0, status: 'ACTIVE' } });
-    }
+    let wallet = await ensureWalletForUser(userId);
     if (wallet.status !== 'ACTIVE') throw badRequest('Portefeuille inactif. Contactez le support.');
 
     const requestedCurrency = String(req.body.currency || wallet.currency || 'CDF').trim().toUpperCase();
     if (!WALLET_TOPUP_DEFAULT_LIMITS[requestedCurrency]) {
-      throw badRequest('Devise de recharge non prise en charge (CDF ou USD).');
+      throw badRequest('Devise de recharge non prise en charge (CDF, USD ou XOF).');
     }
     if (requestedCurrency !== String(wallet.currency).toUpperCase()) {
       // Même règle que pour les commandes : la devise ne change que si le

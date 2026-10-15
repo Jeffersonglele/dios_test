@@ -67,7 +67,7 @@ router.post('/cart/calculate-shipping', optionalAuthenticate, async (req, res, n
       };
       pricingSource = 'RESTAURANT_FEE';
     } else {
-      config = await deliveryPricing.configurationForCity(restaurant.cityId || 1);
+      config = await deliveryPricing.configurationForCity(restaurant.cityId || 1, restaurant.country || restaurant.currency);
       pricingSource = config.source;
     }
 

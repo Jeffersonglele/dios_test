@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const { randomInt } = require('crypto');
 
 const prisma = require('../config/prisma');
+const { canonicalCountry, countryCode } = require('../services/country.service');
 const {
   sendPasswordResetCodeEmail,
   sendVerificationCodeEmail,
@@ -69,11 +70,39 @@ function resolveRegistrationRole(accountTypeInput) {
   return { roleId: defaultUserRoleId(), accountType: 'CLIENT' };
 }
 
-async function nextLegacyUserId(tx) {
-  const row = await (tx ?? prisma).user.aggregate({ _max: { userId: true } });
-  const currentMax = Number(row?._max?.userId ?? 0);
-  if (!Number.isFinite(currentMax) || currentMax < 0) return 1;
-  return currentMax + 1;
+/// Profil d'inscription nettoyé : pays canonique (« RDC », « Bénin ») et
+/// ville rattachée quand elle peut être déduite sans ambiguïté.
+async function registrationProfile(body, tx) {
+  const profileData = pick(body, REGISTRATION_FIELDS);
+  const { roleId, accountType } = resolveRegistrationRole(profileData.accountType);
+  profileData.accountType = accountType;
+
+  if (profileData.country !== undefined && profileData.country !== null && profileData.country !== '') {
+    const country = canonicalCountry(profileData.country);
+    if (!country) throw badRequest('Ce pays n’est pas encore ouvert sur Dios Délices.');
+    profileData.country = country;
+  }
+  profileData.cityId = await resolveRegistrationCityId(tx, profileData.country, profileData.cityId);
+  return { profileData, roleId };
+}
+
+/// Ville du compte : celle envoyée si elle existe et appartient au pays,
+/// sinon l'unique ville active du pays (ex. Cotonou). S'il y a plusieurs
+/// villes (RDC), elle reste vide et sera fixée par l'adresse du client.
+async function resolveRegistrationCityId(tx, country, requestedCityId) {
+  const code = countryCode(country);
+  const cityId = Number.parseInt(requestedCityId, 10);
+  if (Number.isInteger(cityId)) {
+    const city = await tx.city.findFirst({ where: { cityId, active: true, deletedAt: null } });
+    if (city && (!code || countryCode(city.countryCode) === code)) return city.cityId;
+  }
+  if (!code) return null;
+  const cities = await tx.city.findMany({
+    where: { countryCode: code, active: true, deletedAt: null },
+    select: { cityId: true },
+    take: 2,
+  });
+  return cities.length === 1 ? cities[0].cityId : null;
 }
 
 async function recoverOrphanedRegistration(existing, req, normalizedUsername, normalizedEmail, password) {
@@ -90,16 +119,11 @@ async function recoverOrphanedRegistration(existing, req, normalizedUsername, no
   // Un compte complet existe déjà : le 409 est le comportement attendu.
   if (linkedProfile && !linkedProfile.deletedAt) return null;
 
-  const profileData = pick(req.body, REGISTRATION_FIELDS);
   return prisma.$transaction(async (tx) => {
-    const userId = existing.legacyUserId || await nextLegacyUserId(tx);
-    const { roleId, accountType } = resolveRegistrationRole(profileData.accountType);
-    profileData.accountType = accountType;
-
+    const { profileData, roleId } = await registrationProfile(req.body, tx);
     const data = {
       ...profileData,
       roleId,
-      userId,
       username: normalizedUsername,
       email: normalizedEmail,
       // Le mot de passe existant a déjà été vérifié ci-dessus.
@@ -107,6 +131,8 @@ async function recoverOrphanedRegistration(existing, req, normalizedUsername, no
       deletedAt: null,
     };
 
+    // Nouveau profil : son userId vient de la séquence de « users », puis le
+    // compte d'authentification est explicitement relié à ce userId.
     const user = linkedProfile
       ? await tx.user.update({ where: { id: linkedProfile.id }, data })
       : await tx.user.create({ data });
@@ -116,7 +142,7 @@ async function recoverOrphanedRegistration(existing, req, normalizedUsername, no
       data: {
         username: normalizedUsername,
         email: normalizedEmail,
-        legacyUserId: userId,
+        legacyUserId: user.userId,
         deletedAt: null,
         firstname: profileData.firstname,
         lastname: profileData.lastname,
@@ -164,9 +190,20 @@ async function register(req, res, next) {
     const passwordHash = await bcrypt.hash(password, 12);
     const user = await prisma.$transaction(async (tx) => {
       // Role, verification and account status are server-controlled fields.
-      const profileData = pick(req.body, REGISTRATION_FIELDS);
-      const { roleId, accountType } = resolveRegistrationRole(profileData.accountType);
-      profileData.accountType = accountType;
+      const { profileData, roleId } = await registrationProfile(req.body, tx);
+
+      // Le profil est créé d'abord : le compte d'authentification reçoit
+      // ensuite SON userId. Auparavant les deux tables comptaient chacune de
+      // leur côté et un seul décalage reliait un compte au profil d'un autre.
+      const created = await tx.user.create({
+        data: {
+          ...profileData,
+          roleId,
+          username: normalizedUsername,
+          email: normalizedEmail,
+          password: passwordHash,
+        },
+      });
 
       await tx.authUser.create({
         data: {
@@ -179,19 +216,11 @@ async function register(req, res, next) {
           telephoneLocal: profileData.telephoneLocal,
           telephoneE164: profileData.telephoneE164,
           image: profileData.image,
+          legacyUserId: created.userId,
         },
       });
 
-      return tx.user.create({
-        data: {
-          ...profileData,
-          roleId,
-
-          username: normalizedUsername,
-          email: normalizedEmail,
-          password: passwordHash,
-        },
-      });
+      return created;
     });
 
     return res.status(201).json({ data: { user: serializeUser(user), token: issueToken(user) } });

@@ -1,4 +1,5 @@
 const prisma = require('../config/prisma');
+const { ensureWalletForUser } = require('../services/wallet.service');
 const { badRequest, handleControllerError, notFound, pagination, sendPage } = require('./controller.utils');
 
 const SUPPORTED_OPERATORS = new Set(['MPESA', 'ORANGE_MONEY', 'AIRTEL_MONEY']);
@@ -21,18 +22,7 @@ function normalizeOperator(value) {
 
 async function walletSummary(req, res, next) {
   try {
-    let wallet = await prisma.walletAccount.findUnique({ where: { userId: req.auth.userId } });
-
-    if (!wallet) {
-      wallet = await prisma.walletAccount.create({
-        data: {
-          userId: req.auth.userId,
-          currency: 'CDF',
-          balance: 0,
-          status: 'ACTIVE',
-        },
-      });
-    }
+    const wallet = await ensureWalletForUser(req.auth.userId);
 
     const ledgerEntries = await prisma.walletLedgerEntry.findMany({
       where: { walletAccountId: wallet.id },

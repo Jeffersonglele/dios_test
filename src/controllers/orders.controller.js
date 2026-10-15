@@ -154,7 +154,7 @@ async function createOrder(req, res, next) {
         deliveryFee = resDeliveryFee;
       } else {
         const addressCityId = deliveryAddress?.cityId != null ? Number(deliveryAddress.cityId) : null;
-        const fallbackCfg = await configurationForCity(addressCityId ?? null);
+        const fallbackCfg = await configurationForCity(addressCityId ?? null, restaurant.country || restaurant.currency);
         deliveryFee = Number(fallbackCfg?.baseFee || 0);
       }
     }
