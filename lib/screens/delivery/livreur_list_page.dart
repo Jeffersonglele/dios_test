@@ -1,11 +1,141 @@
-import 'package:dios_delices/models/commande.dart';
-import 'package:dios_delices/models/users.dart';
-import 'package:dios_delices/providers/data_version_notifier.dart';
+import 'package:dios_delices/l10n/app_localizations.dart';
+import 'package:dios_delices/services/node_admin_service.dart';
+import 'package:dios_delices/services/session_service.dart';
 import 'package:dios_delices/theme/app_theme.dart';
 import 'package:flutter/material.dart';
-import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
+
+import '../../widgets/courier_card.dart';
 import 'livreur_fiche_page.dart';
-import 'package:dios_delices/l10n/app_localizations.dart';
+
+/// Statut du dossier livreur renvoyé par GET /admin/couriers.
+enum CourierFileStatus { validated, pending, rejected, missing }
+
+CourierFileStatus courierFileStatusOf(Object? raw) {
+  switch (raw?.toString()) {
+    case 'validated':
+      return CourierFileStatus.validated;
+    case 'pending':
+      return CourierFileStatus.pending;
+    case 'rejected':
+      return CourierFileStatus.rejected;
+    default:
+      return CourierFileStatus.missing;
+  }
+}
+
+/// Pastille de statut du dossier (validé, à valider, refusé, sans dossier).
+class CourierFileStatusPill extends StatelessWidget {
+  const CourierFileStatusPill({super.key, required this.status});
+  final CourierFileStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final (Color color, IconData icon, String label) = switch (status) {
+      CourierFileStatus.validated => (
+          AppColors.resolve(AppColors.success, AppDarkColors.success),
+          Icons.verified_rounded,
+          l10n.courier_admin_validated
+        ),
+      CourierFileStatus.pending => (
+          AppColors.resolve(AppColors.accent, AppDarkColors.accent),
+          Icons.hourglass_top_rounded,
+          l10n.courier_admin_to_review
+        ),
+      CourierFileStatus.rejected => (
+          AppColors.resolve(AppColors.error, AppDarkColors.error),
+          Icons.block_rounded,
+          l10n.courier_admin_rejected
+        ),
+      CourierFileStatus.missing => (
+          AppColors.resolve(AppColors.inkSubtle, AppDarkColors.inkSubtle),
+          Icons.description_outlined,
+          l10n.courier_admin_no_file
+        ),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, size: 13, color: color),
+        const SizedBox(width: 4),
+        Text(label,
+            style: AppTypography.labelMedium(color: color)
+                .copyWith(fontSize: 11, fontWeight: FontWeight.w800)),
+      ]),
+    );
+  }
+}
+
+/// Photo du livreur avec la pastille « en ligne ».
+class CourierPhotoAvatar extends StatelessWidget {
+  const CourierPhotoAvatar({
+    super.key,
+    required this.photoUrl,
+    required this.initials,
+    this.online = false,
+    this.radius = 26,
+  });
+  final String? photoUrl;
+  final String initials;
+  final bool online;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) {
+    final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+    final card = AppColors.resolve(AppColors.card, AppDarkColors.card);
+    final photo = photoUrl;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        CircleAvatar(
+          radius: radius,
+          backgroundColor: brand.withValues(alpha: 0.12),
+          foregroundImage:
+              photo == null || photo.isEmpty ? null : NetworkImage(photo),
+          child: Text(initials,
+              style: AppTypography.titleSmall(color: brand)
+                  .copyWith(fontWeight: FontWeight.w800)),
+        ),
+        if (online)
+          Positioned(
+            right: 0,
+            bottom: 0,
+            child: Container(
+              width: radius * 0.5,
+              height: radius * 0.5,
+              decoration: BoxDecoration(
+                color: AppColors.success,
+                shape: BoxShape.circle,
+                border: Border.all(color: card, width: 2.5),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+String courierInitials(Map<String, dynamic> c) {
+  final letters = [c['firstname'], c['lastname']]
+      .map((v) => v?.toString().trim() ?? '')
+      .where((v) => v.isNotEmpty)
+      .map((v) => v[0].toUpperCase())
+      .join();
+  return letters.isEmpty ? '?' : letters;
+}
+
+String courierName(Map<String, dynamic> c) {
+  final name = [c['firstname'], c['lastname']]
+      .map((v) => v?.toString().trim() ?? '')
+      .where((v) => v.isNotEmpty)
+      .join(' ');
+  return name.isNotEmpty ? name : (c['username']?.toString() ?? 'Livreur');
+}
 
 class LivreurListPage extends StatefulWidget {
   final String? country;
@@ -15,472 +145,428 @@ class LivreurListPage extends StatefulWidget {
   State<LivreurListPage> createState() => _LivreurListPageState();
 }
 
-class _LivreurListPageState extends State<LivreurListPage> {
-  List<Users> _livreurs = [];
-  bool _isLoading = true;
-  String _searchQuery = '';
-  String _filterStatus = 'tous';
+enum _Filter { all, online, toReview, validated, rejected, missing }
 
+class _LivreurListPageState extends State<LivreurListPage> {
+  List<Map<String, dynamic>> _couriers = [];
+  bool _isLoading = true;
+  String? _error;
+  String _query = '';
+  _Filter _filter = _Filter.all;
   final TextEditingController _searchCtrl = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    dataVersionNotifier.addListener(_onDataChanged);
     _load();
   }
 
   @override
   void dispose() {
-    dataVersionNotifier.removeListener(_onDataChanged);
     _searchCtrl.dispose();
     super.dispose();
   }
 
-  void _onDataChanged() {
-    if (mounted) _load();
-  }
-
   Future<void> _load() async {
-    setState(() => _isLoading = true);
-    final users = await Users.fetchUsersFromDB();
-    if (!mounted) return;
     setState(() {
-      var livreurs = users.where((u) => u.roleID == 5).toList();
-      if (widget.country != null && widget.country!.isNotEmpty) {
-        livreurs = livreurs.where((u) => u.country == widget.country).toList();
-      }
-      _livreurs = livreurs;
-      _isLoading = false;
+      _isLoading = true;
+      _error = null;
     });
-  }
-
-  List<Users> get _filtered {
-    var list = _livreurs;
-    if (_filterStatus == 'en_ligne') {
-      list = list.where((u) => u.isOnline == true).toList();
-    } else if (_filterStatus == 'hors_ligne') {
-      list = list.where((u) => u.isOnline != true).toList();
-    } else if (_filterStatus == 'permis_valide') {
-      list = list.where((u) => u.permisVerified == true).toList();
-    } else if (_filterStatus == 'permis_en_attente') {
-      list = list.where((u) => u.permisVerified != true).toList();
-    }
-    if (_searchQuery.isNotEmpty) {
-      list = list
-          .where((u) =>
-              '${u.firstname} ${u.lastname}'
-                  .toLowerCase()
-                  .contains(_searchQuery.toLowerCase()) ||
-              u.email.toLowerCase().contains(_searchQuery.toLowerCase()))
-          .toList();
-    }
-    return list;
-  }
-
-  IconData _vehicleIcon(String? type) {
-    switch (type?.toLowerCase()) {
-      case 'moto':
-        return Icons.motorcycle_rounded;
-      case 'velo':
-        return Icons.pedal_bike_rounded;
-      case 'voiture':
-        return Icons.directions_car_rounded;
-      default:
-        return Icons.delivery_dining_rounded;
+    try {
+      final token = await SessionService.readNodeToken();
+      if (token == null) throw Exception('session');
+      final list =
+          await NodeAdminService.getCouriers(token, country: widget.country);
+      if (!mounted) return;
+      setState(() {
+        _couriers = list;
+        _isLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _error = AppLocalizations.of(context)!.error;
+      });
     }
   }
 
-  String _vehicleLabel(String? type) {
-    final l10n = AppLocalizations.of(context)!;
-    switch (type?.toLowerCase()) {
-      case 'moto':
-        return l10n.livreur_vehicle_moto;
-      case 'velo':
-        return l10n.livreur_vehicle_bike;
-      case 'voiture':
-        return l10n.livreur_vehicle_car;
-      default:
-        return l10n.livreur_vehicle_unspecified;
-    }
+  CourierFileStatus _status(Map<String, dynamic> c) =>
+      courierFileStatusOf(c['fileStatus']);
+
+  bool _online(Map<String, dynamic> c) => c['isOnline'] == true;
+
+  List<Map<String, dynamic>> get _filtered {
+    final q = _query.trim().toLowerCase();
+    return _couriers.where((c) {
+      final matches = switch (_filter) {
+        _Filter.all => true,
+        _Filter.online => _online(c),
+        _Filter.toReview => _status(c) == CourierFileStatus.pending,
+        _Filter.validated => _status(c) == CourierFileStatus.validated,
+        _Filter.rejected => _status(c) == CourierFileStatus.rejected,
+        _Filter.missing => _status(c) == CourierFileStatus.missing,
+      };
+      if (!matches) return false;
+      if (q.isEmpty) return true;
+      final haystack = [
+        courierName(c),
+        c['telephone'],
+        c['email'],
+        c['vehiclePlate'],
+      ].map((v) => v?.toString().toLowerCase() ?? '').join(' ');
+      return haystack.contains(q);
+    }).toList()
+      // Les dossiers à valider en premier.
+      ..sort((a, b) {
+        final pa = _status(a) == CourierFileStatus.pending ? 0 : 1;
+        final pb = _status(b) == CourierFileStatus.pending ? 0 : 1;
+        return pa.compareTo(pb);
+      });
   }
+
+  int _count(bool Function(Map<String, dynamic>) test) =>
+      _couriers.where(test).length;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final surface = AppColors.resolve(AppColors.surface, AppDarkColors.surface);
+    final ink = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
+    final muted = AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
+    final card = AppColors.resolve(AppColors.card, AppDarkColors.card);
+    final border = AppColors.resolve(AppColors.border, AppDarkColors.border);
     final filtered = _filtered;
-    final width = MediaQuery.of(context).size.width;
-    final isSmallScreen = width < 400;
 
     return Scaffold(
-      backgroundColor:
-          AppColors.resolve(AppColors.surface, AppDarkColors.surface),
+      backgroundColor: surface,
       appBar: AppBar(
-        title: Text(l10n.livreur_management_title),
-        centerTitle: true,
+        backgroundColor: surface,
+        title: Text(l10n.livreur_management_title,
+            style: AppTypography.titleSmall(color: ink)),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            onPressed: _load,
-          ),
+          IconButton(icon: const Icon(Icons.refresh_rounded), onPressed: _load),
         ],
       ),
       body: RefreshIndicator(
         onRefresh: _load,
-        child: Column(
-          children: [
-            // Search bar
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-              child: Row(children: [
-                Expanded(
-                  child: Container(
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color:
-                          AppColors.resolve(AppColors.card, AppDarkColors.card),
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                      border: Border.all(
-                          color: AppColors.resolve(
-                              AppColors.border, AppDarkColors.border)),
-                    ),
-                    child: TextField(
-                      controller: _searchCtrl,
-                      onChanged: (v) => setState(() => _searchQuery = v),
-                      style: AppTypography.bodyLarge(
-                              color: AppColors.resolve(
-                                  AppColors.ink, AppDarkColors.ink))
-                          .copyWith(fontSize: 14),
-                      decoration: InputDecoration(
-                        hintText: l10n.livreur_search_hint,
-                        hintStyle: AppTypography.bodyMedium(
-                                color: AppColors.resolve(
-                                    AppColors.ink, AppDarkColors.ink))
-                            .copyWith(fontSize: 14),
-                        prefixIcon: Icon(Icons.search_rounded,
-                            color: AppColors.resolve(
-                                AppColors.inkSubtle, AppDarkColors.inkSubtle),
-                            size: 20),
-                        border: InputBorder.none,
-                        contentPadding:
-                            const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  height: 44,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  decoration: BoxDecoration(
-                    color:
-                        AppColors.resolve(AppColors.card, AppDarkColors.card),
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                    border: Border.all(
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(children: [
+                      _StatTile(
+                        value: _count(_online),
+                        label: l10n.livreur_filter_online,
                         color: AppColors.resolve(
-                            AppColors.border, AppDarkColors.border)),
-                  ),
-                  child: PopupMenuButton<String>(
-                    onSelected: (v) => setState(() => _filterStatus = v),
-                    offset: const Offset(0, 44),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    ),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(Icons.filter_list_rounded,
-                          color: AppColors.resolve(
-                              AppColors.inkMuted, AppDarkColors.inkMuted),
-                          size: 20),
-                      const SizedBox(width: 4),
-                      Text(
-                        _filterStatus == 'tous'
-                            ? l10n.all
-                            : _filterStatus == 'en_ligne'
-                                ? l10n.livreur_filter_online
-                                : _filterStatus == 'hors_ligne'
-                                    ? l10n.livreur_filter_offline
-                                    : _filterStatus == 'permis_valide'
-                                        ? l10n.livreur_filter_license_valid
-                                        : l10n.livreur_filter_license_pending,
-                        style:
-                            AppTypography.labelMedium().copyWith(fontSize: 12),
+                            AppColors.success, AppDarkColors.success),
+                      ),
+                      const SizedBox(width: 10),
+                      _StatTile(
+                        value: _count((c) =>
+                            _status(c) == CourierFileStatus.pending),
+                        label: l10n.courier_admin_to_review,
+                        color: AppColors.resolve(
+                            AppColors.accent, AppDarkColors.accent),
+                        onTap: () =>
+                            setState(() => _filter = _Filter.toReview),
+                      ),
+                      const SizedBox(width: 10),
+                      _StatTile(
+                        value: _couriers.length,
+                        label: l10n.courier_admin_total,
+                        color: AppColors.resolve(
+                            AppColors.brand, AppDarkColors.brand),
                       ),
                     ]),
-                    itemBuilder: (_) => [
-                      PopupMenuItem(value: 'tous', child: Text(l10n.all)),
-                      PopupMenuItem(
-                          value: 'en_ligne',
-                          child: Text(l10n.livreur_filter_online)),
-                      PopupMenuItem(
-                          value: 'hors_ligne',
-                          child: Text(l10n.livreur_filter_offline)),
-                      PopupMenuItem(
-                          value: 'permis_valide',
-                          child: Text(l10n.livreur_filter_license_validated)),
-                      PopupMenuItem(
-                          value: 'permis_en_attente',
-                          child: Text(l10n.livreur_filter_license_waiting)),
-                    ],
-                  ),
-                ),
-              ]),
-            ),
-            // Stats header
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('${filtered.length} ${l10n.livreurs}',
-                      style: AppTypography.bodyMedium(
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _searchCtrl,
+                      onChanged: (v) => setState(() => _query = v),
+                      style: AppTypography.bodyLarge(color: ink),
+                      decoration: InputDecoration(
+                        hintText: l10n.livreur_search_hint,
+                        hintStyle: AppTypography.bodyMedium(color: muted),
+                        prefixIcon:
+                            Icon(Icons.search_rounded, color: muted, size: 20),
+                        filled: true,
+                        fillColor: card,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          borderSide: BorderSide(color: border),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          borderSide: BorderSide(
                               color: AppColors.resolve(
-                                  AppColors.ink, AppDarkColors.ink))
-                          .copyWith(fontSize: 12)),
-                  const Spacer(),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 4,
-                    alignment: WrapAlignment.end,
-                    children: [
-                      Text(
-                          '${_livreurs.where((u) => u.isOnline == true).length} ${l10n.livreur_filter_online}',
-                          style: AppTypography.labelMedium(
-                                  color: AppColors.success)
-                              .copyWith(fontSize: 11)),
-                      if (_livreurs
-                          .where((u) => u.permisVerified != true)
-                          .isNotEmpty)
-                        Text(
-                            '${_livreurs.where((u) => u.permisVerified != true).length} ${l10n.livreur_filter_license_waiting}',
-                            style: AppTypography.labelMedium(
-                                    color: AppColors.accent)
-                                .copyWith(fontSize: 11)),
-                    ],
-                  ),
-                ],
+                                  AppColors.brand, AppDarkColors.brand)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(height: 4),
-            // List
-            Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : filtered.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.delivery_dining_outlined,
-                                  size: 64,
-                                  color: AppColors.resolve(AppColors.inkSubtle,
-                                      AppDarkColors.inkSubtle)),
-                              const SizedBox(height: 12),
-                              Text(l10n.livreur_no_results,
-                                  style: AppTypography.bodyLarge(
-                                    color: AppColors.resolve(AppColors.inkMuted,
-                                        AppDarkColors.inkMuted),
-                                  )),
-                            ],
-                          ),
-                        )
-                      : ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: filtered.length,
-                          itemBuilder: (_, i) =>
-                              _buildLivreurCard(filtered[i], isSmallScreen),
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height: 40,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  children: [
+                    for (final f in _Filter.values)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: _FilterChip(
+                          label: _filterLabel(f, l10n),
+                          selected: _filter == f,
+                          onTap: () => setState(() => _filter = f),
                         ),
+                      ),
+                  ],
+                ),
+              ),
             ),
+            if (_isLoading)
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (_error != null || filtered.isEmpty)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(
+                        _error != null
+                            ? Icons.cloud_off_rounded
+                            : Icons.delivery_dining_outlined,
+                        size: 56,
+                        color: AppColors.resolve(
+                            AppColors.inkSubtle, AppDarkColors.inkSubtle)),
+                    const SizedBox(height: 10),
+                    Text(_error ?? l10n.livreur_no_results,
+                        style: AppTypography.bodyLarge(color: muted)),
+                  ]),
+                ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+                sliver: SliverList.separated(
+                  itemCount: filtered.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  itemBuilder: (_, i) => _CourierTile(
+                    courier: filtered[i],
+                    onTap: () async {
+                      final id =
+                          int.tryParse('${filtered[i]['userId']}') ?? 0;
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => LivreurFichePage(userID: id)),
+                      );
+                      if (mounted) _load();
+                    },
+                  ),
+                ),
+              ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildLivreurCard(Users livreur, bool isSmallScreen) {
-    final l10n = AppLocalizations.of(context)!;
-    final isOnline = livreur.isOnline == true;
-    final permisOk = livreur.permisVerified == true;
+  String _filterLabel(_Filter f, AppLocalizations l10n) => switch (f) {
+        _Filter.all => l10n.all,
+        _Filter.online => l10n.livreur_filter_online,
+        _Filter.toReview => l10n.courier_admin_to_review,
+        _Filter.validated => l10n.courier_admin_validated,
+        _Filter.rejected => l10n.courier_admin_rejected,
+        _Filter.missing => l10n.courier_admin_no_file,
+      };
+}
 
-    return GestureDetector(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(
-            builder: (_) => LivreurFichePage(userID: livreur.userID)),
-      ),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        decoration: BoxDecoration(
-          color: AppColors.resolve(AppColors.card, AppDarkColors.card),
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(
-              color: AppColors.resolve(AppColors.border, AppDarkColors.border),
-              width: 0.5),
-          boxShadow: AppShadows.cardList,
+class _StatTile extends StatelessWidget {
+  const _StatTile({
+    required this.value,
+    required this.label,
+    required this.color,
+    this.onTap,
+  });
+  final int value;
+  final String label;
+  final Color color;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final card = AppColors.resolve(AppColors.card, AppDarkColors.card);
+    final border = AppColors.resolve(AppColors.border, AppDarkColors.border);
+    final muted = AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
+    return Expanded(
+      child: Material(
+        color: card,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: Border.all(color: border, width: 0.6),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('$value',
+                    style: AppTypography.headlineMedium(color: color)
+                        .copyWith(fontSize: 24)),
+                const SizedBox(height: 2),
+                Text(label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.bodySmall(color: muted)),
+              ],
+            ),
+          ),
         ),
-        child: Padding(
+      ),
+    );
+  }
+}
+
+class _FilterChip extends StatelessWidget {
+  const _FilterChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+    final card = AppColors.resolve(AppColors.card, AppDarkColors.card);
+    final border = AppColors.resolve(AppColors.border, AppDarkColors.border);
+    final muted = AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: AppMotion.fast,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? brand : card,
+          borderRadius: BorderRadius.circular(99),
+          border: Border.all(color: selected ? brand : border, width: 0.6),
+        ),
+        child: Text(label,
+            style: AppTypography.labelMedium(
+                    color: selected ? Colors.white : muted)
+                .copyWith(
+                    fontWeight: selected ? FontWeight.w800 : FontWeight.w600)),
+      ),
+    );
+  }
+}
+
+class _CourierTile extends StatelessWidget {
+  const _CourierTile({required this.courier, required this.onTap});
+  final Map<String, dynamic> courier;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final card = AppColors.resolve(AppColors.card, AppDarkColors.card);
+    final border = AppColors.resolve(AppColors.border, AppDarkColors.border);
+    final ink = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
+    final muted = AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
+    final accent = AppColors.resolve(AppColors.accent, AppDarkColors.accent);
+    final status = courierFileStatusOf(courier['fileStatus']);
+    final vehicle = courier['vehicleType']?.toString();
+    final plate = courier['vehiclePlate']?.toString() ?? '';
+    final phone = courier['telephone']?.toString() ?? '';
+    final online = courier['isOnline'] == true;
+    final busy = courier['isBusy'] == true;
+
+    return Material(
+      color: card,
+      borderRadius: BorderRadius.circular(AppRadius.lg),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        child: Container(
           padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            border: Border.all(
+              color: status == CourierFileStatus.pending
+                  ? accent.withValues(alpha: 0.6)
+                  : border,
+              width: status == CourierFileStatus.pending ? 1.2 : 0.6,
+            ),
+          ),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Circular avatar with vehicle icon
-              Container(
-                width: isSmallScreen ? 44 : 52,
-                height: isSmallScreen ? 44 : 52,
-                decoration: BoxDecoration(
-                  color: AppColors.resolve(
-                      AppColors.brandSurface, AppDarkColors.brandSurface),
-                  shape: BoxShape.circle,
-                ),
-                child: Center(
-                  child: Icon(_vehicleIcon(livreur.permisType),
-                      color: AppColors.brand, size: isSmallScreen ? 20 : 24),
-                ),
+              CourierPhotoAvatar(
+                photoUrl: courier['image']?.toString(),
+                initials: courierInitials(courier),
+                online: online,
               ),
               const SizedBox(width: 14),
-              // Middle info - Expanded pour prendre l'espace restant
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('${livreur.firstname} ${livreur.lastname}',
-                        style: AppTypography.titleMedium(
-                                color: AppColors.resolve(
-                                    AppColors.ink, AppDarkColors.ink))
-                            .copyWith(fontSize: isSmallScreen ? 13 : 15),
-                        overflow: TextOverflow.ellipsis),
-                    const SizedBox(height: 2),
-                    Text(livreur.email,
-                        style: AppTypography.bodyMedium(
-                                color: AppColors.resolve(
-                                    AppColors.inkMuted, AppDarkColors.inkMuted))
-                            .copyWith(fontSize: isSmallScreen ? 10 : 12),
-                        overflow: TextOverflow.ellipsis),
+                    Text(courierName(courier),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.titleSmall(color: ink)
+                            .copyWith(fontWeight: FontWeight.w700)),
+                    if (phone.isNotEmpty)
+                      Text(phone,
+                          style: AppTypography.bodySmall(color: muted)),
                     const SizedBox(height: 6),
                     Wrap(
                       spacing: 8,
-                      runSpacing: 4,
+                      runSpacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        // Status dot + text
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: isOnline
-                                    ? AppColors.success
-                                    : AppColors.inkSubtle,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                                isOnline
-                                    ? l10n.livreur_filter_online
-                                    : l10n.livreur_filter_offline,
-                                style: TextStyle(
-                                  fontSize: isSmallScreen ? 9 : 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: isOnline
-                                      ? AppColors.success
-                                      : AppColors.inkSubtle,
-                                )),
-                          ],
-                        ),
-                        // Vehicle badge
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: AppColors.resolve(AppColors.surfaceWarm,
-                                AppDarkColors.surfaceWarm),
-                            borderRadius: BorderRadius.circular(99),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(_vehicleIcon(livreur.permisType),
-                                  size: isSmallScreen ? 10 : 12,
-                                  color: AppColors.resolve(AppColors.inkMuted,
-                                      AppDarkColors.inkMuted)),
-                              const SizedBox(width: 3),
-                              Text(_vehicleLabel(livreur.permisType),
-                                  style: TextStyle(
-                                    fontSize: isSmallScreen ? 8 : 10,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.resolve(AppColors.inkMuted,
-                                        AppDarkColors.inkMuted),
-                                  )),
-                            ],
-                          ),
-                        ),
+                        Row(mainAxisSize: MainAxisSize.min, children: [
+                          Icon(courierVehicleIcon(vehicle),
+                              size: 15, color: muted),
+                          const SizedBox(width: 4),
+                          Text(courierVehicleLabel(vehicle, l10n),
+                              style: AppTypography.bodySmall(color: muted)),
+                        ]),
+                        if (plate.isNotEmpty) VehiclePlateBadge(plate: plate),
+                        if (busy)
+                          Text(l10n.courier_admin_busy,
+                              style: AppTypography.labelMedium(color: accent)
+                                  .copyWith(fontSize: 11)),
                       ],
                     ),
                   ],
                 ),
               ),
               const SizedBox(width: 8),
-              // Right: permis badge + optional validate
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
-                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: permisOk
-                          ? AppColors.successLight
-                          : AppColors.accentLight,
-                      borderRadius: BorderRadius.circular(99),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          permisOk
-                              ? Icons.check_circle_rounded
-                              : Icons.schedule_rounded,
-                          size: isSmallScreen ? 10 : 12,
-                          color:
-                              permisOk ? AppColors.success : AppColors.accent,
-                        ),
-                        const SizedBox(width: 3),
-                        Text(
-                          permisOk
-                              ? l10n.livreur_filter_license_valid
-                              : l10n.livreur_filter_license_waiting,
-                          style: TextStyle(
-                            fontSize: isSmallScreen ? 9 : 10,
-                            fontWeight: FontWeight.w700,
-                            color:
-                                permisOk ? AppColors.success : AppColors.accent,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (!permisOk) ...[
-                    const SizedBox(height: 6),
-                    GestureDetector(
-                      onTap: () => _showPermisConfirmDialog(livreur),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: AppColors.successLight,
-                          borderRadius: BorderRadius.circular(99),
-                        ),
-                        child: Text(l10n.validate,
-                            style: TextStyle(
-                              fontSize: isSmallScreen ? 10 : 11,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.success,
-                            )),
-                      ),
-                    ),
-                  ],
+                  CourierFileStatusPill(status: status),
+                  const SizedBox(height: 8),
+                  Icon(Icons.chevron_right_rounded, color: muted),
                 ],
               ),
             ],
@@ -488,83 +574,5 @@ class _LivreurListPageState extends State<LivreurListPage> {
         ),
       ),
     );
-  }
-
-  void _showPermisConfirmDialog(Users livreur) {
-    final l10n = AppLocalizations.of(context)!;
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-        ),
-        title: Row(children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: AppColors.successLight,
-              borderRadius: BorderRadius.circular(AppRadius.sm),
-            ),
-            child: const Icon(Icons.verified_rounded,
-                color: AppColors.success, size: 18),
-          ),
-          const SizedBox(width: 10),
-          Text(l10n.livreur_validate_license,
-              style: AppTypography.titleMedium()),
-        ]),
-        content: Text(
-          l10n.livreur_validate_license_confirm(
-              livreur.firstname, livreur.lastname),
-          style: AppTypography.bodyLarge(),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(AppLocalizations.of(ctx)!.cancel,
-                style: AppTypography.labelMedium(color: AppColors.inkMuted)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _validatePermis(livreur);
-            },
-            child: Text(AppLocalizations.of(ctx)!.validate),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _validatePermis(Users livreur) async {
-    final cloudFunction = ParseCloudFunction('updateUser');
-    try {
-      final response = await cloudFunction.execute(parameters: {
-        'userID': livreur.userID,
-        'permisVerified': true,
-      });
-      if (response.success) {
-        if (mounted) {
-          setState(() => livreur.permisVerified = true);
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(AppLocalizations.of(context)!
-                .livreur_license_validated(livreur.firstname)),
-            behavior: SnackBarBehavior.fixed,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.md)),
-          ));
-        }
-      }
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(AppLocalizations.of(context)!.livreur_validate_error),
-          behavior: SnackBarBehavior.fixed,
-          shape: RoundedRectangleBorder(
-              borderRadius:
-                  BorderRadius.vertical(top: Radius.circular(AppRadius.md))),
-        ));
-      }
-    }
   }
 }

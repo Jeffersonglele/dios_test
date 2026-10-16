@@ -90,14 +90,17 @@ class _DeliveryManagementPageState extends State<DeliveryManagementPage>
         ],
       ),
     );
+    final remark = remarkController.text;
     remarkController.dispose();
     if (ok != true || !mounted) return;
 
     try {
       final token = await SessionService.readNodeToken();
       if (token == null) return;
-      
-      await NodeAdminService.validateDeliveryDocuments(doc['id'] ?? doc['objectId'] ?? '', 'VALIDATED', token);
+
+      await NodeAdminService.validateDeliveryDocuments(
+          doc['id'] ?? doc['objectId'] ?? '', 'VALIDATED', token,
+          remark: remark);
       if (mounted) {
         Toast(context, l10n.admin_delivery_validated(doc['userName'] ?? ''),
             true);
@@ -143,14 +146,18 @@ class _DeliveryManagementPageState extends State<DeliveryManagementPage>
         ],
       ),
     );
+    // Le motif est montré au livreur pour qu'il corrige son dossier.
+    final remark = remarkController.text;
     remarkController.dispose();
     if (ok != true || !mounted) return;
 
     try {
       final token = await SessionService.readNodeToken();
       if (token == null) return;
-      
-      await NodeAdminService.validateDeliveryDocuments(doc['id'] ?? doc['objectId'] ?? '', 'REJECTED', token);
+
+      await NodeAdminService.validateDeliveryDocuments(
+          doc['id'] ?? doc['objectId'] ?? '', 'REJECTED', token,
+          remark: remark);
       if (mounted) {
         Toast(
             context, l10n.admin_delivery_rejected(doc['userName'] ?? ''), true);
@@ -158,6 +165,19 @@ class _DeliveryManagementPageState extends State<DeliveryManagementPage>
       }
     } catch (e) {
       if (mounted) Toast(context, '$e', false);
+    }
+  }
+
+  String? _vehicleLabel(String? type, AppLocalizations l10n) {
+    switch (type) {
+      case 'moto':
+        return l10n.livreur_vehicle_moto;
+      case 'velo':
+        return l10n.livreur_vehicle_bike;
+      case 'voiture':
+        return l10n.livreur_vehicle_car;
+      default:
+        return null;
     }
   }
 
@@ -182,6 +202,8 @@ class _DeliveryManagementPageState extends State<DeliveryManagementPage>
         children: [
           Row(
             children: [
+              _CourierPhoto(url: doc['photoUrl'] as String?),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -194,6 +216,13 @@ class _DeliveryManagementPageState extends State<DeliveryManagementPage>
                     if ((doc['phone'] as String?)?.isNotEmpty == true)
                       Text(doc['phone'] ?? '',
                           style: AppTypography.bodyMedium(
+                            color: AppColors.resolve(
+                                AppColors.inkMuted, AppDarkColors.inkMuted),
+                          )),
+                    if (_vehicleLabel(doc['vehicleType'] as String?, l10n)
+                        case final vehicle?)
+                      Text(vehicle,
+                          style: AppTypography.bodySmall(
                             color: AppColors.resolve(
                                 AppColors.inkMuted, AppDarkColors.inkMuted),
                           )),
@@ -410,6 +439,40 @@ class _DocLink extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Photo du livreur (visage), agrandie au toucher pour la comparer à la
+/// pièce d'identité.
+class _CourierPhoto extends StatelessWidget {
+  const _CourierPhoto({required this.url});
+  final String? url;
+
+  @override
+  Widget build(BuildContext context) {
+    final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+    final photo = url;
+    if (photo == null || photo.isEmpty) {
+      return CircleAvatar(
+        radius: 26,
+        backgroundColor: brand.withValues(alpha: 0.10),
+        child: Icon(Icons.person_outline_rounded, color: brand),
+      );
+    }
+    return GestureDetector(
+      onTap: () => showDialog(
+        context: context,
+        builder: (ctx) => Dialog(
+          clipBehavior: Clip.antiAlias,
+          child: InteractiveViewer(child: Image.network(photo)),
+        ),
+      ),
+      child: CircleAvatar(
+        radius: 26,
+        backgroundColor: brand.withValues(alpha: 0.10),
+        backgroundImage: NetworkImage(photo),
       ),
     );
   }

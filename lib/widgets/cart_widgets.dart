@@ -694,89 +694,38 @@ class CartTotalRow extends StatelessWidget {
   }
 }
 
-/// Option de paiement sélectionnable.
-class CartPaymentOption extends StatelessWidget {
-  const CartPaymentOption({
-    super.key,
-    required this.icon,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-        decoration: BoxDecoration(
-          color: selected ? CC.brandSurface : CC.card,
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(
-            color: selected ? CC.brand : CC.border,
-            width: selected ? 1.5 : 0.5,
-          ),
-        ),
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Center(
-              child: Column(
-                children: [
-                  Icon(icon, size: 26, color: selected ? CC.brand : CC.inkMuted),
-                  const SizedBox(height: 8),
-                  Text(
-                    label,
-                    textAlign: TextAlign.center,
-                    style: AppTypography.labelMedium(
-                        color: selected ? CC.brand : CC.inkMuted),
-                  ),
-                ],
-              ),
-            ),
-            Positioned(
-              top: -6,
-              right: -2,
-              child: AnimatedScale(
-                scale: selected ? 1 : 0,
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOutBack,
-                child: Icon(Icons.check_circle_rounded,
-                    size: 20, color: CC.brand),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Bouton « Commander » collant, avec dégradé.
+/// Barre « Commander » collante : total + mode de paiement à gauche,
+/// bouton principal à droite.
 class CartCheckoutBar extends StatelessWidget {
   const CartCheckoutBar({
     super.key,
     required this.label,
     required this.loading,
     required this.onPressed,
+    required this.totalLabel,
+    required this.totalValue,
+    this.methodLabel,
   });
   final String label;
   final bool loading;
   final VoidCallback? onPressed;
+  final String totalLabel;
+  final String totalValue;
+  final String? methodLabel;
 
   @override
   Widget build(BuildContext context) {
-    final enabled = onPressed != null;
+    final enabled = onPressed != null && !loading;
+    final brand = CC.brand;
+    final deep = Color.lerp(
+        brand, AppColors.resolve(AppColors.brandDark, AppDarkColors.brandDark),
+        0.45)!;
+    final radius = BorderRadius.circular(AppRadius.md);
+
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
       decoration: BoxDecoration(
-        color: CC.surface,
+        color: CC.card,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         boxShadow: [
           BoxShadow(
@@ -788,65 +737,110 @@ class CartCheckoutBar extends StatelessWidget {
       ),
       child: SafeArea(
         top: false,
-        child: AnimatedOpacity(
-          duration: const Duration(milliseconds: 200),
-          opacity: enabled ? 1 : 0.55,
-          child: Material(
-            color: Colors.transparent,
-            child: Ink(
-              height: 58,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [CC.brand, CC.brand.withValues(alpha: 0.82)],
-                ),
-                borderRadius: BorderRadius.circular(AppRadius.lg),
-                boxShadow: [
-                  BoxShadow(
-                    color: CC.brand.withValues(alpha: 0.35),
-                    blurRadius: 16,
-                    offset: const Offset(0, 8),
+        child: Row(
+          children: [
+            // ── Total ─────────────────────────────────────
+            Expanded(
+              flex: 5,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    totalLabel,
+                    style: AppTypography.labelMedium(color: CC.inkMuted),
                   ),
+                  const SizedBox(height: 2),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      totalValue,
+                      style: AppTypography.titleLarge(color: CC.ink)
+                          .copyWith(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                  if (methodLabel != null)
+                    Text(
+                      methodLabel!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.bodySmall(color: CC.inkMuted),
+                    ),
                 ],
               ),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(AppRadius.lg),
-                onTap: onPressed,
-                child: Center(
-                  child: loading
-                      ? Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2.2, color: Colors.white),
-                            ),
-                            const SizedBox(width: 12),
-                            Text(label,
-                                style: AppTypography.labelLarge(
-                                    color: Colors.white)),
-                          ],
-                        )
-                      : Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Flexible(
-                              child: Text(label,
+            ),
+            const SizedBox(width: 12),
+
+            // ── Bouton ────────────────────────────────────
+            Expanded(
+              flex: 6,
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 200),
+                opacity: onPressed == null && !loading ? 0.55 : 1,
+                child: Container(
+                  height: 56,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [brand, deep],
+                    ),
+                    borderRadius: radius,
+                    boxShadow: [
+                      BoxShadow(
+                        color: brand.withValues(alpha: enabled ? 0.30 : 0.0),
+                        blurRadius: 20,
+                        spreadRadius: -4,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: Material(
+                    type: MaterialType.transparency,
+                    borderRadius: radius,
+                    clipBehavior: Clip.antiAlias,
+                    child: InkWell(
+                      onTap: enabled ? onPressed : null,
+                      child: Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (loading)
+                                const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2.2, color: Colors.white),
+                                ),
+                              if (loading) const SizedBox(width: 10),
+                              Flexible(
+                                child: Text(
+                                  label,
+                                  maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: AppTypography.labelLarge(
                                           color: Colors.white)
-                                      .copyWith(fontSize: 16)),
-                            ),
-                            const SizedBox(width: 8),
-                            const Icon(Icons.arrow_forward_rounded,
-                                color: Colors.white, size: 20),
-                          ],
+                                      .copyWith(fontSize: 16),
+                                ),
+                              ),
+                              if (!loading) ...[
+                                const SizedBox(width: 8),
+                                const Icon(Icons.arrow_forward_rounded,
+                                    color: Colors.white, size: 20),
+                              ],
+                            ],
+                          ),
                         ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
+          ],
         ),
       ),
     );

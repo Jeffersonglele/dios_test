@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 
 import '../../services/currency_service.dart';
 import '../../services/wallet_service.dart';
+import '../payment/nyole_payment_page.dart';
 
 class WalletScreen extends StatefulWidget {
   const WalletScreen({super.key, this.openTopUpOnStart = false});
@@ -21,6 +22,7 @@ class _WalletScreenState extends State<WalletScreen> {
   String? _error;
   bool _loading = true;
   bool _hideBalance = false;
+  bool _verifyingTopUp = false;
 
   @override
   void initState() {
@@ -51,37 +53,85 @@ class _WalletScreenState extends State<WalletScreen> {
     }
   }
 
+  /// Le solde est tenu dans la devise du portefeuille (CDF/USD) : on le
+  /// convertit vers la devise d'affichage choisie dans l'app.
   String _money(double v) {
     final currency = CurrencyService.instance.activeCurrency;
     final converted = CurrencyService.instance.convertBetween(
       v,
-      CurrencyService.instance.sourceCurrency,
+      _wallet?.currency ?? CurrencyService.instance.sourceCurrency,
       currency,
     );
     return CurrencyUtil.formatAmount(converted, currency);
   }
 
+  void _snack(String message, {required Color color, required IconData icon}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: color,
+        duration: const Duration(seconds: 5),
+        content: Row(children: [
+          Icon(icon, color: Colors.white),
+          const SizedBox(width: 10),
+          Expanded(child: Text(message)),
+        ]),
+      ));
+  }
+
+  /// Recharge réelle : montant → page Nyole → attente de la confirmation
+  /// serveur → rafraîchissement du solde. Le retour « succès » de Nyole
+  /// n'est pas une preuve : seul le statut vérifié par le serveur compte.
   Future<void> _openTopUp() async {
-    final message = await showModalBottomSheet<String>(
+    final session = await showModalBottomSheet<TopUpSession>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => const _TopUpSheet(),
+      builder: (_) => _TopUpSheet(currency: _wallet?.currency ?? 'CDF'),
     );
-    if (message != null && mounted) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: AppColors.success,
-          content: Row(children: [
-            const Icon(Icons.check_circle_rounded, color: Colors.white),
-            const SizedBox(width: 10),
-            Expanded(child: Text(message)),
-          ]),
-        ));
-      await _load(); // rafraîchit solde + historique
+    if (session == null || !mounted) return;
+
+    final returnedSuccess = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => NyolePaymentPage(
+          paymentUrl: session.paymentUrl,
+          orderId: session.transactionId,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (returnedSuccess != true) {
+      _snack('Recharge annulée. Aucun montant n’a été débité.',
+          color: AppColors.inkMuted, icon: Icons.info_outline_rounded);
+      return;
+    }
+
+    setState(() => _verifyingTopUp = true);
+    final status = await WalletService.waitForTopUp(session.transactionId);
+    if (!mounted) return;
+    setState(() => _verifyingTopUp = false);
+    await _load(); // rafraîchit solde + historique
+
+    switch (status) {
+      case TopUpStatus.paid:
+        _snack('Recharge confirmée : votre solde est à jour.',
+            color: AppColors.success, icon: Icons.check_circle_rounded);
+        break;
+      case TopUpStatus.failed:
+        _snack('Le paiement a échoué. Votre solde n’a pas changé.',
+            color: AppColors.error, icon: Icons.error_outline_rounded);
+        break;
+      case TopUpStatus.pending:
+        _snack(
+            'Paiement en cours de vérification. Votre solde sera mis à jour '
+            'dès la confirmation de l’opérateur.',
+            color: AppColors.inkMuted,
+            icon: Icons.hourglass_top_rounded);
+        break;
     }
   }
 
@@ -121,9 +171,12 @@ class _WalletScreenState extends State<WalletScreen> {
                       ),
                       const SizedBox(height: 18),
                       OtpGradientButton(
-                        label: 'Recharger mon solde',
+                        label: _verifyingTopUp
+                            ? 'Vérification du paiement…'
+                            : 'Recharger mon solde',
                         icon: Icons.add_card_rounded,
-                        onPressed: _openTopUp,
+                        isLoading: _verifyingTopUp,
+                        onPressed: _verifyingTopUp ? null : _openTopUp,
                       ),
                       const SizedBox(height: 28),
                       Text('Dernières transactions',
@@ -458,11 +511,16 @@ class _Placeholder extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════
-// BottomSheet de recharge (possède et libère ses contrôleurs)
-// Se ferme avec le message de succès (String) ou null.
+// BottomSheet de recharge (possède et libère ses contrôleurs).
+// Ouvre la session Nyole et se ferme avec la TopUpSession, ou null.
+// L'opérateur (M-Pesa, Orange Money, Airtel Money…) se choisit sur la
+// page sécurisée Nyole : aucun numéro n'est demandé ici.
 // ═══════════════════════════════════════════════════════════
 class _TopUpSheet extends StatefulWidget {
-  const _TopUpSheet();
+  const _TopUpSheet({required this.currency});
+
+  /// Devise du portefeuille : la recharge se fait toujours dans celle-ci.
+  final String currency;
 
   @override
   State<_TopUpSheet> createState() => _TopUpSheetState();
@@ -471,19 +529,24 @@ class _TopUpSheet extends StatefulWidget {
 class _TopUpSheetState extends State<_TopUpSheet> {
   final _formKey = GlobalKey<FormState>();
   final _amountCtrl = TextEditingController();
-  final _phoneCtrl = TextEditingController();
   bool _submitting = false;
   String? _error;
+
+  /// Montants rapides par devise (entiers : Nyole n'accepte pas de décimales).
+  static const _quickAmounts = {
+    'CDF': [5000, 10000, 20000, 50000],
+    'USD': [5, 10, 20, 50],
+    'XOF': [1000, 2000, 5000, 10000],
+  };
 
   @override
   void dispose() {
     _amountCtrl.dispose();
-    _phoneCtrl.dispose();
     super.dispose();
   }
 
-  double? get _amount =>
-      double.tryParse(_amountCtrl.text.trim().replaceAll(',', '.'));
+  int? get _amount =>
+      int.tryParse(_amountCtrl.text.replaceAll(RegExp(r'[^0-9]'), ''));
 
   Future<void> _submit() async {
     FocusScope.of(context).unfocus();
@@ -494,21 +557,19 @@ class _TopUpSheetState extends State<_TopUpSheet> {
       _error = null;
     });
     try {
-      await Future.delayed(const Duration(seconds: 2));
-      if (!mounted) return;
-      final res = await WalletService.requestTopUp(
+      final session = await WalletService.startTopUp(
         amount: _amount!,
-        phone: _phoneCtrl.text,
+        currency: widget.currency,
       );
       if (!mounted) return;
-      Navigator.of(context).pop(res.message);
+      Navigator.of(context).pop(session);
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _submitting = false;
         _error = e is WalletException
             ? e.message
-            : 'La recharge a échoué. Réessayez.';
+            : 'Impossible de lancer la recharge. Réessayez.';
       });
     }
   }
@@ -530,137 +591,137 @@ class _TopUpSheetState extends State<_TopUpSheet> {
     );
   }
 
+  Widget _quickChip(int value) {
+    final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+    final selected = _amount == value;
+    return ChoiceChip(
+      label: Text(CurrencyUtil.formatAmount(value.toDouble(), widget.currency)),
+      selected: selected,
+      showCheckmark: false,
+      selectedColor: brand.withValues(alpha: 0.14),
+      labelStyle: AppTypography.labelMedium(
+        color: selected
+            ? brand
+            : AppColors.resolve(AppColors.ink, AppDarkColors.ink),
+      ).copyWith(fontWeight: FontWeight.w700),
+      side: BorderSide(
+        color: selected
+            ? brand
+            : AppColors.resolve(AppColors.border, AppDarkColors.border),
+      ),
+      onSelected: _submitting
+          ? null
+          : (_) => setState(() {
+                _amountCtrl.text = '$value';
+                _error = null;
+              }),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final card = AppColors.resolve(AppColors.card, AppDarkColors.card);
     final ink = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
     final muted = AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
-    final currency = CurrencyService.instance.activeCurrency;
+    final currency = widget.currency;
+    final quick = _quickAmounts[currency] ?? const <int>[];
 
     return PopScope(
       canPop: !_submitting, // pas de fermeture pendant l'appel
       child: Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        padding:
+            EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
         child: ClipRRect(
           borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           child: Material(
             color: card,
-            child: Stack(
-              children: [
-                SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(24, 12, 24, 28),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Center(
-                          child: Container(
-                            width: 44,
-                            height: 4,
-                            decoration: BoxDecoration(
-                              color: muted.withValues(alpha: 0.35),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          ),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 12, 24, 28),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 44,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: muted.withValues(alpha: 0.35),
+                          borderRadius: BorderRadius.circular(4),
                         ),
-                        const SizedBox(height: 20),
-                        Text('Recharger mon solde',
-                            style: AppTypography.titleMedium(color: ink)
-                                .copyWith(
-                                    fontWeight: FontWeight.w800, fontSize: 20)),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Payez par Mobile Money : vous recevrez une demande de confirmation sur votre téléphone.',
-                          style: AppTypography.bodyMedium(color: muted)
-                              .copyWith(height: 1.4),
-                        ),
-                        const SizedBox(height: 22),
-                        TextFormField(
-                          controller: _amountCtrl,
-                          enabled: !_submitting,
-                          keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true),
-                          inputFormatters: [
-                            FilteringTextInputFormatter.allow(
-                                RegExp(r'[0-9.,]')),
-                          ],
-                          textInputAction: TextInputAction.next,
-                          decoration: _decoration(
-                              'Montant ($currency)', Icons.payments_rounded, 'Ex. 5000'),
-                          validator: (_) {
-                            final a = _amount;
-                            if (a == null || a <= 0) {
-                              return 'Saisissez un montant valide';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 14),
-                        TextFormField(
-                          controller: _phoneCtrl,
-                          enabled: !_submitting,
-                          keyboardType: TextInputType.phone,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.allow(RegExp(r'[0-9+ ]')),
-                          ],
-                          textInputAction: TextInputAction.done,
-                          onFieldSubmitted: (_) => _submit(),
-                          decoration: _decoration('Numéro Mobile Money',
-                              Icons.phone_android_rounded, 'Ex. 97 00 00 00'),
-                          validator: (v) {
-                            final digits =
-                                (v ?? '').replaceAll(RegExp(r'[^0-9]'), '');
-                            if (digits.length < 8 || digits.length > 15) {
-                              return 'Numéro de téléphone invalide';
-                            }
-                            return null;
-                          },
-                        ),
-                        if (_error != null) ...[
-                          const SizedBox(height: 14),
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: AppColors.error.withValues(alpha: 0.10),
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: Row(children: [
-                              const Icon(Icons.error_outline_rounded,
-                                  color: AppColors.error, size: 20),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(_error!,
-                                    style: const TextStyle(
-                                        color: AppColors.error,
-                                        fontWeight: FontWeight.w600)),
-                              ),
-                            ]),
-                          ),
-                        ],
-                        const SizedBox(height: 22),
-                        OtpGradientButton(
-                          label: 'Valider la recharge',
-                          icon: Icons.check_circle_outline_rounded,
-                          isLoading: _submitting,
-                          onPressed: _submitting ? null : _submit,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                // Écran bloqué pendant l'appel
-                if (_submitting)
-                  Positioned.fill(
-                    child: ColoredBox(
-                      color: card.withValues(alpha: 0.65),
-                      child: Center(
-                        child: Swirling(size: 52, color: AppColors.brand),
                       ),
                     ),
-                  ),
-              ],
+                    const SizedBox(height: 20),
+                    Text('Recharger mon solde',
+                        style: AppTypography.titleMedium(color: ink).copyWith(
+                            fontWeight: FontWeight.w800, fontSize: 20)),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Vous choisirez votre opérateur (M-Pesa, Orange Money, '
+                      'Airtel Money…) sur la page de paiement sécurisée.',
+                      style: AppTypography.bodyMedium(color: muted)
+                          .copyWith(height: 1.4),
+                    ),
+                    const SizedBox(height: 22),
+                    TextFormField(
+                      controller: _amountCtrl,
+                      enabled: !_submitting,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      textInputAction: TextInputAction.done,
+                      onChanged: (_) => setState(() => _error = null),
+                      onFieldSubmitted: (_) => _submit(),
+                      decoration: _decoration('Montant ($currency)',
+                          Icons.payments_rounded, 'Ex. ${quick.isNotEmpty ? quick[1] : 5000}'),
+                      validator: (_) {
+                        final a = _amount;
+                        if (a == null || a <= 0) {
+                          return 'Saisissez un montant valide';
+                        }
+                        return null;
+                      },
+                    ),
+                    if (quick.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [for (final v in quick) _quickChip(v)],
+                      ),
+                    ],
+                    if (_error != null) ...[
+                      const SizedBox(height: 14),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.error.withValues(alpha: 0.10),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Row(children: [
+                          const Icon(Icons.error_outline_rounded,
+                              color: AppColors.error, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(_error!,
+                                style: const TextStyle(
+                                    color: AppColors.error,
+                                    fontWeight: FontWeight.w600)),
+                          ),
+                        ]),
+                      ),
+                    ],
+                    const SizedBox(height: 22),
+                    OtpGradientButton(
+                      label: 'Continuer vers le paiement',
+                      icon: Icons.lock_rounded,
+                      isLoading: _submitting,
+                      onPressed: _submitting ? null : _submit,
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),

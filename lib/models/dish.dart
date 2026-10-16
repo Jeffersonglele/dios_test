@@ -310,27 +310,8 @@ class Dish extends HiveObject {
 
       Map<String, dynamic> response;
       if (dishID != null) {
-        // Chercher l'UUID du plat à partir de son dishId numérique
-        final existing = await NodeAuthService.getJson(
-          '/dishes',
-          token: token,
-          queryParameters: {'pageSize': '100'},
-        );
-        final existingData = existing['data'];
-        String? uuid;
-        if (existingData is List) {
-          for (final item in existingData) {
-            if (item is Map && item['dishId'] == dishID) {
-              uuid = item['id']?.toString();
-              break;
-            }
-          }
-        }
-        if (uuid == null) {
-          return "Erreur : plat introuvable pour la mise à jour.";
-        }
         response = await NodeAuthService.patchJson(
-          '/dishes/$uuid',
+          '/dishes/$dishID',
           token: token,
           body: body,
         );
@@ -346,10 +327,12 @@ class Dish extends HiveObject {
       if (data is Map) {
         int updatedDishID = dishID ?? (data['dishId'] as int? ?? 0);
 
+        // Note, compteur, devise et ville sont fixés par le serveur à partir
+        // du restaurant : le cache local reprend ses valeurs.
         Dish dish = Dish(
             dishID: updatedDishID,
-            nb_orders: nb_orders,
-            note: note,
+            nb_orders: (data['orderCount'] as num?)?.toInt() ?? nb_orders,
+            note: (data['rating'] as num?)?.toDouble() ?? note,
             categories: categories,
             description: description,
             option1: option1,
@@ -363,8 +346,8 @@ class Dish extends HiveObject {
             nb_servings: nb_servings,
             restauID: restauID,
             status: status,
-            currency: currency,
-            cityID: cityID);
+            currency: data['currency']?.toString() ?? currency,
+            cityID: (data['cityId'] as num?)?.toInt() ?? cityID);
 
         if (dishID == null) {
           await DatabaseHelper.createDish(dish);
@@ -390,28 +373,8 @@ class Dish extends HiveObject {
         return "Erreur : Authentification requise.";
       }
 
-      // Chercher l'UUID du plat
-      final existing = await NodeAuthService.getJson(
-        '/dishes',
-        token: token,
-        queryParameters: {'pageSize': '100'},
-      );
-      final existingData = existing['data'];
-      String? uuid;
-      if (existingData is List) {
-        for (final item in existingData) {
-          if (item is Map && item['dishId'] == dishID) {
-            uuid = item['id']?.toString();
-            break;
-          }
-        }
-      }
-      if (uuid == null) {
-        return "Erreur : plat introuvable.";
-      }
-
       await NodeAuthService.patchJson(
-        '/dishes/$uuid',
+        '/dishes/$dishID',
         token: token,
         body: {'status': status},
       );
@@ -432,28 +395,8 @@ class Dish extends HiveObject {
         return "Erreur : Authentification requise.";
       }
 
-      // Chercher l'UUID du plat
-      final existing = await NodeAuthService.getJson(
-        '/dishes',
-        token: token,
-        queryParameters: {'pageSize': '100'},
-      );
-      final existingData = existing['data'];
-      String? uuid;
-      if (existingData is List) {
-        for (final item in existingData) {
-          if (item is Map && item['dishId'] == dishID) {
-            uuid = item['id']?.toString();
-            break;
-          }
-        }
-      }
-      if (uuid == null) {
-        return "Erreur : plat introuvable.";
-      }
-
       await NodeAuthService.deleteJson(
-        '/dishes/$uuid',
+        '/dishes/$dishID',
         token: token,
       );
 

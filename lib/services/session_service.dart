@@ -3,6 +3,7 @@ import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 
 import '../core/app_role.dart';
 import 'livreur_api.dart';
+import 'node_auth_service.dart';
 
 class UserSession {
   const UserSession({
@@ -50,14 +51,38 @@ class ServerAccountState {
     required this.restaurantId,
     required this.restaurantValid,
     required this.restaurantRemark,
+    this.restaurantIsPro = false,
+    this.proRequestStatus = '',
+    this.proRequestRemark = '',
+    this.identity = '',
+    this.identityRemark = '',
+    this.vehicleType = '',
+    this.vehiclePlate = '',
+    this.image = '',
   });
 
   final int userId;
   final int roleId;
   final String country;
   final int restaurantId;
+
+  /// -1 : aucun restaurant ; 0 : en attente ; 1 : validé ; 2 : refusé.
   final int restaurantValid;
   final String restaurantRemark;
+  final bool restaurantIsPro;
+
+  /// Dernière demande « Devenir Pro » : '', 'pending', 'approved', 'rejected'.
+  final String proRequestStatus;
+  final String proRequestRemark;
+
+  /// Dossier livreur : 'Verified', 'En attente', 'Rejected' ou vide.
+  final String identity;
+  final String identityRemark;
+  final String vehicleType;
+  final String vehiclePlate;
+
+  /// Photo de profil (pour un livreur : la photo du dossier).
+  final String image;
 
   factory ServerAccountState.fromMap(Map<String, dynamic> map) {
     int number(Object? value, [int fallback = 0]) =>
@@ -70,6 +95,14 @@ class ServerAccountState {
       restaurantId: number(map['restaurantID']),
       restaurantValid: number(map['restaurantValid'], -1),
       restaurantRemark: map['restaurantRemark']?.toString() ?? '',
+      restaurantIsPro: map['restaurantIsPro'] == true,
+      proRequestStatus: map['proRequestStatus']?.toString() ?? '',
+      proRequestRemark: map['proRequestRemark']?.toString() ?? '',
+      identity: map['identity']?.toString() ?? '',
+      identityRemark: map['identityRemark']?.toString() ?? '',
+      vehicleType: map['vehicleType']?.toString() ?? '',
+      vehiclePlate: map['vehiclePlate']?.toString() ?? '',
+      image: map['image']?.toString() ?? '',
     );
   }
 }
@@ -210,10 +243,25 @@ class SessionService {
     }
   }
 
-  /// Lit le rôle et l'état de la demande vendeur directement sur Parse.
+  /// Lit le rôle et l'état des demandes vendeur / Pro sur le serveur.
   /// Cette vérification permet à chaque appareil de réagir à une validation
   /// faite par l'administrateur sans révoquer les sessions des autres appareils.
+  /// Node d'abord (la connexion par email ferme la session Parse), Parse
+  /// pour les comptes encore connectés par téléphone.
   static Future<ServerAccountState?> fetchServerAccountState() async {
+    final token = await readNodeToken();
+    if (token != null) {
+      try {
+        final response =
+            await NodeAuthService.getJson('/auth/account-state', token: token);
+        final data = response['data'];
+        if (data is Map) {
+          return ServerAccountState.fromMap(Map<String, dynamic>.from(data));
+        }
+      } catch (_) {
+        // Hors ligne ou backend pas encore déployé : on tente Parse.
+      }
+    }
     if (!await hasParseSession()) return null;
     try {
       final response = await ParseCloudFunction('getMyAccountState').execute();

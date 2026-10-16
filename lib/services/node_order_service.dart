@@ -269,10 +269,15 @@ class NodeOrderService {
     final normalized = backendStatus.toUpperCase().trim();
     switch (normalized) {
       case 'PENDING':
+      // Espèces : la commande attend que le restaurant l'accepte.
+      case 'CONFIRMED_CASH':
         return 'En attente';
+      // Mobile Money : rien n'est encaissé tant que Nyole n'a pas confirmé.
       case 'WAITING_PAYMENT':
-        return 'En attente';
+      case 'AWAITING_PAYMENT':
+        return 'Paiement en attente';
       case 'PAID':
+      case 'PAYEE':
         return 'Payée';
       case 'EN_PREPARATION':
         return 'En préparation';

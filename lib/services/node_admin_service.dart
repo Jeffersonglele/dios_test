@@ -138,6 +138,33 @@ class NodeAdminService {
     );
   }
 
+  /// Livreurs avec l'état de leur dossier (photo, pièce, permis, plaque).
+  static Future<List<Map<String, dynamic>>> getCouriers(String token,
+      {String? country}) async {
+    final response = await NodeAuthService.getJson(
+      '/admin/couriers',
+      token: token,
+      queryParameters: country?.trim().isNotEmpty == true
+          ? {'country': country!.trim()}
+          : null,
+    );
+    final data = response['data'];
+    if (data is! List) return const [];
+    return data
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+  }
+
+  /// Fiche d'un livreur : profil, dernier dossier et activité.
+  static Future<Map<String, dynamic>?> getCourier(
+      String token, int userId) async {
+    final response =
+        await NodeAuthService.getJson('/admin/couriers/$userId', token: token);
+    final data = response['data'];
+    return data is Map ? Map<String, dynamic>.from(data) : null;
+  }
+
   static Future<List<dynamic>> getDeliveryDocuments(String token,
       {String? country}) async {
     final query = <String, String>{};
@@ -153,11 +180,16 @@ class NodeAdminService {
   }
 
   static Future<void> validateDeliveryDocuments(
-      String documentId, String status, String token) async {
+      String documentId, String status, String token,
+      {String? remark}) async {
     await NodeAuthService.patchJson(
       '/admin/delivery-documents/validate',
       token: token,
-      body: {'documentId': documentId, 'status': status},
+      body: {
+        'documentId': documentId,
+        'status': status,
+        if (remark != null && remark.trim().isNotEmpty) 'remark': remark.trim(),
+      },
     );
   }
 

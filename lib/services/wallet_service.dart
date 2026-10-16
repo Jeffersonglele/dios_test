@@ -76,16 +76,34 @@ class WalletTransaction {
 }
 
 class WalletData {
-  const WalletData({required this.balance, required this.transactions});
+  const WalletData({
+    required this.balance,
+    required this.transactions,
+    this.currency = 'CDF',
+  });
   final double balance;
   final List<WalletTransaction> transactions;
+
+  /// Devise dans laquelle le solde est tenu côté serveur (CDF ou USD).
+  final String currency;
 }
 
-class TopUpResult {
-  const TopUpResult({required this.message, this.newBalance});
-  final String message;
-  final double? newBalance;
+/// Session Nyole ouverte pour une recharge du portefeuille.
+class TopUpSession {
+  const TopUpSession({
+    required this.transactionId,
+    required this.paymentUrl,
+    required this.amount,
+    required this.currency,
+  });
+  final String transactionId;
+  final String paymentUrl;
+  final double amount;
+  final String currency;
 }
+
+/// Statut d'un paiement Nyole tel que vérifié par le serveur.
+enum TopUpStatus { paid, pending, failed }
 
 class WalletService {
   static Uri _uri(String path) {
@@ -113,37 +131,6 @@ class WalletService {
       return null;
     } catch (e) {
       print('Error fetching wallet: $e');
-      return null;
-    }
-  }
-
-  static Future<Map<String, dynamic>?> topUpWallet({
-    required double amount,
-    required String referenceId,
-  }) async {
-    try {
-      final token = await SessionService.readNodeToken();
-      if (token == null) return null;
-
-      final response = await http.post(
-        _uri('/wallet/top-up'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode({
-          'amount': amount,
-          'referenceId': referenceId,
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return data['data'] as Map<String, dynamic>?;
-      }
-      return null;
-    } catch (e) {
-      print('Error topping up wallet: $e');
       return null;
     }
   }
@@ -194,7 +181,10 @@ class WalletService {
     try {
       final body = jsonDecode(res.body);
       if (body is Map) {
-        final m = body['message'] ?? body['error'];
+        // Le backend répond { error: { message } }.
+        final error = body['error'];
+        final m = body['message'] ??
+            (error is Map ? error['message'] : error);
         if (m != null && m.toString().trim().isNotEmpty) return m.toString();
       }
     } catch (_) {}
@@ -254,48 +244,86 @@ class WalletService {
             return db.compareTo(da);
           });
         return WalletData(
-            balance: _toDouble(wallet['balance']), transactions: txs);
+          balance: _toDouble(wallet['balance']),
+          transactions: txs,
+          currency: (wallet['currency'] ?? 'CDF').toString().toUpperCase(),
+        );
       });
 
-  /// POST /wallet/top-up  { amount, referenceId }
-  /// referenceId : identifiant unique de la demande, généré ici
-  /// (votre backend l'exige déjà dans l'ancienne version).
-  static Future<TopUpResult> requestTopUp({
-    required double amount,
-    String? phone, // non envoyé : l'API actuelle ne lit que amount + referenceId
-    String? referenceId,
+  /// POST /wallet/top-ups { amount, currency } → session Nyole.
+  /// Le solde n'est crédité qu'après confirmation du paiement côté serveur.
+  static Future<TopUpSession> startTopUp({
+    required int amount,
+    required String currency,
   }) =>
       _guard(() async {
         final res = await http
             .post(
-              _uri('/wallet/top-up'),
+              _uri('/wallet/top-ups'),
               headers: await _authHeaders(),
-              body: jsonEncode({
-                'amount': amount,
-                'referenceId': referenceId ??
-                    'MOBILE_MONEY_${DateTime.now().millisecondsSinceEpoch}',
-              }),
+              body: jsonEncode({'amount': amount, 'currency': currency}),
             )
-            .timeout(const Duration(seconds: 60));
+            .timeout(const Duration(seconds: 45));
         if (res.statusCode < 200 || res.statusCode >= 300) {
           throw WalletException(
-            _errorMessage(res, 'La recharge a échoué. Réessayez.'),
+            _errorMessage(res, 'Impossible de lancer la recharge. Réessayez.'),
             statusCode: res.statusCode,
           );
         }
-        String message = 'Recharge effectuée avec succès.';
-        try {
-          final body = jsonDecode(res.body);
-          if (body is Map && body['message'] != null) {
-            message = body['message'].toString();
-          }
-        } catch (_) {}
         final j = _dataOf(res);
-        final wallet = j['wallet'] is Map ? j['wallet'] as Map : j;
-        return TopUpResult(
-          message: message,
-          newBalance:
-              wallet['balance'] == null ? null : _toDouble(wallet['balance']),
+        final url = j['paymentUrl']?.toString() ?? '';
+        final id = j['transactionId']?.toString() ?? '';
+        if (url.isEmpty || id.isEmpty) {
+          throw WalletException('Page de paiement introuvable. Réessayez.');
+        }
+        return TopUpSession(
+          transactionId: id,
+          paymentUrl: url,
+          amount: _toDouble(j['amount']),
+          currency: j['currency']?.toString() ?? currency,
         );
       });
+
+  /// GET /payments/nyole/{transactionId} : le serveur interroge Nyole si
+  /// le paiement n'est pas encore tranché.
+  static Future<TopUpStatus> fetchPaymentStatus(String transactionId) =>
+      _guard(() async {
+        final res = await http
+            .get(
+              _uri('/payments/nyole/${Uri.encodeComponent(transactionId)}'),
+              headers: await _authHeaders(),
+            )
+            .timeout(const Duration(seconds: 30));
+        if (res.statusCode < 200 || res.statusCode >= 300) {
+          throw WalletException(
+            _errorMessage(res, 'Impossible de vérifier le paiement.'),
+            statusCode: res.statusCode,
+          );
+        }
+        final status = _dataOf(res)['status']?.toString().toUpperCase() ?? '';
+        if (status == 'PAID') return TopUpStatus.paid;
+        if (status == 'FAILED' || status == 'CANCELLED') {
+          return TopUpStatus.failed;
+        }
+        return TopUpStatus.pending;
+      });
+
+  /// Attend la confirmation serveur d'une recharge (webhook ou vérification
+  /// Nyole), au plus [timeout]. Retourne `pending` si rien n'est tranché.
+  static Future<TopUpStatus> waitForTopUp(
+    String transactionId, {
+    Duration timeout = const Duration(seconds: 30),
+  }) async {
+    final deadline = DateTime.now().add(timeout);
+    while (true) {
+      try {
+        final status = await fetchPaymentStatus(transactionId);
+        if (status != TopUpStatus.pending) return status;
+      } on WalletException {
+        // Réseau instable : on réessaie jusqu'à l'échéance.
+      }
+      if (DateTime.now().isAfter(deadline)) return TopUpStatus.pending;
+      await Future<void>.delayed(const Duration(seconds: 3));
+    }
+  }
 }

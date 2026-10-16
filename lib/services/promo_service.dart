@@ -7,25 +7,63 @@ class PromoApplication {
     required this.code,
     required this.description,
     required this.discountAmount,
+    this.discountPercent,
+    this.discountFixed,
+    this.minOrder,
   });
 
   final String code;
   final String description;
+
+  /// Réduction calculée par le serveur pour le panier vérifié.
   final double discountAmount;
+  final double? discountPercent;
+  final double? discountFixed;
+  final double? minOrder;
+
+  /// Réduction pour un autre sous-total (le panier a changé). Même règle que
+  /// le serveur, qui recalcule de toute façon à la commande.
+  double discountFor(double subtotal) {
+    if (subtotal <= 0) return 0;
+    if (minOrder != null && subtotal < minOrder!) return 0;
+    double discount;
+    if ((discountPercent ?? 0) > 0) {
+      discount = subtotal * discountPercent! / 100;
+    } else if ((discountFixed ?? 0) > 0) {
+      discount = discountFixed!;
+    } else {
+      return discountAmount;
+    }
+    final rounded = discount.roundToDouble();
+    final cap = subtotal.floorToDouble();
+    return rounded > cap ? cap : rounded;
+  }
+}
+
+/// Résultat de la vérification : le code appliqué, ou le message du serveur
+/// (expiré, minimum non atteint, déjà utilisé…).
+class PromoCheck {
+  const PromoCheck({this.promo, this.error});
+  final PromoApplication? promo;
+  final String? error;
 }
 
 class PromoService {
-  static Future<PromoApplication?> applyCode({
+  /// Vérifie un code pour le panier. [subtotal] = plats, hors livraison.
+  static Future<PromoCheck> applyCode({
     required String rawCode,
     required double subtotal,
     required double deliveryFee,
   }) async {
     final code = rawCode.trim().toUpperCase();
-    if (code.isEmpty) return null;
+    if (code.isEmpty) return const PromoCheck();
 
     try {
       final token = await SessionService.readNodeToken();
-      if (token == null) return null;
+      if (token == null) {
+        return const PromoCheck(
+            error: 'Connectez-vous pour utiliser un code promo.');
+      }
 
       final response = await NodeAuthService.postJson(
         '/promo-codes/validate',
@@ -38,19 +76,27 @@ class PromoService {
       );
 
       final data = response['data'];
-      if (data != null && data is Map) {
-        final discountAmount = (data['discountAmount'] as num?)?.toDouble() ?? 0.0;
-        if (discountAmount <= 0) return null;
-
-        return PromoApplication(
-          code: data['code']?.toString() ?? code,
-          description: data['description']?.toString() ?? 'Promotion',
-          discountAmount: discountAmount,
+      if (data is Map) {
+        double? num0(Object? v) => double.tryParse('${v ?? ''}');
+        final discountAmount = num0(data['discountAmount']) ?? 0.0;
+        if (discountAmount <= 0) return const PromoCheck();
+        final description = data['description']?.toString().trim() ?? '';
+        return PromoCheck(
+          promo: PromoApplication(
+            code: data['code']?.toString() ?? code,
+            description: description.isEmpty ? 'Promotion' : description,
+            discountAmount: discountAmount,
+            discountPercent: num0(data['discountPercent']),
+            discountFixed: num0(data['discountFixed']),
+            minOrder: num0(data['minOrder']),
+          ),
         );
       }
-      return null;
-    } catch (e) {
-      return null;
+      return const PromoCheck();
+    } on NodeAuthException catch (e) {
+      return PromoCheck(error: e.message);
+    } catch (_) {
+      return const PromoCheck();
     }
   }
 

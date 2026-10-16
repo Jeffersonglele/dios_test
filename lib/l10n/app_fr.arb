@@ -973,8 +973,8 @@
   "referral_codes_section": "Codes de parrainage",
   "referral_empty": "Aucun code de parrainage",
   "referral_empty_hint": "Les codes de parrainage apparaîtront ici lorsque des utilisateurs les créeront.",
-  "wait_identity_title": "Votre identité n'a pas encore été validée.",
-  "wait_identity_body": "Vous recevrez un mail lorsque nos administrateurs auront examiné vos informations.",
+  "wait_identity_title": "Dossier en cours de vérification",
+  "wait_identity_body": "Notre équipe vérifie votre photo et vos documents. Vous recevrez un email dès que c'est fait.",
   "wait_restaurant_title": "Votre restaurant n'a pas encore été validé.",
   "wait_restaurant_body": "Vous recevrez un mail si votre idée de restaurant est acceptée.",
   "verification_email_missing": "Adresse email introuvable. Veuillez vous reconnecter.",
@@ -1470,7 +1470,7 @@
   "login_phone_hint": "+243 XXX XXX XXX",
   "login_send_otp": "Envoyer le code",
   "login_otp_title": "Code de vérification",
-  "login_otp_subtitle": "Entrez le code à 4 chiffres reçu par SMS",
+  "login_otp_subtitle": "Entrez le code à 6 chiffres reçu par SMS",
   "login_otp_hint": "****",
   "login_otp_timer": "Renvoi possible dans {seconds}s",
   "login_otp_resend": "Renvoyer le code",
@@ -1592,15 +1592,29 @@
   "signup_username": "Nom d'utilisateur",
   "signup_username_min_chars": "Choisissez un pseudo (4 caractères min.)",
   "signup_min_chars": "{count} caractères min.",
-  "@signup_min_chars": { "placeholders": { "count": { "type": "int" } } },
+  "@signup_min_chars": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "signup_continue": "Continuer",
   "signup_email": "Adresse e-mail",
   "signup_email_invalid": "Entrez une adresse e-mail valide",
   "signup_phone_hint": "Tél. : {example}",
-  "@signup_phone_hint": { "placeholders": { "example": {} } },
+  "@signup_phone_hint": {
+    "placeholders": {
+      "example": {}
+    }
+  },
   "signup_phone_required": "Entrez votre numéro",
   "signup_phone_format": "Format attendu : {example}",
-  "@signup_phone_format": { "placeholders": { "example": {} } },
+  "@signup_phone_format": {
+    "placeholders": {
+      "example": {}
+    }
+  },
   "signup_password_hint": "Mot de passe (8 caractères min.)",
   "signup_password_required": "Veuillez saisir un mot de passe",
   "signup_password_min_length": "Au moins 8 caractères requis",
@@ -1614,7 +1628,11 @@
   "signup_accept_terms_warning": "Veuillez accepter les conditions d'utilisation.",
   "signup_age_warning": "Veuillez confirmer votre âge (18+).",
   "signup_create_error": "Erreur : {error}",
-  "@signup_create_error": { "placeholders": { "error": {} } },
+  "@signup_create_error": {
+    "placeholders": {
+      "error": {}
+    }
+  },
   "signup_role_prompt": "Utiliser l'application comme",
   "signup_customer_role": "Client",
   "signup_customer_role_description": "Commander des repas",
@@ -1626,7 +1644,11 @@
   "signup_vehicle_car": "Voiture",
   "signup_country_detecting": "Détection…",
   "signup_country_calling_code": "Indicatif : {code}",
-  "@signup_country_calling_code": { "placeholders": { "code": {} } },
+  "@signup_country_calling_code": {
+    "placeholders": {
+      "code": {}
+    }
+  },
   "signup_country_drc": "RDC",
   "signup_country_benin": "Bénin",
   "signup_choose_country": "Choisir un pays",
@@ -1641,5 +1663,211 @@
   "signup_password_min_8": "8 car. min.",
   "signup_password_uppercase": "Majuscule",
   "signup_password_digit": "Chiffre",
-  "signup_password_symbol": "Symbole"
+  "signup_password_symbol": "Symbole",
+  "signup_step_profile": "Profil",
+  "signup_step_contact": "Coordonnées",
+  "signup_step_security": "Sécurité",
+  "login_identifier_hint": "pseudo ou nom@exemple.com",
+  "login_no_account_prompt": "Pas encore de compte ?",
+  "login_submit": "Se connecter",
+  "login_create_account_link": "Créer un compte",
+  "login_otp_sent_to": "Code envoyé au {phone}",
+  "@login_otp_sent_to": {
+    "placeholders": {
+      "phone": {}
+    }
+  },
+  "home_greeting_guest": "Bonjour 👋",
+  "home_greeting_prompt": "Qu'est-ce qui vous ferait plaisir aujourd'hui ?",
+  "home_explore_meals_hint": "Découvrez les plats préparés autour de vous",
+  "cart_payment_cod_hint": "Payez en espèces au livreur à la réception",
+  "cart_payment_cod_pickup_hint": "Payez en espèces au retrait de la commande",
+  "cart_payment_mobile_money_hint": "Paiement sécurisé depuis votre téléphone",
+  "cart_payment_wallet": "Portefeuille Dios",
+  "cart_payment_wallet_hint": "Payez directement avec votre solde",
+  "cart_payment_not_completed": "Paiement non finalisé. Votre panier est conservé, vous pouvez réessayer.",
+  "cart_wallet_topup": "Recharger",
+  "cart_checkout_order": "Commander",
+  "cart_checkout_pay": "Payer",
+  "nyole_title": "Paiement sécurisé",
+  "nyole_loading": "Chargement de la page de paiement…",
+  "nyole_cancel_title": "Annuler le paiement ?",
+  "nyole_cancel_body": "Votre commande ne sera pas validée tant que le paiement n'est pas effectué. Votre panier reste disponible.",
+  "nyole_continue": "Continuer le paiement",
+  "nyole_cancel": "Annuler",
+  "order_step_received": "Commande reçue",
+  "order_step_preparing": "En préparation",
+  "order_step_ready": "Prête",
+  "order_step_ready_pickup": "Prête à retirer",
+  "order_step_on_the_way": "En route",
+  "order_step_delivered": "Livrée",
+  "order_step_picked_up": "Retirée",
+  "order_stage_awaiting_payment": "Paiement en attente",
+  "order_stage_cancelled": "Annulée",
+  "order_stage_refused": "Refusée par le restaurant",
+  "order_awaiting_payment_hint": "Votre paiement Mobile Money n'est pas encore confirmé. La commande sera transmise au restaurant dès sa confirmation.",
+  "order_cancel_free_hint": "Annulation gratuite tant que la préparation n'a pas commencé.",
+  "order_cancel_refund_wallet": "Le montant payé sera remboursé sur votre portefeuille Dios.",
+  "order_cancelled_done": "Commande annulée.",
+  "order_cancelled_refunded": "Commande annulée. Le remboursement a été crédité sur votre portefeuille.",
+  "order_refuse_title": "Refuser la commande ?",
+  "order_refuse_body": "Le client sera prévenu et remboursé s'il a déjà payé. Les refus répétés font baisser votre indice de fiabilité.",
+  "order_accept": "Accepter et préparer",
+  "order_accept_body": "La préparation commence : le client ne pourra plus annuler.",
+  "order_mark_ready": "Marquer comme prête",
+  "order_mark_ready_body": "Un livreur va être recherché pour cette commande.",
+  "order_refuse": "Refuser",
+  "order_refused_done": "Commande refusée.",
+  "order_accepted_done": "Commande acceptée : bonne préparation !",
+  "order_ready_done": "Commande prête.",
+  "order_call": "Appeler",
+  "order_whatsapp": "WhatsApp",
+  "order_placed_on": "Passée le {date}",
+  "@order_placed_on": {
+    "placeholders": {
+      "date": {}
+    }
+  },
+  "orders_filter_active": "En cours",
+  "orders_filter_new": "Nouvelles",
+  "orders_filter_ready": "Prêtes",
+  "orders_filter_done": "Terminées",
+  "orders_filter_cancelled": "Annulées",
+  "orders_waiting_courier": "En attente d'un livreur",
+  "order_validate_pickup": "Valider le retrait",
+  "dash_to_process_title": "{count} commande(s) à traiter",
+  "@dash_to_process_title": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "dash_to_process_body": "Acceptez ou refusez rapidement : le client attend votre réponse.",
+  "dash_to_process_cta": "Voir les commandes",
+  "dash_period_today": "Aujourd'hui",
+  "dash_period_week": "7 jours",
+  "dash_period_month": "30 jours",
+  "dash_finances": "Finances",
+  "dash_revenue": "Chiffre d'affaires plats",
+  "dash_revenue_hint": "Montant des plats, réductions déduites, hors frais de livraison.",
+  "dash_revenue_done": "Livrées",
+  "dash_revenue_in_progress": "En cours",
+  "dash_payment_mix": "Répartition des paiements",
+  "dash_online": "Mobile Money / Portefeuille",
+  "dash_cash": "Espèces",
+  "dash_activity": "Activité",
+  "dash_orders": "Commandes",
+  "dash_acceptance": "Taux d'acceptation",
+  "dash_avg_basket": "Panier moyen",
+  "dash_refused": "Refusées",
+  "dash_quality": "Qualité & catalogue",
+  "dash_rating": "Note moyenne",
+  "dash_rating_none": "Pas encore de note",
+  "dash_rating_warning": "Sous 3,2 / 5, le compte est automatiquement bloqué. Soignez la qualité et les délais.",
+  "dash_top_dishes": "Les plus vendus",
+  "dash_flop_dishes": "Peu demandés",
+  "dash_sold_count": "{count} vendu(s)",
+  "@dash_sold_count": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "dash_no_sales": "Aucune vente sur la période.",
+  "dash_no_data": "—",
+  "dash_refused_hint": "Dès 3 refus, votre fiabilité baisse",
+  "dash_avg_basket_hint": "Par commande, hors livraison",
+  "dash_recent_reviews": "Derniers avis clients",
+  "dash_no_reviews": "Pas encore d'avis client.",
+  "store_revenue_month": "Revenus du mois",
+  "store_revenue_delivered": "{count} commande(s) livrée(s)",
+  "@store_revenue_delivered": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "store_revenue_in_progress": "En cours : {amount}",
+  "@store_revenue_in_progress": {
+    "placeholders": {
+      "amount": {}
+    }
+  },
+  "store_revenue_to_process": "{count} à traiter",
+  "@store_revenue_to_process": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "store_section_activity": "Mon activité",
+  "store_section_account": "Mon compte",
+  "store_role_client": "Client",
+  "store_role_restaurateur": "Restaurateur",
+  "store_role_courier": "Livreur",
+  "store_role_admin": "Administrateur",
+  "restaurant_form_rejected": "Votre demande a été refusée. Corrigez les informations puis renvoyez-la.",
+  "restaurant_form_rejected_reason": "Votre demande a été refusée.\nMotif : {reason}\nCorrigez les informations puis renvoyez-la.",
+  "pro_request_error_file_access": "Impossible de lire ce fichier. Choisissez-le depuis le stockage du téléphone.",
+  "pro_request_error_file_size": "Le fichier dépasse 5 Mo. Choisissez un fichier plus léger.",
+  "pro_request_rejected_title": "Demande Pro refusée",
+  "pro_request_rejected_body": "Votre dernière demande a été refusée. Vous pouvez envoyer de nouveaux documents.",
+  "pro_request_rejected_reason": "Motif : {reason}. Vous pouvez envoyer de nouveaux documents.",
+  "pro_request_already_pro_title": "Votre restaurant est Pro",
+  "pro_request_already_pro_body": "Le badge Pro s'affiche déjà sur votre restaurant.",
+  "pro_request_pending_title": "Demande en cours d'examen",
+  "pro_request_pending_body": "Nous vérifions vos documents. Vous recevrez un email dès que la décision est prise.",
+  "pro_request_needs_validation_title": "Restaurant pas encore validé",
+  "pro_request_needs_validation_body": "La demande Pro sera possible une fois votre restaurant validé par l'équipe Dios Délices.",
+  "courier_onb_title": "Mon dossier livreur",
+  "courier_onb_intro": "Pour livrer avec Dios Délices, envoyez une photo de vous et vos documents. Notre équipe les vérifie avant votre première course.",
+  "courier_onb_rejected": "Votre dossier a été refusé. Corrigez-le puis renvoyez-le.",
+  "courier_onb_rejected_reason": "Votre dossier a été refusé.\nMotif : {reason}\nCorrigez-le puis renvoyez-le.",
+  "courier_onb_photo_title": "Votre photo",
+  "courier_onb_photo_hint": "Photo de votre visage, de face, bien éclairée et sans lunettes de soleil. Elle sera visible par les clients et les restaurants.",
+  "courier_onb_take_photo": "Prendre ma photo",
+  "courier_onb_retake_photo": "Reprendre la photo",
+  "courier_onb_vehicle_title": "Votre véhicule",
+  "courier_onb_documents_title": "Vos documents",
+  "courier_onb_add_document": "Ajouter (photo ou PDF)",
+  "courier_onb_no_license_bike": "À vélo, le permis de conduire n'est pas demandé.",
+  "courier_onb_submit": "Envoyer mon dossier",
+  "courier_onb_privacy": "Vos documents ne sont visibles que par l'équipe Dios Délices.",
+  "courier_onb_formats": "PDF, JPG ou PNG, 5 Mo maximum",
+  "courier_onb_file_too_big": "Le fichier dépasse 5 Mo. Choisissez un fichier plus léger.",
+  "courier_onb_photo_required": "Prenez une photo de vous pour continuer.",
+  "courier_onb_identity_required": "Ajoutez votre pièce d'identité.",
+  "courier_onb_license_required": "Ajoutez votre permis de conduire.",
+  "courier_onb_sent": "Dossier envoyé. Nous vous prévenons dès qu'il est validé.",
+  "courier_wait_check_status": "Vérifier mon statut",
+  "courier_wait_still_pending": "Votre dossier est toujours en cours de vérification.",
+  "courier_onb_plate_label": "Plaque d'immatriculation",
+  "courier_onb_plate_hint": "Ex. : AB-1234-CD",
+  "courier_onb_plate_required": "Indiquez la plaque d'immatriculation de votre véhicule.",
+  "courier_card_title": "Votre livreur",
+  "courier_card_title_restaurant": "Livreur de la commande",
+  "courier_card_call": "Appeler",
+  "courier_card_track": "Suivre",
+  "courier_card_searching_title": "Recherche d'un livreur…",
+  "courier_card_searching_body": "Un livreur proche va accepter la course. Sa photo et sa plaque s'afficheront ici.",
+  "courier_admin_to_review": "À valider",
+  "courier_admin_validated": "Validé",
+  "courier_admin_rejected": "Refusé",
+  "courier_admin_no_file": "Sans dossier",
+  "courier_admin_no_file_body": "Ce livreur n'a pas encore envoyé sa photo ni ses documents.",
+  "courier_admin_total": "Livreurs",
+  "courier_admin_photo": "Photo du livreur",
+  "courier_admin_delivery_fees": "Frais de livraison",
+  "courier_admin_active_orders": "En cours",
+  "courier_admin_validate_file": "Valider le dossier",
+  "courier_admin_validate_confirm": "Valider le dossier de {name} ? Il pourra se mettre en ligne et accepter des courses.",
+  "courier_admin_file_validated": "Dossier validé",
+  "courier_admin_file_rejected": "Dossier refusé",
+  "courier_admin_rejection_reason": "Motif du refus : {reason}",
+  "courier_admin_busy": "En course",
+  "courier_admin_tap_to_view": "Toucher pour agrandir"
 }

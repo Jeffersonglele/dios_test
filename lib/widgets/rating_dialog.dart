@@ -17,6 +17,9 @@ class RatingDialog extends StatefulWidget {
   final List<LigneCommande>? lignes;
   final Map<int, String>? dishNames;
 
+  /// Commande livrée qui justifie l'avis (un avis par commande et par cible).
+  final int? orderId;
+
   const RatingDialog({
     super.key,
     required this.targetType,
@@ -24,6 +27,7 @@ class RatingDialog extends StatefulWidget {
     this.title = 'Noter',
     this.lignes,
     this.dishNames,
+    this.orderId,
   });
 
   @override
@@ -75,6 +79,7 @@ class _RatingDialogState extends State<RatingDialog> {
       commentaire: _commentCtrl.text.trim(),
       username: username,
       tags: _selectedTags.toList(),
+      orderId: widget.orderId,
     );
 
     if (mounted) {

@@ -4296,13 +4296,13 @@ abstract class AppLocalizations {
   /// No description provided for @wait_identity_title.
   ///
   /// In en, this message translates to:
-  /// **'Your identity has not been validated yet.'**
+  /// **'File under review'**
   String get wait_identity_title;
 
   /// No description provided for @wait_identity_body.
   ///
   /// In en, this message translates to:
-  /// **'You will receive an email when our administrators have reviewed your information.'**
+  /// **'Our team is checking your photo and documents. You\'ll get an email once it\'s done.'**
   String get wait_identity_body;
 
   /// No description provided for @wait_restaurant_title.
@@ -6318,7 +6318,7 @@ abstract class AppLocalizations {
   /// No description provided for @login_otp_subtitle.
   ///
   /// In en, this message translates to:
-  /// **'Enter the 4-digit code received by SMS'**
+  /// **'Enter the 6-digit code received by SMS'**
   String get login_otp_subtitle;
 
   /// No description provided for @login_otp_hint.
@@ -7310,6 +7310,984 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Symbol'**
   String get signup_password_symbol;
+
+  /// No description provided for @signup_step_profile.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile'**
+  String get signup_step_profile;
+
+  /// No description provided for @signup_step_contact.
+  ///
+  /// In en, this message translates to:
+  /// **'Contact'**
+  String get signup_step_contact;
+
+  /// No description provided for @signup_step_security.
+  ///
+  /// In en, this message translates to:
+  /// **'Security'**
+  String get signup_step_security;
+
+  /// No description provided for @login_identifier_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'username or name@example.com'**
+  String get login_identifier_hint;
+
+  /// No description provided for @login_no_account_prompt.
+  ///
+  /// In en, this message translates to:
+  /// **'New here?'**
+  String get login_no_account_prompt;
+
+  /// No description provided for @login_submit.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in'**
+  String get login_submit;
+
+  /// No description provided for @login_create_account_link.
+  ///
+  /// In en, this message translates to:
+  /// **'Create an account'**
+  String get login_create_account_link;
+
+  /// No description provided for @login_otp_sent_to.
+  ///
+  /// In en, this message translates to:
+  /// **'Code sent to {phone}'**
+  String login_otp_sent_to(Object phone);
+
+  /// No description provided for @home_greeting_guest.
+  ///
+  /// In en, this message translates to:
+  /// **'Hello 👋'**
+  String get home_greeting_guest;
+
+  /// No description provided for @home_greeting_prompt.
+  ///
+  /// In en, this message translates to:
+  /// **'What are you craving today?'**
+  String get home_greeting_prompt;
+
+  /// No description provided for @home_explore_meals_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Discover dishes cooked around you'**
+  String get home_explore_meals_hint;
+
+  /// No description provided for @cart_payment_cod_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Pay the courier in cash on delivery'**
+  String get cart_payment_cod_hint;
+
+  /// No description provided for @cart_payment_cod_pickup_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Pay in cash when you pick up the order'**
+  String get cart_payment_cod_pickup_hint;
+
+  /// No description provided for @cart_payment_mobile_money_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Secure payment from your phone'**
+  String get cart_payment_mobile_money_hint;
+
+  /// No description provided for @cart_payment_wallet.
+  ///
+  /// In en, this message translates to:
+  /// **'Dios Wallet'**
+  String get cart_payment_wallet;
+
+  /// No description provided for @cart_payment_wallet_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Pay directly with your balance'**
+  String get cart_payment_wallet_hint;
+
+  /// No description provided for @cart_payment_not_completed.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment not completed. Your cart is kept, you can try again.'**
+  String get cart_payment_not_completed;
+
+  /// No description provided for @cart_wallet_topup.
+  ///
+  /// In en, this message translates to:
+  /// **'Top up'**
+  String get cart_wallet_topup;
+
+  /// No description provided for @cart_checkout_order.
+  ///
+  /// In en, this message translates to:
+  /// **'Place order'**
+  String get cart_checkout_order;
+
+  /// No description provided for @cart_checkout_pay.
+  ///
+  /// In en, this message translates to:
+  /// **'Pay'**
+  String get cart_checkout_pay;
+
+  /// No description provided for @nyole_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Secure payment'**
+  String get nyole_title;
+
+  /// No description provided for @nyole_loading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading the payment page…'**
+  String get nyole_loading;
+
+  /// No description provided for @nyole_cancel_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel the payment?'**
+  String get nyole_cancel_title;
+
+  /// No description provided for @nyole_cancel_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Your order will not be confirmed until the payment is made. Your cart stays available.'**
+  String get nyole_cancel_body;
+
+  /// No description provided for @nyole_continue.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue payment'**
+  String get nyole_continue;
+
+  /// No description provided for @nyole_cancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get nyole_cancel;
+
+  /// No description provided for @order_step_received.
+  ///
+  /// In en, this message translates to:
+  /// **'Order received'**
+  String get order_step_received;
+
+  /// No description provided for @order_step_preparing.
+  ///
+  /// In en, this message translates to:
+  /// **'Being prepared'**
+  String get order_step_preparing;
+
+  /// No description provided for @order_step_ready.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready'**
+  String get order_step_ready;
+
+  /// No description provided for @order_step_ready_pickup.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready for pickup'**
+  String get order_step_ready_pickup;
+
+  /// No description provided for @order_step_on_the_way.
+  ///
+  /// In en, this message translates to:
+  /// **'On the way'**
+  String get order_step_on_the_way;
+
+  /// No description provided for @order_step_delivered.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivered'**
+  String get order_step_delivered;
+
+  /// No description provided for @order_step_picked_up.
+  ///
+  /// In en, this message translates to:
+  /// **'Picked up'**
+  String get order_step_picked_up;
+
+  /// No description provided for @order_stage_awaiting_payment.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment pending'**
+  String get order_stage_awaiting_payment;
+
+  /// No description provided for @order_stage_cancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelled'**
+  String get order_stage_cancelled;
+
+  /// No description provided for @order_stage_refused.
+  ///
+  /// In en, this message translates to:
+  /// **'Refused by the restaurant'**
+  String get order_stage_refused;
+
+  /// No description provided for @order_awaiting_payment_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Mobile Money payment is not confirmed yet. The order will be sent to the restaurant as soon as it is.'**
+  String get order_awaiting_payment_hint;
+
+  /// No description provided for @order_cancel_free_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Free cancellation until preparation starts.'**
+  String get order_cancel_free_hint;
+
+  /// No description provided for @order_cancel_refund_wallet.
+  ///
+  /// In en, this message translates to:
+  /// **'The amount paid will be refunded to your Dios wallet.'**
+  String get order_cancel_refund_wallet;
+
+  /// No description provided for @order_cancelled_done.
+  ///
+  /// In en, this message translates to:
+  /// **'Order cancelled.'**
+  String get order_cancelled_done;
+
+  /// No description provided for @order_cancelled_refunded.
+  ///
+  /// In en, this message translates to:
+  /// **'Order cancelled. The refund has been credited to your wallet.'**
+  String get order_cancelled_refunded;
+
+  /// No description provided for @order_refuse_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Refuse this order?'**
+  String get order_refuse_title;
+
+  /// No description provided for @order_refuse_body.
+  ///
+  /// In en, this message translates to:
+  /// **'The customer will be notified and refunded if already paid. Repeated refusals lower your reliability score.'**
+  String get order_refuse_body;
+
+  /// No description provided for @order_accept.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept and prepare'**
+  String get order_accept;
+
+  /// No description provided for @order_accept_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparation starts: the customer can no longer cancel.'**
+  String get order_accept_body;
+
+  /// No description provided for @order_mark_ready.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark as ready'**
+  String get order_mark_ready;
+
+  /// No description provided for @order_mark_ready_body.
+  ///
+  /// In en, this message translates to:
+  /// **'A courier will be searched for this order.'**
+  String get order_mark_ready_body;
+
+  /// No description provided for @order_refuse.
+  ///
+  /// In en, this message translates to:
+  /// **'Refuse'**
+  String get order_refuse;
+
+  /// No description provided for @order_refused_done.
+  ///
+  /// In en, this message translates to:
+  /// **'Order refused.'**
+  String get order_refused_done;
+
+  /// No description provided for @order_accepted_done.
+  ///
+  /// In en, this message translates to:
+  /// **'Order accepted: happy cooking!'**
+  String get order_accepted_done;
+
+  /// No description provided for @order_ready_done.
+  ///
+  /// In en, this message translates to:
+  /// **'Order ready.'**
+  String get order_ready_done;
+
+  /// No description provided for @order_call.
+  ///
+  /// In en, this message translates to:
+  /// **'Call'**
+  String get order_call;
+
+  /// No description provided for @order_whatsapp.
+  ///
+  /// In en, this message translates to:
+  /// **'WhatsApp'**
+  String get order_whatsapp;
+
+  /// No description provided for @order_placed_on.
+  ///
+  /// In en, this message translates to:
+  /// **'Placed on {date}'**
+  String order_placed_on(Object date);
+
+  /// No description provided for @orders_filter_active.
+  ///
+  /// In en, this message translates to:
+  /// **'In progress'**
+  String get orders_filter_active;
+
+  /// No description provided for @orders_filter_new.
+  ///
+  /// In en, this message translates to:
+  /// **'New'**
+  String get orders_filter_new;
+
+  /// No description provided for @orders_filter_ready.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready'**
+  String get orders_filter_ready;
+
+  /// No description provided for @orders_filter_done.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed'**
+  String get orders_filter_done;
+
+  /// No description provided for @orders_filter_cancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelled'**
+  String get orders_filter_cancelled;
+
+  /// No description provided for @orders_waiting_courier.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for a courier'**
+  String get orders_waiting_courier;
+
+  /// No description provided for @order_validate_pickup.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm pickup'**
+  String get order_validate_pickup;
+
+  /// No description provided for @dash_to_process_title.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} order(s) to handle'**
+  String dash_to_process_title(int count);
+
+  /// No description provided for @dash_to_process_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept or refuse quickly: the customer is waiting for your answer.'**
+  String get dash_to_process_body;
+
+  /// No description provided for @dash_to_process_cta.
+  ///
+  /// In en, this message translates to:
+  /// **'See orders'**
+  String get dash_to_process_cta;
+
+  /// No description provided for @dash_period_today.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get dash_period_today;
+
+  /// No description provided for @dash_period_week.
+  ///
+  /// In en, this message translates to:
+  /// **'7 days'**
+  String get dash_period_week;
+
+  /// No description provided for @dash_period_month.
+  ///
+  /// In en, this message translates to:
+  /// **'30 days'**
+  String get dash_period_month;
+
+  /// No description provided for @dash_finances.
+  ///
+  /// In en, this message translates to:
+  /// **'Finances'**
+  String get dash_finances;
+
+  /// No description provided for @dash_revenue.
+  ///
+  /// In en, this message translates to:
+  /// **'Food revenue'**
+  String get dash_revenue;
+
+  /// No description provided for @dash_revenue_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Dishes amount, discounts deducted, delivery fees excluded.'**
+  String get dash_revenue_hint;
+
+  /// No description provided for @dash_revenue_done.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivered'**
+  String get dash_revenue_done;
+
+  /// No description provided for @dash_revenue_in_progress.
+  ///
+  /// In en, this message translates to:
+  /// **'In progress'**
+  String get dash_revenue_in_progress;
+
+  /// No description provided for @dash_payment_mix.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment split'**
+  String get dash_payment_mix;
+
+  /// No description provided for @dash_online.
+  ///
+  /// In en, this message translates to:
+  /// **'Mobile Money / Wallet'**
+  String get dash_online;
+
+  /// No description provided for @dash_cash.
+  ///
+  /// In en, this message translates to:
+  /// **'Cash'**
+  String get dash_cash;
+
+  /// No description provided for @dash_activity.
+  ///
+  /// In en, this message translates to:
+  /// **'Activity'**
+  String get dash_activity;
+
+  /// No description provided for @dash_orders.
+  ///
+  /// In en, this message translates to:
+  /// **'Orders'**
+  String get dash_orders;
+
+  /// No description provided for @dash_acceptance.
+  ///
+  /// In en, this message translates to:
+  /// **'Acceptance rate'**
+  String get dash_acceptance;
+
+  /// No description provided for @dash_avg_basket.
+  ///
+  /// In en, this message translates to:
+  /// **'Average basket'**
+  String get dash_avg_basket;
+
+  /// No description provided for @dash_refused.
+  ///
+  /// In en, this message translates to:
+  /// **'Refused'**
+  String get dash_refused;
+
+  /// No description provided for @dash_quality.
+  ///
+  /// In en, this message translates to:
+  /// **'Quality & menu'**
+  String get dash_quality;
+
+  /// No description provided for @dash_rating.
+  ///
+  /// In en, this message translates to:
+  /// **'Average rating'**
+  String get dash_rating;
+
+  /// No description provided for @dash_rating_none.
+  ///
+  /// In en, this message translates to:
+  /// **'No rating yet'**
+  String get dash_rating_none;
+
+  /// No description provided for @dash_rating_warning.
+  ///
+  /// In en, this message translates to:
+  /// **'Below 3.2 / 5 the account is automatically blocked. Take care of quality and timing.'**
+  String get dash_rating_warning;
+
+  /// No description provided for @dash_top_dishes.
+  ///
+  /// In en, this message translates to:
+  /// **'Best sellers'**
+  String get dash_top_dishes;
+
+  /// No description provided for @dash_flop_dishes.
+  ///
+  /// In en, this message translates to:
+  /// **'Rarely ordered'**
+  String get dash_flop_dishes;
+
+  /// No description provided for @dash_sold_count.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} sold'**
+  String dash_sold_count(int count);
+
+  /// No description provided for @dash_no_sales.
+  ///
+  /// In en, this message translates to:
+  /// **'No sales over this period.'**
+  String get dash_no_sales;
+
+  /// No description provided for @dash_no_data.
+  ///
+  /// In en, this message translates to:
+  /// **'—'**
+  String get dash_no_data;
+
+  /// No description provided for @dash_refused_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'From 3 refusals, your reliability drops'**
+  String get dash_refused_hint;
+
+  /// No description provided for @dash_avg_basket_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Per order, delivery excluded'**
+  String get dash_avg_basket_hint;
+
+  /// No description provided for @dash_recent_reviews.
+  ///
+  /// In en, this message translates to:
+  /// **'Latest customer reviews'**
+  String get dash_recent_reviews;
+
+  /// No description provided for @dash_no_reviews.
+  ///
+  /// In en, this message translates to:
+  /// **'No customer review yet.'**
+  String get dash_no_reviews;
+
+  /// No description provided for @store_revenue_month.
+  ///
+  /// In en, this message translates to:
+  /// **'This month\'s revenue'**
+  String get store_revenue_month;
+
+  /// No description provided for @store_revenue_delivered.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} delivered order(s)'**
+  String store_revenue_delivered(int count);
+
+  /// No description provided for @store_revenue_in_progress.
+  ///
+  /// In en, this message translates to:
+  /// **'In progress: {amount}'**
+  String store_revenue_in_progress(Object amount);
+
+  /// No description provided for @store_revenue_to_process.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} to handle'**
+  String store_revenue_to_process(int count);
+
+  /// No description provided for @store_section_activity.
+  ///
+  /// In en, this message translates to:
+  /// **'My activity'**
+  String get store_section_activity;
+
+  /// No description provided for @store_section_account.
+  ///
+  /// In en, this message translates to:
+  /// **'My account'**
+  String get store_section_account;
+
+  /// No description provided for @store_role_client.
+  ///
+  /// In en, this message translates to:
+  /// **'Customer'**
+  String get store_role_client;
+
+  /// No description provided for @store_role_restaurateur.
+  ///
+  /// In en, this message translates to:
+  /// **'Restaurant owner'**
+  String get store_role_restaurateur;
+
+  /// No description provided for @store_role_courier.
+  ///
+  /// In en, this message translates to:
+  /// **'Courier'**
+  String get store_role_courier;
+
+  /// No description provided for @store_role_admin.
+  ///
+  /// In en, this message translates to:
+  /// **'Administrator'**
+  String get store_role_admin;
+
+  /// No description provided for @restaurant_form_rejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Your request was declined. Correct the details and send it again.'**
+  String get restaurant_form_rejected;
+
+  /// No description provided for @restaurant_form_rejected_reason.
+  ///
+  /// In en, this message translates to:
+  /// **'Your request was declined.\nReason: {reason}\nCorrect the details and send it again.'**
+  String restaurant_form_rejected_reason(String reason);
+
+  /// No description provided for @pro_request_error_file_access.
+  ///
+  /// In en, this message translates to:
+  /// **'This file can\'t be read. Pick it from the phone\'s storage.'**
+  String get pro_request_error_file_access;
+
+  /// No description provided for @pro_request_error_file_size.
+  ///
+  /// In en, this message translates to:
+  /// **'The file is larger than 5 MB. Pick a smaller file.'**
+  String get pro_request_error_file_size;
+
+  /// No description provided for @pro_request_rejected_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Pro request declined'**
+  String get pro_request_rejected_title;
+
+  /// No description provided for @pro_request_rejected_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Your last request was declined. You can send new documents.'**
+  String get pro_request_rejected_body;
+
+  /// No description provided for @pro_request_rejected_reason.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason: {reason}. You can send new documents.'**
+  String pro_request_rejected_reason(String reason);
+
+  /// No description provided for @pro_request_already_pro_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Your restaurant is Pro'**
+  String get pro_request_already_pro_title;
+
+  /// No description provided for @pro_request_already_pro_body.
+  ///
+  /// In en, this message translates to:
+  /// **'The Pro badge already shows on your restaurant.'**
+  String get pro_request_already_pro_body;
+
+  /// No description provided for @pro_request_pending_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Request under review'**
+  String get pro_request_pending_title;
+
+  /// No description provided for @pro_request_pending_body.
+  ///
+  /// In en, this message translates to:
+  /// **'We\'re checking your documents. You\'ll get an email once a decision is made.'**
+  String get pro_request_pending_body;
+
+  /// No description provided for @pro_request_needs_validation_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Restaurant not validated yet'**
+  String get pro_request_needs_validation_title;
+
+  /// No description provided for @pro_request_needs_validation_body.
+  ///
+  /// In en, this message translates to:
+  /// **'You can request Pro status once the Dios Délices team has validated your restaurant.'**
+  String get pro_request_needs_validation_body;
+
+  /// No description provided for @courier_onb_title.
+  ///
+  /// In en, this message translates to:
+  /// **'My courier file'**
+  String get courier_onb_title;
+
+  /// No description provided for @courier_onb_intro.
+  ///
+  /// In en, this message translates to:
+  /// **'To deliver with Dios Délices, send a photo of yourself and your documents. Our team checks them before your first delivery.'**
+  String get courier_onb_intro;
+
+  /// No description provided for @courier_onb_rejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Your file was declined. Correct it and send it again.'**
+  String get courier_onb_rejected;
+
+  /// No description provided for @courier_onb_rejected_reason.
+  ///
+  /// In en, this message translates to:
+  /// **'Your file was declined.\nReason: {reason}\nCorrect it and send it again.'**
+  String courier_onb_rejected_reason(String reason);
+
+  /// No description provided for @courier_onb_photo_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Your photo'**
+  String get courier_onb_photo_title;
+
+  /// No description provided for @courier_onb_photo_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'A clear, well-lit photo of your face, without sunglasses. Customers and restaurants will see it.'**
+  String get courier_onb_photo_hint;
+
+  /// No description provided for @courier_onb_take_photo.
+  ///
+  /// In en, this message translates to:
+  /// **'Take my photo'**
+  String get courier_onb_take_photo;
+
+  /// No description provided for @courier_onb_retake_photo.
+  ///
+  /// In en, this message translates to:
+  /// **'Retake photo'**
+  String get courier_onb_retake_photo;
+
+  /// No description provided for @courier_onb_vehicle_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Your vehicle'**
+  String get courier_onb_vehicle_title;
+
+  /// No description provided for @courier_onb_documents_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Your documents'**
+  String get courier_onb_documents_title;
+
+  /// No description provided for @courier_onb_add_document.
+  ///
+  /// In en, this message translates to:
+  /// **'Add (photo or PDF)'**
+  String get courier_onb_add_document;
+
+  /// No description provided for @courier_onb_no_license_bike.
+  ///
+  /// In en, this message translates to:
+  /// **'No driving licence is needed for a bicycle.'**
+  String get courier_onb_no_license_bike;
+
+  /// No description provided for @courier_onb_submit.
+  ///
+  /// In en, this message translates to:
+  /// **'Send my file'**
+  String get courier_onb_submit;
+
+  /// No description provided for @courier_onb_privacy.
+  ///
+  /// In en, this message translates to:
+  /// **'Only the Dios Délices team can see your documents.'**
+  String get courier_onb_privacy;
+
+  /// No description provided for @courier_onb_formats.
+  ///
+  /// In en, this message translates to:
+  /// **'PDF, JPG or PNG, 5 MB max'**
+  String get courier_onb_formats;
+
+  /// No description provided for @courier_onb_file_too_big.
+  ///
+  /// In en, this message translates to:
+  /// **'The file is larger than 5 MB. Pick a smaller file.'**
+  String get courier_onb_file_too_big;
+
+  /// No description provided for @courier_onb_photo_required.
+  ///
+  /// In en, this message translates to:
+  /// **'Take a photo of yourself to continue.'**
+  String get courier_onb_photo_required;
+
+  /// No description provided for @courier_onb_identity_required.
+  ///
+  /// In en, this message translates to:
+  /// **'Add your ID document.'**
+  String get courier_onb_identity_required;
+
+  /// No description provided for @courier_onb_license_required.
+  ///
+  /// In en, this message translates to:
+  /// **'Add your driving licence.'**
+  String get courier_onb_license_required;
+
+  /// No description provided for @courier_onb_sent.
+  ///
+  /// In en, this message translates to:
+  /// **'File sent. We\'ll let you know as soon as it\'s approved.'**
+  String get courier_onb_sent;
+
+  /// No description provided for @courier_wait_check_status.
+  ///
+  /// In en, this message translates to:
+  /// **'Check my status'**
+  String get courier_wait_check_status;
+
+  /// No description provided for @courier_wait_still_pending.
+  ///
+  /// In en, this message translates to:
+  /// **'Your file is still being checked.'**
+  String get courier_wait_still_pending;
+
+  /// No description provided for @courier_onb_plate_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Number plate'**
+  String get courier_onb_plate_label;
+
+  /// No description provided for @courier_onb_plate_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. AB-1234-CD'**
+  String get courier_onb_plate_hint;
+
+  /// No description provided for @courier_onb_plate_required.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your vehicle\'s number plate.'**
+  String get courier_onb_plate_required;
+
+  /// No description provided for @courier_card_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Your courier'**
+  String get courier_card_title;
+
+  /// No description provided for @courier_card_title_restaurant.
+  ///
+  /// In en, this message translates to:
+  /// **'Courier for this order'**
+  String get courier_card_title_restaurant;
+
+  /// No description provided for @courier_card_call.
+  ///
+  /// In en, this message translates to:
+  /// **'Call'**
+  String get courier_card_call;
+
+  /// No description provided for @courier_card_track.
+  ///
+  /// In en, this message translates to:
+  /// **'Track'**
+  String get courier_card_track;
+
+  /// No description provided for @courier_card_searching_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Looking for a courier…'**
+  String get courier_card_searching_title;
+
+  /// No description provided for @courier_card_searching_body.
+  ///
+  /// In en, this message translates to:
+  /// **'A nearby courier will accept the delivery. Their photo and plate will appear here.'**
+  String get courier_card_searching_body;
+
+  /// No description provided for @courier_admin_to_review.
+  ///
+  /// In en, this message translates to:
+  /// **'To review'**
+  String get courier_admin_to_review;
+
+  /// No description provided for @courier_admin_validated.
+  ///
+  /// In en, this message translates to:
+  /// **'Approved'**
+  String get courier_admin_validated;
+
+  /// No description provided for @courier_admin_rejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Declined'**
+  String get courier_admin_rejected;
+
+  /// No description provided for @courier_admin_no_file.
+  ///
+  /// In en, this message translates to:
+  /// **'No file'**
+  String get courier_admin_no_file;
+
+  /// No description provided for @courier_admin_no_file_body.
+  ///
+  /// In en, this message translates to:
+  /// **'This courier hasn\'t sent their photo or documents yet.'**
+  String get courier_admin_no_file_body;
+
+  /// No description provided for @courier_admin_total.
+  ///
+  /// In en, this message translates to:
+  /// **'Couriers'**
+  String get courier_admin_total;
+
+  /// No description provided for @courier_admin_photo.
+  ///
+  /// In en, this message translates to:
+  /// **'Courier photo'**
+  String get courier_admin_photo;
+
+  /// No description provided for @courier_admin_delivery_fees.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery fees'**
+  String get courier_admin_delivery_fees;
+
+  /// No description provided for @courier_admin_active_orders.
+  ///
+  /// In en, this message translates to:
+  /// **'In progress'**
+  String get courier_admin_active_orders;
+
+  /// No description provided for @courier_admin_validate_file.
+  ///
+  /// In en, this message translates to:
+  /// **'Approve file'**
+  String get courier_admin_validate_file;
+
+  /// No description provided for @courier_admin_validate_confirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Approve {name}\'s file? They will be able to go online and accept deliveries.'**
+  String courier_admin_validate_confirm(String name);
+
+  /// No description provided for @courier_admin_file_validated.
+  ///
+  /// In en, this message translates to:
+  /// **'File approved'**
+  String get courier_admin_file_validated;
+
+  /// No description provided for @courier_admin_file_rejected.
+  ///
+  /// In en, this message translates to:
+  /// **'File declined'**
+  String get courier_admin_file_rejected;
+
+  /// No description provided for @courier_admin_rejection_reason.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason: {reason}'**
+  String courier_admin_rejection_reason(String reason);
+
+  /// No description provided for @courier_admin_busy.
+  ///
+  /// In en, this message translates to:
+  /// **'On a delivery'**
+  String get courier_admin_busy;
+
+  /// No description provided for @courier_admin_tap_to_view.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to enlarge'**
+  String get courier_admin_tap_to_view;
 }
 
 class _AppLocalizationsDelegate

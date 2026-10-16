@@ -75,13 +75,14 @@ class ProDocument extends HiveObject {
     );
   }
 
-  /// Upload a single file to the Node.js backend, returns the URL.
+  /// Envoie un justificatif (PDF ou photo) au backend Node, renvoie l'URL.
   static Future<String?> _uploadFile(String filePath, String token) async {
     try {
       final response = await NodeAuthService.uploadFile(
-        '/uploads/image',
+        '/uploads/document',
         token: token,
         filePath: filePath,
+        fieldName: 'file',
         scope: 'pro-documents',
       );
       final data = response['data'];
@@ -176,6 +177,8 @@ class ProDocument extends HiveObject {
       } else {
         return "Erreur : réponse inattendue du serveur.";
       }
+    } on NodeAuthException catch (e) {
+      return e.message;
     } catch (e) {
       return "Exception lors de l'envoi des documents : $e";
     }

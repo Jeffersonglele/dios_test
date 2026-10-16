@@ -4,9 +4,14 @@ import 'package:dios_delices/screens/search/custom_search_delegate.dart';
 import 'package:dios_delices/theme/app_theme.dart';
 
 class SearchInput extends StatefulWidget {
-  const SearchInput({super.key, this.onTap});
+  const SearchInput({
+    super.key,
+    this.onTap,
+    this.padding = const EdgeInsets.fromLTRB(20, 16, 20, 0),
+  });
 
   final VoidCallback? onTap;
+  final EdgeInsetsGeometry padding;
 
   @override
   State<SearchInput> createState() => _SearchInputState();
@@ -23,7 +28,7 @@ class _SearchInputState extends State<SearchInput> {
         AppColors.resolve(AppColors.inkSubtle, AppDarkColors.inkSubtle);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+      padding: widget.padding,
       child: GestureDetector(
         onTap: widget.onTap ??
             () => showSearch(

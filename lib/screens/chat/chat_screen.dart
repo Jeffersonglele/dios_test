@@ -314,10 +314,10 @@ class _ChatScreenState extends State<ChatScreen>
   final Stopwatch _recWatch = Stopwatch();
   Timer? _recTimer;
   Duration _recElapsed = Duration.zero;
-  late final AnimationController _pulse = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 900),
-  );
+  // Créé dans initState : en initialisation paresseuse, le premier accès
+  // pouvait être `_pulse.dispose()` (aucun vocal enregistré), ce qui
+  // créait un Ticker sur un widget déjà démonté.
+  late final AnimationController _pulse;
 
   final _picker = ImagePicker();
   int _localCounter = 0;
@@ -325,6 +325,10 @@ class _ChatScreenState extends State<ChatScreen>
   @override
   void initState() {
     super.initState();
+    _pulse = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
     _socket = _ChatTransport(widget.orderId);
     _textCtrl.addListener(() {
       final has = _textCtrl.text.trim().isNotEmpty;

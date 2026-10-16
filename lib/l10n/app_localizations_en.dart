@@ -2252,11 +2252,11 @@ class AppLocalizationsEn extends AppLocalizations {
       'Referral codes will appear here when users create them.';
 
   @override
-  String get wait_identity_title => 'Your identity has not been validated yet.';
+  String get wait_identity_title => 'File under review';
 
   @override
   String get wait_identity_body =>
-      'You will receive an email when our administrators have reviewed your information.';
+      'Our team is checking your photo and documents. You\'ll get an email once it\'s done.';
 
   @override
   String get wait_restaurant_title =>
@@ -3369,7 +3369,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get login_otp_title => 'Verification code';
 
   @override
-  String get login_otp_subtitle => 'Enter the 4-digit code received by SMS';
+  String get login_otp_subtitle => 'Enter the 6-digit code received by SMS';
 
   @override
   String get login_otp_hint => '****';
@@ -3932,4 +3932,549 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get signup_password_symbol => 'Symbol';
+
+  @override
+  String get signup_step_profile => 'Profile';
+
+  @override
+  String get signup_step_contact => 'Contact';
+
+  @override
+  String get signup_step_security => 'Security';
+
+  @override
+  String get login_identifier_hint => 'username or name@example.com';
+
+  @override
+  String get login_no_account_prompt => 'New here?';
+
+  @override
+  String get login_submit => 'Sign in';
+
+  @override
+  String get login_create_account_link => 'Create an account';
+
+  @override
+  String login_otp_sent_to(Object phone) {
+    return 'Code sent to $phone';
+  }
+
+  @override
+  String get home_greeting_guest => 'Hello 👋';
+
+  @override
+  String get home_greeting_prompt => 'What are you craving today?';
+
+  @override
+  String get home_explore_meals_hint => 'Discover dishes cooked around you';
+
+  @override
+  String get cart_payment_cod_hint => 'Pay the courier in cash on delivery';
+
+  @override
+  String get cart_payment_cod_pickup_hint =>
+      'Pay in cash when you pick up the order';
+
+  @override
+  String get cart_payment_mobile_money_hint => 'Secure payment from your phone';
+
+  @override
+  String get cart_payment_wallet => 'Dios Wallet';
+
+  @override
+  String get cart_payment_wallet_hint => 'Pay directly with your balance';
+
+  @override
+  String get cart_payment_not_completed =>
+      'Payment not completed. Your cart is kept, you can try again.';
+
+  @override
+  String get cart_wallet_topup => 'Top up';
+
+  @override
+  String get cart_checkout_order => 'Place order';
+
+  @override
+  String get cart_checkout_pay => 'Pay';
+
+  @override
+  String get nyole_title => 'Secure payment';
+
+  @override
+  String get nyole_loading => 'Loading the payment page…';
+
+  @override
+  String get nyole_cancel_title => 'Cancel the payment?';
+
+  @override
+  String get nyole_cancel_body =>
+      'Your order will not be confirmed until the payment is made. Your cart stays available.';
+
+  @override
+  String get nyole_continue => 'Continue payment';
+
+  @override
+  String get nyole_cancel => 'Cancel';
+
+  @override
+  String get order_step_received => 'Order received';
+
+  @override
+  String get order_step_preparing => 'Being prepared';
+
+  @override
+  String get order_step_ready => 'Ready';
+
+  @override
+  String get order_step_ready_pickup => 'Ready for pickup';
+
+  @override
+  String get order_step_on_the_way => 'On the way';
+
+  @override
+  String get order_step_delivered => 'Delivered';
+
+  @override
+  String get order_step_picked_up => 'Picked up';
+
+  @override
+  String get order_stage_awaiting_payment => 'Payment pending';
+
+  @override
+  String get order_stage_cancelled => 'Cancelled';
+
+  @override
+  String get order_stage_refused => 'Refused by the restaurant';
+
+  @override
+  String get order_awaiting_payment_hint =>
+      'Your Mobile Money payment is not confirmed yet. The order will be sent to the restaurant as soon as it is.';
+
+  @override
+  String get order_cancel_free_hint =>
+      'Free cancellation until preparation starts.';
+
+  @override
+  String get order_cancel_refund_wallet =>
+      'The amount paid will be refunded to your Dios wallet.';
+
+  @override
+  String get order_cancelled_done => 'Order cancelled.';
+
+  @override
+  String get order_cancelled_refunded =>
+      'Order cancelled. The refund has been credited to your wallet.';
+
+  @override
+  String get order_refuse_title => 'Refuse this order?';
+
+  @override
+  String get order_refuse_body =>
+      'The customer will be notified and refunded if already paid. Repeated refusals lower your reliability score.';
+
+  @override
+  String get order_accept => 'Accept and prepare';
+
+  @override
+  String get order_accept_body =>
+      'Preparation starts: the customer can no longer cancel.';
+
+  @override
+  String get order_mark_ready => 'Mark as ready';
+
+  @override
+  String get order_mark_ready_body =>
+      'A courier will be searched for this order.';
+
+  @override
+  String get order_refuse => 'Refuse';
+
+  @override
+  String get order_refused_done => 'Order refused.';
+
+  @override
+  String get order_accepted_done => 'Order accepted: happy cooking!';
+
+  @override
+  String get order_ready_done => 'Order ready.';
+
+  @override
+  String get order_call => 'Call';
+
+  @override
+  String get order_whatsapp => 'WhatsApp';
+
+  @override
+  String order_placed_on(Object date) {
+    return 'Placed on $date';
+  }
+
+  @override
+  String get orders_filter_active => 'In progress';
+
+  @override
+  String get orders_filter_new => 'New';
+
+  @override
+  String get orders_filter_ready => 'Ready';
+
+  @override
+  String get orders_filter_done => 'Completed';
+
+  @override
+  String get orders_filter_cancelled => 'Cancelled';
+
+  @override
+  String get orders_waiting_courier => 'Waiting for a courier';
+
+  @override
+  String get order_validate_pickup => 'Confirm pickup';
+
+  @override
+  String dash_to_process_title(int count) {
+    return '$count order(s) to handle';
+  }
+
+  @override
+  String get dash_to_process_body =>
+      'Accept or refuse quickly: the customer is waiting for your answer.';
+
+  @override
+  String get dash_to_process_cta => 'See orders';
+
+  @override
+  String get dash_period_today => 'Today';
+
+  @override
+  String get dash_period_week => '7 days';
+
+  @override
+  String get dash_period_month => '30 days';
+
+  @override
+  String get dash_finances => 'Finances';
+
+  @override
+  String get dash_revenue => 'Food revenue';
+
+  @override
+  String get dash_revenue_hint =>
+      'Dishes amount, discounts deducted, delivery fees excluded.';
+
+  @override
+  String get dash_revenue_done => 'Delivered';
+
+  @override
+  String get dash_revenue_in_progress => 'In progress';
+
+  @override
+  String get dash_payment_mix => 'Payment split';
+
+  @override
+  String get dash_online => 'Mobile Money / Wallet';
+
+  @override
+  String get dash_cash => 'Cash';
+
+  @override
+  String get dash_activity => 'Activity';
+
+  @override
+  String get dash_orders => 'Orders';
+
+  @override
+  String get dash_acceptance => 'Acceptance rate';
+
+  @override
+  String get dash_avg_basket => 'Average basket';
+
+  @override
+  String get dash_refused => 'Refused';
+
+  @override
+  String get dash_quality => 'Quality & menu';
+
+  @override
+  String get dash_rating => 'Average rating';
+
+  @override
+  String get dash_rating_none => 'No rating yet';
+
+  @override
+  String get dash_rating_warning =>
+      'Below 3.2 / 5 the account is automatically blocked. Take care of quality and timing.';
+
+  @override
+  String get dash_top_dishes => 'Best sellers';
+
+  @override
+  String get dash_flop_dishes => 'Rarely ordered';
+
+  @override
+  String dash_sold_count(int count) {
+    return '$count sold';
+  }
+
+  @override
+  String get dash_no_sales => 'No sales over this period.';
+
+  @override
+  String get dash_no_data => '—';
+
+  @override
+  String get dash_refused_hint => 'From 3 refusals, your reliability drops';
+
+  @override
+  String get dash_avg_basket_hint => 'Per order, delivery excluded';
+
+  @override
+  String get dash_recent_reviews => 'Latest customer reviews';
+
+  @override
+  String get dash_no_reviews => 'No customer review yet.';
+
+  @override
+  String get store_revenue_month => 'This month\'s revenue';
+
+  @override
+  String store_revenue_delivered(int count) {
+    return '$count delivered order(s)';
+  }
+
+  @override
+  String store_revenue_in_progress(Object amount) {
+    return 'In progress: $amount';
+  }
+
+  @override
+  String store_revenue_to_process(int count) {
+    return '$count to handle';
+  }
+
+  @override
+  String get store_section_activity => 'My activity';
+
+  @override
+  String get store_section_account => 'My account';
+
+  @override
+  String get store_role_client => 'Customer';
+
+  @override
+  String get store_role_restaurateur => 'Restaurant owner';
+
+  @override
+  String get store_role_courier => 'Courier';
+
+  @override
+  String get store_role_admin => 'Administrator';
+
+  @override
+  String get restaurant_form_rejected =>
+      'Your request was declined. Correct the details and send it again.';
+
+  @override
+  String restaurant_form_rejected_reason(String reason) {
+    return 'Your request was declined.\nReason: $reason\nCorrect the details and send it again.';
+  }
+
+  @override
+  String get pro_request_error_file_access =>
+      'This file can\'t be read. Pick it from the phone\'s storage.';
+
+  @override
+  String get pro_request_error_file_size =>
+      'The file is larger than 5 MB. Pick a smaller file.';
+
+  @override
+  String get pro_request_rejected_title => 'Pro request declined';
+
+  @override
+  String get pro_request_rejected_body =>
+      'Your last request was declined. You can send new documents.';
+
+  @override
+  String pro_request_rejected_reason(String reason) {
+    return 'Reason: $reason. You can send new documents.';
+  }
+
+  @override
+  String get pro_request_already_pro_title => 'Your restaurant is Pro';
+
+  @override
+  String get pro_request_already_pro_body =>
+      'The Pro badge already shows on your restaurant.';
+
+  @override
+  String get pro_request_pending_title => 'Request under review';
+
+  @override
+  String get pro_request_pending_body =>
+      'We\'re checking your documents. You\'ll get an email once a decision is made.';
+
+  @override
+  String get pro_request_needs_validation_title =>
+      'Restaurant not validated yet';
+
+  @override
+  String get pro_request_needs_validation_body =>
+      'You can request Pro status once the Dios Délices team has validated your restaurant.';
+
+  @override
+  String get courier_onb_title => 'My courier file';
+
+  @override
+  String get courier_onb_intro =>
+      'To deliver with Dios Délices, send a photo of yourself and your documents. Our team checks them before your first delivery.';
+
+  @override
+  String get courier_onb_rejected =>
+      'Your file was declined. Correct it and send it again.';
+
+  @override
+  String courier_onb_rejected_reason(String reason) {
+    return 'Your file was declined.\nReason: $reason\nCorrect it and send it again.';
+  }
+
+  @override
+  String get courier_onb_photo_title => 'Your photo';
+
+  @override
+  String get courier_onb_photo_hint =>
+      'A clear, well-lit photo of your face, without sunglasses. Customers and restaurants will see it.';
+
+  @override
+  String get courier_onb_take_photo => 'Take my photo';
+
+  @override
+  String get courier_onb_retake_photo => 'Retake photo';
+
+  @override
+  String get courier_onb_vehicle_title => 'Your vehicle';
+
+  @override
+  String get courier_onb_documents_title => 'Your documents';
+
+  @override
+  String get courier_onb_add_document => 'Add (photo or PDF)';
+
+  @override
+  String get courier_onb_no_license_bike =>
+      'No driving licence is needed for a bicycle.';
+
+  @override
+  String get courier_onb_submit => 'Send my file';
+
+  @override
+  String get courier_onb_privacy =>
+      'Only the Dios Délices team can see your documents.';
+
+  @override
+  String get courier_onb_formats => 'PDF, JPG or PNG, 5 MB max';
+
+  @override
+  String get courier_onb_file_too_big =>
+      'The file is larger than 5 MB. Pick a smaller file.';
+
+  @override
+  String get courier_onb_photo_required =>
+      'Take a photo of yourself to continue.';
+
+  @override
+  String get courier_onb_identity_required => 'Add your ID document.';
+
+  @override
+  String get courier_onb_license_required => 'Add your driving licence.';
+
+  @override
+  String get courier_onb_sent =>
+      'File sent. We\'ll let you know as soon as it\'s approved.';
+
+  @override
+  String get courier_wait_check_status => 'Check my status';
+
+  @override
+  String get courier_wait_still_pending => 'Your file is still being checked.';
+
+  @override
+  String get courier_onb_plate_label => 'Number plate';
+
+  @override
+  String get courier_onb_plate_hint => 'e.g. AB-1234-CD';
+
+  @override
+  String get courier_onb_plate_required =>
+      'Enter your vehicle\'s number plate.';
+
+  @override
+  String get courier_card_title => 'Your courier';
+
+  @override
+  String get courier_card_title_restaurant => 'Courier for this order';
+
+  @override
+  String get courier_card_call => 'Call';
+
+  @override
+  String get courier_card_track => 'Track';
+
+  @override
+  String get courier_card_searching_title => 'Looking for a courier…';
+
+  @override
+  String get courier_card_searching_body =>
+      'A nearby courier will accept the delivery. Their photo and plate will appear here.';
+
+  @override
+  String get courier_admin_to_review => 'To review';
+
+  @override
+  String get courier_admin_validated => 'Approved';
+
+  @override
+  String get courier_admin_rejected => 'Declined';
+
+  @override
+  String get courier_admin_no_file => 'No file';
+
+  @override
+  String get courier_admin_no_file_body =>
+      'This courier hasn\'t sent their photo or documents yet.';
+
+  @override
+  String get courier_admin_total => 'Couriers';
+
+  @override
+  String get courier_admin_photo => 'Courier photo';
+
+  @override
+  String get courier_admin_delivery_fees => 'Delivery fees';
+
+  @override
+  String get courier_admin_active_orders => 'In progress';
+
+  @override
+  String get courier_admin_validate_file => 'Approve file';
+
+  @override
+  String courier_admin_validate_confirm(String name) {
+    return 'Approve $name\'s file? They will be able to go online and accept deliveries.';
+  }
+
+  @override
+  String get courier_admin_file_validated => 'File approved';
+
+  @override
+  String get courier_admin_file_rejected => 'File declined';
+
+  @override
+  String courier_admin_rejection_reason(String reason) {
+    return 'Reason: $reason';
+  }
+
+  @override
+  String get courier_admin_busy => 'On a delivery';
+
+  @override
+  String get courier_admin_tap_to_view => 'Tap to enlarge';
 }

@@ -129,6 +129,75 @@ class AvailableDelivery {
   }
 }
 
+/// Proposition de course envoyée automatiquement par le serveur
+/// (GET /couriers/me/offers ou évènement socket « delivery_offer »).
+class DeliveryOffer {
+  DeliveryOffer({
+    required this.id,
+    required this.orderNumber,
+    required this.restaurantName,
+    this.pickupAddress,
+    this.dropoffAddress,
+    this.distanceToPickupKm,
+    this.deliveryDistanceKm,
+    required this.deliveryFee,
+    required this.isCash,
+    this.totalAmount,
+    this.currency = 'CDF',
+    required this.deadline,
+  });
+
+  final String id;
+  final String orderNumber;
+  final String restaurantName;
+  final String? pickupAddress;
+  final String? dropoffAddress;
+  final double? distanceToPickupKm;
+  final double? deliveryDistanceKm;
+  final double deliveryFee;
+  final bool isCash;
+  final double? totalAmount;
+  final String currency;
+
+  /// Heure locale limite pour répondre. Calculée à partir de
+  /// `expiresInSeconds` (serveur) pour ne pas dépendre de l'horloge du téléphone.
+  final DateTime deadline;
+
+  Duration get remaining {
+    final left = deadline.difference(DateTime.now());
+    return left.isNegative ? Duration.zero : left;
+  }
+
+  bool get isExpired => remaining == Duration.zero;
+
+  factory DeliveryOffer.fromJson(Map<String, dynamic> j) {
+    final delivery = j['delivery'] is Map ? j['delivery'] as Map : const {};
+    final payment = (j['paymentMethod'] ?? '').toString().toUpperCase();
+    final seconds = _toDoubleOrNull(j['expiresInSeconds']);
+    final expiresAt =
+        DateTime.tryParse((j['expiresAt'] ?? '').toString())?.toLocal();
+    return DeliveryOffer(
+      id: _firstString(j, ['id']) ?? '',
+      orderNumber: _firstString(j, ['orderId']) ??
+          _firstString(delivery, ['orderId']) ??
+          '',
+      restaurantName: _firstString(j, ['restaurantName']) ?? 'Restaurant',
+      pickupAddress: _address(j['restaurantAddress']),
+      dropoffAddress: _address(j['dropoffAddress']),
+      distanceToPickupKm: _toDoubleOrNull(j['distanceToPickupKm']),
+      deliveryDistanceKm: _toDoubleOrNull(
+          j['deliveryDistanceKm'] ?? delivery['quotedDistanceKm']),
+      deliveryFee: _toDouble(j['deliveryFee']),
+      isCash: payment.contains('CASH'),
+      totalAmount: _toDoubleOrNull(j['totalAmount']),
+      currency: _firstString(j, ['currency']) ?? 'CDF',
+      deadline: seconds != null
+          ? DateTime.now().add(Duration(seconds: seconds.round()))
+          : (expiresAt ?? DateTime.now().add(const Duration(seconds: 60))),
+    );
+  }
+}
+
 class DeliveryOrdersService {
   DeliveryOrdersService._();
 
@@ -251,6 +320,70 @@ class DeliveryOrdersService {
                     ? 'Plafond d\'espèces atteint. Vous devez effectuer un reversement.'
                     : 'Impossible d\'accepter la course.',
           ),
+          statusCode: res.statusCode,
+        );
+      });
+
+  /// GET /couriers/me/offers — propositions en attente pour ce livreur.
+  static Future<List<DeliveryOffer>> fetchMyOffers() => _guard(() async {
+        final res = await http
+            .get(_uri('/couriers/me/offers'), headers: await _headers())
+            .timeout(const Duration(seconds: 20));
+        if (res.statusCode < 200 || res.statusCode >= 300) {
+          throw DeliveryException(
+            _message(res, 'Impossible de charger les propositions.'),
+            statusCode: res.statusCode,
+          );
+        }
+        dynamic data;
+        try {
+          data = jsonDecode(res.body);
+        } catch (_) {
+          data = null;
+        }
+        if (data is Map) data = data['data'];
+        final list = data is List ? data : const [];
+        return [
+          for (final e in list)
+            if (e is Map) DeliveryOffer.fromJson(Map<String, dynamic>.from(e)),
+        ].where((o) => o.id.isNotEmpty && !o.isExpired).toList();
+      });
+
+  /// POST /delivery-offers/{id}/accept
+  ///  • 409 → DeliveryException.isConflict   (expirée ou prise par un autre)
+  ///  • 403 → DeliveryException.isCashCeiling (plafond d'espèces atteint)
+  static Future<void> acceptOffer(String offerId) => _guard(() async {
+        final res = await http
+            .post(_uri('/delivery-offers/$offerId/accept'),
+                headers: await _headers())
+            .timeout(const Duration(seconds: 30));
+        if (res.statusCode >= 200 && res.statusCode < 300) return;
+        throw DeliveryException(
+          _message(
+            res,
+            res.statusCode == 409
+                ? 'Cette proposition n\'est plus disponible.'
+                : res.statusCode == 403
+                    ? 'Plafond d\'espèces atteint. Vous devez effectuer un reversement.'
+                    : 'Impossible d\'accepter la course.',
+          ),
+          statusCode: res.statusCode,
+        );
+      });
+
+  /// POST /delivery-offers/{id}/reject
+  static Future<void> rejectOffer(String offerId) => _guard(() async {
+        final res = await http
+            .post(_uri('/delivery-offers/$offerId/reject'),
+                headers: await _headers())
+            .timeout(const Duration(seconds: 20));
+        // 409 : déjà expirée ou traitée — rien à faire de plus côté livreur.
+        if ((res.statusCode >= 200 && res.statusCode < 300) ||
+            res.statusCode == 409) {
+          return;
+        }
+        throw DeliveryException(
+          _message(res, 'Impossible de refuser la course.'),
           statusCode: res.statusCode,
         );
       });

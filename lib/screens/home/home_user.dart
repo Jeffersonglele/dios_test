@@ -50,6 +50,9 @@ class _HomeUserState extends State<HomeUser> {
   bool _isLoading = true;
   bool _firstLoadDone = false;
 
+  /// Position / adresse en cours de récupération (header « Localisation… »).
+  bool _locating = false;
+
   String _liveAddress = '';
   String? _liveCity;
   String? _liveCountry;
@@ -109,14 +112,22 @@ class _HomeUserState extends State<HomeUser> {
   void initState() {
     super.initState();
     dataVersionNotifier.addListener(_onDataChanged);
+    // L'adresse arrive après la position (géocodage inverse en tâche de
+    // fond) : on écoute le cache pour l'afficher dès qu'elle est connue.
+    LocationCacheService.instance.addListener(_onLocationChanged);
+    _detectLiveLocation(); // en parallèle du chargement des données
     _loadData();
   }
 
   @override
   void dispose() {
     dataVersionNotifier.removeListener(_onDataChanged);
+    LocationCacheService.instance.removeListener(_onLocationChanged);
     super.dispose();
   }
+
+  void _onLocationChanged() =>
+      _applyCachedLocation(LocationCacheService.instance);
 
   void _onDataChanged() {
     if (mounted) _loadData();
@@ -409,24 +420,29 @@ class _HomeUserState extends State<HomeUser> {
   }
 
   Future<void> _detectLiveLocation() async {
+    if (_locating) return;
+    final cache = LocationCacheService.instance;
+    // Appliquer immédiatement ce qui est déjà en cache
+    _applyCachedLocation(cache);
+    if (mounted) setState(() => _locating = true);
     try {
-      final cache = LocationCacheService.instance;
-      // Appliquer immédiatement si déjà disponible en cache
-      if (cache.cachedPosition != null) {
+      await cache.getPosition();
+      // getPosition() rend la main avant le géocodage inverse : on attend
+      // l'adresse textuelle pour ne pas rester sur « À proximité ».
+      await cache.waitForAddress();
+    } catch (_) {
+    } finally {
+      if (mounted) {
+        setState(() => _locating = false);
         _applyCachedLocation(cache);
       }
-
-      final pos = await cache.getPosition();
-      if (pos == null || !mounted) return;
-
-      _applyCachedLocation(cache);
-    } catch (_) {}
+    }
   }
 
   void _applyCachedLocation(LocationCacheService cache) {
     if (!mounted) return;
     bool needsRetag = false;
-    final addr = cache.cachedDisplayName;
+    final addr = cache.cachedShortLabel ?? cache.cachedDisplayName;
     final liveCity = cache.cachedCity;
     final liveCountry = cache.cachedCountry;
 
@@ -456,6 +472,17 @@ class _HomeUserState extends State<HomeUser> {
             sin(dLon / 2) *
             sin(dLon / 2);
     return r * 2 * atan2(sqrt(a), sqrt(1 - a));
+  }
+
+  /// Adresse affichée dans le header : position actuelle, sinon adresse
+  /// enregistrée du client, sinon null (« À proximité »).
+  String? _headerAddress() {
+    if (_liveAddress.trim().isNotEmpty) return _liveAddress;
+    final saved =
+        Address.getAddressByObject(_addresses, 'Livraison', _currentUserID) ??
+            Address.getAddressByObject(_addresses, 'User', _currentUserID);
+    return LocationCacheService.shortLabelFrom(saved?.fullAddress) ??
+        _firstNonEmpty([saved?.city]);
   }
 
   bool _hasUserAddress() {
@@ -494,44 +521,28 @@ class _HomeUserState extends State<HomeUser> {
         physics: const BouncingScrollPhysics(
             parent: AlwaysScrollableScrollPhysics()),
         slivers: [
-          // ── Bannière adresse manquante ───────────
-          if (showAddressBanner)
-            SliverToBoxAdapter(
-              child: GestureDetector(
-                onTap: () => _addAddress(),
-                child: Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: const BoxDecoration(color: Color(0xFFBE3A34)),
-                  child: Row(children: [
-                    const Icon(Icons.location_on_rounded,
-                        color: Colors.white, size: 22),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        l10n.home_add_address_banner,
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500),
-                      ),
-                    ),
-                    const Icon(Icons.chevron_right_rounded,
-                        color: Colors.white70),
-                  ]),
-                ),
-              ),
-            ),
-
           // ── Header ──────────────────────────────
           SliverToBoxAdapter(
             child: HomeReveal(
               child: HomeHeader(
                 currentUser: Users.getUsersByUserId(_users, _currentUserID),
-                addressLabel: _liveAddress.isNotEmpty ? _liveAddress : null,
+                addressLabel: _headerAddress(),
+                isLocating: _locating && _liveAddress.isEmpty,
                 onTap: () => _addAddress(),
               ),
             ),
           ),
+
+          // ── Adresse manquante ────────────────────
+          if (showAddressBanner)
+            SliverToBoxAdapter(
+              child: HomeReveal(
+                child: HomeAddressPrompt(
+                  message: l10n.home_add_address_banner,
+                  onTap: _addAddress,
+                ),
+              ),
+            ),
 
           // ── Bannière de bienvenue ────────────────
           const SliverToBoxAdapter(
@@ -601,12 +612,12 @@ class _HomeUserState extends State<HomeUser> {
                       ),
           ),
 
-          // ── Section plats ────────────────────────
+          // ── Plats près de chez vous ──────────────
           SliverToBoxAdapter(
-            child: HomeSectionHeader(
+            child: HomeExploreMealsCard(
               title: l10n.home_meals_nearby,
-              actionLabel: l10n.home_see_all,
-              onAction: () => Navigator.push(
+              subtitle: l10n.home_explore_meals_hint,
+              onTap: () => Navigator.push(
                   context,
                   CupertinoPageRoute(
                       builder: (_) => NearMeMeals(
@@ -625,8 +636,12 @@ class _HomeUserState extends State<HomeUser> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final showAddressBanner =
-        _currentUserRole == 2 && !_hasUserAddress() && !_hasLiveLocation();
+    // Pas de bannière tant que la localisation est en cours (évite un
+    // clignotement au premier chargement).
+    final showAddressBanner = _currentUserRole == AppRole.individual.id &&
+        !_locating &&
+        !_hasUserAddress() &&
+        !_hasLiveLocation();
     return WillPopScope(
       onWillPop: () async => false,
       child: GestureDetector(

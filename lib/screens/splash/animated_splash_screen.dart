@@ -4,6 +4,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dios_delices/providers/theme_provider.dart';
 import 'package:dios_delices/screens/auth/signup.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -14,7 +15,6 @@ import '../../services/session_service.dart';
 import '../../services/notification_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/toast.dart';
-import '../../widgets/brand_avatar_logo.dart';
 import '../../l10n/app_localizations.dart';
 import '../onboarding/verification_page.dart';
 
@@ -340,7 +340,9 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
 }
 
 // ═══════════════════════════════════════════════════════════
-// SPLASH VIEW
+// SPLASH VIEW — épuré : fond crème signature, icône de l'app,
+// logotype et une seule accroche. Le chargement est signalé par
+// trois points discrets, sans texte.
 // ═══════════════════════════════════════════════════════════
 
 class _SplashView extends StatelessWidget {
@@ -370,70 +372,52 @@ class _SplashView extends StatelessWidget {
     return AnimatedBuilder(
       animation: darkModeNotifier,
       builder: (context, _) {
-        final gradStart =
-            AppColors.resolve(AppColors.brandLight, AppDarkColors.brandDark);
-        final gradEnd = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
-        return Scaffold(
-          body: Stack(
-            fit: StackFit.expand,
-            children: [
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      gradStart,
-                      gradEnd,
-                    ],
-                  ),
-                ),
-                child: const SizedBox.expand(),
-              ),
-              // Texture food très discrète : elle donne une signature au
-              // splash sans concurrencer le logo ni le message d'accueil.
-              Positioned(
-                right: -96,
-                bottom: -120,
-                child: IgnorePointer(
-                  child: Opacity(
-                    opacity: 0.10,
-                    child: Transform.rotate(
-                      angle: -0.08,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(48),
-                        child: Image.asset(
-                          'assets/images/onboarding/slideX_accent.png',
-                          width: 360,
-                          height: 360,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
+        final bgTop = AppColors.resolve(
+            AppColors.gradientStart, AppDarkColors.gradientStart);
+        final bgBottom =
+            AppColors.resolve(AppColors.gradientEnd, AppDarkColors.gradientEnd);
+        final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+        final accent =
+            AppColors.resolve(AppColors.accent, AppDarkColors.accent);
+
+        final isDark = darkModeNotifier.value;
+
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          // Fond clair : icônes de barre d'état sombres (et inversement).
+          value:
+              isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
+          child: Scaffold(
+            backgroundColor: bgTop,
+            body: Stack(
+              fit: StackFit.expand,
+              children: [
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [bgTop, bgBottom],
                     ),
                   ),
                 ),
-              ),
-              Positioned(
-                left: -110,
-                top: -130,
-                child: IgnorePointer(
-                  child: Container(
-                    width: 300,
-                    height: 300,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white.withValues(alpha: 0.07),
-                    ),
-                  ),
+                // Halos chauds très diffus : profondeur sans bruit visuel.
+                Positioned(
+                  top: -140,
+                  right: -120,
+                  child: _SoftGlow(
+                      size: 360, color: brand.withValues(alpha: 0.10)),
                 ),
-              ),
-              SafeArea(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Spacer(flex: 4),
-                    Center(
-                      child: AnimatedBuilder(
+                Positioned(
+                  bottom: -160,
+                  left: -140,
+                  child: _SoftGlow(
+                      size: 380, color: accent.withValues(alpha: 0.20)),
+                ),
+                SafeArea(
+                  child: Column(
+                    children: [
+                      const Spacer(flex: 5),
+                      AnimatedBuilder(
                         animation: Listenable.merge(
                             [splashController, pulseController]),
                         builder: (context, child) {
@@ -448,24 +432,31 @@ class _SplashView extends StatelessWidget {
                             child: Opacity(opacity: opacity, child: child),
                           );
                         },
-                        child: const _SplashLogo(),
+                        child: const _SplashAppIcon(),
                       ),
-                    ),
-                    const Spacer(flex: 2),
-                    Center(
-                      child: FadeTransition(
+                      const SizedBox(height: AppSpacing.xl),
+                      FadeTransition(
                         opacity: textOpacity,
                         child: SlideTransition(
                           position: textSlide,
-                          child: _SplashTagline(isLoading: isLoading),
+                          child: const _SplashWordmark(),
                         ),
                       ),
-                    ),
-                    const Spacer(flex: 2),
-                  ],
+                      const Spacer(flex: 4),
+                      SizedBox(
+                        height: 24,
+                        child: AnimatedOpacity(
+                          duration: AppMotion.normal,
+                          opacity: isLoading ? 1 : 0,
+                          child: _DotsLoader(color: brand),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xxl),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
@@ -473,48 +464,98 @@ class _SplashView extends StatelessWidget {
   }
 }
 
-// ── Logo : cercle blanc avec ombre douce ──────────────────
-class _SplashLogo extends StatelessWidget {
-  const _SplashLogo();
+/// Halo radial (dégradé vers transparent), sans flou coûteux.
+class _SoftGlow extends StatelessWidget {
+  const _SoftGlow({required this.size, required this.color});
+  final double size;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: RadialGradient(
+            colors: [color, color.withValues(alpha: 0)],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Icône de l'app avec ombre portée chaude ───────────────
+class _SplashAppIcon extends StatelessWidget {
+  const _SplashAppIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    const size = 116.0;
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(size * 0.28),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.brandDark.withValues(alpha: 0.30),
+            blurRadius: 40,
+            spreadRadius: -6,
+            offset: const Offset(0, 20),
+          ),
+        ],
+      ),
+      child: Image.asset(
+        'assets/images/logo_circulaire.png',
+        width: size,
+        height: size,
+        filterQuality: FilterQuality.high,
+      ),
+    );
+  }
+}
+
+// ── Logotype teinté + accroche unique ─────────────────────
+class _SplashWordmark extends StatelessWidget {
+  const _SplashWordmark();
+
+  @override
+  Widget build(BuildContext context) {
+    final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+    final inkMuted =
+        AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          width: 108,
-          height: 108,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.white,
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.brandDark.withValues(alpha: 0.30),
-                blurRadius: 40,
-                spreadRadius: -4,
-                offset: const Offset(0, 16),
-              ),
-              BoxShadow(
-                color: Colors.white.withValues(alpha: 0.15),
-                blurRadius: 12,
-                offset: const Offset(0, -4),
-              ),
-            ],
-          ),
-          child: const Padding(
-            padding: EdgeInsets.all(14),
-            child: BrandAvatarLogo(radius: 40, glow: false, elevation: 0),
+        // Le fichier est carré avec beaucoup de marge transparente :
+        // BoxFit.cover dans une boîte basse ne garde que la bande du texte.
+        Semantics(
+          label: AppLocalizations.of(context)!.appTitle,
+          image: true,
+          child: ColorFiltered(
+            colorFilter: ColorFilter.mode(brand, BlendMode.srcIn),
+            child: Image.asset(
+              'assets/images/logo-without-bg.png',
+              width: 236,
+              height: 46,
+              fit: BoxFit.cover,
+              filterQuality: FilterQuality.high,
+            ),
           ),
         ),
-        const SizedBox(height: AppSpacing.lg),
+        const SizedBox(height: AppSpacing.sm + 2),
         Text(
-          AppLocalizations.of(context)!.appTitle,
-          style: AppTypography.titleLarge().copyWith(
-            fontSize: 26,
-            fontWeight: FontWeight.w900,
-            letterSpacing: -0.5,
-            color: Colors.white,
+          AppLocalizations.of(context)!.home_tagline,
+          textAlign: TextAlign.center,
+          style: AppTypography.headlineMedium(color: inkMuted).copyWith(
+            fontSize: 17,
+            fontWeight: FontWeight.w500,
+            fontStyle: FontStyle.italic,
+            letterSpacing: 0.1,
           ),
         ),
       ],
@@ -522,90 +563,54 @@ class _SplashLogo extends StatelessWidget {
   }
 }
 
-// ── Slogan + indicateur chargement ───────────────────────
-class _SplashTagline extends StatelessWidget {
-  const _SplashTagline({required this.isLoading});
-  final bool isLoading;
+// ── Loader : trois points qui ondulent ────────────────────
+class _DotsLoader extends StatefulWidget {
+  const _DotsLoader({required this.color});
+  final Color color;
 
   @override
-  Widget build(BuildContext context) {
-    final parts =
-        AppLocalizations.of(context)!.onboarding_splash_subtitle.split('\n');
-    final resolvedAccent =
-        AppColors.resolve(AppColors.accent, AppDarkColors.accent);
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        RichText(
-          textAlign: TextAlign.center,
-          text: TextSpan(
-            children: [
-              TextSpan(
-                text: '${parts[0]}\n',
-                style: AppTypography.displayMedium().copyWith(
-                  fontSize: 30,
-                  height: 1.18,
-                  color: Colors.white,
-                ),
-              ),
-              TextSpan(
-                text: parts.length > 1 ? parts[1] : '',
-                style: AppTypography.displayMedium().copyWith(
-                  fontSize: 30,
-                  height: 1.18,
-                  color: resolvedAccent,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        Text(
-          AppLocalizations.of(context)!.splash_subtitle,
-          textAlign: TextAlign.center,
-          style: AppTypography.bodyLarge(
-            color: AppColors.resolve(AppColors.card, AppDarkColors.card)
-                .withValues(alpha: 0.78),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xl),
-        AnimatedSize(
-          duration: AppMotion.normal,
-          curve: Curves.easeInOut,
-          child:
-              isLoading ? const _LoadingIndicator() : const SizedBox.shrink(),
-        ),
-      ],
-    );
-  }
+  State<_DotsLoader> createState() => _DotsLoaderState();
 }
 
-// ── Loader blanc ──────────────────────────────────────────
-class _LoadingIndicator extends StatelessWidget {
-  const _LoadingIndicator();
+class _DotsLoaderState extends State<_DotsLoader>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const SizedBox(
-          width: 22,
-          height: 22,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            valueColor: AlwaysStoppedAnimation(Colors.white),
-          ),
+    return Semantics(
+      label: AppLocalizations.of(context)!.splash_loading,
+      child: AnimatedBuilder(
+        animation: _ctrl,
+        builder: (_, __) => Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(3, (i) {
+            // Chaque point est décalé d'un tiers de cycle.
+            final t = (_ctrl.value - i * 0.18) % 1.0;
+            final wave = t < 0.5 ? t * 2 : (1 - t) * 2; // 0 → 1 → 0
+            final v = Curves.easeInOut.transform(wave);
+            return Container(
+              width: 8,
+              height: 8,
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              transform: Matrix4.translationValues(0, -4 * v, 0),
+              decoration: BoxDecoration(
+                color: widget.color.withValues(alpha: 0.35 + 0.65 * v),
+                shape: BoxShape.circle,
+              ),
+            );
+          }),
         ),
-        const SizedBox(height: AppSpacing.sm),
-        Text(
-          AppLocalizations.of(context)!.splash_loading,
-          style: AppTypography.bodyMedium(
-            color: AppColors.resolve(AppColors.card, AppDarkColors.card)
-                .withValues(alpha: 0.78),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }

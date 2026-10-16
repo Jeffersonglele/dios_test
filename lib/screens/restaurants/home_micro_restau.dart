@@ -1,13 +1,15 @@
+import 'package:dios_delices/screens/orders/commande_details_page.dart';
 import 'package:dios_delices/screens/orders/user_orders_page.dart';
 import 'package:dios_delices/screens/dish/dish_details.dart';
 import 'package:dios_delices/l10n/app_localizations.dart';
 import 'package:dios_delices/screens/dish/dish_form_page.dart';
 import 'package:dios_delices/screens/restaurants/restaurant_details.dart';
-import 'package:dios_delices/core/commande_status.dart';
+import 'package:dios_delices/core/order_stage.dart';
 import 'package:dios_delices/models/commande.dart';
 import 'package:dios_delices/models/dish.dart';
 import 'package:dios_delices/models/ligne_commande.dart';
 import 'package:dios_delices/models/restaurant.dart';
+import 'package:dios_delices/services/comment_service.dart';
 import 'package:dios_delices/services/session_service.dart';
 import 'package:dios_delices/theme/app_theme.dart';
 import 'package:dios_delices/utils/currency_util.dart';
@@ -35,7 +37,7 @@ bool _otpVerifiedOf(Commande c) {
 /// Commande « À emporter » prête, pas encore remise au client.
 bool _canValidatePickup(Commande c) =>
     orderOtpModeFrom(deliveryMode: c.deliveryMode) == OrderOtpMode.pickup &&
-    CommandeStatus.normalize(c.status) == CommandeStatus.ready &&
+    orderStageOf(c) == OrderStage.ready &&
     !_otpVerifiedOf(c);
 
 class HomeMicroRestau extends StatefulWidget {
@@ -58,19 +60,23 @@ class _HomeMicroRestauState extends State<HomeMicroRestau> {
   List<Commande> _commandes = [];
   String _country = 'RDC';
 
-  int _pendingOrders = 0;
-  int _confirmedOrders = 0;
-  int _cancelledOrders = 0;
-  int _availableDishes = 0;
-  int _unavailableDishes = 0;
-  int _totalAvailableServings = 0;
-  int _soldServings = 0;
+  List<LigneCommande> _lignes = [];
+  _DashPeriod _period = _DashPeriod.week;
+
+  /// Commandes en attente d'une réponse du restaurant (à accepter / refuser).
+  int _toProcess = 0;
+
+  /// Derniers avis clients du restaurant (backend Node).
+  List<CommentData> _reviews = [];
 
   @override
   void initState() {
     super.initState();
     _isMounted = true;
-    _loadDashboard();
+    // Affichage immédiat depuis le cache, puis synchronisation serveur.
+    _loadDashboard().then((_) {
+      if (_isMounted) _refreshRemoteData();
+    });
   }
 
   @override
@@ -92,9 +98,8 @@ class _HomeMicroRestauState extends State<HomeMicroRestau> {
           _restaurant = null;
           _dishes = [];
           _commandes = [];
-          _pendingOrders = _confirmedOrders = _cancelledOrders =
-              _availableDishes = _unavailableDishes =
-                  _totalAvailableServings = _soldServings = 0;
+          _lignes = [];
+          _toProcess = 0;
           _isLoading = false;
           _hasLoaded = true;
         });
@@ -124,30 +129,17 @@ class _HomeMicroRestauState extends State<HomeMicroRestau> {
         ..sort((a, b) => b.dateCommande.compareTo(a.dateCommande));
 
       final cmdIds = restCmds.map((c) => c.commandeID.toString()).toSet();
-      final sold = allLignes
-          .where((l) => cmdIds.contains(l.commandeID))
-          .fold<int>(0, (s, l) => s + l.quantite);
+      final restLignes =
+          allLignes.where((l) => cmdIds.contains(l.commandeID)).toList();
 
       _set(() {
         _restaurant = current;
         _dishes = restDishes;
         _commandes = restCmds;
-        _pendingOrders =
-            restCmds.where((c) => CommandeStatus.isPending(c.status)).length;
-        _confirmedOrders = restCmds
-            .where((c) =>
-                CommandeStatus.normalize(c.status) == CommandeStatus.confirmed)
+        _lignes = restLignes;
+        _toProcess = restCmds
+            .where((c) => orderStageOf(c) == OrderStage.received)
             .length;
-        _cancelledOrders = restCmds
-            .where((c) =>
-                CommandeStatus.normalize(c.status) == CommandeStatus.cancelled)
-            .length;
-        _availableDishes = restDishes.where((d) => (d.status ?? 0) == 1).length;
-        _unavailableDishes =
-            restDishes.where((d) => (d.status ?? 0) != 1).length;
-        _totalAvailableServings = restDishes.fold<int>(
-            0, (s, d) => s + ((d.nb_servings ?? 0) > 0 ? d.nb_servings! : 0));
-        _soldServings = sold;
         _isLoading = false;
         _hasLoaded = true;
       });
@@ -157,11 +149,52 @@ class _HomeMicroRestauState extends State<HomeMicroRestau> {
   }
 
   Future<void> _refreshRemoteData() async {
-    await Restaurant.getAllRestaurantsDetails();
-    await Dish.getAllDishesDetails();
-    await Commande.getAllCommandes();
-    await LigneCommande.getAllLignesCommande();
+    // Chaque source est rafraîchie indépendamment : une erreur réseau sur
+    // l'une n'empêche pas d'afficher les autres.
+    for (final refresh in <Future<void> Function()>[
+      Restaurant.getAllRestaurantsDetails,
+      Dish.getAllDishesDetails,
+      Commande.refreshLocalCommandes, // backend Node (et non l'ancien Parse)
+      LigneCommande.getAllLignesCommande,
+    ]) {
+      try {
+        await refresh();
+      } catch (_) {}
+    }
     await _loadDashboard();
+    await _loadReviews();
+  }
+
+  void _openOrders() => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const UserOrdersPage(showRestaurantOrders: true),
+        ),
+      ).then((_) {
+        if (_isMounted) _refreshRemoteData();
+      });
+
+  Future<void> _loadReviews() async {
+    final id = _restaurant?.restaurantID;
+    if (id == null) return;
+    final reviews = await CommentService.getCommentsByTarget(
+      targetType: 1,
+      targetID: id,
+      limit: 3,
+    );
+    _set(() => _reviews = reviews);
+  }
+
+  _DashStats get _stats => _DashStats.compute(
+        commandes: _commandes,
+        lignes: _lignes,
+        dishes: _dishes,
+        period: _period,
+      );
+
+  String get _restaurantCountry {
+    final c = (_restaurant?.country ?? '').trim();
+    return c.isNotEmpty ? c : _country;
   }
 
   Future<void> _toggleDish(Dish dish, bool available) async {
@@ -231,13 +264,22 @@ class _HomeMicroRestauState extends State<HomeMicroRestau> {
                 else if (!_restoValid)
                   _buildPendingFullPage()
                 else ...[
-                  _KpiGrid(
-                    pending: _pendingOrders,
-                    cancelled: _cancelledOrders,
-                    available: _availableDishes,
-                    unavailable: _unavailableDishes,
-                    sold: _soldServings,
-                    totalServings: _totalAvailableServings,
+                  if (_toProcess > 0)
+                    _ToProcessBanner(count: _toProcess, onTap: _openOrders),
+                  _PeriodSelector(
+                    value: _period,
+                    onChanged: (p) => _set(() => _period = p),
+                  ),
+                  _FinanceCard(stats: _stats, country: _restaurantCountry),
+                  _ActivityGrid(
+                    stats: _stats,
+                    country: _restaurantCountry,
+                    onOpenOrders: _openOrders,
+                  ),
+                  _QualityCard(
+                    rating: _restaurant?.note ?? 0,
+                    stats: _stats,
+                    reviews: _reviews,
                   ),
                   _QuickActions(
                     restaurant: _restaurant!,
@@ -571,102 +613,6 @@ class _StatusPill extends StatelessWidget {
   }
 }
 
-// ═══════════════════════════════════════════════════════════
-// _KpiGrid — 4 cartes métriques (même design pour toutes)
-// ═══════════════════════════════════════════════════════════
-class _KpiGrid extends StatelessWidget {
-  const _KpiGrid({
-    required this.pending,
-    required this.cancelled,
-    required this.available,
-    required this.unavailable,
-    required this.sold,
-    required this.totalServings,
-  });
-
-  final int pending, cancelled, available, unavailable, sold, totalServings;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-          AppSpacing.lg, AppSpacing.xl, AppSpacing.lg, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _SectionTitle(l10n.overview),
-          const SizedBox(height: AppSpacing.md),
-          IntrinsicHeight(
-            child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              Expanded(
-                child: _StatCard(
-                  value: '$pending',
-                  label: l10n.pending_orders,
-                  sublabel: l10n.to_process,
-                  icon: Icons.hourglass_top_rounded,
-                  color:
-                      AppColors.resolve(AppColors.accent, AppDarkColors.accent),
-                  highlight: pending > 0,
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          const UserOrdersPage(showRestaurantOrders: true),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: _StatCard(
-                  value: '$cancelled',
-                  label: l10n.cancelled_orders,
-                  sublabel: l10n.total,
-                  icon: Icons.cancel_outlined,
-                  color: AppColors.resolve(AppColors.error, AppDarkColors.error),
-                ),
-              ),
-            ]),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          IntrinsicHeight(
-            child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              Expanded(
-                child: _StatCard(
-                  value: '$available',
-                  label: l10n.available_dishes,
-                  sublabel: l10n.unavailable_dishes_num(unavailable),
-                  icon: Icons.restaurant_menu_rounded,
-                  color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
-                  progress: (available + unavailable) > 0
-                      ? available / (available + unavailable)
-                      : null,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: _StatCard(
-                  value: '$sold',
-                  label: l10n.servings_sold,
-                  sublabel: l10n.available_servings_of(totalServings),
-                  icon: Icons.trending_up_rounded,
-                  color:
-                      AppColors.resolve(AppColors.success, AppDarkColors.success),
-                  progress: totalServings > 0
-                      ? (sold / totalServings).clamp(0.0, 1.0)
-                      : null,
-                ),
-              ),
-            ]),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _StatCard extends StatelessWidget {
   const _StatCard({
     required this.value,
@@ -930,17 +876,24 @@ class _OrderRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final statusColor = CommandeStatus.color(commande.status);
-    final statusLabel = CommandeStatus.normalize(commande.status);
+    final stage = orderStageOf(commande);
+    final statusColor = orderStageColor(stage);
+    final statusLabel = orderStageLabel(
+      AppLocalizations.of(context)!,
+      stage,
+      pickup: orderOtpModeFrom(deliveryMode: commande.deliveryMode) ==
+          OrderOtpMode.pickup,
+      refused: orderWasRefused(commande),
+    );
     final dateStr = commande.dateCommande.toLocal().toString().split(' ')[0];
 
     return InkWell(
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => const UserOrdersPage(showRestaurantOrders: true),
+          builder: (_) => CommandeDetailsPage(commande: commande),
         ),
-      ),
+      ).then((_) => onRefresh()),
       child: Padding(
         padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.lg, vertical: AppSpacing.md),
@@ -1253,6 +1206,868 @@ class _AddDishFAB extends StatelessWidget {
       icon: const Icon(Icons.add_rounded, color: Colors.white),
       label: Text(AppLocalizations.of(context)!.addDish,
           style: AppTypography.labelMedium(color: Colors.white)),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// _ToProcessBanner — commandes en attente d'une réponse
+// ═══════════════════════════════════════════════════════════
+class _ToProcessBanner extends StatelessWidget {
+  const _ToProcessBanner({required this.count, required this.onTap});
+  final int count;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+    final ink = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
+    final muted = AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, 0),
+      child: _Surface(
+        radius: AppRadius.lg,
+        onTap: onTap,
+        color: Color.alphaBlend(brand.withValues(alpha: 0.07),
+            AppColors.resolve(AppColors.card, AppDarkColors.card)),
+        borderColor: brand.withValues(alpha: 0.45),
+        borderWidth: 1.4,
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Row(children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(color: brand, shape: BoxShape.circle),
+            child: Center(
+              child: Text(
+                '$count',
+                style: AppTypography.titleMedium(color: Colors.white),
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(l10n.dash_to_process_title(count),
+                    style: AppTypography.titleSmall(color: ink)),
+                const SizedBox(height: 2),
+                Text(l10n.dash_to_process_body,
+                    style: AppTypography.bodySmall(color: muted)),
+              ],
+            ),
+          ),
+          Icon(Icons.chevron_right_rounded, color: brand),
+        ]),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// _PeriodSelector — Aujourd'hui / 7 jours / 30 jours
+// ═══════════════════════════════════════════════════════════
+class _PeriodSelector extends StatelessWidget {
+  const _PeriodSelector({required this.value, required this.onChanged});
+  final _DashPeriod value;
+  final ValueChanged<_DashPeriod> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+    final ink = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
+    final border = AppColors.resolve(AppColors.border, AppDarkColors.border);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg, AppSpacing.xl, AppSpacing.lg, 0),
+      child: Container(
+        height: 44,
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: border.withValues(alpha: 0.42),
+          borderRadius: BorderRadius.circular(AppRadius.md),
+        ),
+        child: Row(
+          children: [
+            for (final p in _DashPeriod.values)
+              Expanded(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => onChanged(p),
+                  child: AnimatedContainer(
+                    duration: AppMotion.fast,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: p == value
+                          ? AppColors.resolve(AppColors.card, AppDarkColors.card)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: p == value ? [AppShadows.subtle] : null,
+                    ),
+                    child: Text(
+                      p.label(l10n),
+                      style: AppTypography.labelMedium(
+                              color: p == value ? brand : ink)
+                          .copyWith(
+                              fontWeight: p == value
+                                  ? FontWeight.w800
+                                  : FontWeight.w600),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// _FinanceCard — CA plats, livrées / en cours, ratio paiements
+// ═══════════════════════════════════════════════════════════
+class _FinanceCard extends StatelessWidget {
+  const _FinanceCard({required this.stats, required this.country});
+  final _DashStats stats;
+  final String country;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final ink = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
+    final muted = AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
+    final success = AppColors.resolve(AppColors.success, AppDarkColors.success);
+    final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+    final accent = AppColors.resolve(AppColors.accent, AppDarkColors.accent);
+    final border = AppColors.resolve(AppColors.border, AppDarkColors.border);
+    final share = stats.onlineShare;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 0),
+      child: _Surface(
+        radius: AppRadius.xl,
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              _IconChip(
+                  icon: Icons.account_balance_wallet_rounded,
+                  color: brand,
+                  size: 34),
+              const SizedBox(width: AppSpacing.sm),
+              Text(l10n.dash_finances,
+                  style: AppTypography.titleMedium(color: ink)),
+            ]),
+            const SizedBox(height: AppSpacing.md),
+            Text(l10n.dash_revenue,
+                style: AppTypography.labelMedium(color: muted)),
+            const SizedBox(height: 4),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                CurrencyUtil.formatPrice(stats.revenue, country),
+                style: AppTypography.headlineLarge(color: ink)
+                    .copyWith(fontSize: 30),
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(l10n.dash_revenue_hint,
+                style: AppTypography.bodySmall(color: muted)),
+            const SizedBox(height: AppSpacing.md),
+            Row(children: [
+              Expanded(
+                child: _MoneyCell(
+                  label: l10n.dash_revenue_done,
+                  value: CurrencyUtil.formatPrice(stats.revenueDone, country),
+                  color: success,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: _MoneyCell(
+                  label: l10n.dash_revenue_in_progress,
+                  value:
+                      CurrencyUtil.formatPrice(stats.revenueInProgress, country),
+                  color: brand,
+                ),
+              ),
+            ]),
+            const SizedBox(height: AppSpacing.lg),
+            Text(l10n.dash_payment_mix,
+                style: AppTypography.labelMedium(color: ink)
+                    .copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(height: AppSpacing.sm),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: SizedBox(
+                height: 8,
+                child: share == null
+                    ? ColoredBox(color: border)
+                    : Row(children: [
+                        if (share > 0)
+                          Expanded(
+                            flex: (share * 1000).round(),
+                            child: ColoredBox(color: brand),
+                          ),
+                        if (share < 1)
+                          Expanded(
+                            flex: ((1 - share) * 1000).round(),
+                            child: ColoredBox(color: accent),
+                          ),
+                      ]),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            // Wrap : sur un écran étroit, la seconde légende passe à la ligne.
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              spacing: AppSpacing.md,
+              runSpacing: 6,
+              children: [
+              _Legend(
+                color: brand,
+                label:
+                    '${l10n.dash_online} · ${share == null ? l10n.dash_no_data : '${(share * 100).round()} %'}',
+              ),
+              _Legend(
+                color: accent,
+                label:
+                    '${l10n.dash_cash} · ${share == null ? l10n.dash_no_data : '${((1 - share) * 100).round()} %'}',
+              ),
+            ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MoneyCell extends StatelessWidget {
+  const _MoneyCell(
+      {required this.label, required this.value, required this.color});
+  final String label, value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Container(
+              width: 7,
+              height: 7,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 6),
+            Text(label,
+                style: AppTypography.labelMedium(
+                    color: AppColors.resolve(
+                        AppColors.inkMuted, AppDarkColors.inkMuted))),
+          ]),
+          const SizedBox(height: 4),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: AppTypography.titleSmall(
+                      color: AppColors.resolve(AppColors.ink, AppDarkColors.ink))
+                  .copyWith(fontWeight: FontWeight.w800),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Legend extends StatelessWidget {
+  const _Legend({required this.color, required this.label});
+  final Color color;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      Container(
+        width: 8,
+        height: 8,
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      ),
+      const SizedBox(width: 6),
+      Flexible(
+        child: Text(label,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: AppTypography.bodySmall(
+                color: AppColors.resolve(
+                    AppColors.inkMuted, AppDarkColors.inkMuted))),
+      ),
+    ]);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// _ActivityGrid — volume, acceptation, panier moyen, refus
+// ═══════════════════════════════════════════════════════════
+class _ActivityGrid extends StatelessWidget {
+  const _ActivityGrid({
+    required this.stats,
+    required this.country,
+    required this.onOpenOrders,
+  });
+  final _DashStats stats;
+  final String country;
+  final VoidCallback onOpenOrders;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final rate = stats.acceptanceRate;
+    final success = AppColors.resolve(AppColors.success, AppDarkColors.success);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg, AppSpacing.xl, AppSpacing.lg, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _SectionTitle(l10n.dash_activity),
+          const SizedBox(height: AppSpacing.md),
+          IntrinsicHeight(
+            child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Expanded(
+                child: _StatCard(
+                  value: '${stats.orders}',
+                  label: l10n.dash_orders,
+                  sublabel: l10n.see_all,
+                  icon: Icons.receipt_long_rounded,
+                  color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+                  onTap: onOpenOrders,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: _StatCard(
+                  value: rate == null
+                      ? l10n.dash_no_data
+                      : '${(rate * 100).round()} %',
+                  label: l10n.dash_acceptance,
+                  sublabel: '${stats.accepted} / ${stats.accepted + stats.refused}',
+                  icon: Icons.thumb_up_alt_rounded,
+                  color: success,
+                  progress: rate,
+                ),
+              ),
+            ]),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          IntrinsicHeight(
+            child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Expanded(
+                child: _StatCard(
+                  value: stats.avgBasket > 0
+                      ? CurrencyUtil.formatPrice(stats.avgBasket, country)
+                      : l10n.dash_no_data,
+                  label: l10n.dash_avg_basket,
+                  sublabel: l10n.dash_avg_basket_hint,
+                  icon: Icons.shopping_basket_rounded,
+                  color: AppColors.resolve(AppColors.accent, AppDarkColors.accent),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: _StatCard(
+                  value: '${stats.refused}',
+                  label: l10n.dash_refused,
+                  sublabel: l10n.dash_refused_hint,
+                  icon: Icons.block_rounded,
+                  color: AppColors.resolve(AppColors.error, AppDarkColors.error),
+                  highlight: stats.refused >= 3,
+                ),
+              ),
+            ]),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// _QualityCard — note moyenne (seuil 3,2) + top / flop des plats
+// ═══════════════════════════════════════════════════════════
+class _QualityCard extends StatelessWidget {
+  const _QualityCard({
+    required this.rating,
+    required this.stats,
+    required this.reviews,
+  });
+  final double rating;
+  final _DashStats stats;
+  final List<CommentData> reviews;
+
+  static const double _exclusionThreshold = 3.2;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final ink = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
+    final muted = AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
+    final accent = AppColors.resolve(AppColors.accent, AppDarkColors.accent);
+    final error = AppColors.resolve(AppColors.error, AppDarkColors.error);
+    final hasRating = rating > 0;
+    final atRisk = hasRating && rating < _exclusionThreshold;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg, AppSpacing.xl, AppSpacing.lg, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _SectionTitle(l10n.dash_quality),
+          const SizedBox(height: AppSpacing.md),
+          _Surface(
+            radius: AppRadius.xl,
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  _IconChip(icon: Icons.star_rounded, color: accent, size: 40),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(l10n.dash_rating,
+                            style: AppTypography.labelMedium(color: muted)),
+                        Text(
+                          hasRating
+                              ? '${rating.toStringAsFixed(1)} / 5'
+                              : l10n.dash_rating_none,
+                          style: AppTypography.titleLarge(
+                              color: atRisk ? error : ink),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (hasRating)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: List.generate(5, (i) {
+                        final filled = rating >= i + 0.75;
+                        final half = !filled && rating >= i + 0.25;
+                        return Icon(
+                          filled
+                              ? Icons.star_rounded
+                              : half
+                                  ? Icons.star_half_rounded
+                                  : Icons.star_outline_rounded,
+                          size: 18,
+                          color: accent,
+                        );
+                      }),
+                    ),
+                ]),
+                if (atRisk) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: error.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.warning_amber_rounded, color: error, size: 18),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(l10n.dash_rating_warning,
+                              style: AppTypography.bodySmall(color: ink)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                const SizedBox(height: AppSpacing.lg),
+                _DishRanking(
+                  title: l10n.dash_top_dishes,
+                  icon: Icons.local_fire_department_rounded,
+                  color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+                  items: stats.topDishes,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                _DishRanking(
+                  title: l10n.dash_flop_dishes,
+                  icon: Icons.trending_down_rounded,
+                  color: muted,
+                  items: stats.flopDishes,
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                _RecentReviews(reviews: reviews),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// _RecentReviews — fil des derniers avis clients (cahier §2)
+// ═══════════════════════════════════════════════════════════
+class _RecentReviews extends StatelessWidget {
+  const _RecentReviews({required this.reviews});
+  final List<CommentData> reviews;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final ink = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
+    final muted = AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
+    final accent = AppColors.resolve(AppColors.accent, AppDarkColors.accent);
+    final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+    final brandSurface =
+        AppColors.resolve(AppColors.brandSurface, AppDarkColors.brandSurface);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(children: [
+          Icon(Icons.forum_rounded, size: 16, color: brand),
+          const SizedBox(width: 6),
+          Text(l10n.dash_recent_reviews,
+              style: AppTypography.labelMedium(color: ink)
+                  .copyWith(fontWeight: FontWeight.w800)),
+        ]),
+        const SizedBox(height: AppSpacing.sm),
+        if (reviews.isEmpty)
+          Text(l10n.dash_no_reviews,
+              style: AppTypography.bodySmall(color: muted))
+        else
+          for (final r in reviews)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.md),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CircleAvatar(
+                    radius: 16,
+                    backgroundColor: brandSurface,
+                    child: Text(
+                      r.username.isNotEmpty ? r.username[0].toUpperCase() : '?',
+                      style: AppTypography.labelMedium(color: brand)
+                          .copyWith(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(children: [
+                          Expanded(
+                            child: Text(
+                              r.username.isNotEmpty ? r.username : 'Client',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTypography.labelMedium(color: ink)
+                                  .copyWith(fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                          for (var i = 0; i < 5; i++)
+                            Icon(
+                              i < r.note
+                                  ? Icons.star_rounded
+                                  : Icons.star_outline_rounded,
+                              size: 13,
+                              color: accent,
+                            ),
+                        ]),
+                        Text(
+                          '${r.createdAt.day.toString().padLeft(2, '0')}/${r.createdAt.month.toString().padLeft(2, '0')}/${r.createdAt.year}',
+                          style: AppTypography.bodySmall(color: muted)
+                              .copyWith(fontSize: 11),
+                        ),
+                        if (r.commentaire.trim().isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            r.commentaire.trim(),
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTypography.bodyMedium(color: ink)
+                                .copyWith(height: 1.4),
+                          ),
+                        ],
+                        if (r.tags.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            children: r.tags
+                                .take(3)
+                                .map((t) => Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: brandSurface,
+                                        borderRadius:
+                                            BorderRadius.circular(999),
+                                      ),
+                                      child: Text(t,
+                                          style: AppTypography.labelMedium(
+                                                  color: brand)
+                                              .copyWith(fontSize: 11)),
+                                    ))
+                                .toList(),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+      ],
+    );
+  }
+}
+
+class _DishRanking extends StatelessWidget {
+  const _DishRanking({
+    required this.title,
+    required this.icon,
+    required this.color,
+    required this.items,
+  });
+  final String title;
+  final IconData icon;
+  final Color color;
+  final List<_DishSales> items;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final ink = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
+    final muted = AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 6),
+          Text(title,
+              style: AppTypography.labelMedium(color: ink)
+                  .copyWith(fontWeight: FontWeight.w800)),
+        ]),
+        const SizedBox(height: AppSpacing.sm),
+        if (items.isEmpty)
+          Text(l10n.dash_no_sales, style: AppTypography.bodySmall(color: muted))
+        else
+          for (var i = 0; i < items.length; i++)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(children: [
+                Container(
+                  width: 22,
+                  height: 22,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text('${i + 1}',
+                      style: AppTypography.labelMedium(color: color)
+                          .copyWith(fontSize: 11, fontWeight: FontWeight.w800)),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(items[i].name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.bodyMedium(color: ink)),
+                ),
+                Text(l10n.dash_sold_count(items[i].quantity),
+                    style: AppTypography.labelMedium(color: muted)),
+              ]),
+            ),
+      ],
+    );
+  }
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// Indicateurs du tableau de bord vendeur (cahier des charges §2)
+// Calculés à partir des commandes et lignes synchronisées depuis Node.
+// ═══════════════════════════════════════════════════════════
+enum _DashPeriod { today, week, month }
+
+extension on _DashPeriod {
+  DateTime get start {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    switch (this) {
+      case _DashPeriod.today:
+        return today;
+      case _DashPeriod.week:
+        return today.subtract(const Duration(days: 6));
+      case _DashPeriod.month:
+        return today.subtract(const Duration(days: 29));
+    }
+  }
+
+  String label(AppLocalizations l10n) {
+    switch (this) {
+      case _DashPeriod.today:
+        return l10n.dash_period_today;
+      case _DashPeriod.week:
+        return l10n.dash_period_week;
+      case _DashPeriod.month:
+        return l10n.dash_period_month;
+    }
+  }
+}
+
+class _DishSales {
+  const _DishSales(this.name, this.quantity);
+  final String name;
+  final int quantity;
+}
+
+class _DashStats {
+  const _DashStats({
+    required this.orders,
+    required this.accepted,
+    required this.refused,
+    required this.revenueDone,
+    required this.revenueInProgress,
+    required this.avgBasket,
+    required this.onlineAmount,
+    required this.cashAmount,
+    required this.topDishes,
+    required this.flopDishes,
+  });
+
+  final int orders, accepted, refused;
+  final double revenueDone, revenueInProgress, avgBasket;
+  final double onlineAmount, cashAmount;
+  final List<_DishSales> topDishes, flopDishes;
+
+  double get revenue => revenueDone + revenueInProgress;
+
+  /// Part acceptée parmi les commandes déjà tranchées (acceptées ou refusées).
+  double? get acceptanceRate =>
+      (accepted + refused) == 0 ? null : accepted / (accepted + refused);
+
+  /// Part des paiements en ligne (Mobile Money / portefeuille).
+  double? get onlineShare {
+    final total = onlineAmount + cashAmount;
+    return total <= 0 ? null : onlineAmount / total;
+  }
+
+
+  static _DashStats compute({
+    required List<Commande> commandes,
+    required List<LigneCommande> lignes,
+    required List<Dish> dishes,
+    required _DashPeriod period,
+  }) {
+    final start = period.start;
+    final inPeriod =
+        commandes.where((c) => !c.dateCommande.toLocal().isBefore(start));
+
+    var accepted = 0, refused = 0, orders = 0;
+    var done = 0.0, inProgress = 0.0, basketSum = 0.0, basketCount = 0;
+    var online = 0.0, cash = 0.0;
+    final validIds = <String>{};
+
+    for (final c in inPeriod) {
+      orders++;
+      final stage = orderStageOf(c);
+      if (stage == OrderStage.cancelled) {
+        if (orderWasRefused(c)) refused++;
+        continue;
+      }
+      if (stage == OrderStage.awaitingPayment) continue; // rien d'encaissé
+      if (stage != OrderStage.received) accepted++;
+
+      final amount = orderFoodAmount(c);
+      if (stage == OrderStage.delivered) {
+        done += amount;
+      } else {
+        inProgress += amount;
+      }
+      basketSum += amount;
+      basketCount++;
+      validIds.add(c.commandeID.toString());
+
+      final provider = (c.paymentProvider ?? '').toUpperCase();
+      if (provider == 'NYOLE' || provider == 'WALLET') {
+        online += amount;
+      } else {
+        cash += amount;
+      }
+    }
+
+    // Ventes par plat sur la période (commandes valides uniquement).
+    final names = {for (final d in dishes) d.dishID: d.name ?? 'Plat #${d.dishID}'};
+    final sold = <int, int>{};
+    final lineNames = <int, String>{};
+    for (final l in lignes) {
+      if (!validIds.contains(l.commandeID)) continue;
+      sold[l.platID] = (sold[l.platID] ?? 0) + l.quantite;
+      final n = l.nomPlat?.trim();
+      if (n != null && n.isNotEmpty) lineNames[l.platID] = n;
+    }
+    String nameOf(int id) => names[id] ?? lineNames[id] ?? 'Plat #$id';
+
+    final ranked = sold.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final top = ranked
+        .take(3)
+        .map((e) => _DishSales(nameOf(e.key), e.value))
+        .toList();
+    final topIds = ranked.take(3).map((e) => e.key).toSet();
+    // Peu demandés : plats disponibles les moins vendus (y compris 0 vente).
+    final flop = dishes
+        .where((d) => (d.status ?? 0) == 1 && !topIds.contains(d.dishID))
+        .map((d) => _DishSales(nameOf(d.dishID), sold[d.dishID] ?? 0))
+        .toList()
+      ..sort((a, b) => a.quantity.compareTo(b.quantity));
+
+    return _DashStats(
+      orders: orders,
+      accepted: accepted,
+      refused: refused,
+      revenueDone: done,
+      revenueInProgress: inProgress,
+      avgBasket: basketCount == 0 ? 0 : basketSum / basketCount,
+      onlineAmount: online,
+      cashAmount: cash,
+      topDishes: top,
+      flopDishes: flop.take(3).toList(),
     );
   }
 }

@@ -112,6 +112,10 @@ class NodeCatalogService {
     );
   }
 
+  /// Restaurant tel que renvoyé par le backend (fiche à jour après écriture).
+  static Restaurant restaurantFromRow(Map<String, dynamic> row) =>
+      Restaurant.fromMap(_restaurantMap(row));
+
   static Map<String, dynamic> _restaurantMap(Map<String, dynamic> row) {
     final dateCreation = row['dateCreation'];
     final imageUrl = resolveMediaUrl(row['image'] ?? row['fileUrl'] ?? '');
@@ -210,14 +214,14 @@ class NodeCatalogService {
     String openingHours = '09:00 - 20:00',
     double deliveryFee = 0.0,
     int isOpen = 1,
-    String professionalType = 'amateur',
-    bool trainingCompleted = false,
-    bool isPro = false,
+    String? professionalType,
+    bool? trainingCompleted,
+    bool? isPro,
     String currency = '',
     String country = '',
     String openingDays = 'Lun,Mar,Mer,Jeu,Ven,Sam',
     String recoveryMode = 'delivery',
-    int cityID = 1,
+    int? cityID,
     String paymentMethod = '',
     String mobileMoneyPhone = '',
     String iban = '',
@@ -245,14 +249,14 @@ class NodeCatalogService {
       'openingHours': openingHours,
       'deliveryFee': deliveryFee,
       'isOpen': isOpen,
-      'professionalType': professionalType,
-      'trainingCompleted': trainingCompleted,
-      'isPro': isPro,
+      if (professionalType != null) 'professionalType': professionalType,
+      if (trainingCompleted != null) 'trainingCompleted': trainingCompleted,
+      if (isPro != null) 'isPro': isPro,
       'currency': currency,
       'country': country,
       'openingDays': openingDays,
       'recoveryMode': recoveryMode,
-      'cityID': cityID,
+      if (cityID != null) 'cityID': cityID,
       'paymentMethod': paymentMethod,
       'mobileMoneyPhone': mobileMoneyPhone,
       'iban': iban,

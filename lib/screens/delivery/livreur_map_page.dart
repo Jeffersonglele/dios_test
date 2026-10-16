@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:dios_delices/core/commande_status.dart';
 import 'package:dios_delices/models/commande.dart';
@@ -11,8 +12,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../services/order_tracking_service.dart';
+import '../../widgets/courier_card.dart';
 import '../chat/chat_screen.dart';
 import '../orders/commande_details_page.dart';
 
@@ -74,6 +78,17 @@ class _LivreurMapPageState extends State<LivreurMapPage>
   late bool _isCourier = widget.courierMode;
 
   // ── Données de course ────────────────────────────────────
+  /// Commande suivie : celle passée en paramètre, sinon la course active du
+  /// livreur (la carte est aussi un onglet de l'espace livreur).
+  Commande? _commande;
+
+  /// Restaurant, client et livreur renvoyés par GET /orders/:id/tracking.
+  OrderTracking? _tracking;
+  String? _destinationAddress;
+
+  /// Onglet livreur sans course en cours.
+  bool _idle = false;
+
   String _status = 'assigned';
   LatLng? _restaurantPos;
   String? _restaurantName;
@@ -111,7 +126,8 @@ class _LivreurMapPageState extends State<LivreurMapPage>
     // à chaque image de l'animation, la caméra suit le marqueur (auto-follow)
     _move.addListener(_followTick);
 
-    final c = widget.commande;
+    _commande = widget.commande;
+    final c = _commande;
     if (c != null) {
       _status = DeliveryStatus.normalize(c.deliveryStatus);
       _destination = widget.destination ?? _coordsOf(c, _destKeys);
@@ -125,8 +141,8 @@ class _LivreurMapPageState extends State<LivreurMapPage>
     _driverLocSub?.cancel();
     _statusSub?.cancel();
     _gpsSub?.cancel();
-    if (_socket != null && _socketJoined && widget.commande != null) {
-      final id = widget.commande!.commandeID.toString();
+    if (_socket != null && _socketJoined && _commande != null) {
+      final id = _commande!.commandeID.toString();
       _socket?.leaveOrderRoom(id);
       _socket?.leaveOrderTracking(id);
     }
@@ -138,11 +154,12 @@ class _LivreurMapPageState extends State<LivreurMapPage>
 
   /// Démarrage : détecte le rôle, synchronise le statut, lance GPS / socket.
   Future<void> _bootstrap() async {
-    Commande? c = widget.commande;
+    Commande? c = _commande;
 
     // Si aucune commande n'est passée, essayer de récupérer la commande active du livreur
     if (c == null) {
-      print('[LivreurMapPage] Aucune commande passée en paramètre, recherche commande active...');
+      print(
+          '[LivreurMapPage] Aucune commande passée en paramètre, recherche commande active...');
       try {
         final session = await SessionService.readSession();
         final all = await Commande.fetchCommandesFromDB();
@@ -154,7 +171,8 @@ class _LivreurMapPageState extends State<LivreurMapPage>
                 orderStatus != CommandeStatus.cancelled &&
                 orderStatus != CommandeStatus.refused) {
               c = cmd;
-              print('[LivreurMapPage] Commande active trouvée: ${c.commandeID}');
+              print(
+                  '[LivreurMapPage] Commande active trouvée: ${c.commandeID}');
               break;
             }
           }
@@ -165,8 +183,22 @@ class _LivreurMapPageState extends State<LivreurMapPage>
     }
 
     if (c == null) {
-      print('[LivreurMapPage] Aucune commande active trouvée');
+      // Aucune course : la carte montre quand même la position du livreur.
+      final session = await SessionService.readSession();
+      if (!mounted) return;
+      setState(() {
+        _idle = true;
+        _isCourier = _isCourier || session.role.isDelivery;
+      });
+      if (_isCourier) await _startGps();
       return;
+    }
+    if (!identical(c, _commande)) {
+      setState(() {
+        _commande = c;
+        _idle = false;
+        _status = DeliveryStatus.normalize(c!.deliveryStatus);
+      });
     }
 
     print('[LivreurMapPage] Bootstrap - commandeID: ${c.commandeID}');
@@ -176,7 +208,8 @@ class _LivreurMapPageState extends State<LivreurMapPage>
     if (!_isCourier) {
       try {
         final session = await SessionService.readSession();
-        print('[LivreurMapPage] Session userId: ${session.userId}, commande livreurID: ${c.livreurID}');
+        print(
+            '[LivreurMapPage] Session userId: ${session.userId}, commande livreurID: ${c.livreurID}');
         if (session.userId == c.livreurID) {
           _isCourier = true;
           print('[LivreurMapPage] Mode livreur détecté automatiquement');
@@ -198,8 +231,8 @@ class _LivreurMapPageState extends State<LivreurMapPage>
       if (start != null) _onCourierPosition(start);
     }
 
-    // 3. Restaurant + statut réel (en parallèle, sans bloquer le GPS)
-    unawaited(_loadRestaurant());
+    // 3. Restaurant, client, livreur + statut réel (sans bloquer le GPS)
+    unawaited(_loadTracking());
     unawaited(_refreshStatus());
 
     // 4. Temps réel
@@ -239,7 +272,7 @@ class _LivreurMapPageState extends State<LivreurMapPage>
 
   /// Relit la commande en base locale pour rattraper un statut plus récent.
   Future<void> _refreshStatus() async {
-    final c = widget.commande;
+    final c = _commande;
     if (c == null) return;
     try {
       final all = await Commande.fetchCommandesFromDB();
@@ -255,12 +288,45 @@ class _LivreurMapPageState extends State<LivreurMapPage>
   // ═════════════════════════════════════════════════════════
   // Sources de données
   // ═════════════════════════════════════════════════════════
+  /// Points de la course et profil du livreur depuis le serveur. À défaut
+  /// (hors ligne), le restaurant est lu dans le cache local.
+  Future<void> _loadTracking() async {
+    final c = _commande;
+    if (c == null) return;
+    final t = await OrderTrackingService.fetch(c.commandeID);
+    if (!mounted) return;
+    if (t == null) {
+      await _loadRestaurant();
+      return;
+    }
+    setState(() {
+      _tracking = t;
+      final pickup = t.pickup;
+      if (pickup != null) {
+        _restaurantPos = pickup.position ?? _restaurantPos;
+        _restaurantName = pickup.name ?? _restaurantName;
+        _restaurantAddress = pickup.address ?? _restaurantAddress;
+      }
+      final dest = t.destination;
+      if (dest != null) {
+        _destination = dest.position ?? _destination;
+        _destinationAddress = dest.address;
+      }
+    });
+    _applyStatus(t.deliveryStatus);
+    // Mode client : dernière position connue avant le direct.
+    final last = t.courier?.position;
+    if (!_isCourier && _to == null && last != null) _onCourierPosition(last);
+    if (_restaurantPos == null) await _loadRestaurant();
+    _fit();
+  }
+
   Future<void> _loadRestaurant() async {
-    if (widget.commande == null) return;
+    if (_commande == null) return;
     try {
       final restos = await Restaurant.fetchRestaurantsFromDB();
       for (final r in restos) {
-        if (r.restaurantID == widget.commande!.restauID) {
+        if (r.restaurantID == _commande!.restauID) {
           if (!mounted) return;
           setState(() {
             _restaurantPos = _coordsOf(r, _restoKeys);
@@ -277,8 +343,8 @@ class _LivreurMapPageState extends State<LivreurMapPage>
 
   /// Connexion socket + écoute du statut (utilisé dans les deux modes).
   Future<SocketService?> _ensureSocket() async {
-    if (widget.commande == null) return null;
-    final id = widget.commande!.commandeID.toString();
+    if (_commande == null) return null;
+    final id = _commande!.commandeID.toString();
     final socket = _socket ?? SocketService();
     _socket = socket;
     try {
@@ -300,8 +366,8 @@ class _LivreurMapPageState extends State<LivreurMapPage>
   /// Mode client : positions du livreur en temps réel via Socket.io.
   Future<void> _startSocket() async {
     final socket = await _ensureSocket();
-    if (socket == null || widget.commande == null) return;
-    final id = widget.commande!.commandeID.toString();
+    if (socket == null || _commande == null) return;
+    final id = _commande!.commandeID.toString();
 
     // évènement hérité « courier_moved » (clé latitude/longitude)
     _movedSub = socket.onCourierMoved.listen((data) {
@@ -344,7 +410,8 @@ class _LivreurMapPageState extends State<LivreurMapPage>
         return false;
       }
       if (perm == LocationPermission.denied) {
-        _setGpsProblem('Autorisez la localisation pour partager votre position');
+        _setGpsProblem(
+            'Autorisez la localisation pour partager votre position');
         return false;
       }
       return true;
@@ -407,7 +474,8 @@ class _LivreurMapPageState extends State<LivreurMapPage>
     try {
       final last = await Geolocator.getLastKnownPosition();
       if (last != null) {
-        print('[LivreurMapPage] Dernière position connue: ${last.latitude}, ${last.longitude}');
+        print(
+            '[LivreurMapPage] Dernière position connue: ${last.latitude}, ${last.longitude}');
         if (mounted && _to == null) _onGpsPosition(last);
       } else {
         print('[LivreurMapPage] Pas de dernière position connue');
@@ -422,7 +490,8 @@ class _LivreurMapPageState extends State<LivreurMapPage>
         desiredAccuracy: LocationAccuracy.high,
         timeLimit: const Duration(seconds: 10),
       );
-      print('[LivreurMapPage] Position courante: ${cur.latitude}, ${cur.longitude}');
+      print(
+          '[LivreurMapPage] Position courante: ${cur.latitude}, ${cur.longitude}');
       if (mounted) _onGpsPosition(cur);
     } catch (e) {
       print('[LivreurMapPage] Erreur position courante: $e');
@@ -438,14 +507,17 @@ class _LivreurMapPageState extends State<LivreurMapPage>
     if (_gpsProblem != null) setState(() => _gpsProblem = null);
     _onCourierPosition(p, heading: reliable ? pos.heading : null);
 
-    final orderId = widget.commande?.commandeID.toString();
-    if (orderId != null) {
+    // « courier_location_update » est l'évènement relayé par le serveur au
+    // client et au restaurant (l'ancien « update_location » n'était pas écouté).
+    final orderId = _commande?.commandeID.toString();
+    if (orderId != null && _isCourier && !_delivered) {
       try {
-        _socket?.emitUpdateLocation(
+        _socket?.emitCourierLocation(
           orderId: orderId,
-          lat: pos.latitude,
-          lng: pos.longitude,
-          heading: pos.heading,
+          latitude: pos.latitude,
+          longitude: pos.longitude,
+          accuracyM: pos.accuracy,
+          heading: reliable ? pos.heading : null,
         );
       } catch (_) {}
     }
@@ -752,13 +824,15 @@ class _LivreurMapPageState extends State<LivreurMapPage>
   }
 
   String get _courierDisplayName {
+    final fromServer = _tracking?.courier?.displayName;
+    if (fromServer != null && fromServer.isNotEmpty) return fromServer;
     if (widget.courierName != null) return widget.courierName!;
-    if (widget.commande == null) return 'Votre livreur';
-    final n = _str(() => (widget.commande! as dynamic).livreurName) ??
-        _str(() => (widget.commande! as dynamic).livreurNom) ??
-        _str(() => (widget.commande! as dynamic).nomLivreur);
+    if (_commande == null) return 'Votre livreur';
+    final n = _str(() => (_commande! as dynamic).livreurName) ??
+        _str(() => (_commande! as dynamic).livreurNom) ??
+        _str(() => (_commande! as dynamic).nomLivreur);
     if (n != null) return n;
-    final id = _str(() => (widget.commande! as dynamic).livreurID);
+    final id = _str(() => (_commande! as dynamic).livreurID);
     return (id == null || id == '0') ? 'Votre livreur' : 'Livreur #$id';
   }
 
@@ -830,18 +904,28 @@ class _LivreurMapPageState extends State<LivreurMapPage>
     ]);
   }
 
-  /// Trait livreur → prochaine étape (restaurant, puis client).
+  /// Trait livreur → prochaine étape (restaurant, puis client), et le trajet
+  /// restaurant → client en pointillés tant que la commande n'est pas prise.
   Widget _buildRouteLayer() {
     final c = _animatedPos(), t = _target;
-    if (c == null || t == null || _delivered) return const SizedBox.shrink();
+    final r = _restaurantPos, d = _destination;
+    if (_delivered) return const SizedBox.shrink();
     return PolylineLayer(polylines: [
-      Polyline(
-        points: [c, t],
-        color: _brandC.withValues(alpha: 0.55),
-        strokeWidth: 4,
-        strokeCap: StrokeCap.round,
-        strokeJoin: StrokeJoin.round,
-      ),
+      if (_beforePickup && r != null && d != null)
+        Polyline(
+          points: [r, d],
+          color: _blue.withValues(alpha: 0.45),
+          strokeWidth: 3,
+          pattern: StrokePattern.dashed(segments: const [8, 8]),
+        ),
+      if (c != null && t != null)
+        Polyline(
+          points: [c, t],
+          color: _brandC.withValues(alpha: 0.55),
+          strokeWidth: 4,
+          strokeCap: StrokeCap.round,
+          strokeJoin: StrokeJoin.round,
+        ),
     ]);
   }
 
@@ -871,25 +955,28 @@ class _LivreurMapPageState extends State<LivreurMapPage>
     if (_restaurantPos != null) {
       markers.add(Marker(
         point: _restaurantPos!,
-        width: 56,
-        height: 56,
-        child: _pin(
+        width: 140,
+        height: 92,
+        alignment: Alignment.topCenter,
+        child: _placePin(
           icon: Icons.storefront_rounded,
-          color: _accentC,
-          label: _restaurantName,
+          color: _brandC,
+          label: _restaurantName ?? 'Restaurant',
+          active: _beforePickup && !_delivered,
         ),
       ));
     }
     if (_destination != null) {
       markers.add(Marker(
         point: _destination!,
-        width: 56,
-        height: 56,
-        child: _pin(
-          icon: Icons.home_rounded,
+        width: 140,
+        height: 92,
+        alignment: Alignment.topCenter,
+        child: _placePin(
+          icon: _isCourier ? Icons.person_pin_rounded : Icons.home_rounded,
           color: _blue,
           label: _isCourier ? 'Client' : 'Vous',
-          filledLabel: true,
+          active: !_beforePickup && !_delivered,
         ),
       ));
     }
@@ -903,6 +990,82 @@ class _LivreurMapPageState extends State<LivreurMapPage>
       ));
     }
     return MarkerLayer(markers: markers);
+  }
+
+  /// Épingle « goutte » : la pointe touche le lieu exact (marqueur aligné
+  /// en haut), étiquette au-dessus. L'étape en cours est mise en avant.
+  Widget _placePin({
+    required IconData icon,
+    required Color color,
+    required String label,
+    bool active = false,
+  }) {
+    final size = active ? 46.0 : 40.0;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          constraints: const BoxConstraints(maxWidth: 136),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: active ? color : Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.18),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: active ? Colors.white : Colors.black87,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        SizedBox(
+          width: size,
+          height: size + 10,
+          child: Stack(
+            alignment: Alignment.topCenter,
+            children: [
+              Positioned(
+                bottom: 0,
+                child: CustomPaint(
+                  size: const Size(16, 12),
+                  painter: _PinTipPainter(color),
+                ),
+              ),
+              Container(
+                width: size,
+                height: size,
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 3),
+                  boxShadow: [
+                    BoxShadow(
+                      color: color.withValues(alpha: active ? 0.45 : 0.25),
+                      blurRadius: active ? 14 : 8,
+                      spreadRadius: active ? 2 : 0,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Icon(icon, color: Colors.white, size: size * 0.5),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 
   /// Épingle ronde + étiquette flottante au-dessus (centrée sur le point).
@@ -941,8 +1104,7 @@ class _LivreurMapPageState extends State<LivreurMapPage>
             child: Center(
               child: Container(
                 constraints: const BoxConstraints(maxWidth: 120),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: filledLabel ? color : Colors.white,
                   borderRadius: BorderRadius.circular(8),
@@ -1031,8 +1193,7 @@ class _LivreurMapPageState extends State<LivreurMapPage>
             right: -30,
             child: Center(
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: _brandC,
                   borderRadius: BorderRadius.circular(8),
@@ -1072,17 +1233,20 @@ class _LivreurMapPageState extends State<LivreurMapPage>
             final eta = _etaMin;
             final km = _distanceKm;
             final waiting = _to == null;
-            final subtitle = _delivered
-                ? 'Course terminée'
-                : waiting
-                    ? (_isCourier
-                        ? (_gpsProblem ?? 'Recherche de votre position GPS…')
-                        : 'En attente de la position du livreur…')
-                    : eta == null
-                        ? 'Position en direct'
-                        : _beforePickup
-                            ? 'Au restaurant dans ~$eta min'
-                            : 'Arrivée dans ~$eta min';
+            final subtitle = _idle
+                ? 'Aucune course en cours'
+                : _delivered
+                    ? 'Course terminée'
+                    : waiting
+                        ? (_isCourier
+                            ? (_gpsProblem ??
+                                'Recherche de votre position GPS…')
+                            : 'En attente de la position du livreur…')
+                        : eta == null
+                            ? 'Position en direct'
+                            : _beforePickup
+                                ? 'Au restaurant dans ~$eta min'
+                                : 'Arrivée dans ~$eta min';
             final live = !waiting && !_delivered;
 
             return Container(
@@ -1101,17 +1265,18 @@ class _LivreurMapPageState extends State<LivreurMapPage>
               ),
               child: Row(
                 children: [
-                  IconButton(
-                    onPressed: () => Navigator.maybePop(context),
-                    icon: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: _warm,
-                        borderRadius: BorderRadius.circular(10),
+                  if (Navigator.of(context).canPop())
+                    IconButton(
+                      onPressed: () => Navigator.maybePop(context),
+                      icon: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: _warm,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(Icons.arrow_back_rounded, color: _ink),
                       ),
-                      child: Icon(Icons.arrow_back_rounded, color: _ink),
                     ),
-                  ),
                   const SizedBox(width: 4),
                   Expanded(
                     child: Column(
@@ -1125,9 +1290,7 @@ class _LivreurMapPageState extends State<LivreurMapPage>
                               decoration: BoxDecoration(
                                 color: live
                                     ? AppColors.success
-                                    : (_delivered
-                                        ? AppColors.success
-                                        : _muted),
+                                    : (_delivered ? AppColors.success : _muted),
                                 shape: BoxShape.circle,
                                 boxShadow: live
                                     ? [
@@ -1144,7 +1307,7 @@ class _LivreurMapPageState extends State<LivreurMapPage>
                             const SizedBox(width: 8),
                             Flexible(
                               child: Text(
-                                _statusLabel,
+                                _idle ? 'Votre position' : _statusLabel,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
@@ -1249,12 +1412,78 @@ class _LivreurMapPageState extends State<LivreurMapPage>
     );
   }
 
+  /// Onglet livreur sans course : invite à consulter les courses disponibles.
+  Widget _buildIdlePanel() {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: _cardBg,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.10),
+            blurRadius: 20,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+          child: Row(children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: _brandC.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.delivery_dining_rounded, color: _brandC),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Aucune course en cours',
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: _ink)),
+                  const SizedBox(height: 2),
+                  Text(
+                      'Acceptez une course dans « Livraisons » : le restaurant et le client apparaîtront ici.',
+                      style: TextStyle(fontSize: 13, color: _muted)),
+                ],
+              ),
+            ),
+            _roundAction(Icons.refresh_rounded, () {
+              setState(() => _idle = false);
+              _bootstrap();
+            }),
+          ]),
+        ),
+      ),
+    );
+  }
+
   Widget _buildPanel() {
-    if (widget.commande == null) return const SizedBox.shrink();
+    if (_commande == null) {
+      return _idle ? _buildIdlePanel() : const SizedBox.shrink();
+    }
     final l10n = AppLocalizations.of(context)!;
-    final c = widget.commande!;
+    final c = _commande!;
+    final courier = _tracking?.courier;
     final personName = _isCourier ? 'Client #${c.userID}' : _courierDisplayName;
-    final destAddress = _str(() => (c as dynamic).adresseLivraison) ??
+    final courierPhone = courier?.phone?.replaceAll(RegExp(r'[^0-9+]'), '');
+    final VoidCallback? onCall = widget.onCallCourier ??
+        (!_isCourier && courierPhone != null && courierPhone.isNotEmpty
+            ? () => launchUrl(Uri(scheme: 'tel', path: courierPhone),
+                mode: LaunchMode.externalApplication)
+            : null);
+    final destAddress = _destinationAddress ??
+        _str(() => (c as dynamic).adresseLivraison) ??
         _str(() => (c as dynamic).deliveryAddress) ??
         _str(() => (c as dynamic).adresse) ??
         (_isCourier ? 'Adresse du client' : 'Votre position');
@@ -1308,24 +1537,27 @@ class _LivreurMapPageState extends State<LivreurMapPage>
                   // ── Livreur (ou client en mode livreur) ──
                   Row(
                     children: [
-                      Container(
-                        width: 56,
-                        height: 56,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(colors: [
-                            _brandC,
-                            Color.lerp(_brandC, Colors.black, 0.28)!,
-                          ]),
-                          shape: BoxShape.circle,
+                      if (!_isCourier && courier != null)
+                        CourierAvatar(courier: courier)
+                      else
+                        Container(
+                          width: 56,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(colors: [
+                              _brandC,
+                              Color.lerp(_brandC, Colors.black, 0.28)!,
+                            ]),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            _isCourier
+                                ? Icons.person_rounded
+                                : Icons.delivery_dining_rounded,
+                            color: Colors.white,
+                            size: 28,
+                          ),
                         ),
-                        child: Icon(
-                          _isCourier
-                              ? Icons.person_rounded
-                              : Icons.delivery_dining_rounded,
-                          color: Colors.white,
-                          size: 28,
-                        ),
-                      ),
                       const SizedBox(width: 14),
                       Expanded(
                         child: Column(
@@ -1342,21 +1574,32 @@ class _LivreurMapPageState extends State<LivreurMapPage>
                               ),
                             ),
                             const SizedBox(height: 4),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: _brandC.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                _statusLabel,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  color: _brandC,
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 4,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: _brandC.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    _statusLabel,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w800,
+                                      color: _brandC,
+                                    ),
+                                  ),
                                 ),
-                              ),
+                                if (!_isCourier &&
+                                    (courier?.vehiclePlate ?? '').isNotEmpty)
+                                  VehiclePlateBadge(
+                                      plate: courier!.vehiclePlate!),
+                              ],
                             ),
                           ],
                         ),
@@ -1373,9 +1616,9 @@ class _LivreurMapPageState extends State<LivreurMapPage>
                           ),
                         ),
                       ),
-                      if (widget.onCallCourier != null) ...[
+                      if (onCall != null) ...[
                         const SizedBox(width: 8),
-                        _roundAction(Icons.phone_rounded, widget.onCallCourier!),
+                        _roundAction(Icons.phone_rounded, onCall),
                       ],
                     ],
                   ),
@@ -1473,7 +1716,8 @@ class _LivreurMapPageState extends State<LivreurMapPage>
                                   ),
                                   style: OutlinedButton.styleFrom(
                                     foregroundColor: _brandC,
-                                    side: BorderSide(color: _brandC, width: 1.5),
+                                    side:
+                                        BorderSide(color: _brandC, width: 1.5),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(16),
                                     ),
@@ -1573,4 +1817,24 @@ class _LivreurMapPageState extends State<LivreurMapPage>
       ],
     );
   }
+}
+
+/// Pointe triangulaire sous l'épingle (touche le lieu exact).
+class _PinTipPainter extends CustomPainter {
+  _PinTipPainter(this.color);
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = ui.Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width, 0)
+      ..lineTo(size.width / 2, size.height)
+      ..close();
+    canvas.drawPath(path, Paint()..color = color);
+  }
+
+  @override
+  bool shouldRepaint(covariant _PinTipPainter oldDelegate) =>
+      oldDelegate.color != color;
 }

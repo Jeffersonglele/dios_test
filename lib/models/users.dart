@@ -239,6 +239,8 @@ class Users extends HiveObject {
     final identityValue = rawIdentity?.toLowerCase();
     String normalizedIdentity = rawIdentity ?? '';
     if (identityValue == 'verified' ||
+        identityValue == 'vérifiée' ||
+        identityValue == 'verifiee' ||
         identityValue == 'valid' ||
         identityValue == 'validated' ||
         identityValue == 'approved') {
@@ -248,7 +250,8 @@ class Users extends HiveObject {
     } else if (identityValue == 'pending' ||
         identityValue == 'waiting' ||
         identityValue == 'en attente') {
-      normalizedIdentity = 'Pending';
+      // Valeur attendue par les écrans (login, attente de validation).
+      normalizedIdentity = 'En attente';
     }
     final normalized = <String, dynamic>{
       'userID': parsedUserId,
@@ -272,7 +275,7 @@ class Users extends HiveObject {
       'phoneVerified': map['phoneVerified'],
       'isPhoneVerified': map['phoneVerified'] ?? map['isPhoneVerified'],
       'mustChangePassword': map['mustChangePassword'],
-      'permisType': map['permisType'],
+      'permisType': map['permisType'] ?? map['vehicleType'],
       'permisVerified': map['permisVerified'],
       'isOnline': map['isOnline'],
       'identityStatus': map['identityStatus'],

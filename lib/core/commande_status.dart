@@ -4,6 +4,9 @@ class CommandeStatus {
   const CommandeStatus._();
 
   static const pending = 'En attente';
+
+  /// Commande Mobile Money créée, paiement pas encore confirmé par Nyole.
+  static const awaitingPayment = 'Paiement en attente';
   static const paid = 'Payée';
   static const confirmed = 'Confirmée';
   static const preparing = 'En préparation';
@@ -21,7 +24,12 @@ class CommandeStatus {
       case 'en attente':
       case 'attente':
       case 'pending':
+      case 'confirmed_cash':
         return pending;
+      case 'paiement en attente':
+      case 'awaiting_payment':
+      case 'waiting_payment':
+        return awaitingPayment;
       case 'payée':
       case 'payee':
       case 'paid':
@@ -45,7 +53,6 @@ class CommandeStatus {
       case 'refusee':
       case 'refused':
       case 'rejected':
-      case 'refused':
         return refused;
       case 'annulée':
       case 'annulee':
@@ -63,6 +70,8 @@ class CommandeStatus {
   }
 
   static bool isPending(String? status) => normalize(status) == pending;
+  static bool isAwaitingPayment(String? status) =>
+      normalize(status) == awaitingPayment;
   static bool isConfirmed(String? status) => normalize(status) == confirmed;
   static bool isPreparing(String? status) => normalize(status) == preparing;
   static bool isReady(String? status) => normalize(status) == ready;

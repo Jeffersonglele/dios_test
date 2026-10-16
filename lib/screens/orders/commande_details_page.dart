@@ -3,6 +3,7 @@ import 'dart:io' show File;
 import 'dart:math' as math;
 import 'package:dios_delices/core/app_role.dart';
 import 'package:dios_delices/core/commande_status.dart';
+import 'package:dios_delices/core/order_stage.dart';
 import 'package:dios_delices/l10n/app_localizations.dart';
 import 'package:dios_delices/models/address.dart';
 import 'package:dios_delices/models/commande.dart';
@@ -11,17 +12,25 @@ import 'package:dios_delices/models/ligne_commande.dart';
 import 'package:dios_delices/models/restaurant.dart';
 import 'package:dios_delices/models/users.dart';
 import 'package:dios_delices/services/commande_api.dart';
+import 'package:dios_delices/services/node_auth_service.dart';
 import 'package:dios_delices/services/node_order_service.dart';
 import 'package:dios_delices/services/session_service.dart';
 import 'package:dios_delices/services/socket_service.dart';
 import 'package:dios_delices/theme/app_theme.dart';
+import 'package:dios_delices/services/upload_service.dart';
 import 'package:dios_delices/utils/currency_util.dart';
+import 'package:dios_delices/utils/phone_number.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../chat/chat_screen.dart';
+import '../delivery/livreur_map_page.dart';
+import '../../services/order_tracking_service.dart';
+import '../../widgets/courier_card.dart';
 import '../../widgets/rating_dialog.dart';
 import '../../widgets/order_otp_widgets.dart';
 import '../../widgets/order_dispute_sheet.dart';
@@ -85,7 +94,8 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage>
   bool _isLoading = true;
   bool _isProcessing = false;
   bool _hasError = false;
-  bool _canAssignLivreur = false;
+  bool _isRestaurantOwner = false;
+  bool _isAdmin = false;
   bool _isRestaurantView = false;
   Timer? _trackingTimer;
   Timer? _disputeTimer;
@@ -108,6 +118,9 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage>
   bool _isSocketConnected = false;
   bool _hasReceivedLiveUpdate = false;
   Address? _deliveryAddress;
+
+  /// Livreur assigné et points de la course (GET /orders/:id/tracking).
+  OrderTracking? _tracking;
 
   @override
   void initState() {
@@ -143,13 +156,13 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage>
 
   // ── Live tracking setup ──────────────────────────────────
   void _startTracking() {
-    final status = _commande.deliveryStatus;
-    if (status == null || status == 'delivered') return;
+    final stage = orderStageOf(_commande);
+    if (stage == OrderStage.delivered || stage == OrderStage.cancelled) return;
 
-    // 1. Connect to WebSocket & join the order's tracking room
-    _initLiveTracking();
+    // 1. Temps réel (position du livreur, statut de course) en livraison.
+    if (!_isPickupOrder(_commande)) _initLiveTracking();
 
-    // 2. Fallback polling (runs less often since WebSocket handles real-time)
+    // 2. Rafraîchissement de secours du statut (acceptation, préparation…)
     _trackingTimer = Timer.periodic(
       const Duration(seconds: 30),
       (_) => _refreshCommande(),
@@ -240,46 +253,110 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage>
     }
   }
 
-  // ── Fallback polling ──────────────────────────────────────
+  /// Profil du livreur (photo, nom, plaque) pour une commande en livraison.
+  Future<void> _loadTracking() async {
+    if (_isPickupOrder(_commande)) return;
+    final tracking = await OrderTrackingService.fetch(_commande.commandeID);
+    if (tracking != null && mounted) setState(() => _tracking = tracking);
+  }
+
+  void _openTrackingMap() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LivreurMapPage(
+          commande: _commande,
+          courierName: _tracking?.courier?.displayName,
+        ),
+      ),
+    );
+  }
+
+  /// Carte « Votre livreur » pour le client et le restaurant, ou l'état
+  /// « recherche d'un livreur » quand la commande est prête.
+  List<Widget> _buildCourierSection(OrderStage stage) {
+    if (_isPickupOrder(_commande) ||
+        stage == OrderStage.cancelled ||
+        stage == OrderStage.delivered && _tracking?.courier == null) {
+      return const [];
+    }
+    final courier = _tracking?.courier;
+    // Le livreur lui-même n'a pas besoin de sa propre fiche.
+    if (_tracking?.viewer == 'courier') return const [];
+    if (courier == null) {
+      final searching =
+          (_tracking?.deliveryStatus ?? '').toUpperCase() == 'SEARCHING';
+      if (!searching) return const [];
+      return const [CourierSearchingCard(), SizedBox(height: 16)];
+    }
+    final phone = courier.phone?.replaceAll(RegExp(r'[^0-9+]'), '');
+    final active = stage != OrderStage.delivered;
+    return [
+      CourierCard(
+        courier: courier,
+        title: _isRestaurantView
+            ? AppLocalizations.of(context)!.courier_card_title_restaurant
+            : null,
+        onCall: active && phone != null && phone.isNotEmpty
+            ? () => _launch(Uri(scheme: 'tel', path: phone))
+            : null,
+        onTrack: active ? _openTrackingMap : null,
+      ),
+      const SizedBox(height: 16),
+    ];
+  }
+
+  // ── Rafraîchissement depuis le backend Node ───────────────
   Future<void> _refreshCommande() async {
     try {
-      final query = QueryBuilder<ParseObject>(ParseObject('Commande'))
-        ..whereEqualTo('commandeID', _commande.commandeID);
-      final resp = await query.query();
-      if (resp.success && resp.results != null && resp.results!.isNotEmpty) {
-        final obj = resp.results!.first;
-        if (mounted) {
-          final lat = obj.get<double>('livreurLat');
-          final lng = obj.get<double>('livreurLng');
-          final status = obj.get<String>('deliveryStatus');
-          setState(() {
-            if (lat != null) {
-              _commande.livreurLat = lat;
-              // Only update live position if we haven't had a socket update recently
-              if (!_hasReceivedLiveUpdate) _liveLat = lat;
-            }
-            if (lng != null) {
-              _commande.livreurLng = lng;
-              if (!_hasReceivedLiveUpdate) _liveLng = lng;
-            }
-            if (status != null) _commande.deliveryStatus = status;
-          });
-          if (status == 'delivered') _trackingTimer?.cancel();
-        }
-      }
+      final token = await SessionService.readNodeToken();
+      if (token == null || token.isEmpty) return;
+      final details = await NodeOrderService.getDetails(
+        token: token,
+        orderId: _commande.commandeID.toString(),
+        includeLines: false,
+      );
+      final order = details?['order'];
+      if (order is Map && mounted) _applyFreshOrder(order);
+      await _loadTracking();
     } catch (_) {}
-    // Reset the flag so next polling cycle can fill in if socket is dead
+    // Le prochain cycle peut compléter si le socket est tombé.
     _hasReceivedLiveUpdate = false;
+  }
+
+  /// Remplace la commande affichée par la version serveur, en gardant la
+  /// position temps réel du livreur si le socket l'a déjà mise à jour.
+  void _applyFreshOrder(Map order) {
+    final fresh =
+        NodeOrderService.toLegacyCommande(Map<String, dynamic>.from(order));
+    final keepLive = _hasReceivedLiveUpdate;
+    setState(() {
+      final liveLat = _commande.livreurLat;
+      final liveLng = _commande.livreurLng;
+      _commande = fresh;
+      if (keepLive) {
+        _commande.livreurLat = liveLat;
+        _commande.livreurLng = liveLng;
+      } else {
+        _liveLat = fresh.livreurLat ?? _liveLat;
+        _liveLng = fresh.livreurLng ?? _liveLng;
+      }
+    });
+    final stage = orderStageOf(_commande);
+    if (stage == OrderStage.delivered || stage == OrderStage.cancelled) {
+      _trackingTimer?.cancel();
+    }
   }
 
   Future<void> _loadData() async {
     try {
       final session = await SessionService.readSession();
-      _country = session.country;
-      _canAssignLivreur =
-          session.role.isAdmin || session.role == AppRole.livreur;
-      _isRestaurantView =
-          session.role.isAdmin || session.role == AppRole.microRestaurant;
+      // Montants affichés dans la devise du pays de la commande.
+      final orderCountry = (_commande.country ?? '').trim();
+      _country = orderCountry.isNotEmpty ? orderCountry : session.country;
+      _isAdmin = session.role.isAdmin;
+      _isRestaurantOwner = session.role == AppRole.microRestaurant;
+      _isRestaurantView = _isAdmin || _isRestaurantOwner;
 
       // Récupérer les détails de commande depuis le backend Node.js avec les lignes
       final token = await SessionService.readNodeToken();
@@ -300,6 +377,10 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage>
           orderDetails = null;
         }
       }
+
+      final freshOrder = orderDetails?['order'];
+      if (freshOrder is Map && mounted) _applyFreshOrder(freshOrder);
+      unawaited(_loadTracking());
 
       final results = await Future.wait([
         Dish.fetchDishesFromDB(),
@@ -407,103 +488,6 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage>
     }
   }
 
-  Future<void> _updateStatus(String newStatus) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          newStatus == CommandeStatus.confirmed
-              ? AppLocalizations.of(context)!.commande_details_confirm_order
-              : AppLocalizations.of(context)!.commande_details_cancel_order,
-          style: AppTypography.titleSmall(),
-        ),
-        content: Text(
-          newStatus == CommandeStatus.confirmed
-              ? AppLocalizations.of(context)!.user_orders_confirm_prompt(_commande.commandeID)
-              : AppLocalizations.of(context)!.user_orders_cancel_prompt(_commande.commandeID),
-          style: AppTypography.bodyMedium(),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(AppLocalizations.of(context)!.no),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: newStatus == CommandeStatus.confirmed
-                  ? AppColors.success
-                  : AppColors.error,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
-            child: Text(newStatus == CommandeStatus.confirmed
-                ? AppLocalizations.of(context)!.user_orders_yes_confirm
-                : AppLocalizations.of(context)!.user_orders_yes_cancel),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      setState(() => _isProcessing = true);
-      try {
-        await CommandeApi.updateOrderStatus(
-            _commande.commandeID.toString(), newStatus);
-        await Commande.refreshLocalCommandes();
-        await _loadData();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(newStatus == CommandeStatus.confirmed
-                  ? AppLocalizations.of(context)!.orderConfirmed
-                  : AppLocalizations.of(context)!.orderCancelled),
-              backgroundColor: newStatus == CommandeStatus.confirmed
-                  ? AppColors.success
-                  : AppColors.error,
-              duration: const Duration(seconds: 2),
-            ),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Erreur: ${e.toString()}'),
-              backgroundColor: AppColors.error,
-              duration: const Duration(seconds: 4),
-            ),
-          );
-        }
-      } finally {
-        if (mounted) {
-          setState(() => _isProcessing = false);
-        }
-      }
-    }
-  }
-
-  /// Commande « À emporter » prête, pas encore remise au client.
-  bool _canValidatePickup(String status) =>
-      _isRestaurantView &&
-      _isPickupOrder(_commande) &&
-      status == CommandeStatus.ready &&
-      !_otpVerifiedOf(_commande);
-
-  /// Dialogue « Valider le retrait du client » (code à 4 caractères).
-  Future<void> _validatePickup() async {
-    final ok = await showRestaurateurOtpDialog(
-      context,
-      orderId: _commande.commandeID,
-    );
-    if (ok == true && mounted) {
-      await _loadData();
-    }
-  }
-
   double get _subtotal {
     // Utiliser le sous-total de la commande si disponible depuis le backend
     if (_commande.subtotalAmount != null && _commande.subtotalAmount! > 0) {
@@ -532,21 +516,16 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage>
 
   @override
   Widget build(BuildContext context) {
-    final status = CommandeStatus.normalize(_commande.status);
-    final statusColor = CommandeStatus.color(status);
-    final bool isCancelled = status == CommandeStatus.cancelled || status == CommandeStatus.refused;
-    final bool isConfirmed = status == CommandeStatus.confirmed || status == CommandeStatus.preparing || status == CommandeStatus.ready;
-    final bool isDelivered = status == CommandeStatus.delivered;
-    final bool canCancel = !isCancelled && !isDelivered;
-    final bool canConfirm = !isConfirmed && !isCancelled && !isDelivered;
+    final stage = _stage;
+    final isCancelled = stage == OrderStage.cancelled;
+    final isDelivered = stage == OrderStage.delivered;
 
     return Scaffold(
       backgroundColor: AppColors.resolve(AppColors.surface, AppDarkColors.surface),
       appBar: AppBar(
         title: Text(AppLocalizations.of(context)!.commande_details_title,
-            style: AppTypography.titleSmall(
-                color: AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
-        foregroundColor: AppColors.resolve(AppColors.ink, AppDarkColors.ink),
+            style: AppTypography.titleSmall(color: _ink)),
+        foregroundColor: _ink,
         backgroundColor: AppColors.resolve(AppColors.surface, AppDarkColors.surface),
         elevation: 0,
         surfaceTintColor: Colors.transparent,
@@ -554,75 +533,88 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage>
       body: Stack(
         children: [
           _isLoading
-              ? Center(
-                  child: CircularProgressIndicator(
-                      color: AppColors.resolve(AppColors.brand, AppDarkColors.brand)))
+              ? Center(child: CircularProgressIndicator(color: _brand))
               : _hasError
                   ? _buildErrorView()
                   : RefreshIndicator(
-                      onRefresh: _loadData,
-                      color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+                      onRefresh: () async {
+                        await _refreshCommande();
+                        await _loadData();
+                      },
+                      color: _brand,
                       child: LayoutBuilder(
                         builder: (context, constraints) {
-                          final maxWidth = constraints.maxWidth > 600 ? 560.0 : constraints.maxWidth;
+                          final maxWidth = constraints.maxWidth > 600
+                              ? 560.0
+                              : constraints.maxWidth;
                           return Center(
                             child: SizedBox(
                               width: maxWidth,
                               child: ListView(
-                                padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
+                                padding:
+                                    const EdgeInsets.fromLTRB(16, 8, 16, 40),
                                 children: [
-                              _buildHeader(status, statusColor),
-                              const SizedBox(height: 20),
-                              // Code de remise (OTP) à communiquer au livreur /
-                              // présenter au restaurateur
-                              if (!_isRestaurantView &&
-                                  !isCancelled &&
-                                  (_otpOf(_commande) ?? '').trim().isNotEmpty) ...[
-                                OrderOtpCard(
-                                  otp: _otpOf(_commande),
-                                  mode: orderOtpModeFrom(
-                                      deliveryMode: _commande.deliveryMode),
-                                  verified: _otpVerifiedOf(_commande),
-                                ),
-                                const SizedBox(height: 20),
-                              ],
-                              ..._buildDisputeSection(isDelivered),
-                              _buildStatusTimeline(status),
-                              const SizedBox(height: 20),
-                              _buildInfoSection(),
-                              const SizedBox(height: 20),
-                              _buildLineItems(),
-                              const SizedBox(height: 20),
-                              _buildTotals(),
-                              if (_addressLabel.isNotEmpty) ...[
-                                const SizedBox(height: 20),
-                                _buildAddressSection(),
-                              ],
-                              if (_commande.livreurLat != null &&
-                                  _commande.livreurLng != null) ...[
-                                const SizedBox(height: 20),
-                                _buildDeliveryMap(),
-                              ],
-                              if (_commande.deliveryStatus != null &&
-                                  _commande.deliveryStatus!.isNotEmpty) ...[
-                                const SizedBox(height: 20),
-                                _buildDeliveryInfo(),
-                              ],
-                              const SizedBox(height: 24),
-                              _buildActions(canCancel, canConfirm, status),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
+                                  _buildHeader(stage),
+                                  if (stage == OrderStage.awaitingPayment &&
+                                      !_isRestaurantView) ...[
+                                    const SizedBox(height: 12),
+                                    _buildAwaitingPaymentBanner(),
+                                  ],
+                                  const SizedBox(height: 16),
+                                  // Code de remise (OTP) à communiquer au
+                                  // livreur / présenter au restaurateur
+                                  if (!_isRestaurantView &&
+                                      !isCancelled &&
+                                      stage != OrderStage.awaitingPayment &&
+                                      (_otpOf(_commande) ?? '')
+                                          .trim()
+                                          .isNotEmpty) ...[
+                                    OrderOtpCard(
+                                      otp: _otpOf(_commande),
+                                      mode: orderOtpModeFrom(
+                                          deliveryMode: _commande.deliveryMode),
+                                      verified: _otpVerifiedOf(_commande),
+                                    ),
+                                    const SizedBox(height: 16),
+                                  ],
+                                  ..._buildDisputeSection(isDelivered),
+                                  _buildStatusTimeline(stage),
+                                  const SizedBox(height: 16),
+                                  _buildActions(stage),
+                                  const SizedBox(height: 16),
+                                  ..._buildCourierSection(stage),
+                                  if (_commande.livreurLat != null &&
+                                      _commande.livreurLng != null &&
+                                      stage == OrderStage.onTheWay) ...[
+                                    _buildDeliveryMap(),
+                                    const SizedBox(height: 16),
+                                  ],
+                                  _buildLineItems(),
+                                  const SizedBox(height: 16),
+                                  _buildTotals(),
+                                  if (_addressLabel.isNotEmpty) ...[
+                                    const SizedBox(height: 16),
+                                    _buildAddressSection(),
+                                  ],
+                                  const SizedBox(height: 16),
+                                  _buildInfoSection(),
+                                  if (_commande.deliveryStatus != null &&
+                                      _commande.deliveryStatus!.isNotEmpty &&
+                                      !isCancelled) ...[
+                                    const SizedBox(height: 16),
+                                    _buildDeliveryInfo(),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
           if (_isProcessing)
             Container(
               color: Colors.black26,
-              child: const Center(
-                child: CircularProgressIndicator(),
-              ),
+              child: Center(child: CircularProgressIndicator(color: _brand)),
             ),
         ],
       ),
@@ -661,170 +653,677 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage>
     );
   }
 
-  // ── En-tête ───────────────────────────────────────────
-  Widget _buildHeader(String status, Color statusColor) {
-    final dateStr =
-        '${_commande.dateCommande.toLocal().toString().split(" ")[0]} à ${_commande.heure}';
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Text('${AppLocalizations.of(context)!.orders} #${_commande.commandeID}',
-                style: AppTypography.titleLarge(
-                    color: AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
-            const Spacer(),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-              decoration: BoxDecoration(
-                color: statusColor.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(99),
-              ),
-              child: Text(status,
-                  style: TextStyle(
-                    color: statusColor,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  )),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        Row(
-          children: [
-            Icon(Icons.calendar_today_rounded, size: 13,
-                color: AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted)),
-            const SizedBox(width: 6),
-            Text(dateStr,
-                style: AppTypography.bodyMedium(
-                    color: AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted))),
-          ],
-        ),
-      ],
-    );
+  // ── Étape, libellés, couleurs ─────────────────────────
+  OrderStage get _stage => orderStageOf(_commande);
+
+  /// Payée en ligne (portefeuille ou Mobile Money confirmé) : une
+  /// annulation donne lieu à un remboursement sur le portefeuille.
+  bool get _paidOnline {
+    final provider = (_commande.paymentProvider ?? '').toUpperCase();
+    return provider == 'WALLET' ||
+        (provider == 'NYOLE' &&
+            CommandeStatus.normalize(_commande.status) == CommandeStatus.paid);
   }
 
-  // ── Timeline de statut ────────────────────────────────
-  Widget _buildStatusTimeline(String currentStatus) {
-    final steps = [
-      _StepData(CommandeStatus.pending, AppLocalizations.of(context)!.commande_details_ordered, Icons.hourglass_top_rounded),
-      _StepData(CommandeStatus.paid, AppLocalizations.of(context)!.commande_details_confirmed, Icons.payment_rounded),
-      _StepData(CommandeStatus.confirmed, AppLocalizations.of(context)!.commande_details_confirmed, Icons.check_circle_rounded),
-      _StepData('Livrée', AppLocalizations.of(context)!.commande_details_delivered, Icons.delivery_dining_rounded),
-    ];
+  String _stageLabel(OrderStage stage) => orderStageLabel(
+        AppLocalizations.of(context)!,
+        stage,
+        pickup: _isPickupOrder(_commande),
+        refused: orderWasRefused(_commande),
+      );
 
-    int activeIndex = -1;
-    if (CommandeStatus.isCancelled(currentStatus)) {
-      activeIndex = -2;
-    } else {
-      for (int i = 0; i < steps.length; i++) {
-        if (CommandeStatus.normalize(currentStatus) ==
-            CommandeStatus.normalize(steps[i].status)) {
-          activeIndex = i;
-          break;
-        }
-      }
+  Color _stageColor(OrderStage stage) => orderStageColor(stage);
+
+  Color get _ink => AppColors.resolve(AppColors.ink, AppDarkColors.ink);
+  Color get _inkMuted =>
+      AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
+  Color get _brand => AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+  Color get _cardColor => AppColors.resolve(AppColors.card, AppDarkColors.card);
+  Color get _borderColor =>
+      AppColors.resolve(AppColors.border, AppDarkColors.border);
+
+  // ── En-tête ───────────────────────────────────────────
+  Widget _buildHeader(OrderStage stage) {
+    final l10n = AppLocalizations.of(context)!;
+    final color = _stageColor(stage);
+    final locale = Localizations.localeOf(context).toString();
+    String date;
+    try {
+      date = DateFormat('d MMM yyyy · HH:mm', locale)
+          .format(_commande.dateCommande.toLocal());
+    } catch (_) {
+      date =
+          '${_commande.dateCommande.toLocal().toString().split(" ")[0]} · ${_commande.heure}';
     }
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppColors.resolve(AppColors.card, AppDarkColors.card),
+        color: _cardColor,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(
-            color: AppColors.resolve(AppColors.border, AppDarkColors.border),
-            width: 0.5),
+        border: Border.all(color: _borderColor.withValues(alpha: 0.7)),
+        boxShadow: [AppShadows.card],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.timeline_rounded, size: 16,
-                  color: AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted)),
-              const SizedBox(width: 8),
-              Text(AppLocalizations.of(context)!.commande_details_tracking,
-                  style: AppTypography.titleSmall(
-                      color: AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
+              Expanded(
+                child: Text(
+                  '${l10n.orders} #${_commande.commandeID}',
+                  style: AppTypography.headlineMedium(color: _ink)
+                      .copyWith(fontSize: 24),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppRadius.full),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration:
+                          BoxDecoration(color: color, shape: BoxShape.circle),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      _stageLabel(stage),
+                      style: AppTypography.labelMedium(color: color)
+                          .copyWith(fontWeight: FontWeight.w800),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 16),
-          if (activeIndex == -2)
+          const SizedBox(height: 8),
+          Text(
+            l10n.order_placed_on(date),
+            style: AppTypography.bodyMedium(color: _inkMuted),
+          ),
+          if (_restaurantName.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: AppColors.resolve(
+                        AppColors.brandSurface, AppDarkColors.brandSurface),
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: Icon(Icons.storefront_rounded, size: 17, color: _brand),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    _restaurantName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.titleSmall(color: _ink),
+                  ),
+                ),
+                Icon(
+                  _isPickupOrder(_commande)
+                      ? Icons.shopping_bag_outlined
+                      : Icons.delivery_dining_rounded,
+                  size: 18,
+                  color: _inkMuted,
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Bandeau « paiement en attente » (Mobile Money non encore confirmé).
+  Widget _buildAwaitingPaymentBanner() {
+    const color = Color(0xFFB7791F);
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.resolve(AppColors.accentLight, AppDarkColors.accentLight),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: color.withValues(alpha: 0.30)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.hourglass_top_rounded, color: color, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              AppLocalizations.of(context)!.order_awaiting_payment_hint,
+              style: AppTypography.bodyMedium(color: _ink).copyWith(height: 1.4),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Frise de suivi ────────────────────────────────────
+  Widget _buildStatusTimeline(OrderStage stage) {
+    final l10n = AppLocalizations.of(context)!;
+    final pickup = _isPickupOrder(_commande);
+    final steps = <(OrderStage, IconData)>[
+      (OrderStage.received, Icons.receipt_long_rounded),
+      (OrderStage.preparing, Icons.soup_kitchen_rounded),
+      (OrderStage.ready, pickup ? Icons.shopping_bag_rounded : Icons.check_circle_rounded),
+      if (!pickup) (OrderStage.onTheWay, Icons.delivery_dining_rounded),
+      (OrderStage.delivered, pickup ? Icons.how_to_reg_rounded : Icons.home_rounded),
+    ];
+    final activeIndex = steps.indexWhere((s) => s.$1 == stage);
+    final success = AppColors.resolve(AppColors.success, AppDarkColors.success);
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+      decoration: BoxDecoration(
+        color: _cardColor,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: _borderColor.withValues(alpha: 0.7)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(l10n.commande_details_tracking,
+              style: AppTypography.titleSmall(color: _ink)),
+          const SizedBox(height: 14),
+          if (stage == OrderStage.cancelled)
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: Row(
                 children: [
-                  Icon(Icons.cancel_rounded, size: 18, color: AppColors.error),
+                  Icon(Icons.cancel_rounded,
+                      size: 20, color: _stageColor(OrderStage.cancelled)),
                   const SizedBox(width: 8),
-                  Text(AppLocalizations.of(context)!.commande_details_cancelled,
-                      style: TextStyle(
-                          color: AppColors.error,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13)),
+                  Expanded(
+                    child: Text(
+                      _stageLabel(OrderStage.cancelled),
+                      style: AppTypography.bodyMedium(
+                              color: _stageColor(OrderStage.cancelled))
+                          .copyWith(fontWeight: FontWeight.w700),
+                    ),
+                  ),
                 ],
               ),
-            ),
-          ...List.generate(steps.length, (i) {
-            final step = steps[i];
-            final bool isActive = i <= activeIndex;
-            final bool isCurrent = i == activeIndex;
-            final Color stepColor = isActive ? AppColors.brand : AppColors.border;
-            return IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    width: 24,
-                    child: Column(
-                      children: [
-                        Container(
-                          width: isCurrent ? 14 : 10,
-                          height: isCurrent ? 14 : 10,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: isActive ? AppColors.brand : Colors.transparent,
-                            border: Border.all(
-                                color: stepColor, width: isCurrent ? 3 : 2),
-                          ),
-                        ),
-                        if (i < steps.length - 1)
-                          Expanded(
-                            child: Container(
-                              width: 1.5,
-                              color: activeIndex > i
-                                  ? AppColors.brand
-                                  : AppColors.resolve(
-                                      AppColors.border, AppDarkColors.border),
+            )
+          else
+            ...List.generate(steps.length, (i) {
+              final (stepStage, icon) = steps[i];
+              final done = activeIndex > i ||
+                  (stage == OrderStage.delivered && i == steps.length - 1);
+              final current = i == activeIndex && stage != OrderStage.delivered;
+              final reached = done || current;
+              final dotColor = done ? success : (current ? _brand : _borderColor);
+              return IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: 32,
+                      child: Column(
+                        children: [
+                          AnimatedContainer(
+                            duration: AppMotion.normal,
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: reached
+                                  ? dotColor
+                                  : _cardColor,
+                              border: Border.all(
+                                  color: dotColor, width: reached ? 0 : 1.5),
+                              boxShadow: current
+                                  ? [
+                                      BoxShadow(
+                                        color: _brand.withValues(alpha: 0.30),
+                                        blurRadius: 12,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ]
+                                  : null,
+                            ),
+                            child: Icon(
+                              done ? Icons.check_rounded : icon,
+                              size: 16,
+                              color: reached ? Colors.white : _inkMuted,
                             ),
                           ),
-                      ],
+                          if (i < steps.length - 1)
+                            Expanded(
+                              child: Container(
+                                width: 2,
+                                margin: const EdgeInsets.symmetric(vertical: 2),
+                                color: done ? success : _borderColor,
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(step.label,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight:
-                                  isCurrent ? FontWeight.w700 : FontWeight.w500,
-                              color: isActive
-                                  ? AppColors.resolve(
-                                      AppColors.ink, AppDarkColors.ink)
-                                  : AppColors.resolve(
-                                      AppColors.inkMuted, AppDarkColors.inkMuted),
-                            )),
-                      ],
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 6, bottom: 18),
+                        child: Text(
+                          _stageLabel(stepStage),
+                          style: AppTypography.bodyMedium(
+                            color: reached ? _ink : _inkMuted,
+                          ).copyWith(
+                            fontWeight:
+                                current ? FontWeight.w800 : FontWeight.w600,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            );
-          }),
+                  ],
+                ),
+              );
+            }),
         ],
+      ),
+    );
+  }
+
+  // ── Changement de statut ──────────────────────────────
+  Future<void> _changeStatus({
+    required String status,
+    required String title,
+    required String body,
+    required String confirmLabel,
+    required Color color,
+    required String successMessage,
+  }) async {
+    final l10n = AppLocalizations.of(context)!;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.lg)),
+        title: Text(title, style: AppTypography.titleMedium(color: _ink)),
+        content: Text(body,
+            style: AppTypography.bodyMedium(color: _inkMuted)
+                .copyWith(height: 1.45)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.no),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: color,
+              foregroundColor: Colors.white,
+            ),
+            child: Text(confirmLabel),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isProcessing = true);
+    try {
+      await CommandeApi.updateOrderStatus(
+          _commande.commandeID.toString(), status);
+      await _refreshCommande();
+      try {
+        await Commande.refreshLocalCommandes();
+      } catch (_) {}
+      if (mounted) _snack(successMessage, AppColors.success);
+    } catch (e) {
+      final message = e is NodeAuthException
+          ? e.message
+          : e.toString().replaceFirst('Exception: ', '');
+      if (mounted) _snack(message, AppColors.error);
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
+  void _snack(String message, Color color) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: color,
+        content: Text(message),
+      ));
+  }
+
+  void _cancelAsCustomer() {
+    final l10n = AppLocalizations.of(context)!;
+    final refund = _paidOnline;
+    _changeStatus(
+      status: CommandeStatus.cancelled,
+      title: l10n.commande_details_cancel_order,
+      body: refund
+          ? '${l10n.order_cancel_free_hint}\n${l10n.order_cancel_refund_wallet}'
+          : l10n.order_cancel_free_hint,
+      confirmLabel: l10n.user_orders_yes_cancel,
+      color: AppColors.error,
+      successMessage:
+          refund ? l10n.order_cancelled_refunded : l10n.order_cancelled_done,
+    );
+  }
+
+  void _refuseAsRestaurant() {
+    final l10n = AppLocalizations.of(context)!;
+    _changeStatus(
+      status: CommandeStatus.cancelled, // → REFUSED côté restaurant
+      title: l10n.order_refuse_title,
+      body: l10n.order_refuse_body,
+      confirmLabel: l10n.order_refuse,
+      color: AppColors.error,
+      successMessage: l10n.order_refused_done,
+    );
+  }
+
+  void _acceptAsRestaurant() {
+    final l10n = AppLocalizations.of(context)!;
+    _changeStatus(
+      status: CommandeStatus.confirmed, // → EN_PREPARATION
+      title: l10n.order_accept,
+      body: l10n.order_accept_body,
+      confirmLabel: l10n.order_accept,
+      color: AppColors.success,
+      successMessage: l10n.order_accepted_done,
+    );
+  }
+
+  void _markReady() {
+    final l10n = AppLocalizations.of(context)!;
+    _changeStatus(
+      status: CommandeStatus.ready, // → READY (lance la recherche de livreur)
+      title: l10n.order_mark_ready,
+      body: _isPickupOrder(_commande)
+          ? l10n.order_step_ready_pickup
+          : l10n.order_mark_ready_body,
+      confirmLabel: l10n.order_mark_ready,
+      color: AppColors.success,
+      successMessage: l10n.order_ready_done,
+    );
+  }
+
+  /// Commande « À emporter » prête, pas encore remise au client.
+  bool _canValidatePickup(OrderStage stage) =>
+      _isRestaurantOwner &&
+      _isPickupOrder(_commande) &&
+      stage == OrderStage.ready &&
+      !_otpVerifiedOf(_commande);
+
+  /// Dialogue « Valider le retrait du client » (code à 4 caractères).
+  Future<void> _validatePickup() async {
+    final ok = await showRestaurateurOtpDialog(
+      context,
+      orderId: _commande.commandeID,
+    );
+    if (ok == true && mounted) {
+      await _refreshCommande();
+      await _loadData();
+    }
+  }
+
+  // ── Actions ───────────────────────────────────────────
+  Widget _buildActions(OrderStage stage) {
+    final l10n = AppLocalizations.of(context)!;
+    final error = AppColors.resolve(AppColors.error, AppDarkColors.error);
+    final success = AppColors.resolve(AppColors.success, AppDarkColors.success);
+    final primary = <Widget>[];
+    final secondary = <Widget>[];
+
+    if (!_isRestaurantView) {
+      // Client
+      if (stage == OrderStage.delivered) {
+        primary.add(_primaryButton(
+          icon: Icons.star_rounded,
+          label: l10n.commande_details_rate_restaurant,
+          color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
+          onPressed: () => _showRate(_commande.commandeID, _commande.restauID),
+        ));
+        if (_commande.livreurID != null && !_isPickupOrder(_commande)) {
+          secondary.add(_secondaryButton(
+            icon: Icons.delivery_dining_rounded,
+            label: l10n.commande_details_rate_driver,
+            onPressed: () => _showRateLivreur(_commande.livreurID!),
+          ));
+        }
+      }
+      if (stage == OrderStage.awaitingPayment || stage == OrderStage.received) {
+        secondary.add(_secondaryButton(
+          icon: Icons.cancel_outlined,
+          label: l10n.commande_details_cancel_order,
+          color: error,
+          onPressed: _cancelAsCustomer,
+        ));
+      }
+    } else if (_isRestaurantOwner) {
+      // Restaurateur
+      if (stage == OrderStage.received) {
+        primary.add(_primaryButton(
+          icon: Icons.soup_kitchen_rounded,
+          label: l10n.order_accept,
+          color: success,
+          onPressed: _acceptAsRestaurant,
+        ));
+      }
+      if (stage == OrderStage.preparing) {
+        primary.add(_primaryButton(
+          icon: Icons.check_circle_rounded,
+          label: l10n.order_mark_ready,
+          color: success,
+          onPressed: _markReady,
+        ));
+      }
+      if (_canValidatePickup(stage)) {
+        primary.add(_primaryButton(
+          icon: Icons.storefront_rounded,
+          label: 'Valider le retrait du client',
+          color: success,
+          onPressed: _validatePickup,
+        ));
+      }
+      if (stage == OrderStage.received || stage == OrderStage.preparing) {
+        secondary.add(_secondaryButton(
+          icon: Icons.block_rounded,
+          label: l10n.order_refuse,
+          color: error,
+          onPressed: _refuseAsRestaurant,
+        ));
+      }
+    } else if (_isAdmin &&
+        stage != OrderStage.delivered &&
+        stage != OrderStage.cancelled) {
+      secondary.add(_secondaryButton(
+        icon: Icons.cancel_outlined,
+        label: l10n.commande_details_cancel_order,
+        color: error,
+        onPressed: () => _changeStatus(
+          status: CommandeStatus.cancelled,
+          title: l10n.commande_details_cancel_order,
+          body: l10n.user_orders_cancel_prompt(_commande.commandeID),
+          confirmLabel: l10n.user_orders_yes_cancel,
+          color: AppColors.error,
+          successMessage: l10n.order_cancelled_done,
+        ),
+      ));
+    }
+
+    // Canal direct (cahier des charges) : message, appel, WhatsApp.
+    final contacts = <Widget>[
+      if (stage != OrderStage.cancelled)
+        _contactTile(
+          icon: Icons.chat_bubble_outline_rounded,
+          label: l10n.commande_details_message,
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ChatScreen(
+                orderId: _commande.commandeID,
+                recipientName: _isRestaurantView
+                    ? _clientName
+                    : _restaurantName.isNotEmpty
+                        ? _restaurantName
+                        : 'Restaurateur',
+              ),
+            ),
+          ),
+        ),
+      if (_isRestaurantView && _clientPhone.trim().isNotEmpty) ...[
+        _contactTile(
+          icon: Icons.call_rounded,
+          label: l10n.order_call,
+          onTap: () => _launch(Uri(scheme: 'tel', path: _clientPhoneE164)),
+        ),
+        _contactTile(
+          icon: Icons.forum_rounded,
+          label: l10n.order_whatsapp,
+          onTap: () => _launch(Uri.parse(
+              'https://wa.me/${_clientPhoneE164.replaceAll(RegExp(r'[^0-9]'), '')}')),
+        ),
+      ],
+    ];
+
+    if (primary.isEmpty && secondary.isEmpty && contacts.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final b in primary) ...[b, const SizedBox(height: 10)],
+        for (final b in secondary) ...[b, const SizedBox(height: 10)],
+        if (stage == OrderStage.awaitingPayment || stage == OrderStage.received)
+          if (!_isRestaurantView)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Text(
+                l10n.order_cancel_free_hint,
+                textAlign: TextAlign.center,
+                style: AppTypography.bodySmall(color: _inkMuted),
+              ),
+            ),
+        if (contacts.isNotEmpty)
+          Row(
+            children: [
+              for (var i = 0; i < contacts.length; i++) ...[
+                if (i > 0) const SizedBox(width: 10),
+                Expanded(child: contacts[i]),
+              ],
+            ],
+          ),
+      ],
+    );
+  }
+
+  /// Numéro du client au format international pour l'appel / WhatsApp.
+  String get _clientPhoneE164 {
+    final raw = _clientPhone.trim();
+    if (raw.startsWith('+')) return raw.replaceAll(RegExp(r'[^0-9+]'), '');
+    try {
+      return phoneE164ForCountry(phone: raw, country: _country);
+    } catch (_) {
+      return raw;
+    }
+  }
+
+  Future<void> _launch(Uri uri) async {
+    try {
+      final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!ok && mounted) _snack('Action impossible sur cet appareil.', AppColors.error);
+    } catch (_) {
+      if (mounted) _snack('Action impossible sur cet appareil.', AppColors.error);
+    }
+  }
+
+  Widget _primaryButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onPressed,
+  }) {
+    return SizedBox(
+      height: 52,
+      child: ElevatedButton.icon(
+        onPressed: _isProcessing ? null : onPressed,
+        icon: Icon(icon, size: 20),
+        label: Text(label,
+            style: AppTypography.labelLarge(color: Colors.white)),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadius.md)),
+        ),
+      ),
+    );
+  }
+
+  Widget _secondaryButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onPressed,
+    Color? color,
+  }) {
+    final fg = color ?? _ink;
+    return SizedBox(
+      height: 50,
+      child: OutlinedButton.icon(
+        onPressed: _isProcessing ? null : onPressed,
+        icon: Icon(icon, size: 19, color: fg),
+        label: Text(label, style: AppTypography.labelLarge(color: fg)),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: fg,
+          side: BorderSide(
+              color: color != null ? color.withValues(alpha: 0.5) : _borderColor),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadius.md)),
+        ),
+      ),
+    );
+  }
+
+  Widget _contactTile({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: _cardColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        side: BorderSide(color: _borderColor.withValues(alpha: 0.8)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 20, color: _brand),
+              const SizedBox(height: 4),
+              Text(label,
+                  style: AppTypography.labelMedium(color: _ink)
+                      .copyWith(fontWeight: FontWeight.w700)),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1415,6 +1914,13 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage>
   /// Envoi de la photo de preuve (stockage Parse, comme les autres images de
   /// l'app). Remplacez le corps si votre upload passe par un autre service.
   Future<String> _uploadDisputePhoto(File photo) async {
+    if (await SessionService.hasNodeSession()) {
+      final url = await UploadService.uploadImage(photo, scope: 'disputes');
+      if (url == null || url.isEmpty) {
+        throw Exception("Échec de l'envoi de la photo");
+      }
+      return url;
+    }
     final file = ParseFile(
       photo,
       name:
@@ -1428,228 +1934,6 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage>
     return url;
   }
 
-  Widget _buildActions(bool canCancel, bool canConfirm, String status) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.resolve(AppColors.card, AppDarkColors.card),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(
-            color: AppColors.resolve(AppColors.border, AppDarkColors.border),
-            width: 0.5),
-      ),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.touch_app_rounded, size: 16,
-                  color: AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted)),
-              const SizedBox(width: 8),
-              Text(AppLocalizations.of(context)!.commande_details_actions,
-                  style: AppTypography.titleSmall(
-                      color: AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
-            ],
-          ),
-          const SizedBox(height: 12),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                _actionButton(
-                  icon: Icons.chat_rounded,
-                  label: AppLocalizations.of(context)!.commande_details_message,
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ChatScreen(
-                        orderId: _commande.commandeID,
-                        recipientName: _isRestaurantView
-                            ? _clientName
-                            : _restaurantName.isNotEmpty
-                                ? _restaurantName
-                                : 'Restaurateur',
-                      ),
-                    ),
-                  ),
-                  outlined: true,
-                ),
-                if (_isRestaurantView && canCancel)
-                  _actionButton(
-                    icon: Icons.cancel_rounded,
-                    label: AppLocalizations.of(context)!.cancel,
-                    onPressed: () => _updateStatus(CommandeStatus.cancelled),
-                    backgroundColor: AppColors.error,
-                  ),
-                if (!_isRestaurantView &&
-                    CommandeStatus.isPending(_commande.status))
-                  _actionButton(
-                    icon: Icons.cancel_outlined,
-                    label: AppLocalizations.of(context)!.commande_details_cancel_order,
-                    onPressed: () => _updateStatus(CommandeStatus.cancelled),
-                    outlined: true,
-                    foregroundColor: AppColors.error,
-                  ),
-                if (_isRestaurantView && canConfirm)
-                  _actionButton(
-                    icon: Icons.check_circle_rounded,
-                    label: AppLocalizations.of(context)!.confirm,
-                    onPressed: () => _updateStatus(CommandeStatus.confirmed),
-                    backgroundColor: AppColors.success,
-                  ),
-                if (_canValidatePickup(status))
-                  _actionButton(
-                    icon: Icons.storefront_rounded,
-                    label: 'Valider le retrait du client',
-                    onPressed: _validatePickup,
-                    backgroundColor: AppColors.success,
-                  ),
-                if (_canAssignLivreur)
-                  _actionButton(
-                    icon: Icons.person_add_rounded,
-                    label: AppLocalizations.of(context)!.livreurs,
-                    onPressed: () => _showAssignLivreur(_commande.commandeID),
-                    outlined: true,
-                  ),
-                if (!_isRestaurantView && status == CommandeStatus.confirmed)
-                  _actionButton(
-                    icon: Icons.star_rounded,
-                    label: AppLocalizations.of(context)!.review,
-                    onPressed: () =>
-                        _showRate(_commande.commandeID, _commande.restauID),
-                    backgroundColor: AppColors.accent,
-                    foregroundColor: Colors.white,
-                  ),
-                if (!_isRestaurantView &&
-                    _commande.livreurID != null &&
-                    status == CommandeStatus.confirmed)
-                  _actionButton(
-                    icon: Icons.star_rounded,
-                    label: AppLocalizations.of(context)!.commande_details_rate_driver,
-                    onPressed: () => _showRateLivreur(_commande.livreurID!),
-                    backgroundColor: AppColors.success,
-                    foregroundColor: Colors.white,
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _actionButton({
-    required IconData icon,
-    required String label,
-    required VoidCallback? onPressed,
-    Color? backgroundColor,
-    Color? foregroundColor,
-    bool outlined = false,
-  }) {
-    if (outlined) {
-      return Padding(
-        padding: const EdgeInsets.only(right: 8),
-        child: OutlinedButton.icon(
-          onPressed: onPressed,
-          icon: Icon(icon, size: 16),
-          label: Text(label, style: const TextStyle(fontSize: 12)),
-          style: OutlinedButton.styleFrom(
-            minimumSize: Size.zero,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            side: BorderSide(
-                color: foregroundColor ??
-                    AppColors.resolve(AppColors.border, AppDarkColors.border)),
-            foregroundColor:
-                foregroundColor ?? AppColors.resolve(AppColors.ink, AppDarkColors.ink),
-          ),
-        ),
-      );
-    }
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: ElevatedButton.icon(
-        onPressed: onPressed,
-        icon: Icon(icon, size: 16),
-        label: Text(label, style: const TextStyle(fontSize: 12)),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: backgroundColor,
-          foregroundColor: foregroundColor ?? Colors.white,
-          minimumSize: Size.zero,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        ),
-      ),
-    );
-  }
-
-  // ── Assigner livreur ──────────────────────────────────
-  void _showAssignLivreur(int commandeID) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(AppLocalizations.of(context)!.user_orders_assign_driver,
-                style: AppTypography.titleMedium(
-                    color: AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () async {
-                  try {
-                    await CommandeApi.updateOrderStatus(
-                        commandeID.toString(), 'Assigné');
-                    if (mounted) Navigator.pop(ctx);
-                    await _loadData();
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(AppLocalizations.of(context)!.user_orders_driver_assigned),
-                          backgroundColor: AppColors.success,
-                        ),
-                      );
-                    }
-                  } catch (e) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Erreur: ${e.toString()}'),
-                          backgroundColor: AppColors.error,
-                        ),
-                      );
-                    }
-                  }
-                },
-                icon: const Icon(Icons.check_circle_rounded),
-                label: Text(AppLocalizations.of(context)!.user_orders_mark_assigned),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                      AppColors.resolve(AppColors.brand, AppDarkColors.brand),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(AppLocalizations.of(context)!.close),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   // ── Notation ──────────────────────────────────────────
   void _showRate(int commandeID, int restauID) {
     showDialog(
@@ -1657,9 +1941,13 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage>
       builder: (_) => RatingDialog(
         targetType: 1,
         targetID: restauID,
+        orderId: commandeID,
         title: AppLocalizations.of(context)!.commande_details_rate_restaurant,
       ),
     ).then((result) {
+      if (result is String && result != "success" && mounted) {
+        _snack(result, AppColors.error);
+      }
       if (result == "success" && mounted) {
         _loadData();
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1678,9 +1966,13 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage>
       builder: (_) => RatingDialog(
         targetType: 3,
         targetID: livreurID,
+        orderId: _commande.commandeID,
         title: AppLocalizations.of(context)!.commande_details_rate_driver,
       ),
     ).then((result) {
+      if (result is String && result != "success" && mounted) {
+        _snack(result, AppColors.error);
+      }
       if (result == "success" && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

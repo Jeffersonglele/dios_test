@@ -32,6 +32,9 @@ class SocketService {
   final StreamController<bool> _connectionController =
       StreamController<bool>.broadcast();
 
+  final StreamController<Map<String, dynamic>> _deliveryOfferController =
+      StreamController<Map<String, dynamic>>.broadcast();
+
   // ── Streams Chat In-App ────────────────────────────────────
   final StreamController<ChatMessage> _newMessageController =
       StreamController<ChatMessage>.broadcast();
@@ -62,6 +65,10 @@ class SocketService {
 
   /// État de connexion Socket.io
   Stream<bool> get onConnectionChanged => _connectionController.stream;
+
+  /// Propositions de course envoyées au livreur connecté (« delivery_offer »).
+  Stream<Map<String, dynamic>> get onDeliveryOffer =>
+      _deliveryOfferController.stream;
 
   /// Flux des nouveaux messages reçus en temps réel
   Stream<ChatMessage> get onNewMessage => _newMessageController.stream;
@@ -183,6 +190,12 @@ class SocketService {
           _deliveryStatusController.add(data);
         } else if (data is Map) {
           _deliveryStatusController.add(Map<String, dynamic>.from(data));
+        }
+      });
+
+      _socket!.on('delivery_offer', (data) {
+        if (data is Map) {
+          _deliveryOfferController.add(Map<String, dynamic>.from(data));
         }
       });
 
@@ -397,6 +410,7 @@ class SocketService {
     _driverLocationUpdatedController.close();
     _deliveryStatusController.close();
     _connectionController.close();
+    _deliveryOfferController.close();
     _newMessageController.close();
     _messagesReadController.close();
     _userTypingController.close();

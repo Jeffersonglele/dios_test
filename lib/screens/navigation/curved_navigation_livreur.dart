@@ -4,6 +4,10 @@ import '../../theme/app_theme.dart';
 import '../delivery/delivery_dashboard.dart';
 import '../delivery/livreur_map_page.dart';
 import '../store/my_store.dart';
+import '../onboarding/courier_onboarding_page.dart';
+import '../onboarding/wait_identity_validation.dart';
+import '../../services/courier_application_service.dart';
+import '../../services/session_service.dart';
 
 class CurvedNavigationLivreur extends StatefulWidget {
   final int specified_index;
@@ -50,6 +54,23 @@ class _CurvedNavigationLivreurState extends State<CurvedNavigationLivreur> {
     super.initState();
     _activePage = widget.specified_index;
     _pageController = PageController(initialPage: _activePage);
+    _checkCourierFile();
+  }
+
+  /// Un livreur dont le dossier n'est pas validé (ou un ancien compte sans
+  /// photo) est renvoyé vers son dossier : le serveur refuse ses courses.
+  Future<void> _checkCourierFile() async {
+    final state = await SessionService.fetchServerAccountState();
+    if (!mounted || state == null) return;
+    if (CourierApplicationService.isVerified(state.identity)) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (_) => CourierApplicationService.isPending(state.identity)
+            ? const WaitIdentityValidation()
+            : const CourierOnboardingPage(),
+      ),
+      (route) => false,
+    );
   }
 
   @override

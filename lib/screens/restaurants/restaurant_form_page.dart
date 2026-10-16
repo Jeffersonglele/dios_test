@@ -1,13 +1,11 @@
 import 'package:dios_delices/l10n/app_localizations.dart';
 import 'package:dios_delices/models/restaurant.dart';
-import 'package:dios_delices/models/users.dart';
 import 'package:dios_delices/models/address.dart' as address_model;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'dart:io';
 import '../../constants/constant.dart';
 import '../../services/session_service.dart';
@@ -57,6 +55,10 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
   bool _removeExistingImage = false;
   String? _nominatimPlaceId;
 
+  /// Adresse à laquelle correspondent les coordonnées affichées. Si
+  /// l'adresse est modifiée ensuite, ces coordonnées ne sont plus fiables.
+  String? _coordsAddress;
+
   static const List<String> _allDays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
   static const Map<String, String> _dayLabels = {
     'Lun': 'Lundi', 'Mar': 'Mardi', 'Mer': 'Mercredi',
@@ -93,7 +95,37 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
       if (r.recoveryMode.isNotEmpty) {
         _recoveryMode = r.recoveryMode;
       }
+      // Coordonnées de reversement déjà saisies : on ne les redemande pas.
+      if (r.paymentMethod == 'mobile_money' ||
+          r.paymentMethod == 'bank_transfer') {
+        _paymentMethod = r.paymentMethod;
+      }
+      _phoneController.text = r.mobileMoneyPhone;
+      _ibanController.text = r.iban;
+      _bankNameController.text = r.bankName;
+      _accountHolderController.text = r.accountHolder;
+      final lat = r.latitude, lng = r.longitude;
+      if (lat != null && lng != null && (lat != 0 || lng != 0)) {
+        _setCoordinates(lat, lng);
+      }
     }
+    _addressController.addListener(_onAddressEdited);
+  }
+
+  void _setCoordinates(double lat, double lng) {
+    _latitudeController.text = lat.toStringAsFixed(6);
+    _longitudeController.text = lng.toStringAsFixed(6);
+    _coordsAddress = _addressController.text.trim();
+  }
+
+  /// Une nouvelle adresse saisie à la main invalide la position précédente :
+  /// elle sera géocodée à l'enregistrement.
+  void _onAddressEdited() {
+    final pinned = _coordsAddress;
+    if (pinned == null || _addressController.text.trim() == pinned) return;
+    _coordsAddress = null;
+    _latitudeController.clear();
+    _longitudeController.clear();
   }
 
   TimeOfDay? _parseTime(String t) {
@@ -108,6 +140,7 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
 
   @override
   void dispose() {
+    _addressController.removeListener(_onAddressEdited);
     _nameController.dispose();
     _addressController.dispose();
     _descriptionController.dispose();
@@ -172,7 +205,12 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
       final addressText = parts.isNotEmpty
           ? parts.join(', ')
           : (reverse.displayName ?? _gpsAddress(position));
-      setState(() => _addressController.text = addressText);
+      final detected = position;
+      setState(() {
+        _addressController.text = addressText;
+        // La position GPS fait foi : elle reste liée à cette adresse.
+        _setCoordinates(detected.latitude, detected.longitude);
+      });
     } catch (e) {
       if (context.mounted) Toast(context, AppLocalizations.of(context)!.location_detect_failed, false);
     } finally {
@@ -184,19 +222,32 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
       'Position GPS : ${gpsPosition.latitude.toStringAsFixed(6)}, '
       '${gpsPosition.longitude.toStringAsFixed(6)}';
 
-  Future<bool> _validateAddressCountry(String address) async {
+  /// Vérifie que le restaurant est dans le pays du compte. La position GPS
+  /// (détectée ou saisie) est prioritaire : beaucoup d'adresses locales
+  /// (repères, quartiers) ne sont pas trouvées par recherche textuelle.
+  Future<bool> _validateAddressCountry(String address,
+      {double? lat, double? lng}) async {
     final session = await SessionService.readSession();
     if (session.userId == 0) return false;
     try {
-      final candidates = await GeocodingApiService.search(address, limit: 3).timeout(const Duration(seconds: 10));
-      if (candidates.isEmpty) return false;
-      final best = candidates.first;
       String? country;
-      if (best.country != null && best.country!.isNotEmpty) {
-        country = best.country!;
-      } else {
-        final reverse = await GeocodingApiService.reverse(best.latitude, best.longitude);
+      if (lat != null && lng != null) {
+        final reverse = await GeocodingApiService.reverse(lat, lng)
+            .timeout(const Duration(seconds: 10));
         country = reverse.country;
+      }
+      if (country == null || country.isEmpty) {
+        final candidates = await GeocodingApiService.search(address, limit: 3)
+            .timeout(const Duration(seconds: 10));
+        if (candidates.isEmpty) return false;
+        final best = candidates.first;
+        if (best.country != null && best.country!.isNotEmpty) {
+          country = best.country!;
+        } else {
+          final reverse =
+              await GeocodingApiService.reverse(best.latitude, best.longitude);
+          country = reverse.country;
+        }
       }
       if (country == null || country.isEmpty) return false;
       final detectedCountry = CountryUtil.canonical(country);
@@ -221,17 +272,6 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
         }
       });
     }
-  }
-
-  Future<void> _sendEmailToAdmin(String name, String address, String phone) async {
-    final cloudFunction = ParseCloudFunction('sendEmail');
-    try {
-      await cloudFunction.execute(parameters: {
-        'to': 'blandinedupont087@gmail.com',
-        'subject': 'Nouvelle demande de Restaurant',
-        'text': 'Nom du restaurant: $name\nAdresse: $address\nTéléphone: $phone',
-      });
-    } catch (_) {}
   }
 
   String _formatTime(TimeOfDay t) =>
@@ -271,6 +311,10 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
                   SizedBox(height: size.height * 0.02),
                   Text(AppLocalizations.of(context)!.restaurant_form_section_restaurant, style: kLoginTitleStyle(size)),
                   const SizedBox(height: 20),
+                  if (widget.restaurant?.valid == 2) ...[
+                    _buildRejectedBanner(widget.restaurant!.reviewRemark),
+                    const SizedBox(height: 16),
+                  ],
 
                   _buildTextField(
                     controller: _nameController,
@@ -288,6 +332,7 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
                   SizedBox(height: size.height * 0.015),
 
                   HashtagTextInputFormatter(
+                    initialHashtags: _selectedHashtags,
                     onHashtagsChanged: (h) => setState(() => _selectedHashtags = h),
                   ),
                   SizedBox(height: size.height * 0.015),
@@ -632,10 +677,13 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
           setState(() => _isSaving = true);
           try {
             final addressText = _addressController.text.trim();
+            final manualLat = double.tryParse(_latitudeController.text.trim());
+            final manualLng = double.tryParse(_longitudeController.text.trim());
 
             if (widget.isEditing && addressText == (widget.restaurant?.location ?? '')) {
               // unchanged address en mode édition → déjà valide
-            } else if (!await _validateAddressCountry(addressText)) {
+            } else if (!await _validateAddressCountry(addressText,
+                lat: manualLat, lng: manualLng)) {
               if (context.mounted) Toast(context, AppLocalizations.of(context)!.restaurant_form_address_invalid, false);
               return;
             }
@@ -665,8 +713,6 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
             double? geoLat;
             double? geoLng;
             final addressChanged = !widget.isEditing || addressText != (widget.restaurant?.location ?? '');
-            final manualLat = double.tryParse(_latitudeController.text.trim());
-            final manualLng = double.tryParse(_longitudeController.text.trim());
 
             // Priorité: coordonnées manuelles > géocodage si adresse changée
             if (manualLat != null && manualLng != null) {
@@ -738,16 +784,7 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
             if (widget.isEditing || widget.sellerApplication) {
               if (context.mounted) Navigator.pop(context, true);
             } else {
-              final usersList = await Users.fetchUsersFromDB();
-              final dbUser = usersList.cast<Users?>().firstWhere(
-                (u) => u?.userID == userID,
-                orElse: () => null,
-              );
-              await _sendEmailToAdmin(
-                _nameController.text,
-                addressText,
-                dbUser?.telephone ?? session.email ?? '',
-              );
+              // L'administration est prévenue par le serveur.
               if (context.mounted) {
                 Navigator.push(
                   context,
@@ -768,6 +805,34 @@ class _RestaurantFormPageState extends ConsumerState<RestaurantFormPage> {
                 child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
               )
             : Text(widget.isEditing ? AppLocalizations.of(context)!.save : AppLocalizations.of(context)!.validate),
+      ),
+    );
+  }
+
+  Widget _buildRejectedBanner(String remark) {
+    final l10n = AppLocalizations.of(context)!;
+    final error = AppColors.resolve(AppColors.error, AppDarkColors.error);
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: error.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: error.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.error_outline_rounded, color: error),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              remark.trim().isEmpty
+                  ? l10n.restaurant_form_rejected
+                  : l10n.restaurant_form_rejected_reason(remark.trim()),
+              style: AppTypography.bodyMedium(color: error),
+            ),
+          ),
+        ],
       ),
     );
   }

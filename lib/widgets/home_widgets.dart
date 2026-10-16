@@ -110,8 +110,15 @@ class _HomePressableState extends State<HomePressable> {
 class HomeHeader extends StatelessWidget {
   final Users? currentUser;
   final String? addressLabel;
+  final bool isLocating;
   final VoidCallback? onTap;
-  const HomeHeader({super.key, this.currentUser, this.addressLabel, this.onTap});
+  const HomeHeader({
+    super.key,
+    this.currentUser,
+    this.addressLabel,
+    this.isLocating = false,
+    this.onTap,
+  });
 
   // Cache du dernier avatar décodé : évite de re-décoder le base64
   // (souvent plusieurs centaines de Ko) à chaque rebuild de la page.
@@ -187,13 +194,7 @@ class HomeHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final user = currentUser;
-
-    Widget avatarChild;
-    if (user != null) {
-      avatarChild = _buildUserAvatar(user, 46);
-    } else {
-      avatarChild = Icon(Icons.person_rounded, color: HC.brand, size: 24);
-    }
+    final firstname = user?.firstname.trim() ?? '';
 
     return SafeArea(
       bottom: false,
@@ -201,90 +202,149 @@ class HomeHeader extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(
             AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xs),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ── Adresse de livraison + avatar ─────────────────
             Row(
               children: [
-                Expanded(
-                  child: GestureDetector(
-                    onTap: onTap,
-                    behavior: HitTestBehavior.opaque,
-                    child: Container(
-                      padding: const EdgeInsets.fromLTRB(6, 6, 12, 6),
-                      decoration: BoxDecoration(
-                        color: HC.card,
-                        borderRadius: BorderRadius.circular(999),
-                        border:
-                            Border.all(color: HC.border.withValues(alpha: 0.6)),
-                        boxShadow: [AppShadows.subtle],
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 34,
-                            height: 34,
-                            decoration: BoxDecoration(
-                                color: HC.brandSurface, shape: BoxShape.circle),
-                            child: Icon(Icons.location_on_rounded,
-                                color: HC.brand, size: 19),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              addressLabel ?? l10n.home_nearby,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: AppTypography.titleMedium(color: HC.ink)
-                                  .copyWith(
-                                      fontSize: 15, fontWeight: FontWeight.w800),
-                            ),
-                          ),
-                          Icon(Icons.keyboard_arrow_down_rounded,
-                              color: HC.inkMuted, size: 22),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
+                Expanded(child: _buildAddress(l10n)),
                 const SizedBox(width: 12),
-                Stack(
-                  children: [
-                    GestureDetector(
-                      onTap: () => Navigator.push(context,
-                          CupertinoPageRoute(builder: (_) => ProfilePage())),
-                      child: Container(
-                        width: 46,
-                        height: 46,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: HC.brandSurface,
-                          border: Border.all(color: HC.brand, width: 1.8),
-                          boxShadow: [AppShadows.subtle],
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: avatarChild,
-                      ),
-                    ),
-                    Positioned(
-                      top: 0,
-                      right: 0,
-                      child: Container(
-                        width: 12,
-                        height: 12,
-                        decoration: BoxDecoration(
-                          color: HC.success,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: HC.surface, width: 1.8),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                _buildAvatar(context, user),
               ],
             ),
+            const SizedBox(height: AppSpacing.lg),
+
+            // ── Salutation ────────────────────────────────────
+            Text(
+              firstname.isNotEmpty
+                  ? l10n.admin_greeting(firstname)
+                  : l10n.home_greeting_guest,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.headlineMedium(color: HC.ink)
+                  .copyWith(fontSize: 26),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              l10n.home_greeting_prompt,
+              style: AppTypography.bodyMedium(color: HC.inkMuted),
+            ),
             const SizedBox(height: AppSpacing.md),
-            const SearchInput(),
+            const SearchInput(padding: EdgeInsets.zero),
           ],
         ),
+      ),
+    );
+  }
+
+  /// « LIVRER À ▾ » puis l'adresse (ou « Localisation… » pendant la
+  /// récupération). Toute la zone ouvre la gestion d'adresse.
+  Widget _buildAddress(AppLocalizations l10n) {
+    return Semantics(
+      button: true,
+      label: '${l10n.home_deliver_to} ${addressLabel ?? l10n.home_nearby}',
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.sm + 4),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.location_on_rounded, color: HC.brand, size: 15),
+                  const SizedBox(width: 4),
+                  Text(
+                    l10n.home_deliver_to.toUpperCase(),
+                    style: AppTypography.labelMedium(color: HC.inkMuted)
+                        .copyWith(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.9,
+                    ),
+                  ),
+                  Icon(Icons.keyboard_arrow_down_rounded,
+                      color: HC.inkMuted, size: 18),
+                ],
+              ),
+              const SizedBox(height: 2),
+              AnimatedSwitcher(
+                duration: AppMotion.normal,
+                layoutBuilder: (current, previous) => Stack(
+                  alignment: Alignment.centerLeft,
+                  children: [...previous, if (current != null) current],
+                ),
+                child: isLocating
+                    ? Row(
+                        key: const ValueKey('locating'),
+                        children: [
+                          SizedBox(
+                            width: 13,
+                            height: 13,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: HC.brand,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            l10n.location_locating,
+                            style: AppTypography.titleSmall(color: HC.inkMuted),
+                          ),
+                        ],
+                      )
+                    : Text(
+                        addressLabel ?? l10n.home_nearby,
+                        key: ValueKey(addressLabel),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.titleSmall(color: HC.ink)
+                            .copyWith(fontWeight: FontWeight.w800),
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAvatar(BuildContext context, Users? user) {
+    return GestureDetector(
+      onTap: () => Navigator.push(
+          context, CupertinoPageRoute(builder: (_) => ProfilePage())),
+      child: Stack(
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: HC.brandSurface,
+              border: Border.all(color: HC.card, width: 2),
+              boxShadow: [AppShadows.card],
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: user != null
+                ? _buildUserAvatar(user, 46)
+                : Icon(Icons.person_rounded, color: HC.brand, size: 24),
+          ),
+          Positioned(
+            bottom: 1,
+            right: 1,
+            child: Container(
+              width: 12,
+              height: 12,
+              decoration: BoxDecoration(
+                color: HC.success,
+                shape: BoxShape.circle,
+                border: Border.all(color: HC.surface, width: 2),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -299,6 +359,168 @@ class HomeHeader extends StatelessWidget {
               fontSize: size * 0.35,
               fontWeight: FontWeight.bold,
               color: HC.brand)),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// Invitation à enregistrer une adresse
+// ═══════════════════════════════════════════════════════════
+class HomeAddressPrompt extends StatelessWidget {
+  const HomeAddressPrompt({
+    super.key,
+    required this.message,
+    required this.onTap,
+  });
+
+  final String message;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 0),
+      child: Material(
+        color: HC.brandSurface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          side: BorderSide(color: HC.brand.withValues(alpha: 0.25)),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 10, 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration:
+                      BoxDecoration(color: HC.brand, shape: BoxShape.circle),
+                  child: const Icon(Icons.add_location_alt_rounded,
+                      color: Colors.white, size: 19),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    message,
+                    style: AppTypography.labelMedium(color: HC.ink)
+                        .copyWith(height: 1.35),
+                  ),
+                ),
+                Icon(Icons.chevron_right_rounded, color: HC.brand),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// Accès aux plats près de chez vous
+// ═══════════════════════════════════════════════════════════
+class HomeExploreMealsCard extends StatelessWidget {
+  const HomeExploreMealsCard({
+    super.key,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  static const _previews = [
+    'assets/images/meals/pizza.jpeg',
+    'assets/images/meals/beef_steak.jpeg',
+    'assets/images/meals/chocolate_cake.jpeg',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    const size = 46.0;
+    const overlap = 16.0;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg, AppSpacing.xl, AppSpacing.lg, 0),
+      child: HomePressable(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: HC.card,
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            border: Border.all(color: HC.border.withValues(alpha: 0.6)),
+            boxShadow: [AppShadows.card],
+          ),
+          child: Row(
+            children: [
+              // Aperçu : trois plats qui se chevauchent
+              SizedBox(
+                width: size + (size - overlap) * (_previews.length - 1),
+                height: size,
+                child: Stack(
+                  children: [
+                    for (var i = 0; i < _previews.length; i++)
+                      Positioned(
+                        left: i * (size - overlap),
+                        child: Container(
+                          width: size,
+                          height: size,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: HC.card, width: 2.5),
+                            image: DecorationImage(
+                              image: AssetImage(_previews[i]),
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.titleSmall(color: HC.ink)
+                          .copyWith(fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.bodySmall(color: HC.inkMuted),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                    color: HC.brandSurface, shape: BoxShape.circle),
+                child:
+                    Icon(Icons.arrow_forward_rounded, color: HC.brand, size: 19),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -452,7 +674,8 @@ class HomeWalletBanner extends StatefulWidget {
 }
 
 class HomeWalletBannerState extends State<HomeWalletBanner> {
-  static const String _walletSourceCurrency = 'XOF';
+  /// Devise du portefeuille renvoyée par le serveur (CDF par défaut).
+  String _walletCurrency = 'CDF';
 
   double? _balanceSource;
   bool _loading = true;
@@ -473,6 +696,7 @@ class HomeWalletBannerState extends State<HomeWalletBanner> {
       if (!mounted) return;
       setState(() {
         _balanceSource = data.balance;
+        _walletCurrency = data.currency;
         _loading = false;
         _hasError = false;
       });
@@ -499,7 +723,7 @@ class HomeWalletBannerState extends State<HomeWalletBanner> {
           if (!_hasError && _balanceSource != null) {
             final converted = CurrencyService.instance.convertBetween(
               _balanceSource!,
-              _walletSourceCurrency,
+              _walletCurrency,
               currency,
             );
             balanceText = CurrencyUtil.formatAmount(converted, currency);
@@ -1585,24 +1809,37 @@ class HomeSkeleton extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header : adresse + avatar
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 0),
-                child: Row(
-                  children: const [
-                    Expanded(
-                        child: SkeletonBox(height: 46, radius: 999)),
-                    SizedBox(width: 12),
-                    SkeletonBox(width: 46, height: 46, circle: true),
-                  ],
-                ),
-              ),
-              // Recherche
+              // Header : adresse + avatar, salutation, recherche
               const Padding(
                 padding: EdgeInsets.fromLTRB(
                     AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 0),
-                child: SkeletonBox(height: 52, radius: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SkeletonBox(width: 90, height: 11),
+                              SizedBox(height: 8),
+                              SkeletonBox(width: 190, height: 16),
+                            ],
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        SkeletonBox(width: 46, height: 46, circle: true),
+                      ],
+                    ),
+                    SizedBox(height: AppSpacing.lg),
+                    SkeletonBox(width: 200, height: 26),
+                    SizedBox(height: 8),
+                    SkeletonBox(width: 250, height: 13),
+                    SizedBox(height: AppSpacing.md),
+                    SkeletonBox(height: 56, radius: 999),
+                  ],
+                ),
               ),
               // Bannière
               const Padding(

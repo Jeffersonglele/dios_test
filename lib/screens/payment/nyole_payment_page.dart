@@ -1,6 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
+import '../../config/app_config.dart';
+import '../../l10n/app_localizations.dart';
+import '../../theme/app_theme.dart';
+
+/// Page de paiement Nyole (WebView).
+///
+/// Se ferme avec `true` quand Nyole redirige vers la page de retour du
+/// backend avec `status=success`, `false` sinon (annulation, échec, retour
+/// arrière). Le retour « succès » n'est PAS une preuve de paiement : la
+/// commande n'est confirmée qu'après vérification serveur (webhook).
 class NyolePaymentPage extends StatefulWidget {
   final String paymentUrl;
   final String orderId;
@@ -22,171 +32,186 @@ class NyolePaymentPage extends StatefulWidget {
 }
 
 class _NyolePaymentPageState extends State<NyolePaymentPage> {
-  InAppWebViewController? _webViewController;
   bool _isLoading = true;
   double _loadingProgress = 0;
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Paiement'),
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () {
-            _showCancelDialog();
-          },
-        ),
+  /// Évite de fermer la page deux fois (shouldOverrideUrlLoading puis
+  /// onLoadStop pour la même URL), ce qui fermerait aussi le panier.
+  bool _finished = false;
+
+  static final String? _backendHost =
+      Uri.tryParse(AppConfig.nodeBackendUrl)?.host;
+
+  /// Statut lu sur l'URL de retour du backend
+  /// (`/payments/nyole/return?status=success|cancelled`), sinon null.
+  static String? _returnStatus(Uri? uri) {
+    if (uri == null) return null;
+    final isReturnPath = uri.path.contains('/payments/nyole/return');
+    final isBackend = _backendHost != null &&
+        _backendHost!.isNotEmpty &&
+        uri.host == _backendHost;
+    if (!isReturnPath && !isBackend) return null;
+    final status = uri.queryParameters['status']?.trim().toLowerCase();
+    if (status == null || status.isEmpty) return isReturnPath ? 'unknown' : null;
+    return status;
+  }
+
+  /// Retourne true si l'URL est la page de retour (et ferme la page).
+  bool _handleUrl(Uri? uri) {
+    final status = _returnStatus(uri);
+    if (status == null) return false;
+    _finish(status == 'success' || status == 'succes' || status == 'paid');
+    return true;
+  }
+
+  void _finish(bool success) {
+    if (_finished || !mounted) return;
+    _finished = true;
+    if (success) {
+      widget.onPaymentSuccess?.call();
+    } else {
+      widget.onPaymentFailed?.call();
+    }
+    Navigator.of(context).pop(success);
+  }
+
+  Future<void> _confirmCancel() async {
+    final l10n = AppLocalizations.of(context)!;
+    final cancel = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.nyole_cancel_title),
+        content: Text(l10n.nyole_cancel_body),
         actions: [
-          if (_isLoading)
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    value: _loadingProgress,
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          InAppWebView(
-            initialUrlRequest: URLRequest(url: WebUri(widget.paymentUrl)),
-            initialOptions: InAppWebViewGroupOptions(
-              crossPlatform: InAppWebViewOptions(
-                javaScriptEnabled: true,
-                useShouldOverrideUrlLoading: true,
-                useOnLoadResource: true,
-              ),
-              android: AndroidInAppWebViewOptions(
-                useHybridComposition: true,
-              ),
-              ios: IOSInAppWebViewOptions(
-                allowsInlineMediaPlayback: true,
-              ),
-            ),
-            onWebViewCreated: (controller) {
-              _webViewController = controller;
-            },
-            onLoadStart: (controller, url) {
-              setState(() {
-                _isLoading = true;
-                _loadingProgress = 0;
-              });
-            },
-            onLoadStop: (controller, url) async {
-              setState(() {
-                _isLoading = false;
-              });
-
-              // Vérifier si l'URL contient des indicateurs de succès/échec
-              if (url != null) {
-                _checkPaymentStatus(url.toString());
-              }
-            },
-            onProgressChanged: (controller, progress) {
-              setState(() {
-                _loadingProgress = progress / 100;
-              });
-            },
-            shouldOverrideUrlLoading: (controller, navigationAction) async {
-              final url = navigationAction.request.url;
-
-              if (url != null) {
-                // Détecter les URLs de retour après paiement
-                await _checkPaymentStatus(url.toString());
-              }
-
-              return NavigationActionPolicy.ALLOW;
-            },
-            onConsoleMessage: (controller, consoleMessage) {
-              // Pour le débogage
-              print('WebView Console: ${consoleMessage.message}');
-            },
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(l10n.nyole_continue),
           ),
-          if (_isLoading)
-            Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(
-                    value: _loadingProgress > 0 ? _loadingProgress : null,
-                  ),
-                  const SizedBox(height: 16),
-                  const Text('Chargement de la page de paiement...'),
-                ],
-              ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: TextButton.styleFrom(
+              foregroundColor:
+                  AppColors.resolve(AppColors.error, AppDarkColors.error),
             ),
+            child: Text(l10n.nyole_cancel),
+          ),
         ],
       ),
     );
-  }
-
-  Future<void> _checkPaymentStatus(String urlString) async {
-    final urlLower = urlString.toLowerCase();
-    
-    // Vous pouvez adapter ces patterns selon les URLs de retour de Nyole
-    // Typiquement, les gateways de paiement redirigent vers des URLs spécifiques
-    // selon le statut du paiement
-    
-    // Exemple: vérifier si l'URL contient des indicateurs de succès
-    if (urlLower.contains('success') ||
-        urlLower.contains('completed') ||
-        urlLower.contains('paid')) {
-      _handlePaymentSuccess();
-    }
-    // Exemple: vérifier si l'URL contient des indicateurs d'échec
-    else if (urlLower.contains('failed') ||
-             urlLower.contains('error') ||
-             urlLower.contains('cancelled')) {
-      _handlePaymentFailed();
+    if (cancel == true && !_finished && mounted) {
+      _finished = true;
+      widget.onPaymentCancelled?.call();
+      Navigator.of(context).pop(false);
     }
   }
 
-  void _handlePaymentSuccess() {
-    // Ne fermer que si nous ne sommes pas déjà en train de naviguer
-    if (!_isLoading && mounted) {
-      widget.onPaymentSuccess?.call();
-      Navigator.pop(context, true);
-    }
-  }
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+    final ink = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
+    final inkMuted =
+        AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
+    final surface = AppColors.resolve(AppColors.surface, AppDarkColors.surface);
 
-  void _handlePaymentFailed() {
-    if (!_isLoading && mounted) {
-      widget.onPaymentFailed?.call();
-      Navigator.pop(context, false);
-    }
-  }
-
-  void _showCancelDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Annuler le paiement?'),
-        content: const Text(
-          'Êtes-vous sûr de vouloir annuler le paiement? '
-          'Votre commande ne sera pas validée.',
+    return PopScope(
+      // Le retour système passe par la confirmation d'annulation.
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && !_finished) _confirmCancel();
+      },
+      child: Scaffold(
+        backgroundColor: surface,
+        appBar: AppBar(
+          backgroundColor: surface,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          leading: IconButton(
+            icon: Icon(Icons.close_rounded, color: ink),
+            onPressed: _confirmCancel,
+          ),
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.lock_rounded, size: 17, color: brand),
+              const SizedBox(width: 6),
+              Text(
+                l10n.nyole_title,
+                style: AppTypography.titleMedium(color: ink),
+              ),
+            ],
+          ),
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(2),
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 200),
+              opacity: _isLoading ? 1 : 0,
+              child: LinearProgressIndicator(
+                minHeight: 2,
+                value: _loadingProgress > 0 ? _loadingProgress : null,
+                color: brand,
+                backgroundColor: brand.withValues(alpha: 0.12),
+              ),
+            ),
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Continuer le paiement'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              widget.onPaymentCancelled?.call();
-              Navigator.pop(context, false);
-            },
-            child: const Text('Annuler'),
-          ),
-        ],
+        body: Stack(
+          children: [
+            InAppWebView(
+              initialUrlRequest: URLRequest(url: WebUri(widget.paymentUrl)),
+              initialSettings: InAppWebViewSettings(
+                javaScriptEnabled: true,
+                useShouldOverrideUrlLoading: true,
+                useHybridComposition: true,
+                allowsInlineMediaPlayback: true,
+              ),
+              onLoadStart: (controller, url) {
+                if (_handleUrl(url)) return;
+                setState(() {
+                  _isLoading = true;
+                  _loadingProgress = 0;
+                });
+              },
+              onLoadStop: (controller, url) {
+                if (_handleUrl(url)) return;
+                setState(() => _isLoading = false);
+              },
+              onProgressChanged: (controller, progress) {
+                setState(() => _loadingProgress = progress / 100);
+              },
+              shouldOverrideUrlLoading: (controller, navigationAction) async {
+                // Inutile de charger la page de retour : on ferme directement.
+                return _handleUrl(navigationAction.request.url)
+                    ? NavigationActionPolicy.CANCEL
+                    : NavigationActionPolicy.ALLOW;
+              },
+            ),
+            if (_isLoading && _loadingProgress < 0.3)
+              ColoredBox(
+                color: surface,
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 32,
+                        height: 32,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.6,
+                          color: brand,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        l10n.nyole_loading,
+                        style: AppTypography.bodyMedium(color: inkMuted),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

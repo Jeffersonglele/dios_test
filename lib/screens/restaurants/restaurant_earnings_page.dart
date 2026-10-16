@@ -1,10 +1,9 @@
 import 'package:fl_chart/fl_chart.dart';
-import 'package:dios_delices/services/session_service.dart';
+import 'package:dios_delices/services/restaurant_revenue_service.dart';
 import 'package:dios_delices/theme/app_theme.dart';
 import 'package:dios_delices/utils/currency_util.dart';
 import 'package:flutter/material.dart';
 import 'package:dios_delices/l10n/app_localizations.dart';
-import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 
 class RestaurantEarningsPage extends StatefulWidget {
   const RestaurantEarningsPage({super.key});
@@ -16,6 +15,7 @@ class RestaurantEarningsPage extends StatefulWidget {
 class _RestaurantEarningsPageState extends State<RestaurantEarningsPage> {
   int _totalOrders = 0;
   double _totalRevenue = 0;
+  double _inProgressRevenue = 0;
   String _period = 'week';
   bool _isLoading = true;
   List<_DailyPoint> _dailyData = [];
@@ -29,44 +29,49 @@ class _RestaurantEarningsPageState extends State<RestaurantEarningsPage> {
     _load();
   }
 
+  /// Bornes de la période choisie (dates locales, fin incluse).
+  (DateTime, DateTime) _range() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    switch (_period) {
+      case 'today':
+        return (today, today);
+      case 'month':
+        return (today.subtract(const Duration(days: 29)), today);
+      case 'custom':
+        if (_startDate != null && _endDate != null) {
+          return (_startDate!, _endDate!);
+        }
+        return (today.subtract(const Duration(days: 6)), today);
+      default: // week
+        return (today.subtract(const Duration(days: 6)), today);
+    }
+  }
+
+  /// Même calcul que le tableau de bord et « Mon espace »
+  /// (RestaurantRevenueService) : plats des commandes livrées, réductions
+  /// déduites, hors frais de livraison.
   Future<void> _load() async {
     setState(() => _isLoading = true);
     try {
-      final session = await SessionService.readSession();
-      _country = session.country;
-      final restauID = session.restaurantId;
-      if (restauID == null) {
-        if (mounted) setState(() => _isLoading = false);
-        return;
-      }
-      final fn = ParseCloudFunction('getRestaurantEarnings');
-      final params = <String, dynamic>{
-        'restauID': restauID,
-        'period': _period,
-      };
-      if (_startDate != null) {
-        params['startDate'] = _startDate!.toIso8601String().split('T')[0];
-      }
-      if (_endDate != null) {
-        params['endDate'] = _endDate!.toIso8601String().split('T')[0];
-      }
-      final response = await fn.execute(parameters: params);
-      if (mounted && response.success && response.result != null) {
-        final data = response.result as Map<String, dynamic>;
-        final raw = (data['dailyData'] as List?)?.cast<Map<String, dynamic>>() ?? [];
-        setState(() {
-          _totalOrders = (data['totalOrders'] as num?)?.toInt() ?? 0;
-          _totalRevenue = (data['totalRevenue'] as num?)?.toDouble() ?? 0;
-          _dailyData = raw.map((m) => _DailyPoint(
-            date: m['date']?.toString() ?? '',
-            gains: (m['gains'] as num?)?.toDouble() ?? 0,
-            deliveries: (m['deliveries'] as num?)?.toInt() ?? 0,
-          )).toList();
-          _isLoading = false;
-        });
-      } else {
-        if (mounted) setState(() => _isLoading = false);
-      }
+      final (start, end) = _range();
+      final summary =
+          await RestaurantRevenueService.compute(start: start, end: end);
+      if (!mounted) return;
+      setState(() {
+        _country = summary.country;
+        _totalOrders = summary.deliveredOrders;
+        _totalRevenue = summary.revenue;
+        _inProgressRevenue = summary.inProgress;
+        _dailyData = summary.days
+            .map((d) => _DailyPoint(
+                  date: d.date,
+                  gains: d.revenue,
+                  deliveries: d.orders,
+                ))
+            .toList();
+        _isLoading = false;
+      });
     } catch (_) {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -173,7 +178,7 @@ class _RestaurantEarningsPageState extends State<RestaurantEarningsPage> {
                             Expanded(
                               child: _StatColumn(
                                 icon: Icons.receipt_long_rounded,
-                                label: 'Commandes',
+                                label: l10n.dash_revenue_done,
                                 value: '$_totalOrders',
                                 valueColor: AppColors.resolve(AppColors.ink, AppDarkColors.ink),
                                 labelColor: AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted),
@@ -187,13 +192,38 @@ class _RestaurantEarningsPageState extends State<RestaurantEarningsPage> {
                             Expanded(
                               child: _StatColumn(
                                 icon: Icons.payments_rounded,
-                                label: 'Revenus',
+                                label: l10n.dash_revenue,
                                 value: CurrencyUtil.formatPrice(_totalRevenue, _country),
                                 valueColor: AppColors.resolve(AppColors.ink, AppDarkColors.ink),
                                 labelColor: AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted),
                               ),
                             ),
                           ],
+                        ),
+                        if (_inProgressRevenue > 0) ...[
+                          const SizedBox(height: 16),
+                          Row(children: [
+                            Icon(Icons.hourglass_top_rounded,
+                                size: 16,
+                                color: AppColors.resolve(
+                                    AppColors.brand, AppDarkColors.brand)),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '${l10n.dash_revenue_in_progress} : ${CurrencyUtil.formatPrice(_inProgressRevenue, _country)}',
+                                style: AppTypography.bodyMedium(
+                                    color: AppColors.resolve(
+                                        AppColors.ink, AppDarkColors.ink)),
+                              ),
+                            ),
+                          ]),
+                        ],
+                        const SizedBox(height: 12),
+                        Text(
+                          l10n.dash_revenue_hint,
+                          style: AppTypography.bodySmall(
+                              color: AppColors.resolve(
+                                  AppColors.inkMuted, AppDarkColors.inkMuted)),
                         ),
                       ],
                     ),
@@ -278,6 +308,10 @@ class _RestaurantEarningsPageState extends State<RestaurantEarningsPage> {
                                   getTitlesWidget: (val, meta) {
                                     final i = val.toInt();
                                     if (i < 0 || i >= _dailyData.length) return const SizedBox();
+                                    // Sur 30 jours, une date sur 5 pour rester lisible.
+                                    if (_dailyData.length > 10 && i % 5 != 0) {
+                                      return const SizedBox();
+                                    }
                                     return Padding(
                                       padding: const EdgeInsets.only(top: 6),
                                       child: Text(_shortDate(_dailyData[i].date),

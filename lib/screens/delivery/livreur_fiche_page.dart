@@ -1,17 +1,21 @@
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:dios_delices/models/identity.dart';
-import 'package:dios_delices/models/users.dart';
-import 'package:dios_delices/services/livreur_api.dart';
+import 'package:dios_delices/services/node_admin_service.dart';
 import 'package:dios_delices/services/session_service.dart';
 import 'package:dios_delices/theme/app_theme.dart';
 import 'package:flutter/material.dart';
-import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
-import '../../core/app_role.dart';
-import '../../utils/toast.dart';
-import '../../widgets/dios_image.dart';
-import '../../l10n/app_localizations.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/app_role.dart';
+import '../../l10n/app_localizations.dart';
+import '../../services/node_auth_service.dart';
+import '../../utils/currency_util.dart';
+import '../../utils/toast.dart';
+import '../../widgets/courier_card.dart';
+import 'livreur_list_page.dart';
+
+/// Fiche admin d'un livreur : profil, véhicule, dossier (photo, pièce
+/// d'identité, permis) et validation ou refus du dossier.
 class LivreurFichePage extends StatefulWidget {
   final int userID;
   const LivreurFichePage({super.key, required this.userID});
@@ -21,15 +25,10 @@ class LivreurFichePage extends StatefulWidget {
 }
 
 class _LivreurFichePageState extends State<LivreurFichePage> {
-  Users? _livreur;
-  Identity? _identity;
+  Map<String, dynamic>? _courier;
   bool _isLoading = true;
-  bool _isAdmin = false;
-  bool _isSuperAdmin = false;
+  bool _busy = false;
   bool _canValidate = false;
-
-  int _totalLivraisons = 0;
-  double _totalGains = 0;
 
   @override
   void initState() {
@@ -41,898 +40,512 @@ class _LivreurFichePageState extends State<LivreurFichePage> {
     setState(() => _isLoading = true);
     try {
       final session = await SessionService.readSession();
-      _isAdmin = session.role.isAdmin;
-      _isSuperAdmin = session.role == AppRole.superAdmin;
-
-      final users = await Users.fetchUsersFromDB();
-      final livreur = Users.getUsersByUserId(users, widget.userID);
-
-      final identities = await Identity.fetchIdentitiesFromDB();
-      final identity = Identity.getIdentityByUserId(identities, widget.userID);
-
-      if (_isSuperAdmin) {
-        _canValidate = true;
-      } else if (_isAdmin && livreur != null) {
-        _canValidate = session.country == livreur.country;
-      }
-
-      final earnings = await LivreurApi.getLivreurEarnings(widget.userID);
-      if (earnings['success'] == true) {
-        _totalLivraisons = (earnings['totalLivraisons'] as num?)?.toInt() ?? 0;
-        _totalGains = (earnings['totalGains'] as num?)?.toDouble() ?? 0.0;
-      }
-
-      if (mounted) {
-        setState(() {
-          _livreur = livreur;
-          _identity = identity;
-          _isLoading = false;
-        });
-      }
+      final token = await SessionService.readNodeToken();
+      final courier = token == null
+          ? null
+          : await NodeAdminService.getCourier(token, widget.userID);
+      if (!mounted) return;
+      setState(() {
+        _courier = courier;
+        // Un admin valide les livreurs de son pays ; le super admin, tous.
+        _canValidate = session.role == AppRole.superAdmin ||
+            (session.role.isAdmin &&
+                (courier?['country']?.toString() ?? '') == session.country);
+        _isLoading = false;
+      });
     } catch (_) {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  IconData _vehicleIcon(String? type) {
-    switch (type?.toLowerCase()) {
-      case 'moto':
-        return Icons.motorcycle_rounded;
-      case 'velo':
-        return Icons.pedal_bike_rounded;
-      case 'voiture':
-        return Icons.directions_car_rounded;
-      default:
-        return Icons.delivery_dining_rounded;
-    }
+  Map<String, dynamic>? get _file => _courier?['file'] is Map
+      ? Map<String, dynamic>.from(_courier!['file'] as Map)
+      : null;
+
+  CourierFileStatus get _status => courierFileStatusOf(_courier?['fileStatus']);
+
+  void _openDocument(String url, String title) {
+    final isPdf = url.toLowerCase().split('?').first.endsWith('.pdf');
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          appBar: AppBar(title: Text(title)),
+          backgroundColor: Colors.black,
+          body: isPdf
+              ? SfPdfViewer.network(url)
+              : InteractiveViewer(
+                  maxScale: 5,
+                  child: Center(
+                    child: CachedNetworkImage(
+                      imageUrl: url,
+                      placeholder: (_, __) =>
+                          const CircularProgressIndicator(),
+                      errorWidget: (_, __, ___) =>
+                          const Icon(Icons.broken_image, color: Colors.white),
+                    ),
+                  ),
+                ),
+        ),
+      ),
+    );
   }
 
-  String _vehicleLabel(String? type) {
+  Future<void> _decide({required bool approve}) async {
     final l10n = AppLocalizations.of(context)!;
-    switch (type?.toLowerCase()) {
-      case 'moto':
-        return l10n.livreur_vehicle_moto;
-      case 'velo':
-        return l10n.livreur_vehicle_bike;
-      case 'voiture':
-        return l10n.livreur_vehicle_car;
-      default:
-        return l10n.livreur_vehicle_unspecified;
-    }
-  }
-
-  void _handleFilePreview(String fileUrl) {
-    if (fileUrl.toLowerCase().endsWith('.pdf')) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => _PDFViewerScreen(fileUrl: fileUrl)),
-      );
-    } else {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-            builder: (_) => _FullScreenImageViewer(imageUrl: fileUrl)),
-      );
-    }
-  }
-
-  Future<void> _validateDocument(String type) async {
-    final cloud = ParseCloudFunction('validateLivreurIdentity');
-    try {
-      final response = await cloud.execute(parameters: {
-        'userID': widget.userID,
-        'valid': true,
-        'type': type,
-      });
-      if (response.success && mounted) {
-        setState(() {
-          if (type == 'permis') {
-            _livreur?.permisVerified = true;
-          } else if (type == 'identity') {
-            _livreur?.identity = 'Verified';
-          }
-        });
-        Toast(context, AppLocalizations.of(context)!.livreur_document_validated,
-            true);
-        _load();
-      }
-    } catch (_) {
-      if (mounted)
-        Toast(
-            context,
-            AppLocalizations.of(context)!.livreur_document_validate_error,
-            false);
-    }
-  }
-
-  void _showRejectDialog(String type) {
+    final file = _file;
+    if (file == null) return;
     final remarkCtrl = TextEditingController();
-    showDialog(
+    final formKey = GlobalKey<FormState>();
+    final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-        ),
-        title: Row(children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: AppColors.resolve(
-                  AppColors.errorLight, AppDarkColors.errorLight),
-              borderRadius: BorderRadius.circular(AppRadius.sm),
-            ),
-            child: const Icon(Icons.error_rounded,
-                color: AppColors.error, size: 18),
-          ),
-          const SizedBox(width: 10),
-          Text(AppLocalizations.of(context)!.livreur_document_reject_title,
-              style: AppTypography.titleMedium(
-                  color: AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
-        ]),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(AppLocalizations.of(context)!.livreur_document_reject_hint,
-                style: AppTypography.bodyLarge(
-                    color:
-                        AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
-            const SizedBox(height: 12),
-            TextField(
-              controller: remarkCtrl,
-              maxLines: 3,
-              decoration: InputDecoration(
-                hintText:
-                    AppLocalizations.of(context)!.livreur_document_reject_hint,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  borderSide: BorderSide(
-                      color: AppColors.resolve(
-                          AppColors.border, AppDarkColors.border)),
-                ),
+            borderRadius: BorderRadius.circular(AppRadius.lg)),
+        title: Text(approve
+            ? l10n.courier_admin_validate_file
+            : l10n.livreur_document_reject_title),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                approve
+                    ? l10n.courier_admin_validate_confirm(courierName(_courier!))
+                    : l10n.livreur_document_reject_hint,
+                style: AppTypography.bodyMedium(),
               ),
-            ),
-          ],
+              if (!approve) ...[
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: remarkCtrl,
+                  maxLines: 3,
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? l10n.required : null,
+                  decoration: InputDecoration(
+                    hintText: l10n.livreur_document_reject_hint,
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppRadius.md)),
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(AppLocalizations.of(context)!.cancel,
-                style: AppTypography.labelMedium(
-                    color: AppColors.resolve(
-                        AppColors.inkMuted, AppDarkColors.inkMuted))),
-          ),
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(l10n.cancel)),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
+              backgroundColor: approve ? AppColors.success : AppColors.error,
               foregroundColor: Colors.white,
             ),
             onPressed: () {
-              Navigator.pop(ctx);
-              _rejectDocument(type, remarkCtrl.text);
+              if (approve || formKey.currentState!.validate()) {
+                Navigator.pop(ctx, true);
+              }
             },
-            child: Text(
-                '${AppLocalizations.of(context)!.confirm} ${AppLocalizations.of(context)!.reject}'),
+            child: Text(approve ? l10n.validate : l10n.reject),
           ),
         ],
       ),
     );
-  }
+    final remark = remarkCtrl.text;
+    remarkCtrl.dispose();
+    if (ok != true || !mounted) return;
 
-  Future<void> _rejectDocument(String type, String remark) async {
-    final cloud = ParseCloudFunction('validateLivreurIdentity');
+    setState(() => _busy = true);
     try {
-      final response = await cloud.execute(parameters: {
-        'userID': widget.userID,
-        'valid': false,
-        'type': type,
-        'remark': remark,
-      });
-      if (response.success && mounted) {
-        setState(() {
-          if (type == 'permis') {
-            _livreur?.permisVerified = false;
-          } else if (type == 'identity') {
-            _livreur?.identity = 'Rejected';
-          }
-        });
-        Toast(context, AppLocalizations.of(context)!.livreur_document_rejected,
-            false);
-        _load();
-      }
+      final token = await SessionService.readNodeToken();
+      if (token == null) return;
+      await NodeAdminService.validateDeliveryDocuments(
+        file['id']?.toString() ?? '',
+        approve ? 'VALIDATED' : 'REJECTED',
+        token,
+        remark: approve ? null : remark,
+      );
+      if (!mounted) return;
+      Toast(
+          context,
+          approve
+              ? l10n.courier_admin_file_validated
+              : l10n.courier_admin_file_rejected,
+          true);
+      await _load();
+    } on NodeAuthException catch (e) {
+      if (mounted) Toast(context, e.message, false);
     } catch (_) {
-      if (mounted)
-        Toast(context,
-            AppLocalizations.of(context)!.livreur_document_reject_error, false);
+      if (mounted) Toast(context, l10n.error, false);
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
-  }
-
-  void _showValidateDialog(String type, String label) {
-    final l10n = AppLocalizations.of(context)!;
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-        ),
-        title: Row(children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: AppColors.resolve(
-                  AppColors.successLight, AppDarkColors.successLight),
-              borderRadius: BorderRadius.circular(AppRadius.sm),
-            ),
-            child: const Icon(Icons.verified_rounded,
-                color: AppColors.success, size: 18),
-          ),
-          const SizedBox(width: 10),
-          Text('${l10n.validate} $label',
-              style: AppTypography.titleMedium(
-                  color: AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
-        ]),
-        content: Text(
-          '${l10n.confirm} ${l10n.livreur_document_validated.toLowerCase()} $label ${_livreur?.firstname} ${_livreur?.lastname} ?',
-          style: AppTypography.bodyLarge(
-              color: AppColors.resolve(AppColors.ink, AppDarkColors.ink)),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(AppLocalizations.of(ctx)!.cancel,
-                style: AppTypography.labelMedium(
-                    color: AppColors.resolve(
-                        AppColors.inkMuted, AppDarkColors.inkMuted))),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _validateDocument(type);
-            },
-            child: Text(AppLocalizations.of(ctx)!.validate),
-          ),
-        ],
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    if (_isLoading) {
-      return Scaffold(
-        backgroundColor:
-            AppColors.resolve(AppColors.surface, AppDarkColors.surface),
-        appBar: AppBar(title: Text(l10n.livreur_fiche_title)),
-        body: const Center(child: CircularProgressIndicator()),
-      );
-    }
-    if (_livreur == null) {
-      return Scaffold(
-        backgroundColor:
-            AppColors.resolve(AppColors.surface, AppDarkColors.surface),
-        appBar: AppBar(title: Text(l10n.livreur_fiche_title)),
-        body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.person_off_rounded,
-                  size: 64,
-                  color: AppColors.resolve(
-                      AppColors.inkSubtle, AppDarkColors.inkSubtle)),
-              const SizedBox(height: 12),
-              Text(l10n.livreur_not_found,
-                  style: AppTypography.bodyLarge(
-                      color: AppColors.resolve(
-                          AppColors.inkMuted, AppDarkColors.inkMuted))),
-            ],
-          ),
-        ),
-      );
-    }
-
-    final livreur = _livreur!;
-    final isOnline = livreur.isOnline == true;
-    final permisOk = livreur.permisVerified == true;
-    final identityOk = livreur.identity == 'Verified';
-    final identityPending = !identityOk && livreur.identity != 'Rejected';
+    final surface = AppColors.resolve(AppColors.surface, AppDarkColors.surface);
+    final ink = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
+    final muted = AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
 
     return Scaffold(
-      backgroundColor:
-          AppColors.resolve(AppColors.surface, AppDarkColors.surface),
+      backgroundColor: surface,
       appBar: AppBar(
-        title: Text(AppLocalizations.of(context)!.livreur_fiche_title),
+        backgroundColor: surface,
+        title: Text(l10n.livreur_fiche_title,
+            style: AppTypography.titleSmall(color: ink)),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            onPressed: _load,
-          ),
+          IconButton(icon: const Icon(Icons.refresh_rounded), onPressed: _load),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: _load,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              _buildHeader(livreur),
-              const SizedBox(height: 16),
-              _buildStatusBadges(livreur),
-              const SizedBox(height: 16),
-              _buildStatsSection(),
-              const SizedBox(height: 16),
-              _buildDocumentsSection(livreur),
-              const SizedBox(height: 16),
-              if (_canValidate) _buildValidationActions(livreur),
-              const SizedBox(height: 32),
-            ],
-          ),
-        ),
-      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _courier == null
+              ? Center(
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.person_off_rounded, size: 56, color: muted),
+                    const SizedBox(height: 10),
+                    Text(l10n.livreur_not_found,
+                        style: AppTypography.bodyLarge(color: muted)),
+                  ]),
+                )
+              : Stack(children: [
+                  RefreshIndicator(
+                    onRefresh: _load,
+                    child: ListView(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
+                      children: [
+                        _buildHeader(),
+                        const SizedBox(height: 14),
+                        _buildStats(),
+                        const SizedBox(height: 14),
+                        _buildFile(),
+                        if (_canValidate &&
+                            _status == CourierFileStatus.pending) ...[
+                          const SizedBox(height: 16),
+                          _buildDecision(),
+                        ],
+                      ],
+                    ),
+                  ),
+                  if (_busy)
+                    const ColoredBox(
+                      color: Colors.black26,
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                ]),
     );
   }
 
-  Widget _buildHeader(Users livreur) {
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
+  Widget _card({required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.resolve(AppColors.card, AppDarkColors.card),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(
+            color: AppColors.resolve(AppColors.border, AppDarkColors.border),
+            width: 0.6),
+      ),
+      child: child,
+    );
+  }
+
+  Widget _sectionTitle(String text) => Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Text(text.toUpperCase(),
+            style: AppTypography.labelMedium(
+                    color: AppColors.resolve(
+                        AppColors.inkMuted, AppDarkColors.inkMuted))
+                .copyWith(fontWeight: FontWeight.w800, letterSpacing: 0.8)),
+      );
+
+  Widget _buildHeader() {
+    final l10n = AppLocalizations.of(context)!;
+    final c = _courier!;
+    final ink = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
+    final muted = AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
+    final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+    final photo = c['image']?.toString();
+    final phone = c['telephone']?.toString() ?? '';
+    final email = c['email']?.toString() ?? '';
+    final plate = c['vehiclePlate']?.toString() ?? '';
+    final vehicle = c['vehicleType']?.toString();
+    final online = c['isOnline'] == true;
+
+    return _card(
+      child: Column(children: [
+        GestureDetector(
+          onTap: photo == null || photo.isEmpty
+              ? null
+              : () => _openDocument(photo, l10n.courier_admin_photo),
+          child: CourierPhotoAvatar(
+            photoUrl: photo,
+            initials: courierInitials(c),
+            online: online,
+            radius: 46,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(courierName(c),
+            textAlign: TextAlign.center,
+            style: AppTypography.headlineMedium(color: ink)
+                .copyWith(fontSize: 22)),
+        const SizedBox(height: 8),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 6,
           children: [
+            CourierFileStatusPill(status: _status),
             Container(
-              width: 80,
-              height: 80,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: AppColors.resolve(
-                    AppColors.brandSurface, AppDarkColors.brandSurface),
-                shape: BoxShape.circle,
+                color: (online ? AppColors.success : muted)
+                    .withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(99),
               ),
-              child: Center(
-                child: Icon(
-                  _vehicleIcon(livreur.permisType),
-                  color:
-                      AppColors.resolve(AppColors.brand, AppDarkColors.brand),
-                  size: 40,
-                ),
-              ),
+              child: Text(
+                  online ? l10n.livreur_filter_online : l10n.livreur_filter_offline,
+                  style: AppTypography.labelMedium(
+                          color: online ? AppColors.success : muted)
+                      .copyWith(fontSize: 11, fontWeight: FontWeight.w800)),
             ),
-            const SizedBox(height: 12),
-            Text(
-              '${livreur.firstname} ${livreur.lastname}',
-              style: AppTypography.titleLarge(
-                  color: AppColors.resolve(AppColors.ink, AppDarkColors.ink)),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 4),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.email_outlined,
-                    size: 14,
-                    color: AppColors.resolve(
-                        AppColors.inkMuted, AppDarkColors.inkMuted)),
-                const SizedBox(width: 4),
-                Text(livreur.email,
-                    style: AppTypography.bodyMedium(
-                            color: AppColors.resolve(
-                                AppColors.ink, AppDarkColors.ink))
-                        .copyWith(fontSize: 13)),
-              ],
+          ],
+        ),
+        const SizedBox(height: 14),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 10,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(courierVehicleIcon(vehicle), size: 18, color: brand),
+              const SizedBox(width: 6),
+              Text(courierVehicleLabel(vehicle, l10n),
+                  style: AppTypography.bodyMedium(color: ink)),
+            ]),
+            if (plate.isNotEmpty) VehiclePlateBadge(plate: plate),
+          ],
+        ),
+        const SizedBox(height: 14),
+        Divider(
+            height: 1,
+            color: AppColors.resolve(AppColors.border, AppDarkColors.border)),
+        if (phone.isNotEmpty)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            leading: Icon(Icons.phone_rounded, color: brand),
+            title: Text(phone, style: AppTypography.bodyMedium(color: ink)),
+            onTap: () => launchUrl(
+                Uri(scheme: 'tel', path: phone.replaceAll(' ', '')),
+                mode: LaunchMode.externalApplication),
+          ),
+        if (email.isNotEmpty)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            leading: Icon(Icons.mail_outline_rounded, color: muted),
+            title: Text(email, style: AppTypography.bodyMedium(color: ink)),
+          ),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+          leading: Icon(Icons.public_rounded, color: muted),
+          title: Text(c['country']?.toString() ?? '—',
+              style: AppTypography.bodyMedium(color: ink)),
+        ),
+      ]),
+    );
+  }
+
+  Widget _buildStats() {
+    final l10n = AppLocalizations.of(context)!;
+    final stats = _courier?['stats'] is Map
+        ? Map<String, dynamic>.from(_courier!['stats'] as Map)
+        : const <String, dynamic>{};
+    final country = _courier?['country']?.toString() ?? 'RDC';
+    final fees = double.tryParse('${stats['deliveryFees']}') ?? 0;
+    return Row(children: [
+      _statBox(Icons.check_circle_outline_rounded,
+          '${stats['deliveredCount'] ?? 0}', l10n.myDeliveries),
+      const SizedBox(width: 10),
+      _statBox(Icons.payments_outlined, CurrencyUtil.formatPrice(fees, country),
+          l10n.courier_admin_delivery_fees),
+      const SizedBox(width: 10),
+      _statBox(Icons.route_rounded, '${stats['activeCount'] ?? 0}',
+          l10n.courier_admin_active_orders),
+    ]);
+  }
+
+  Widget _statBox(IconData icon, String value, String label) {
+    final ink = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
+    final muted = AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
+    final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+    return Expanded(
+      child: _card(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 20, color: brand),
+            const SizedBox(height: 8),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(value,
+                  style: AppTypography.titleSmall(color: ink)
+                      .copyWith(fontWeight: FontWeight.w800)),
             ),
             const SizedBox(height: 2),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.phone_outlined,
-                    size: 14,
-                    color: AppColors.resolve(
-                        AppColors.inkMuted, AppDarkColors.inkMuted)),
-                const SizedBox(width: 4),
-                Text(livreur.telephone,
-                    style: AppTypography.bodyMedium(
-                            color: AppColors.resolve(
-                                AppColors.ink, AppDarkColors.ink))
-                        .copyWith(fontSize: 13)),
-              ],
-            ),
-            const SizedBox(height: 2),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.public_outlined,
-                    size: 14,
-                    color: AppColors.resolve(
-                        AppColors.inkMuted, AppDarkColors.inkMuted)),
-                const SizedBox(width: 4),
-                Text(livreur.country,
-                    style: AppTypography.bodyMedium(
-                            color: AppColors.resolve(
-                                AppColors.ink, AppDarkColors.ink))
-                        .copyWith(fontSize: 13)),
-              ],
-            ),
+            Text(label,
+                maxLines: 2,
+                style: AppTypography.bodySmall(color: muted)
+                    .copyWith(fontSize: 11)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildStatusBadges(Users livreur) {
+  Widget _buildFile() {
     final l10n = AppLocalizations.of(context)!;
-    final isOnline = livreur.isOnline == true;
-    final permisOk = livreur.permisVerified == true;
-    final identityOk = livreur.identity == 'Verified';
-
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(l10n.livreur_stats,
-                style: AppTypography.titleMedium(
-                    color:
-                        AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _statusChip(
-                  icon: isOnline ? Icons.circle : Icons.circle_outlined,
-                  label:
-                      isOnline ? l10n.delivery_online : l10n.delivery_offline,
-                  color: isOnline
-                      ? AppColors.resolve(
-                          AppColors.success, AppDarkColors.success)
-                      : AppColors.resolve(
-                          AppColors.inkSubtle, AppDarkColors.inkSubtle),
-                  bgColor: isOnline
-                      ? AppColors.resolve(
-                          AppColors.successLight, AppDarkColors.successLight)
-                      : AppColors.resolve(
-                          AppColors.surfaceWarm, AppDarkColors.surfaceWarm),
-                ),
-                _statusChip(
-                  icon: permisOk
-                      ? Icons.check_circle_rounded
-                      : Icons.schedule_rounded,
-                  label:
-                      '${l10n.livreur_license} ${permisOk ? l10n.livreur_validated : l10n.livreur_pending}',
-                  color: permisOk
-                      ? AppColors.resolve(
-                          AppColors.success, AppDarkColors.success)
-                      : AppColors.accent,
-                  bgColor: permisOk
-                      ? AppColors.resolve(
-                          AppColors.successLight, AppDarkColors.successLight)
-                      : AppColors.resolve(
-                          AppColors.accentLight, AppDarkColors.accentLight),
-                ),
-                _statusChip(
-                  icon: identityOk
-                      ? Icons.check_circle_rounded
-                      : Icons.schedule_rounded,
-                  label:
-                      '${l10n.livreur_id_card} ${identityOk ? l10n.livreur_validated : l10n.livreur_pending}',
-                  color: identityOk
-                      ? AppColors.resolve(
-                          AppColors.success, AppDarkColors.success)
-                      : AppColors.resolve(
-                          AppColors.accent, AppDarkColors.accent),
-                  bgColor: identityOk
-                      ? AppColors.resolve(
-                          AppColors.successLight, AppDarkColors.successLight)
-                      : AppColors.resolve(
-                          AppColors.accentLight, AppDarkColors.accentLight),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _statusChip({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required Color bgColor,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(AppRadius.full),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+    final file = _file;
+    final muted = AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
+    final error = AppColors.resolve(AppColors.error, AppDarkColors.error);
+    final remark = file?['remark']?.toString().trim() ?? '';
+    return _card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 6),
-          Text(label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: color,
-              )),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatsSection() {
-    final l10n = AppLocalizations.of(context)!;
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(l10n.livreur_stats,
-                style: AppTypography.titleMedium(
-                    color:
-                        AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.resolve(
-                          AppColors.brandSurface, AppDarkColors.brandSurface),
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    ),
-                    child: Column(
-                      children: [
-                        Icon(Icons.delivery_dining_rounded,
-                            color: AppColors.brand, size: 32),
-                        const SizedBox(height: 8),
-                        Text('$_totalLivraisons',
-                            style: AppTypography.titleLarge(
-                                    color: AppColors.resolve(
-                                        AppColors.ink, AppDarkColors.ink))
-                                .copyWith(color: AppColors.brand)),
-                        const SizedBox(height: 2),
-                        Text(l10n.myDeliveries,
-                            style: AppTypography.bodyMedium(
-                                    color: AppColors.resolve(
-                                        AppColors.ink, AppDarkColors.ink))
-                                .copyWith(fontSize: 12)),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.resolve(
-                          AppColors.successLight, AppDarkColors.successLight),
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    ),
-                    child: Column(
-                      children: [
-                        Icon(Icons.monetization_on_rounded,
-                            color: AppColors.success, size: 32),
-                        const SizedBox(height: 8),
-                        Text('${_totalGains.toStringAsFixed(0)} CFA',
-                            style: AppTypography.titleLarge(
-                                    color: AppColors.resolve(
-                                        AppColors.ink, AppDarkColors.ink))
-                                .copyWith(color: AppColors.success)),
-                        const SizedBox(height: 2),
-                        Text(l10n.store_my_earnings,
-                            style: AppTypography.bodyMedium(
-                                    color: AppColors.resolve(
-                                        AppColors.ink, AppDarkColors.ink))
-                                .copyWith(fontSize: 12)),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDocumentsSection(Users livreur) {
-    final l10n = AppLocalizations.of(context)!;
-    final identityUrl = _identity?.piece_identite ?? '';
-    final permisUrl = ''; // Placeholder – set from data if available
-
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(l10n.livreur_documents,
-                style: AppTypography.titleMedium(
-                    color:
-                        AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
-            const SizedBox(height: 16),
-            _buildDocumentTile(
-              title: l10n.livreur_license,
-              url: permisUrl,
-              verified: livreur.permisVerified,
-              type: 'permis',
-            ),
-            const SizedBox(height: 12),
-            _buildDocumentTile(
-              title: l10n.livreur_id_card,
-              url: identityUrl,
-              verified: livreur.identity == 'Verified',
-              type: 'identity',
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDocumentTile({
-    required String title,
-    required String url,
-    required bool verified,
-    required String type,
-  }) {
-    final hasUrl = url.isNotEmpty;
-
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color:
-            AppColors.resolve(AppColors.surfaceWarm, AppDarkColors.surfaceWarm),
-        borderRadius: BorderRadius.circular(AppRadius.md),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: verified
-                  ? AppColors.resolve(
-                      AppColors.successLight, AppDarkColors.successLight)
-                  : hasUrl
-                      ? AppColors.resolve(
-                          AppColors.brandSurface, AppDarkColors.brandSurface)
-                      : AppColors.resolve(
-                          AppColors.surfaceWarm, AppDarkColors.surfaceWarm),
-              borderRadius: BorderRadius.circular(AppRadius.sm),
-            ),
-            child: Center(
-              child: Icon(
-                verified
-                    ? Icons.check_circle_rounded
-                    : hasUrl
-                        ? Icons.description_rounded
-                        : Icons.cloud_off_rounded,
-                color: verified
-                    ? AppColors.success
-                    : hasUrl
-                        ? AppColors.brand
-                        : AppColors.inkSubtle,
-                size: 24,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title,
-                    style: AppTypography.labelLarge(
-                        color: AppColors.resolve(
-                            AppColors.ink, AppDarkColors.ink))),
-                const SizedBox(height: 2),
-                Text(
-                  verified
-                      ? AppLocalizations.of(context)!.livreur_validated
-                      : hasUrl
-                          ? AppLocalizations.of(context)!.livreur_pending
-                          : AppLocalizations.of(context)!.livreur_not_provided,
-                  style: AppTypography.bodyMedium(
-                          color: AppColors.resolve(
-                              AppColors.ink, AppDarkColors.ink))
-                      .copyWith(
-                    fontSize: 12,
-                    color: verified
-                        ? AppColors.success
-                        : hasUrl
-                            ? AppColors.accent
-                            : AppColors.inkSubtle,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (hasUrl)
-            IconButton(
-              icon: const Icon(Icons.remove_red_eye_outlined),
-              color: AppColors.brand,
-              onPressed: () => _handleFilePreview(url),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildValidationActions(Users livreur) {
-    final l10n = AppLocalizations.of(context)!;
-    final permisOk = livreur.permisVerified == true;
-    final identityOk = livreur.identity == 'Verified';
-    final identityPending = !identityOk && livreur.identity != 'Rejected';
-
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(l10n.livreur_validation_actions,
-                style: AppTypography.titleMedium(
-                    color:
-                        AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
-            const SizedBox(height: 16),
-            if (!permisOk) ...[
-              Text(l10n.livreur_license,
-                  style: AppTypography.labelLarge(
-                      color:
-                          AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      icon: const Icon(Icons.check_rounded, size: 18),
-                      label: Text('${l10n.validate} ${l10n.livreur_license}'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.success,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppRadius.md),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      onPressed: () =>
-                          _showValidateDialog('permis', l10n.livreur_license),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      icon: const Icon(Icons.close_rounded, size: 18),
-                      label: Text(l10n.reject),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.error,
-                        side: const BorderSide(color: AppColors.error),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppRadius.md),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      onPressed: () => _showRejectDialog('permis'),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
+          _sectionTitle(l10n.livreur_documents),
+          if (file == null)
+            Text(l10n.courier_admin_no_file_body,
+                style: AppTypography.bodyMedium(color: muted))
+          else ...[
+            _docTile(l10n.courier_admin_photo, file['photoUrl']?.toString(),
+                Icons.face_rounded),
+            const SizedBox(height: 10),
+            _docTile(l10n.livreur_id_card, file['identityFileUrl']?.toString(),
+                Icons.badge_outlined),
+            if (file['vehicleType']?.toString() != 'velo') ...[
+              const SizedBox(height: 10),
+              _docTile(l10n.livreur_license, file['licenseUrl']?.toString(),
+                  Icons.credit_card_rounded),
             ],
-            if (identityPending) ...[
-              Text(l10n.livreur_id_card,
-                  style: AppTypography.labelLarge(
-                      color:
-                          AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      icon: const Icon(Icons.check_rounded, size: 18),
-                      label: Text('${l10n.validate} ${l10n.livreur_id_card}'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.success,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppRadius.md),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      onPressed: () =>
-                          _showValidateDialog('identity', l10n.livreur_id_card),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      icon: const Icon(Icons.close_rounded, size: 18),
-                      label: Text(l10n.reject),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.error,
-                        side: const BorderSide(color: AppColors.error),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppRadius.md),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      onPressed: () => _showRejectDialog('identity'),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-            if (!identityPending && identityOk)
+            if (_status == CourierFileStatus.rejected && remark.isNotEmpty) ...[
+              const SizedBox(height: 12),
               Container(
+                width: double.infinity,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppColors.resolve(
-                      AppColors.successLight, AppDarkColors.successLight),
+                  color: error.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
-                child: Row(children: [
-                  Icon(Icons.check_circle_rounded,
-                      color: AppColors.success, size: 20),
-                  const SizedBox(width: 8),
-                  Text('${l10n.livreur_id_card} ${l10n.livreur_validated}',
-                      style:
-                          AppTypography.labelMedium(color: AppColors.success)),
-                ]),
+                child: Text(l10n.courier_admin_rejection_reason(remark),
+                    style: AppTypography.bodyMedium(color: error)),
               ),
+            ],
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _docTile(String title, String? url, IconData icon) {
+    final l10n = AppLocalizations.of(context)!;
+    final ink = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
+    final muted = AppColors.resolve(AppColors.inkMuted, AppDarkColors.inkMuted);
+    final brand = AppColors.resolve(AppColors.brand, AppDarkColors.brand);
+    final warm =
+        AppColors.resolve(AppColors.surfaceWarm, AppDarkColors.surfaceWarm);
+    final has = url != null && url.isNotEmpty;
+    final isPdf = has && url.toLowerCase().split('?').first.endsWith('.pdf');
+    return Material(
+      color: warm,
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        onTap: has ? () => _openDocument(url, title) : null,
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Row(children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+              child: SizedBox(
+                width: 52,
+                height: 52,
+                child: has && !isPdf
+                    ? CachedNetworkImage(
+                        imageUrl: url,
+                        fit: BoxFit.cover,
+                        errorWidget: (_, __, ___) =>
+                            Icon(icon, color: brand),
+                      )
+                    : ColoredBox(
+                        color: brand.withValues(alpha: 0.10),
+                        child: Icon(
+                            isPdf ? Icons.picture_as_pdf_rounded : icon,
+                            color: brand),
+                      ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: AppTypography.labelLarge(color: ink)),
+                  Text(has ? l10n.courier_admin_tap_to_view : l10n.livreur_not_provided,
+                      style: AppTypography.bodySmall(color: muted)),
+                ],
+              ),
+            ),
+            if (has) Icon(Icons.open_in_full_rounded, color: brand, size: 20),
+          ]),
         ),
       ),
     );
   }
-}
 
-class _PDFViewerScreen extends StatelessWidget {
-  final String fileUrl;
-  const _PDFViewerScreen({required this.fileUrl});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar:
-          AppBar(title: Text(AppLocalizations.of(context)!.livreur_documents)),
-      body: SfPdfViewer.network(fileUrl),
-    );
-  }
-}
-
-class _FullScreenImageViewer extends StatelessWidget {
-  final String imageUrl;
-  const _FullScreenImageViewer({required this.imageUrl});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar:
-          AppBar(title: Text(AppLocalizations.of(context)!.livreur_documents)),
-      body: Center(
-        child: CachedNetworkImage(
-          imageUrl: imageUrl,
-          placeholder: (_, __) => const CircularProgressIndicator(),
-          errorWidget: (_, __, ___) => const Icon(Icons.error),
+  Widget _buildDecision() {
+    final l10n = AppLocalizations.of(context)!;
+    return Row(children: [
+      Expanded(
+        child: OutlinedButton.icon(
+          onPressed: _busy ? null : () => _decide(approve: false),
+          icon: const Icon(Icons.close_rounded, size: 18),
+          label: Text(l10n.reject),
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(50),
+            foregroundColor: AppColors.error,
+            side: const BorderSide(color: AppColors.error),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.md)),
+          ),
         ),
       ),
-    );
+      const SizedBox(width: 12),
+      Expanded(
+        child: ElevatedButton.icon(
+          onPressed: _busy ? null : () => _decide(approve: true),
+          icon: const Icon(Icons.check_rounded, size: 18),
+          label: Text(l10n.validate),
+          style: ElevatedButton.styleFrom(
+            minimumSize: const Size.fromHeight(50),
+            backgroundColor: AppColors.success,
+            foregroundColor: Colors.white,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.md)),
+          ),
+        ),
+      ),
+    ]);
   }
 }

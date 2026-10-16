@@ -55,6 +55,7 @@ class NodeAuthService {
     String? country,
     String? accountType,
     bool? ageConfirmed,
+    String? vehicleType,
   }) async {
     final body = <String, dynamic>{
       'username': username.trim(),
@@ -71,6 +72,8 @@ class NodeAuthService {
       if (accountType?.trim().isNotEmpty == true)
         'accountType': accountType!.trim(),
       if (ageConfirmed != null) 'ageConfirmed': ageConfirmed,
+      if (vehicleType?.trim().isNotEmpty == true)
+        'vehicleType': vehicleType!.trim(),
     };
     final response = await _post('/auth/register', body);
     return _sessionFromResponse(response);

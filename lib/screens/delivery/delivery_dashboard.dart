@@ -13,6 +13,7 @@ import '../../models/users.dart';
 import '../../services/livreur_api.dart';
 import '../../services/session_service.dart';
 import '../../services/socket_service.dart';
+import '../../services/upload_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/currency_util.dart';
 import '../../utils/toast.dart';
@@ -21,6 +22,7 @@ import '../chat/chat_screen.dart';
 import '../../l10n/app_localizations.dart';
 import 'available_deliveries_tab.dart';
 import 'active_delivery_screen.dart';
+import 'delivery_offer_panel.dart';
 
 class DeliveryDashboard extends StatefulWidget {
   const DeliveryDashboard({super.key});
@@ -485,17 +487,11 @@ class _DeliveryDashboardState extends State<DeliveryDashboard>
     }
   }
 
-  /// Envoi de la photo de preuve (stockage Parse, comme les autres images
-  /// de l'app) → renvoie l'URL à poster dans `proofPhotoUrl`.
-  /// Remplacez le corps si votre upload passe par un autre service.
+  /// Envoi de la photo de preuve sur le backend Node → URL à poster dans
+  /// `proofPhotoUrl` lors de la validation par code.
   Future<String> _uploadProofPhoto(int commandeID, File photo) async {
-    final file = ParseFile(
-      photo,
-      name: 'proof_${commandeID}_${DateTime.now().millisecondsSinceEpoch}.jpg',
-    );
-    final res = await file.save();
-    final url = file.url;
-    if (!res.success || url == null || url.isEmpty) {
+    final url = await UploadService.uploadImage(photo, scope: 'delivery-proofs');
+    if (url == null || url.isEmpty) {
       throw Exception("Échec de l'envoi de la photo");
     }
     return url;
@@ -610,6 +606,14 @@ class _DeliveryDashboardState extends State<DeliveryDashboard>
         children: [
           // ── Statut en ligne + chiffres du jour (commun aux 2 onglets) ──
           _buildOnlineHeader(),
+          // Proposition automatique du serveur (compte à rebours, Accepter / Refuser)
+          DeliveryOfferPanel(
+            isOnline: isOnline,
+            onAccepted: (_) async {
+              await _load();
+              if (mounted) _tabs.animateTo(0);
+            },
+          ),
           _buildTabSwitcher(),
           Expanded(
             child: TabBarView(

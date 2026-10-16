@@ -17,7 +17,6 @@ import '../../providers/cart_provider.dart';
 import '../../providers/selected_delivery.dart';
 import '../../services/commande_api.dart';
 import '../../services/delivery_availability_service.dart';
-import '../../services/delivery_shipping_service.dart';
 import '../../services/geocoding_api_service.dart';
 import '../../services/location_cache_service.dart';
 import '../../services/notification_service.dart';
@@ -53,20 +52,95 @@ class Cart extends ConsumerStatefulWidget {
   ConsumerState<Cart> createState() => _CartState();
 }
 
+/// Modes de paiement proposés dans le panier.
+enum _PayMode { cash, mobileMoney, wallet }
+
+/// Données figées au moment où le client valide le panier.
+class _Checkout {
+  const _Checkout({
+    required this.option,
+    required this.items,
+    required this.country,
+    required this.currencyCode,
+    required this.fee,
+    required this.discount,
+    required this.restaurantId,
+  });
+
+  final String option;
+  final List<Map<String, dynamic>> items;
+  final String country;
+  final String currencyCode;
+  final double fee;
+  final double discount;
+  final int restaurantId;
+
+  bool get isDelivery => option == kDeliveryOptionLivraison;
+}
+
+/// Commande Mobile Money créée mais pas encore payée. Réutilisée si le
+/// client relance le paiement sans avoir modifié son panier.
+class _PendingOnlineOrder {
+  const _PendingOnlineOrder({
+    required this.orderId,
+    required this.orderUuid,
+    required this.signature,
+  });
+
+  final String orderId;
+  final String? orderUuid;
+  final String signature;
+}
+
+/// Résultat du devis de livraison affiché dans le panier.
+class _FeeQuote {
+  const _FeeQuote.priced(double this.fee, {this.distanceKm})
+      : needsAddress = false,
+        message = null;
+  const _FeeQuote.needsAddress()
+      : fee = null,
+        distanceKm = null,
+        needsAddress = true,
+        message = null;
+  const _FeeQuote.unavailable(String this.message)
+      : fee = null,
+        distanceKm = null,
+        needsAddress = false;
+  const _FeeQuote.error(String this.message)
+      : fee = null,
+        distanceKm = null,
+        needsAddress = false;
+
+  final double? fee;
+  final double? distanceKm;
+  final bool needsAddress;
+  final String? message;
+
+  bool get ok => fee != null;
+}
+
 class _CartState extends ConsumerState<Cart> {
   final TextEditingController _promoController = TextEditingController();
 
   PromoApplication? _appliedPromo;
   bool _isSubmittingPayment = false;
-  bool _payOnline = false;
-  bool _payWallet = false;
+  _PayMode _payMode = _PayMode.cash;
+
   /// Commande déjà créée mais pas encore payée (solde insuffisant) :
   /// réutilisée au prochain essai pour ne pas créer de doublon.
   String? _walletPendingOrderId;
+  _PendingOnlineOrder? _onlinePending;
+
+  /// UUID Node de la dernière commande créée par [createOrder].
+  String? _lastCreatedOrderUuid;
   bool _isUsingCurrentLocation = false;
   DeliveryAvailability? _cartDeliveryAvailability;
   RestaurantOpeningStatus? _cartOpeningStatus;
-  double? _calculatedDeliveryFee;
+  _FeeQuote? _feeQuote;
+
+  /// Vrai une fois les adresses du client chargées (évite d'afficher un
+  /// tarif provisoire avant de connaître l'adresse de livraison).
+  bool _addressesLoaded = false;
   String? _deliveryFeeKey;
   int _deliveryFeeRequestId = 0;
   bool _isDeliveryFeeLoading = false;
@@ -136,6 +210,7 @@ class _CartState extends ConsumerState<Cart> {
       current_userID = session.userId;
       current_user_role = session.role.id;
       selectedAddress = null;
+      _addressesLoaded = true;
     });
     final user = await DatabaseHelper.getUser(current_userID);
     if (!mounted) return;
@@ -578,113 +653,90 @@ class _CartState extends ConsumerState<Cart> {
     return restaurantFee > 0 ? restaurantFee : 2000.0;
   }
 
+  /// Devis de livraison du serveur (POST /delivery/quote) : c'est le même
+  /// calcul que celui appliqué à la création de la commande, le montant
+  /// affiché est donc celui qui sera facturé.
+  Future<_FeeQuote> _quoteDeliveryFee(
+      List<Map<String, dynamic>> cartItems) async {
+    if (cartItems.isEmpty) return const _FeeQuote.needsAddress();
+    final address = selectedAddress;
+    if (address == null) return const _FeeQuote.needsAddress();
+
+    final nodeToken = await SessionService.readNodeToken();
+    if (nodeToken == null) {
+      // Ancien compte Parse : on garde l'ancien calcul.
+      return _FeeQuote.priced(await _legacyDeliveryFee(cartItems));
+    }
+    final addressId = address.addressID;
+    if (addressId == null) return const _FeeQuote.needsAddress();
+
+    final restaurant = cartItems.first['restaurant'] as Map<String, dynamic>?;
+    final restaurantId =
+        int.tryParse(restaurant?['restau_id']?.toString() ?? '');
+    if (restaurantId == null) {
+      return const _FeeQuote.error('Restaurant introuvable.');
+    }
+    try {
+      final quote = await NodeOrderService.quoteDelivery(
+        token: nodeToken,
+        restaurantId: restaurantId,
+        addressId: addressId,
+      );
+      if (quote['available'] != true) {
+        return _FeeQuote.unavailable(
+          quote['message']?.toString() ??
+              'Marchand hors de votre zone de livraison.',
+        );
+      }
+      return _FeeQuote.priced(
+        (quote['deliveryFee'] as num?)?.toDouble() ?? 0,
+        distanceKm: (quote['estimatedDistanceKm'] as num?)?.toDouble(),
+      );
+    } catch (e) {
+      debugPrint('🚚 Devis de livraison impossible : $e');
+      return _FeeQuote.error(
+        e is NodeAuthException
+            ? e.message
+            : 'Impossible de calculer les frais de livraison.',
+      );
+    }
+  }
+
+  /// Montant utilisé au moment de commander. Le serveur recalcule de toute
+  /// façon les frais à la création de la commande.
   Future<double> calculateDeliveryFee(
       List<Map<String, dynamic>> cartItems) async {
-    if (cartItems.isEmpty) return _staticDeliveryFee(cartItems);
-    
-    debugPrint('🚚 Calculating delivery fee...');
-    debugPrint('🚚 Selected address: ${selectedAddress?.addressID}');
-    
-    // Try new shipping service with GPS coordinates (this should work even without Node token)
-    if (selectedAddress != null) {
-      final dlvLat = double.tryParse(selectedAddress!.lat ?? '');
-      final dlvLng = double.tryParse(selectedAddress!.long ?? '');
-      debugPrint('🚚 Address coords: lat=$dlvLat, lng=$dlvLng');
-      if (dlvLat != null && dlvLng != null) {
-        final resto = cartItems.first['restaurant'] as Map<String, dynamic>?;
-        if (resto != null) {
-          final restaurantId = int.tryParse(resto['restau_id']?.toString() ?? '');
-          final rstLat = double.tryParse(resto['restau_lat']?.toString() ?? '');
-          final rstLng = double.tryParse(resto['restau_lng']?.toString() ?? '');
-          debugPrint('🚚 Restaurant coords: lat=$rstLat, lng=$rstLng');
-          
-          if (restaurantId != null && rstLat != null && rstLng != null) {
-            try {
-              debugPrint('🚚 Trying new shipping service...');
-              final quote = await DeliveryShippingService.calculateShipping(
-                restaurantId: restaurantId,
-                deliveryLat: dlvLat,
-                deliveryLng: dlvLng,
-              );
-              debugPrint('🚚 Shipping service quote: $quote');
-              if (quote != null) {
-                return quote.shippingFee;
-              }
-            } catch (e) {
-              debugPrint('🚚 Shipping service error: $e');
-            }
-          }
-        }
-      }
-    }
-    
-    // Try Node.js backend
-    final nodeToken = await SessionService.readNodeToken();
-    if (nodeToken != null && selectedAddress?.addressID != null) {
-      final restaurant = cartItems.first['restaurant'] as Map<String, dynamic>?;
-      final restaurantId =
-          int.tryParse(restaurant?['restau_id']?.toString() ?? '');
-      debugPrint('🚚 Trying Node.js quote: restaurantId=$restaurantId, addressId=${selectedAddress?.addressID}');
-      if (restaurantId != null) {
-        try {
-          final quote = await NodeOrderService.quoteDelivery(
-            token: nodeToken,
-            restaurantId: restaurantId,
-            addressId: selectedAddress!.addressID!,
-          );
-          debugPrint('🚚 Node.js quote response: $quote');
-          if (quote['available'] == true) {
-            return (quote['deliveryFee'] as num?)?.toDouble() ?? 0;
-          }
-        } catch (e) {
-          debugPrint('🚚 Node.js quote error: $e');
-        }
-      }
-    }
-    
-    if (selectedAddress == null) {
-      debugPrint('🚚 No address selected, using fallback');
-      return _configuredDeliveryFeeFallback(cartItems);
-    }
+    final quote = await _quoteDeliveryFee(cartItems);
+    return quote.fee ?? 0.0;
+  }
 
-    final dlvLat = double.tryParse(selectedAddress!.lat ?? '');
-    final dlvLng = double.tryParse(selectedAddress!.long ?? '');
-    if (dlvLat == null || dlvLng == null) {
-      debugPrint('🚚 Invalid address coords, using fallback');
-      return _configuredDeliveryFeeFallback(cartItems);
-    }
-
+  /// Ancien calcul (comptes Parse sans session Node uniquement).
+  Future<double> _legacyDeliveryFee(
+      List<Map<String, dynamic>> cartItems) async {
+    final dlvLat = double.tryParse(selectedAddress?.lat ?? '');
+    final dlvLng = double.tryParse(selectedAddress?.long ?? '');
     final resto = cartItems.first['restaurant'] as Map<String, dynamic>?;
-    if (resto == null) return _configuredDeliveryFeeFallback(cartItems);
-
-    final rstLat = double.tryParse(resto['restau_lat']?.toString() ?? '');
-    final rstLng = double.tryParse(resto['restau_lng']?.toString() ?? '');
-    if (rstLat == null || rstLng == null) {
-      debugPrint('🚚 Invalid restaurant coords, using fallback');
-      return _configuredDeliveryFeeFallback(cartItems);
-    }
-
-    try {
-      debugPrint('🚚 Trying Parse Cloud Function...');
-      final fn = ParseCloudFunction('calculateDeliveryFee');
-      final response = await fn.execute(parameters: {
-        'restauLat': rstLat,
-        'restauLng': rstLng,
-        'deliveryLat': dlvLat,
-        'deliveryLng': dlvLng,
-      });
-      if (response.success && response.result != null) {
-        final data = response.result as Map<String, dynamic>;
-        if (data['success'] == true && data['delivery_fee'] != null) {
-          debugPrint('🚚 Parse Cloud Function returned: ${data['delivery_fee']}');
-          return (data['delivery_fee'] as num).toDouble();
+    final rstLat = double.tryParse(resto?['restau_lat']?.toString() ?? '');
+    final rstLng = double.tryParse(resto?['restau_lng']?.toString() ?? '');
+    if (dlvLat != null && dlvLng != null && rstLat != null && rstLng != null) {
+      try {
+        final response =
+            await ParseCloudFunction('calculateDeliveryFee').execute(
+          parameters: {
+            'restauLat': rstLat,
+            'restauLng': rstLng,
+            'deliveryLat': dlvLat,
+            'deliveryLng': dlvLng,
+          },
+        );
+        if (response.success && response.result is Map) {
+          final data = Map<String, dynamic>.from(response.result as Map);
+          if (data['success'] == true && data['delivery_fee'] != null) {
+            return (data['delivery_fee'] as num).toDouble();
+          }
         }
-      }
-    } catch (e) {
-      debugPrint('🚚 Parse Cloud Function error: $e');
+      } catch (_) {}
     }
-
-    debugPrint('🚚 All methods failed, using fallback');
     return _configuredDeliveryFeeFallback(cartItems);
   }
 
@@ -695,7 +747,6 @@ class _CartState extends ConsumerState<Cart> {
       selectedAddress?.addressID,
       selectedAddress?.lat,
       selectedAddress?.long,
-      _subtotal(cartItems),
     ].join('|');
   }
 
@@ -703,26 +754,32 @@ class _CartState extends ConsumerState<Cart> {
       List<Map<String, dynamic>> cartItems, String deliveryMode) {
     if (deliveryMode != kDeliveryOptionLivraison || cartItems.isEmpty) {
       _deliveryFeeKey = null;
-      _calculatedDeliveryFee = null;
+      _feeQuote = null;
       _isDeliveryFeeLoading = false;
+      return;
+    }
+    // Les adresses ne sont pas encore chargées : on attend au lieu
+    // d'afficher un tarif provisoire qui changerait ensuite.
+    if (!_addressesLoaded) {
+      _isDeliveryFeeLoading = true;
       return;
     }
 
     final key = _deliveryFeeCacheKey(cartItems);
-    if (_deliveryFeeKey == key && _calculatedDeliveryFee != null) return;
+    if (_deliveryFeeKey == key && _feeQuote != null) return;
 
     _deliveryFeeKey = key;
-    _calculatedDeliveryFee = null;
+    _feeQuote = null;
     _isDeliveryFeeLoading = true;
     final requestId = ++_deliveryFeeRequestId;
-    calculateDeliveryFee(cartItems).then((fee) {
+    _quoteDeliveryFee(cartItems).then((quote) {
       if (!mounted ||
           requestId != _deliveryFeeRequestId ||
           _deliveryFeeKey != key) {
         return;
       }
       setState(() {
-        _calculatedDeliveryFee = fee;
+        _feeQuote = quote;
         _isDeliveryFeeLoading = false;
       });
     });
@@ -755,14 +812,18 @@ class _CartState extends ConsumerState<Cart> {
     required double deliveryFee,
   }) async {
     final subtotal = _subtotal(cartItems);
-    final promo = await PromoService.applyCode(
+    final check = await PromoService.applyCode(
       rawCode: _promoController.text,
       subtotal: subtotal,
       deliveryFee: deliveryFee,
     );
+    if (!mounted) return;
+    final promo = check.promo;
     if (promo == null) {
       setState(() => _appliedPromo = null);
-      Toast(context, AppLocalizations.of(context)!.cart_promo_invalid, false);
+      // Message précis du serveur (expiré, minimum, déjà utilisé…).
+      Toast(context,
+          check.error ?? AppLocalizations.of(context)!.cart_promo_invalid, false);
       return;
     }
     setState(() => _appliedPromo = promo);
@@ -826,15 +887,14 @@ class _CartState extends ConsumerState<Cart> {
     // N'afficher le montant de livraison que lorsqu'il est effectivement calculé.
     // Pendant le chargement, deliveryFee reste à null pour éviter
     // un flash visuel (ex: 500 → 1500 FCFA).
-    final deliveryFee = safeOption == kDeliveryOptionLivraison
-        ? _calculatedDeliveryFee
-        : 0.0;
+    final deliveryFee =
+        safeOption == kDeliveryOptionLivraison ? _feeQuote?.fee : 0.0;
     final bool deliveryFeeLoading =
         safeOption == kDeliveryOptionLivraison && _isDeliveryFeeLoading;
     
-    debugPrint('🚚 Final delivery fee: $deliveryFee (calculated: $_calculatedDeliveryFee, loading: $deliveryFeeLoading)');
     final cartTotal = _subtotal(cartItems);
-    final reduction = _appliedPromo?.discountAmount ?? 0.0;
+    // Recalculée si le panier change après l'application du code.
+    final reduction = _appliedPromo?.discountFor(cartTotal) ?? 0.0;
     final payableTotal =
         (cartTotal + (deliveryFee ?? 0.0) - reduction).clamp(0.0, double.infinity);
     final deliveryBlocked = _cartDeliveryAvailability != null &&
@@ -1077,10 +1137,34 @@ class _CartState extends ConsumerState<Cart> {
                     CartSummaryRow(
                         l10n.subtotal, _formatAmount(cartTotal, cc, cs)),
                     if (safeOption == kDeliveryOptionLivraison)
-                      CartSummaryRow(l10n.deliveryFee,
-                          deliveryFeeLoading
-                              ? '...'
-                              : CurrencyUtil.formatConvertedPrice(deliveryFee ?? 0.0)),
+                      CartSummaryRow(
+                        _feeQuote?.distanceKm != null
+                            ? '${l10n.deliveryFee} · '
+                                '${_feeQuote!.distanceKm!.toStringAsFixed(1)} km'
+                            : l10n.deliveryFee,
+                        deliveryFeeLoading
+                            ? '...'
+                            : _feeQuote?.ok == true
+                                ? CurrencyUtil.formatConvertedPrice(
+                                    _feeQuote!.fee!)
+                                : _feeQuote?.needsAddress == true
+                                    ? l10n.cart_choose_address
+                                    : '—',
+                        valueColor: _feeQuote?.ok == true ? null : CC.inkMuted,
+                      ),
+                    if (safeOption == kDeliveryOptionLivraison &&
+                        !deliveryFeeLoading &&
+                        _feeQuote?.message != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Text(
+                          _feeQuote!.message!,
+                          style: AppTypography.bodySmall(
+                            color: AppColors.resolve(
+                                AppColors.error, AppDarkColors.error),
+                          ),
+                        ),
+                      ),
                     if (_appliedPromo != null)
                       CartSummaryRow(
                         l10n.cart_discount,
@@ -1111,34 +1195,28 @@ class _CartState extends ConsumerState<Cart> {
                   _PaymentRowTile(
                     icon: Icons.payments_outlined,
                     label: l10n.cart_payment_cod,
-                    subtitle: 'Payer en espèces à la réception',
-                    selected: !_payOnline && !_payWallet,
-                    onTap: () => setState(() {
-                      _payOnline = false;
-                      _payWallet = false;
-                    }),
+                    subtitle: safeOption == kDeliveryOptionLivraison
+                        ? l10n.cart_payment_cod_hint
+                        : l10n.cart_payment_cod_pickup_hint,
+                    selected: _payMode == _PayMode.cash,
+                    onTap: () => setState(() => _payMode = _PayMode.cash),
                   ),
                   const SizedBox(height: 10),
                   _PaymentRowTile(
-                    icon: Icons.credit_card_outlined,
+                    icon: Icons.phone_android_rounded,
                     label: l10n.cart_payment_fedapay,
-                    subtitle: 'Paiement en ligne sécurisé',
-                    selected: _payOnline,
-                    onTap: () => setState(() {
-                      _payOnline = true;
-                      _payWallet = false;
-                    }),
+                    subtitle: l10n.cart_payment_mobile_money_hint,
+                    selected: _payMode == _PayMode.mobileMoney,
+                    onTap: () =>
+                        setState(() => _payMode = _PayMode.mobileMoney),
                   ),
                   const SizedBox(height: 10),
                   _PaymentRowTile(
                     icon: Icons.account_balance_wallet_rounded,
-                    label: 'Portefeuille Dios',
-                    subtitle: 'Payer avec votre solde',
-                    selected: _payWallet,
-                    onTap: () => setState(() {
-                      _payWallet = true;
-                      _payOnline = false;
-                    }),
+                    label: l10n.cart_payment_wallet,
+                    subtitle: l10n.cart_payment_wallet_hint,
+                    selected: _payMode == _PayMode.wallet,
+                    onTap: () => setState(() => _payMode = _PayMode.wallet),
                   ),
                 ],
               ),
@@ -1152,11 +1230,21 @@ class _CartState extends ConsumerState<Cart> {
         animation: CurrencyService.instance,
         builder: (_, __) => CartCheckoutBar(
           loading: _isSubmittingPayment,
+          totalLabel: l10n.total,
+          totalValue: deliveryFeeLoading
+              ? '...'
+              : CurrencyUtil.formatConvertedPrice(payableTotal),
+          methodLabel: switch (_payMode) {
+            _PayMode.cash => l10n.cart_payment_cod,
+            _PayMode.mobileMoney => l10n.cart_payment_fedapay,
+            _PayMode.wallet => l10n.cart_payment_wallet,
+          },
           label: _isSubmittingPayment
               ? l10n.cart_processing
-              : l10n.cart_order_button(
-                  CurrencyUtil.formatConvertedPrice(payableTotal)),
-          onPressed: canSubmit
+              : (_payMode == _PayMode.cash
+                  ? l10n.cart_checkout_order
+                  : l10n.cart_checkout_pay),
+          onPressed: canSubmit && !deliveryFeeLoading
               ? () async {
                   if (deliveryBlocked) {
                     await showDeliveryUnavailableSheet(context);
@@ -1166,12 +1254,16 @@ class _CartState extends ConsumerState<Cart> {
                     await showRestaurantClosedSheet(context);
                     return;
                   }
-                  if (_payWallet) {
-                    await _handleWalletPayment();
-                  } else if (_payOnline) {
-                    await _handleOnlinePayment();
-                  } else {
-                    await _handleOrder();
+                  switch (_payMode) {
+                    case _PayMode.wallet:
+                      await _handleWalletPayment();
+                      break;
+                    case _PayMode.mobileMoney:
+                      await _handleOnlinePayment();
+                      break;
+                    case _PayMode.cash:
+                      await _handleOrder();
+                      break;
                   }
                 }
               : null,
@@ -1232,121 +1324,210 @@ class _CartState extends ConsumerState<Cart> {
     return false;
   }
 
-  Future<void> _handleOrder() async {
+  // ═══════════════════════════════════════════════════════════
+  //  Passage de commande — étapes communes aux trois modes
+  // ═══════════════════════════════════════════════════════════
+
+  /// Vérifications communes (adresse, zone, disponibilité, horaires) puis
+  /// calcul des montants. Retourne null si la commande ne peut pas partir ;
+  /// le client a alors déjà été informé.
+  Future<_Checkout?> _prepareCheckout() async {
     final option = ref.read(selectedDeliveryProvider);
     final l10n = AppLocalizations.of(context)!;
     if (option == kDeliveryOptionLivraison && selectedAddress == null) {
       Toast(context, l10n.cart_choose_address_warning, false);
-      return;
+      return null;
     }
     if (option == kDeliveryOptionLivraison && selectedAddress != null) {
       final inZone = await _checkAddressInZone(selectedAddress!);
-      if (!inZone) return;
+      if (!inZone || !mounted) return null;
     }
     final cartItems = _itemsForRestaurant(ref.read(cartStateProvider));
+    if (cartItems.isEmpty) return null;
     await _refreshCartDeliveryAvailability(cartItems);
+    if (!mounted) return null;
     if (_cartDeliveryAvailability != null &&
         !_cartDeliveryAvailability!.canOrder) {
       await showDeliveryUnavailableSheet(context);
-      return;
+      return null;
     }
     if (_cartOpeningStatus != null && !_cartOpeningStatus!.isOpen) {
       await showRestaurantClosedSheet(context);
-      return;
+      return null;
     }
-    final cartNotifier = ref.read(cartStateProvider.notifier);
     final items = List<Map<String, dynamic>>.from(cartItems);
     final country = _countryFromCart(items);
-    final cc = _currencyCode(country);
-    final fee = option == kDeliveryOptionLivraison
-        ? await calculateDeliveryFee(items)
-        : 0.0;
-    final discount = _appliedPromo?.discountAmount ?? 0.0;
+    var fee = 0.0;
+    if (option == kDeliveryOptionLivraison) {
+      final quote = await _quoteDeliveryFee(items);
+      if (!mounted) return null;
+      if (!quote.ok) {
+        Toast(
+          context,
+          quote.needsAddress
+              ? l10n.cart_choose_address_warning
+              : (quote.message ?? l10n.cart_order_error_retry),
+          false,
+        );
+        return null;
+      }
+      fee = quote.fee!;
+    }
+    final restaurantId = int.tryParse(
+            (items.first['restaurant'] as Map)['restau_id'].toString()) ??
+        0;
+    return _Checkout(
+      option: option,
+      items: items,
+      country: country,
+      currencyCode: _currencyCode(country),
+      fee: fee,
+      discount: _appliedPromo?.discountFor(_subtotal(items)) ?? 0.0,
+      restaurantId: restaurantId,
+    );
+  }
+
+  Future<String?> _createOrderFor(_Checkout c) => createOrder(
+        c.items,
+        c.fee,
+        c.isDelivery ? selectedAddress?.addressID : null,
+        null,
+        ref,
+        currencyCode: c.currencyCode,
+        country: c.country,
+        reduction: c.discount,
+        promoCode: _appliedPromo?.code,
+        cityID: _userCityId,
+        deliveryMode: c.option,
+      );
+
+  /// Empreinte du panier : une commande Mobile Money impayée n'est
+  /// réutilisée que si rien n'a changé (articles, mode, adresse, promo).
+  String _checkoutSignature(_Checkout c) {
+    final lines = c.items.map((item) {
+      final meal = item['meal'] as Map;
+      final order = item['order'] as Map;
+      return '${meal['mealID']}x${order['quantity']}'
+          '${item['optionDetails'] ?? ''}';
+    }).join(',');
+    final address = c.isDelivery ? selectedAddress?.addressID : null;
+    return '${c.restaurantId}|$lines|${c.option}|$address|'
+        '${_appliedPromo?.code ?? ''}';
+  }
+
+  /// Suite commune après une commande acceptée : notification du
+  /// restaurateur, vidage du panier, page de confirmation.
+  Future<void> _completeOrder(
+    _Checkout c,
+    String commandeId, {
+    required String paymentProvider,
+    bool paymentPending = false,
+  }) async {
+    final restaurantsList = await Restaurant.fetchRestaurantsFromDB();
+    final currentRestaurant =
+        Restaurant.getRestaurantByRestaurantId(restaurantsList, c.restaurantId);
+    if (currentRestaurant != null) {
+      final total = _subtotal(c.items) + c.fee - c.discount;
+      NotificationService.sendOrderNotificationToRestaurateur(
+        restaurateurId: currentRestaurant.userID,
+        restaurantName: currentRestaurant.name,
+        totalAmount: total.clamp(0.0, double.infinity),
+        orderId: int.tryParse(commandeId),
+        currencySymbol: CurrencyUtil.symbol(CurrencyUtil.code(c.country)),
+      );
+    }
+    await ref
+        .read(cartStateProvider.notifier)
+        .clearRestaurantCart(c.restaurantId);
+    if (!mounted) return;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => OrderConfirmationPage(
+          commandeId: commandeId,
+          paymentPending: paymentPending,
+          paymentProvider: paymentProvider,
+        ),
+      ),
+    );
+  }
+
+  /// Message lisible pour une erreur du backend ou du réseau.
+  String _errorMessage(Object error, AppLocalizations l10n) {
+    if (error is NodeAuthException && error.message.trim().isNotEmpty) {
+      return error.message;
+    }
+    if (error is WalletException && error.message.trim().isNotEmpty) {
+      return error.message;
+    }
+    return l10n.cart_order_error_retry;
+  }
+
+  // ── 1. À la livraison (espèces) ──────────────────────────
+  Future<void> _handleOrder() async {
+    final l10n = AppLocalizations.of(context)!;
+    final checkout = await _prepareCheckout();
+    if (checkout == null || !mounted) return;
 
     setState(() => _isSubmittingPayment = true);
     try {
-      final commandeId = await createOrder(
-        cartItems,
-        fee,
-        option == kDeliveryOptionLivraison ? selectedAddress?.addressID : null,
-        null,
-        ref,
-        currencyCode: cc,
-        country: country,
-        reduction: discount,
-        promoCode: _appliedPromo?.code,
-        cityID: _userCityId,
-        deliveryMode: option,
-      );
-      if (commandeId != null) {
-        Toast(context, l10n.cart_order_confirm_message, true);
-        final restaurantId = int.tryParse(
-                cartItems.first['restaurant']['restau_id'].toString()) ??
-            0;
-        final restaurantsList = await Restaurant.fetchRestaurantsFromDB();
-        final currentRestaurant = Restaurant.getRestaurantByRestaurantId(
-            restaurantsList, restaurantId);
-        if (currentRestaurant != null) {
-          final total = _subtotal(items) + fee - discount;
-          NotificationService.sendOrderNotificationToRestaurateur(
-            restaurateurId: currentRestaurant.userID,
-            restaurantName: currentRestaurant.name,
-            totalAmount: total.clamp(0.0, double.infinity),
-            orderId: int.tryParse(commandeId),
-            currencySymbol: CurrencyUtil.symbol(CurrencyUtil.code(country)),
-          );
-        }
-        await cartNotifier.clearRestaurantCart(restaurantId);
-        if (mounted) {
-          Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                  builder: (_) =>
-                      OrderConfirmationPage(
-                            commandeId: commandeId,
-                            paymentProvider: 'confirmed_cash',
-                          )));
-        }
-      } else {
+      final commandeId = await _createOrderFor(checkout);
+      if (!mounted) return;
+      if (commandeId == null || commandeId.isEmpty) {
         Toast(context, l10n.cart_order_failed, false);
+        return;
       }
-    } catch (_) {
-      Toast(context, l10n.cart_order_error_retry, false);
+      Toast(context, l10n.cart_order_confirm_message, true);
+      await _completeOrder(
+        checkout,
+        commandeId,
+        paymentProvider: 'confirmed_cash',
+      );
+    } catch (e) {
+      if (mounted) Toast(context, _errorMessage(e, l10n), false);
     } finally {
       if (mounted) setState(() => _isSubmittingPayment = false);
     }
   }
 
-  /// SnackBar rouge « Solde insuffisant » avec action « Recharger ».
-  void _showInsufficientBalance() {
+  /// SnackBar « Solde insuffisant » avec action « Recharger ».
+  void _showInsufficientBalance(String message) {
     if (!mounted) return;
+    final l10n = AppLocalizations.of(context)!;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
+          behavior: SnackBarBehavior.floating,
           backgroundColor: AppColors.error,
+          margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           duration: const Duration(seconds: 8),
-          content: const Row(
+          content: Row(
             children: [
-              Icon(Icons.error_outline_rounded, color: Colors.white),
-              SizedBox(width: 10),
+              const Icon(Icons.account_balance_wallet_outlined,
+                  color: Colors.white),
+              const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Solde insuffisant',
-                  style: TextStyle(
+                  message,
+                  style: const TextStyle(
                       color: Colors.white, fontWeight: FontWeight.w700),
                 ),
               ),
             ],
           ),
           action: SnackBarAction(
-            label: 'Recharger',
+            label: l10n.cart_wallet_topup,
             textColor: Colors.white,
             onPressed: () {
               if (!mounted) return;
+              // Ouvre directement la recharge ; au retour, le client relance
+              // « Payer » depuis le panier, qui est conservé.
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const WalletScreen()),
+                MaterialPageRoute(
+                  builder: (_) => const WalletScreen(openTopUpOnStart: true),
+                ),
               );
             },
           ),
@@ -1354,281 +1535,194 @@ class _CartState extends ConsumerState<Cart> {
       );
   }
 
-  /// Paiement par portefeuille : crée la commande puis la règle avec le solde.
+  static bool _isInsufficientBalance(Object error) {
+    final message = error is NodeAuthException
+        ? error.message
+        : (error is WalletException ? error.message : '');
+    return message.toLowerCase().contains('insuffisant') ||
+        message.toLowerCase().contains('insufficient');
+  }
+
+  // ── 2. Portefeuille ──────────────────────────────────────
+  /// Avec une session Node, le backend débite le portefeuille dans la même
+  /// transaction que la création de la commande (ou refuse tout si le
+  /// solde manque) : rien d'autre à faire. L'ancien flux Parse crée la
+  /// commande puis la règle via /pay-wallet.
   Future<void> _handleWalletPayment() async {
-    final option = ref.read(selectedDeliveryProvider);
     final l10n = AppLocalizations.of(context)!;
-    if (option == kDeliveryOptionLivraison && selectedAddress == null) {
-      Toast(context, l10n.cart_choose_address_warning, false);
-      return;
-    }
-    if (option == kDeliveryOptionLivraison && selectedAddress != null) {
-      final inZone = await _checkAddressInZone(selectedAddress!);
-      if (!inZone) return;
-    }
-    final cartItems = _itemsForRestaurant(ref.read(cartStateProvider));
-    await _refreshCartDeliveryAvailability(cartItems);
-    if (_cartDeliveryAvailability != null &&
-        !_cartDeliveryAvailability!.canOrder) {
-      await showDeliveryUnavailableSheet(context);
-      return;
-    }
-    if (_cartOpeningStatus != null && !_cartOpeningStatus!.isOpen) {
-      await showRestaurantClosedSheet(context);
-      return;
-    }
-    final cartNotifier = ref.read(cartStateProvider.notifier);
-    final items = List<Map<String, dynamic>>.from(cartItems);
-    final country = _countryFromCart(items);
-    final cc = _currencyCode(country);
-    final fee = option == kDeliveryOptionLivraison
-        ? await calculateDeliveryFee(items)
-        : 0.0;
-    final discount = _appliedPromo?.discountAmount ?? 0.0;
+    final checkout = await _prepareCheckout();
+    if (checkout == null || !mounted) return;
 
     setState(() => _isSubmittingPayment = true);
     try {
-      // 1. Commande (ou reprise de celle restée impayée)
       final hasNodeSession = await SessionService.hasNodeSession();
-      final wasAlreadyCreated = _walletPendingOrderId != null;
-      var commandeId = _walletPendingOrderId;
-      if (commandeId == null) {
-        commandeId = await createOrder(
-          cartItems,
-          fee,
-          option == kDeliveryOptionLivraison
-              ? selectedAddress?.addressID
-              : null,
-          null,
-          ref,
-          currencyCode: cc,
-          country: country,
-          reduction: discount,
-          promoCode: _appliedPromo?.code,
-          cityID: _userCityId,
-          deliveryMode: option,
-        );
-        if (commandeId == null) {
-          if (mounted) Toast(context, l10n.cart_order_failed, false);
-          return;
-        }
-        _walletPendingOrderId = commandeId;
-      }
-
-      // 2. Paiement par le portefeuille (si la commande n'a pas déjà été débitée lors du createOrder Node)
-      if (!hasNodeSession || wasAlreadyCreated) {
-        try {
+      String? commandeId;
+      if (hasNodeSession) {
+        commandeId = await _createOrderFor(checkout);
+      } else {
+        commandeId = _walletPendingOrderId ?? await _createOrderFor(checkout);
+        if (commandeId != null) {
+          _walletPendingOrderId = commandeId;
           await WalletService.payOrderWithWallet(commandeId);
-        } on WalletException catch (e) {
-          // Afficher le message d'erreur spécifique du portefeuille
-          if (mounted) {
-            Toast(context, e.message, false);
-            setState(() => _isSubmittingPayment = false);
-          }
-          return; // la commande reste en attente, le panier est conservé
         }
+      }
+      if (!mounted) return;
+      if (commandeId == null || commandeId.isEmpty) {
+        Toast(context, l10n.cart_order_failed, false);
+        return;
       }
       _walletPendingOrderId = null;
-
-      // 3. Succès : même suite que pour une commande classique
-      if (!mounted) return;
       Toast(context, l10n.cart_order_confirm_message, true);
-      final restaurantId = int.tryParse(
-              cartItems.first['restaurant']['restau_id'].toString()) ??
-          0;
-      final restaurantsList = await Restaurant.fetchRestaurantsFromDB();
-      final currentRestaurant = Restaurant.getRestaurantByRestaurantId(
-          restaurantsList, restaurantId);
-      if (currentRestaurant != null) {
-        final total = _subtotal(items) + fee - discount;
-        NotificationService.sendOrderNotificationToRestaurateur(
-          restaurateurId: currentRestaurant.userID,
-          restaurantName: currentRestaurant.name,
-          totalAmount: total.clamp(0.0, double.infinity),
-          orderId: int.tryParse(commandeId),
-          currencySymbol: CurrencyUtil.symbol(CurrencyUtil.code(country)),
-        );
-      }
-      await cartNotifier.clearRestaurantCart(restaurantId);
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => OrderConfirmationPage(
-              commandeId: commandeId!,
-              paymentProvider: 'wallet',
-            ),
-          ),
-        );
-      }
-    } on WalletException catch (e) {
-      if (mounted) Toast(context, e.message, false);
-    } on NodeAuthException catch (e) {
-      if (mounted) Toast(context, e.message, false);
+      await _completeOrder(checkout, commandeId, paymentProvider: 'wallet');
     } catch (e) {
-      if (mounted) {
-        final msg = e.toString().replaceAll('Exception: ', '').trim();
-        Toast(
-          context,
-          msg.isNotEmpty ? msg : l10n.cart_order_error_retry,
-          false,
-        );
+      if (!mounted) return;
+      if (_isInsufficientBalance(e)) {
+        _showInsufficientBalance(_errorMessage(e, l10n));
+      } else {
+        Toast(context, _errorMessage(e, l10n), false);
       }
     } finally {
       if (mounted) setState(() => _isSubmittingPayment = false);
     }
   }
 
+  // ── 3. Mobile Money (Nyole) ──────────────────────────────
+  /// Crée la commande (statut AWAITING_PAYMENT), ouvre la page Nyole et ne
+  /// vide le panier qu'une fois le retour « succès » reçu. Si le client
+  /// annule, le panier est conservé et la même commande est réutilisée au
+  /// prochain essai tant que le panier n'a pas changé.
   Future<void> _handleOnlinePayment() async {
-    final option = ref.read(selectedDeliveryProvider);
     final l10n = AppLocalizations.of(context)!;
-    if (option == kDeliveryOptionLivraison && selectedAddress == null) {
-      Toast(context, l10n.cart_choose_address_warning, false);
-      return;
-    }
-    if (option == kDeliveryOptionLivraison && selectedAddress != null) {
-      final inZone = await _checkAddressInZone(selectedAddress!);
-      if (!inZone) return;
-    }
-    final cartItems = _itemsForRestaurant(ref.read(cartStateProvider));
-    await _refreshCartDeliveryAvailability(cartItems);
-    if (_cartDeliveryAvailability != null &&
-        !_cartDeliveryAvailability!.canOrder) {
-      await showDeliveryUnavailableSheet(context);
-      return;
-    }
-    if (_cartOpeningStatus != null && !_cartOpeningStatus!.isOpen) {
-      await showRestaurantClosedSheet(context);
-      return;
-    }
-    final cartNotifier = ref.read(cartStateProvider.notifier);
-    final items = List<Map<String, dynamic>>.from(cartItems);
-    final country = _countryFromCart(items);
-    final cc = _currencyCode(country);
-    final fee = option == kDeliveryOptionLivraison
-        ? await calculateDeliveryFee(items)
-        : 0.0;
-    final discount = _appliedPromo?.discountAmount ?? 0.0;
-    final total =
-        (_subtotal(items) + fee - discount).clamp(0.0, double.infinity);
+    final checkout = await _prepareCheckout();
+    if (checkout == null || !mounted) return;
+
     setState(() => _isSubmittingPayment = true);
     try {
-      final commandeId = await createOrder(
-        cartItems,
-        fee,
-        option == kDeliveryOptionLivraison ? selectedAddress?.addressID : null,
-        null,
-        ref,
-        currencyCode: cc,
-        country: country,
-        reduction: discount,
-        promoCode: _appliedPromo?.code,
-        cityID: _userCityId,
-        deliveryMode: option,
-      );
+      final signature = _checkoutSignature(checkout);
+      final reusable = _onlinePending?.signature == signature;
+      String? commandeId = reusable ? _onlinePending!.orderId : null;
+      String? orderUuid = reusable ? _onlinePending!.orderUuid : null;
+
       if (commandeId == null) {
-        Toast(context, AppLocalizations.of(context)!.cart_order_failed, false);
+        _lastCreatedOrderUuid = null;
+        commandeId = await _createOrderFor(checkout);
+        if (!mounted) return;
+        if (commandeId == null || commandeId.isEmpty) {
+          Toast(context, l10n.cart_order_failed, false);
+          return;
+        }
+        orderUuid = _lastCreatedOrderUuid;
+        _onlinePending = _PendingOnlineOrder(
+          orderId: commandeId,
+          orderUuid: orderUuid,
+          signature: signature,
+        );
+      }
+
+      final data = await _initializeOnlinePayment(commandeId, orderUuid);
+      if (!mounted) return;
+      final paymentUrl = data?['paymentUrl']?.toString();
+      if (paymentUrl == null || paymentUrl.isEmpty) {
+        Toast(
+          context,
+          data == null ? l10n.cart_payment_online_error : l10n.cart_payment_url_error,
+          false,
+        );
         return;
       }
-      Map<String, dynamic>? data;
-      final nodeToken = await SessionService.readNodeToken();
-      if (nodeToken != null) {
+
+      final paid = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => NyolePaymentPage(
+            paymentUrl: paymentUrl,
+            orderId: commandeId!,
+          ),
+        ),
+      );
+      if (!mounted) return;
+
+      if (paid == true) {
+        _onlinePending = null;
+        // Le retour « succès » n'est pas une preuve : la commande passe à
+        // « payée » quand le webhook Nyole est vérifié côté serveur.
+        await _completeOrder(
+          checkout,
+          commandeId,
+          paymentProvider: 'awaiting_payment',
+          paymentPending: true,
+        );
+      } else {
+        Toast(context, l10n.cart_payment_not_completed, false);
+      }
+    } catch (e) {
+      if (mounted) Toast(context, _errorMessage(e, l10n), false);
+    } finally {
+      if (mounted) setState(() => _isSubmittingPayment = false);
+    }
+  }
+
+  /// Ouvre (ou réutilise) la session de paiement Nyole de la commande.
+  Future<Map<String, dynamic>?> _initializeOnlinePayment(
+    String commandeId,
+    String? orderUuid,
+  ) async {
+    final nodeToken = await SessionService.readNodeToken();
+    if (nodeToken != null) {
+      var uuid = orderUuid;
+      if (uuid == null || uuid.isEmpty) {
+        // Repli : retrouver l'UUID dans la liste des commandes du client.
         final orders = await NodeOrderService.listMine(
           token: nodeToken,
           userId: current_userID,
+          includeLines: false,
         );
-        Map<String, dynamic>? nodeOrder;
         for (final order in orders) {
           if (order['orderId']?.toString() == commandeId) {
-            nodeOrder = order;
+            uuid = order['id']?.toString();
             break;
           }
         }
-        final orderUuid = nodeOrder?['id']?.toString();
-        if (orderUuid == null || orderUuid.isEmpty) {
-          throw const NodeAuthException('Commande Node introuvable.');
-        }
-        data = await NodeOrderService.initializeNyole(
-          token: nodeToken,
-          orderUuid: orderUuid,
-        );
-      } else {
-        final session = await SessionService.readSession();
-        final usersList = await Users.fetchUsersFromDB();
-        final currentUser = Users.getUsersByUserId(usersList, session.userId);
-        final response = await ParseCloudFunction('createNyoleCheckout')
-            .execute(parameters: {
-          'commandeID': int.tryParse(commandeId),
-          'customerName':
-              '${currentUser?.firstname ?? ""} ${currentUser?.lastname ?? ""}',
-          'customerEmail': currentUser?.email ?? '',
-          'customerPhone': currentUser?.telephone?.toString() ?? '',
-        });
-        if (response.success && response.result is Map) {
-          data = Map<String, dynamic>.from(response.result as Map);
-        }
       }
-      if (data != null) {
-        final paymentUrl = data['paymentUrl']?.toString();
-        if (paymentUrl != null && paymentUrl.isNotEmpty) {
-          final restaurantId = int.tryParse(
-                  cartItems.first['restaurant']['restau_id'].toString()) ??
-              0;
-          await cartNotifier.clearRestaurantCart(restaurantId);
-          
-          if (mounted) {
-            final paymentResult = await Navigator.push<bool>(
-              context,
-              MaterialPageRoute(
-                builder: (_) => NyolePaymentPage(
-                  paymentUrl: paymentUrl,
-                  orderId: commandeId,
-                  onPaymentSuccess: () {
-                    // Le paiement est réussi, on continue vers la page de confirmation
-                  },
-                  onPaymentFailed: () {
-                    Toast(context, 'Le paiement a échoué', false);
-                  },
-                  onPaymentCancelled: () {
-                    Toast(context, 'Paiement annulé', false);
-                  },
-                ),
-              ),
-            );
-            
-            // Si le paiement a réussi (paymentResult == true), on navigue vers la confirmation
-            if (paymentResult == true && mounted) {
-              Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => OrderConfirmationPage(
-                            commandeId: commandeId,
-                            paymentPending: true,
-                            paymentProvider: 'awaiting_payment',
-                          )));
-            } else if (paymentResult == false && mounted) {
-              // Si le paiement a échoué ou été annulé, on reste sur la page du panier
-              // ou on pourrait rediriger vers une page d'erreur
-            }
-          }
-        } else {
-          Toast(context, AppLocalizations.of(context)!.cart_payment_url_error,
-              false);
-        }
-      } else {
-        Toast(context, AppLocalizations.of(context)!.cart_payment_online_error,
-            false);
+      if (uuid == null || uuid.isEmpty) {
+        throw const NodeAuthException('Commande introuvable sur le serveur.');
       }
-    } catch (e) {
-      final errorMessage = e.toString();
-      print('Erreur paiement: $errorMessage');
-      Toast(context, 'Erreur paiement: $errorMessage', false);
-    } finally {
-      if (mounted) setState(() => _isSubmittingPayment = false);
+      return NodeOrderService.initializeNyole(
+        token: nodeToken,
+        orderUuid: uuid,
+      );
     }
+
+    final session = await SessionService.readSession();
+    final usersList = await Users.fetchUsersFromDB();
+    final currentUser = Users.getUsersByUserId(usersList, session.userId);
+    final response =
+        await ParseCloudFunction('createNyoleCheckout').execute(parameters: {
+      'commandeID': int.tryParse(commandeId),
+      'customerName':
+          '${currentUser?.firstname ?? ""} ${currentUser?.lastname ?? ""}',
+      'customerEmail': currentUser?.email ?? '',
+      'customerPhone': currentUser?.telephone?.toString() ?? '',
+    });
+    if (response.success && response.result is Map) {
+      return Map<String, dynamic>.from(response.result as Map);
+    }
+    return null;
   }
 
   int get _userCityId => _cityID;
+
+  /// Code attendu par le backend Node (POST /orders).
+  String get _paymentMethodCode {
+    switch (_payMode) {
+      case _PayMode.cash:
+        return 'CASH';
+      case _PayMode.mobileMoney:
+        return 'NYOLE';
+      case _PayMode.wallet:
+        return 'WALLET';
+    }
+  }
 
   Future<String?> createOrder(
     List<dynamic> cartItems,
@@ -1665,8 +1759,7 @@ class _CartState extends ConsumerState<Cart> {
         lines: lines,
         deliveryMode: deliveryMode,
         addressId: idAdresse,
-        paymentMethod: idPaiement ??
-            (_payWallet ? 'WALLET' : (_payOnline ? 'NYOLE' : 'CASH')),
+        paymentMethod: idPaiement ?? _paymentMethodCode,
         reduction: reduction,
         promoCode: promoCode,
         cityId: cityID,
@@ -1676,6 +1769,7 @@ class _CartState extends ConsumerState<Cart> {
       final order = result['order'];
       if (order is! Map) return null;
       final normalizedOrder = Map<String, dynamic>.from(order);
+      _lastCreatedOrderUuid = normalizedOrder['id']?.toString();
       final commande = NodeOrderService.toLegacyCommande(normalizedOrder);
       await DatabaseHelper.createCommande(commande);
 
@@ -1765,215 +1859,6 @@ class _CartState extends ConsumerState<Cart> {
     return null;
   }
 }
-
-// ── Composants UI Panier ───────────────────────────────────
-
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle(this.title);
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(title,
-        style: AppTypography.titleMedium(
-          color: AppColors.resolve(AppColors.ink, AppDarkColors.ink),
-        ).copyWith(fontSize: 17));
-  }
-}
-
-class _SummaryRow extends StatelessWidget {
-  const _SummaryRow(this.label, this.value);
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: AppTypography.bodyLarge(color: color)),
-          Text(value, style: AppTypography.bodyLarge(color: color)),
-        ],
-      ),
-    );
-  }
-}
-
-class _CartItemCard extends StatelessWidget {
-  const _CartItemCard({
-    required this.item,
-    required this.country,
-    required this.onDelete,
-    required this.onQuantityChanged,
-  });
-
-  final Map<String, dynamic> item;
-  final String country;
-  final VoidCallback onDelete;
-  final ValueChanged<int> onQuantityChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final meal = item["meal"] as Map<String, dynamic>;
-    final quantity = (item["order"]["quantity"] as num).toInt();
-    final unitPrice = (meal["price"] as num).toDouble();
-    final optionPrice = (item["optionPrice"] as num?)?.toDouble() ?? 0.0;
-    final lineTotal = (unitPrice + optionPrice) * quantity;
-    final maxQty = (meal["number_of_servings"] as num?)?.toInt() ?? 99;
-
-    String format(double v) => CurrencyUtil.formatPrice(v, country);
-
-    return Dismissible(
-      key: Key('cart_${item.hashCode}'),
-      direction: DismissDirection.endToStart,
-      background: Container(
-        margin: const EdgeInsets.only(bottom: 14),
-        decoration: BoxDecoration(
-          color:
-              AppColors.resolve(AppColors.errorLight, AppDarkColors.errorLight),
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-        ),
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        child: const Icon(Icons.delete_outline, color: AppColors.error),
-      ),
-      onDismissed: (_) => onDelete(),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 14),
-        decoration: BoxDecoration(
-          color: AppColors.resolve(AppColors.card, AppDarkColors.card),
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(
-              color: AppColors.resolve(AppColors.border, AppDarkColors.border),
-              width: 0.5),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              // Photo
-              ClipRRect(
-                borderRadius: BorderRadius.circular(AppRadius.md),
-                child: DiosImage(
-                  url: meal["image"],
-                  width: 72,
-                  height: 72,
-                ),
-              ),
-              const SizedBox(width: 14),
-              // Infos
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      meal["meal_name"] ?? '',
-                      style: AppTypography.titleMedium(
-                        color:
-                            AppColors.resolve(AppColors.ink, AppDarkColors.ink),
-                      ).copyWith(fontSize: 15),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      format(lineTotal),
-                      style: AppTypography.bodyLarge(
-                        color:
-                            AppColors.resolve(AppColors.ink, AppDarkColors.ink),
-                      ),
-                    ),
-                    if (item["optionDetails"] != null &&
-                        item["optionDetails"] is Map)
-                      ...(item["optionDetails"] as Map)
-                          .entries
-                          .map<Widget>((entry) {
-                        final info = entry.value as Map<String, dynamic>;
-                        return Text(
-                          '${entry.key}: ${info["name"] ?? ""}',
-                          style: AppTypography.labelMedium(
-                              color: AppColors.resolve(AppColors.inkSubtle,
-                                  AppDarkColors.inkSubtle)),
-                        );
-                      }),
-                  ],
-                ),
-              ),
-              // Contrôle quantité
-              Column(
-                children: [
-                  _QtyButton(
-                    icon: Icons.add_rounded,
-                    color: AppColors.resolve(AppColors.ink, AppDarkColors.ink),
-                    onTap: quantity < maxQty
-                        ? () => onQuantityChanged(quantity + 1)
-                        : null,
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2),
-                    child: Text(
-                      '$quantity',
-                      style: AppTypography.titleMedium(
-                        color:
-                            AppColors.resolve(AppColors.ink, AppDarkColors.ink),
-                      ).copyWith(fontSize: 16),
-                    ),
-                  ),
-                  _QtyButton(
-                    icon: Icons.remove_rounded,
-                    onTap: quantity > 1
-                        ? () => onQuantityChanged(quantity - 1)
-                        : null,
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _QtyButton extends StatelessWidget {
-  const _QtyButton({
-    required this.icon,
-    this.color,
-    required this.onTap,
-  });
-  final IconData icon;
-  final Color? color;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 32,
-        height: 28,
-        decoration: BoxDecoration(
-          color: onTap != null
-              ? AppColors.resolve(
-                  AppColors.brandSurface, AppDarkColors.brandSurface)
-              : AppColors.resolve(
-                  AppColors.surfaceWarm, AppDarkColors.surfaceWarm),
-          borderRadius: BorderRadius.circular(AppRadius.sm),
-        ),
-        child: Icon(icon,
-            size: 18,
-            color: onTap != null
-                ? AppColors.resolve(AppColors.brand, AppDarkColors.brand)
-                : AppColors.resolve(AppColors.border, AppDarkColors.border)),
-      ),
-    );
-  }
-}
-
-// ── Confirmation ────────────────────────────────────────
 
 class OrderConfirmationPage extends StatelessWidget {
   final String commandeId;
@@ -2539,69 +2424,77 @@ class _PaymentRowTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
+    final radius = BorderRadius.circular(AppRadius.md);
+    return Semantics(
+      selected: selected,
+      button: true,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 220),
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
-        constraints: const BoxConstraints(minHeight: 66),
         decoration: BoxDecoration(
           color: selected ? CC.brandSurface : CC.card,
-          borderRadius: BorderRadius.circular(AppRadius.lg),
+          borderRadius: radius,
           border: Border.all(
             color: selected ? CC.brand : CC.border,
-            width: selected ? 1.5 : 0.5,
+            width: selected ? 1.5 : 1,
           ),
         ),
-        child: Row(
-          children: [
-            Icon(icon, size: 26, color: selected ? CC.brand : CC.inkMuted),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        child: Material(
+          type: MaterialType.transparency,
+          borderRadius: radius,
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 12, 14, 12),
+              child: Row(
                 children: [
-                  Text(
-                    label,
-                    style: AppTypography.labelMedium(
-                        color: selected ? CC.brand : CC.ink),
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 220),
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? CC.brand
+                          : CC.brand.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(icon,
+                        size: 21, color: selected ? Colors.white : CC.brand),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: AppTypography.bodyMedium(color: CC.inkMuted)
-                        .copyWith(fontSize: 12),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          label,
+                          style: AppTypography.titleSmall(color: CC.ink)
+                              .copyWith(fontSize: 15),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle,
+                          style: AppTypography.bodySmall(color: CC.inkMuted),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 180),
+                    child: Icon(
+                      selected
+                          ? Icons.check_circle_rounded
+                          : Icons.radio_button_unchecked_rounded,
+                      key: ValueKey(selected),
+                      size: 22,
+                      color: selected ? CC.brand : CC.border,
+                    ),
                   ),
                 ],
               ),
             ),
-            // bouton radio
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: 22,
-              height: 22,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: selected ? CC.brand : CC.border,
-                  width: 2,
-                ),
-              ),
-              child: Center(
-                child: AnimatedScale(
-                  scale: selected ? 1 : 0,
-                  duration: const Duration(milliseconds: 200),
-                  curve: Curves.easeOutBack,
-                  child: Container(
-                    width: 10,
-                    height: 10,
-                    decoration:
-                        BoxDecoration(shape: BoxShape.circle, color: CC.brand),
-                  ),
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

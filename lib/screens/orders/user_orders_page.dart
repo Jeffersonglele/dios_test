@@ -1,22 +1,22 @@
+import 'dart:async';
 import 'dart:convert';
-import 'dart:math';
 
-import 'package:dios_delices/core/app_role.dart';
 import 'package:dios_delices/core/commande_status.dart';
+import 'package:dios_delices/core/order_stage.dart';
 import 'package:dios_delices/l10n/app_localizations.dart';
-import 'package:dios_delices/models/address.dart';
 import 'package:dios_delices/models/commande.dart';
 import 'package:dios_delices/models/dish.dart';
 import 'package:dios_delices/models/ligne_commande.dart';
 import 'package:dios_delices/models/restaurant.dart';
-import 'package:dios_delices/models/users.dart';
 import 'package:dios_delices/services/commande_api.dart';
+import 'package:dios_delices/services/node_auth_service.dart';
 import 'package:dios_delices/services/session_service.dart';
 import 'package:dios_delices/theme/app_theme.dart';
 import 'package:dios_delices/utils/currency_util.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -73,39 +73,54 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
     return 'Erreur : ${e.toString()}';
   }
 
-  List<Commande> commandes = [];
+  /// Toutes les commandes de l'utilisateur (avant filtre).
+  List<Commande> _allOrders = [];
   bool isLoading = true;
   bool _restoValid = true;
-  bool _canAssignLivreur = false;
+  bool _isAdmin = false;
   Map<int, String> dishNames = {};
   Map<int, String> restoNames = {};
-  String? statusFilter;
+  _OrderFilter _filter = _OrderFilter.all;
   String _country = 'RDC';
   final LiveQuery liveQuery = LiveQuery();
   Subscription? sub;
+  Timer? _refreshTimer;
+
+  /// Commandes affichées selon le filtre choisi.
+  List<Commande> get commandes =>
+      _allOrders.where((c) => _filter.matches(orderStageOf(c))).toList();
 
   @override
   void initState() {
     super.initState();
     loadOrders();
-    _listen();
+    _startAutoRefresh();
+  }
+
+  /// Backend Node : rafraîchissement périodique. Ancien compte Parse :
+  /// abonnement LiveQuery comme avant.
+  Future<void> _startAutoRefresh() async {
+    if (await SessionService.hasNodeSession()) {
+      _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+        if (mounted) loadOrders();
+      });
+    } else {
+      await _listen();
+    }
   }
 
   Future<void> _listen() async {
     final query = QueryBuilder<ParseObject>(ParseObject('Commande'));
     sub = await liveQuery.client.subscribe(query);
     sub!.on(LiveQueryEvent.create, (_) async {
-      await Commande.refreshLocalCommandes();
       await LigneCommande.getAllLignesCommande();
       await loadOrders();
     });
     sub!.on(LiveQueryEvent.update, (_) async {
-      await Commande.refreshLocalCommandes();
       await LigneCommande.getAllLignesCommande();
       await loadOrders();
     });
     sub!.on(LiveQueryEvent.delete, (_) async {
-      await Commande.refreshLocalCommandes();
       await LigneCommande.getAllLignesCommande();
       await loadOrders();
     });
@@ -113,6 +128,7 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
     if (sub != null) liveQuery.client.unSubscribe(sub!);
     super.dispose();
   }
@@ -120,6 +136,7 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
   Future<void> loadOrders() async {
     final session = await SessionService.readSession();
     _country = session.country;
+    _isAdmin = session.role.isAdmin;
 
     // Vérifier la validité du restaurant pour les restaurateurs
     if (widget.showRestaurantOrders && session.restaurantId != null) {
@@ -129,16 +146,15 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
       _restoValid = resto?.valid == 1;
     }
 
-    _canAssignLivreur = session.role.isAdmin || session.role == AppRole.livreur;
-
-    await Commande.refreshLocalCommandes(); // Refresh orders from Parse first!
-    await LigneCommande
-        .getAllLignesCommande(); // Refresh order items from Parse too!
+    try {
+      await Commande.refreshLocalCommandes();
+      await LigneCommande.getAllLignesCommande();
+    } catch (_) {
+      // Hors ligne : on affiche le cache local.
+    }
     final allC = await Commande.fetchCommandesFromDB();
     final allD = await Dish.fetchDishesFromDB();
     final allR = await Restaurant.fetchRestaurantsFromDB();
-
-    for (var i = 0; i < allC.length; i++) {}
 
     final dn = <int, String>{};
     for (final d in allD) {
@@ -149,36 +165,29 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
       rn[r.restaurantID] = r.name;
     }
 
-    var filtered = <Commande>[];
+    final mine = <Commande>[];
     final restaurantId = session.restaurantId;
-    for (var c in allC) {
+    for (final c in allC) {
       if (session.role.isAdmin) {
-        filtered.add(c);
+        mine.add(c);
       } else if (widget.showRestaurantOrders) {
-        final matchRestaurateurId = c.restaurateurID == session.userId &&
-            c.restaurateurID != 0;
+        final matchRestaurateurId =
+            c.restaurateurID == session.userId && c.restaurateurID != 0;
         final matchRestaurantId = restaurantId != null &&
             c.restauID == restaurantId &&
             c.restauID != 0;
-        if (matchRestaurateurId || matchRestaurantId) {
-          filtered.add(c);
-        }
-      } else {
-        if (c.userID == session.userId) {
-          filtered.add(c);
-        }
+        if (matchRestaurateurId || matchRestaurantId) mine.add(c);
+      } else if (c.userID == session.userId) {
+        mine.add(c);
       }
     }
-    if (statusFilter != null)
-      filtered = filtered.where((c) => c.status == statusFilter).toList();
-    for (var i = 0; i < filtered.length; i++) {}
-    filtered.sort((a, b) => b.dateCommande.compareTo(a.dateCommande));
+    mine.sort((a, b) => b.dateCommande.compareTo(a.dateCommande));
 
     if (!mounted) return;
     setState(() {
       dishNames = dn;
       restoNames = rn;
-      commandes = filtered;
+      _allOrders = mine;
       isLoading = false;
       _loadedOnce = true;
     });
@@ -187,66 +196,133 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
   Future<List<LigneCommande>> getLignes(int id) =>
       LigneCommande.fetchLignesCommandeByCommandeID(id);
 
-  Future<void> updateStatus(int id, String newStatus) async {
+  /// Confirmation puis changement de statut (mêmes règles que le détail).
+  Future<void> _changeStatus(
+    Commande c, {
+    required String status,
+    required String title,
+    required String body,
+    required String confirmLabel,
+    required Color color,
+    required String successMessage,
+  }) async {
+    final l10n = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       context: context,
-      barrierDismissible: false,
-      builder: (ctx) => _ConfirmDialog(
-        isConfirm: newStatus != CommandeStatus.cancelled,
-        commandeId: id,
-        actionStatus: newStatus,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.lg)),
+        title: Text(title, style: AppTypography.titleMedium(color: _ink)),
+        content: Text(body,
+            style: AppTypography.bodyMedium(color: _muted)
+                .copyWith(height: 1.45)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.no),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: color,
+              foregroundColor: Colors.white,
+            ),
+            child: Text(confirmLabel),
+          ),
+        ],
       ),
     );
+    if (confirmed != true || !mounted) return;
 
-    if (confirmed == true) {
-      // Afficher un indicateur de chargement
-      setState(() => isLoading = true);
-
-      try {
-        // Tentative de mise à jour
-        await CommandeApi.updateOrderStatus(id.toString(), newStatus);
-
-        // Rafraîchir les données
-        await Commande.refreshLocalCommandes();
-        await loadOrders();
-
-        // Message de succès
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(_statusActionMessage(newStatus)),
-              backgroundColor: newStatus == CommandeStatus.confirmed
-                  ? AppColors.resolve(AppColors.success, AppDarkColors.success)
-                  : AppColors.resolve(AppColors.error, AppDarkColors.error),
-              duration: const Duration(seconds: 2),
-            ),
-          );
-        }
-      } catch (e) {
-        // Message d'erreur détaillé
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Erreur: ${e.toString()}'),
-              backgroundColor:
-                  AppColors.resolve(AppColors.error, AppDarkColors.error),
-              duration: const Duration(seconds: 4),
-            ),
-          );
-        }
-      } finally {
-        if (mounted) {
-          setState(() => isLoading = false);
-        }
-      }
+    setState(() => isLoading = true);
+    try {
+      await CommandeApi.updateOrderStatus(c.commandeID.toString(), status);
+      await loadOrders();
+      if (mounted) _snack(successMessage, AppColors.success);
+    } catch (e) {
+      final message = e is NodeAuthException
+          ? e.message
+          : e.toString().replaceFirst('Exception: ', '');
+      if (mounted) _snack(message, AppColors.error);
+    } finally {
+      if (mounted) setState(() => isLoading = false);
     }
   }
 
+  void _snack(String message, Color color) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: color,
+        content: Text(message),
+      ));
+  }
+
+  bool _paidOnline(Commande c) {
+    final provider = (_paymentProviderOf(c) ?? '').toUpperCase();
+    return provider == 'WALLET' ||
+        (provider == 'NYOLE' &&
+            CommandeStatus.normalize(c.status) == CommandeStatus.paid);
+  }
+
+  void _accept(Commande c) {
+    final l10n = AppLocalizations.of(context)!;
+    _changeStatus(c,
+        status: CommandeStatus.confirmed, // → EN_PREPARATION
+        title: l10n.order_accept,
+        body: l10n.order_accept_body,
+        confirmLabel: l10n.order_accept,
+        color: AppColors.success,
+        successMessage: l10n.order_accepted_done);
+  }
+
+  void _markReady(Commande c) {
+    final l10n = AppLocalizations.of(context)!;
+    _changeStatus(c,
+        status: CommandeStatus.ready, // → READY (recherche d'un livreur)
+        title: l10n.order_mark_ready,
+        body: _isPickupOrder(c)
+            ? l10n.order_step_ready_pickup
+            : l10n.order_mark_ready_body,
+        confirmLabel: l10n.order_mark_ready,
+        color: AppColors.success,
+        successMessage: l10n.order_ready_done);
+  }
+
+  void _refuse(Commande c) {
+    final l10n = AppLocalizations.of(context)!;
+    _changeStatus(c,
+        status: CommandeStatus.cancelled, // → REFUSED côté restaurant
+        title: l10n.order_refuse_title,
+        body: l10n.order_refuse_body,
+        confirmLabel: l10n.order_refuse,
+        color: AppColors.error,
+        successMessage: l10n.order_refused_done);
+  }
+
+  void _cancel(Commande c) {
+    final l10n = AppLocalizations.of(context)!;
+    final refund = _paidOnline(c);
+    _changeStatus(c,
+        status: CommandeStatus.cancelled,
+        title: l10n.commande_details_cancel_order,
+        body: refund
+            ? '${l10n.order_cancel_free_hint}\n${l10n.order_cancel_refund_wallet}'
+            : l10n.order_cancel_free_hint,
+        confirmLabel: l10n.user_orders_yes_cancel,
+        color: AppColors.error,
+        successMessage: refund
+            ? l10n.order_cancelled_refunded
+            : l10n.order_cancelled_done);
+  }
+
   /// Commande « À emporter » prête, pas encore remise au client.
-  bool _canValidatePickup(Commande c, String status) =>
+  bool _canValidatePickup(Commande c, OrderStage stage) =>
       widget.showRestaurantOrders &&
+      !_isAdmin &&
       _isPickupOrder(c) &&
-      status == CommandeStatus.ready &&
+      stage == OrderStage.ready &&
       !_otpVerifiedOf(c);
 
   /// Dialogue « Valider le retrait du client » (code à 4 caractères).
@@ -255,27 +331,7 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
       context,
       orderId: c.commandeID,
     );
-    if (ok == true && mounted) {
-      await Commande.refreshLocalCommandes();
-      await loadOrders();
-    }
-  }
-
-  String _statusActionMessage(String status) {
-    switch (CommandeStatus.normalize(status)) {
-      case CommandeStatus.confirmed:
-        return 'Commande confirmée';
-      case CommandeStatus.preparing:
-        return 'Commande mise en préparation';
-      case CommandeStatus.ready:
-        return 'Commande déclarée prête';
-      case CommandeStatus.refused:
-        return 'Commande refusée';
-      case CommandeStatus.cancelled:
-        return AppLocalizations.of(context)!.orderCancelled;
-      default:
-        return 'Statut de commande mis à jour';
-    }
+    if (ok == true && mounted) await loadOrders();
   }
 
   // ── Raccourcis couleurs (thème clair / sombre) ───────────
@@ -314,8 +370,8 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
         actions: [
           if (widget.showRestaurantOrders)
             _PendingBadge(
-              count: commandes
-                  .where((c) => CommandeStatus.isPending(c.status))
+              count: _allOrders
+                  .where((c) => orderStageOf(c) == OrderStage.received)
                   .length,
             ),
         ],
@@ -373,71 +429,78 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
   }
 
   Widget _buildFilters(bool isSmall) {
-    final allLabel = AppLocalizations.of(context)!.all;
-    final statuses = [
-      allLabel,
-      CommandeStatus.pending,
-      CommandeStatus.paid,
-      CommandeStatus.confirmed,
-      CommandeStatus.preparing,
-      CommandeStatus.ready,
-      CommandeStatus.delivered,
-      CommandeStatus.cancelled
-    ];
+    final l10n = AppLocalizations.of(context)!;
+    final filters = widget.showRestaurantOrders
+        ? const [
+            _OrderFilter.all,
+            _OrderFilter.newOrders,
+            _OrderFilter.preparing,
+            _OrderFilter.ready,
+            _OrderFilter.done,
+            _OrderFilter.cancelled,
+          ]
+        : const [
+            _OrderFilter.all,
+            _OrderFilter.active,
+            _OrderFilter.done,
+            _OrderFilter.cancelled,
+          ];
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
-        children: statuses.map((s) {
-          final isAll = s == allLabel;
-          final active = statusFilter == (isAll ? null : s);
-          final label = isAll
-              ? allLabel
-              : s == CommandeStatus.pending
-                  ? AppLocalizations.of(context)!.pending
-                  : s;
+        children: filters.map((f) {
+          final active = _filter == f;
+          final count =
+              _allOrders.where((c) => f.matches(orderStageOf(c))).length;
           return Padding(
             padding: const EdgeInsets.only(right: 8),
-            child: GestureDetector(
-              onTap: () {
-                setState(() => statusFilter = isAll ? null : s);
-                loadOrders();
-              },
-              child: AnimatedContainer(
-                duration: AppMotion.fast,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  color: active ? _brandC : _cardBg,
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(
-                      color: active ? _brandC : _line, width: 0.6),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (!isAll) ...[
-                      Container(
-                        width: 7,
-                        height: 7,
-                        decoration: BoxDecoration(
-                          color: active
-                              ? Colors.white
-                              : CommandeStatus.color(CommandeStatus.normalize(s)),
-                          shape: BoxShape.circle,
-                        ),
+            child: Material(
+              color: active ? _brandC : _cardBg,
+              shape: StadiumBorder(
+                side: BorderSide(color: active ? _brandC : _line),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: () => setState(() => _filter = f),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        f.label(l10n),
+                        style: AppTypography.labelMedium(
+                                color: active ? Colors.white : _ink)
+                            .copyWith(
+                                fontWeight:
+                                    active ? FontWeight.w800 : FontWeight.w600),
                       ),
-                      const SizedBox(width: 6),
+                      if (f != _OrderFilter.all && count > 0) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          constraints: const BoxConstraints(minWidth: 20),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: active
+                                ? Colors.white.withValues(alpha: 0.25)
+                                : _brandC.withValues(alpha: 0.10),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            '$count',
+                            textAlign: TextAlign.center,
+                            style: AppTypography.labelMedium(
+                                    color: active ? Colors.white : _brandC)
+                                .copyWith(
+                                    fontSize: 11, fontWeight: FontWeight.w800),
+                          ),
+                        ),
+                      ],
                     ],
-                    Text(
-                      label,
-                      style: AppTypography.labelMedium(
-                              color: active ? Colors.white : _muted)
-                          .copyWith(
-                              fontWeight:
-                                  active ? FontWeight.w800 : FontWeight.w600),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -447,82 +510,66 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
     );
   }
 
+  String _orderDate(Commande c) {
+    try {
+      final locale = Localizations.localeOf(context).toString();
+      return DateFormat('d MMM · HH:mm', locale)
+          .format(c.dateCommande.toLocal());
+    } catch (_) {
+      return '${c.dateCommande.toLocal().toString().split(' ')[0]} · ${c.heure}';
+    }
+  }
+
   Widget _buildCard(Commande c, bool isSmall) {
     final l10n = AppLocalizations.of(context)!;
-    final status = CommandeStatus.normalize(c.status);
-    final statusColor = CommandeStatus.color(status);
+    final stage = orderStageOf(c);
+    final stageColor = orderStageColor(stage);
+    final isPickup = _isPickupOrder(c);
+    final stageLabel = orderStageLabel(l10n, stage,
+        pickup: isPickup, refused: orderWasRefused(c));
     final isRestaurantView = widget.showRestaurantOrders;
-
-    final bool isCancelled = status == CommandeStatus.cancelled;
-    final bool isDelivered = status == CommandeStatus.delivered;
-    final bool canCancel = !isCancelled &&
-        !isDelivered &&
-        (!isRestaurantView ||
-            [
-              CommandeStatus.pending,
-              CommandeStatus.paid,
-              CommandeStatus.confirmed,
-              CommandeStatus.preparing,
-            ].contains(status));
-    String? nextRestaurantStatus;
-    String? nextRestaurantLabel;
-    if (isRestaurantView) {
-      if ([CommandeStatus.pending, CommandeStatus.paid].contains(status)) {
-        nextRestaurantStatus = CommandeStatus.confirmed;
-        nextRestaurantLabel = 'Confirmer';
-      } else if (status == CommandeStatus.confirmed) {
-        nextRestaurantStatus = CommandeStatus.preparing;
-        nextRestaurantLabel = 'Mettre en préparation';
-      } else if (status == CommandeStatus.preparing) {
-        nextRestaurantStatus = CommandeStatus.ready;
-        nextRestaurantLabel = 'Marquer prête';
-      }
-    }
-    final dateStr = c.dateCommande.toLocal().toString().split(' ')[0];
-    final isPickup = c.deliveryMode?.toUpperCase() == 'PICKUP';
+    final isOwner = isRestaurantView && !_isAdmin;
     final payLabel = paymentProviderLabel(_paymentProviderOf(c));
+    final country = (c.country ?? '').trim().isNotEmpty ? c.country! : _country;
 
-    // bouton principal du restaurateur (les cas s'excluent mutuellement)
+    // ── Action principale (une seule à la fois) ──
     Widget? primary;
-    if (isRestaurantView && !isCancelled) {
-      if (nextRestaurantStatus != null) {
+    var showRefuse = false;
+    if (isOwner) {
+      if (stage == OrderStage.received) {
         primary = _PrimaryActionButton(
-          label: nextRestaurantLabel!,
-          icon: Icons.check_rounded,
+          label: l10n.order_accept,
+          icon: Icons.soup_kitchen_rounded,
           color: AppColors.success,
-          onTap: () => updateStatus(c.commandeID, nextRestaurantStatus!),
+          onTap: () => _accept(c),
         );
-      } else if (status == CommandeStatus.ready && !isPickup) {
-        primary = Container(
-          height: 46,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: _brandC.withValues(alpha: 0.10),
-            borderRadius: BorderRadius.circular(AppRadius.md),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.hourglass_top_rounded, size: 16, color: _brandC),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                  'En attente d’un livreur',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTypography.labelMedium(color: _brandC)
-                      .copyWith(fontWeight: FontWeight.w700),
-                ),
-              ),
-            ],
-          ),
-        );
-      } else if (_canValidatePickup(c, status)) {
+        showRefuse = true;
+      } else if (stage == OrderStage.preparing) {
         primary = _PrimaryActionButton(
-          label: 'Valider le retrait du client',
+          label: l10n.order_mark_ready,
+          icon: Icons.check_circle_rounded,
+          color: AppColors.success,
+          onTap: () => _markReady(c),
+        );
+        showRefuse = true;
+      } else if (_canValidatePickup(c, stage)) {
+        primary = _PrimaryActionButton(
+          label: l10n.order_validate_pickup,
           icon: Icons.storefront_rounded,
           color: AppColors.success,
           onTap: () => _validatePickup(c),
+        );
+      } else if (stage == OrderStage.ready && !isPickup) {
+        primary = _InfoPill(
+          icon: Icons.hourglass_top_rounded,
+          label: l10n.orders_waiting_courier,
+          color: _brandC,
+        );
+      } else if (stage == OrderStage.awaitingPayment) {
+        primary = _InfoPill(
+          icon: Icons.hourglass_top_rounded,
+          label: l10n.order_stage_awaiting_payment,
+          color: orderStageColor(OrderStage.awaitingPayment),
         );
       }
     }
@@ -531,226 +578,285 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
       margin: const EdgeInsets.only(bottom: AppSpacing.md),
       decoration: BoxDecoration(
         color: _cardBg,
-        borderRadius: BorderRadius.circular(AppRadius.xl),
-        border: Border.all(color: _line.withValues(alpha: 0.7), width: 0.8),
-        boxShadow: [AppShadows.subtle],
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: _line.withValues(alpha: 0.7)),
+        boxShadow: [AppShadows.card],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadius.xl),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── En-tête cliquable : commande, date, statut ──
-            Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () => _openDetails(c),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.md, AppSpacing.md, AppSpacing.md, 12),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 42,
-                        height: 42,
-                        decoration: BoxDecoration(
-                          color: statusColor.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(AppRadius.md),
-                        ),
-                        child: Icon(Icons.receipt_long_rounded,
-                            color: statusColor, size: 20),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Liseré de couleur de l'étape
+          Container(height: 3, color: stageColor.withValues(alpha: 0.85)),
+
+          // ── En-tête cliquable ──
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => _openDetails(c),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.md, 14, AppSpacing.md, 10),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: stageColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      const SizedBox(width: AppSpacing.sm),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              isRestaurantView
-                                  ? '${l10n.orders} #${c.commandeID}'
-                                  : restoNames[c.restauID] ??
-                                      '${l10n.orders} #${c.commandeID}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: AppTypography.labelLarge(color: _ink)
-                                  .copyWith(fontWeight: FontWeight.w800),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              isRestaurantView
-                                  ? '$dateStr · ${c.heure}'
-                                  : '#${c.commandeID} · $dateStr · ${c.heure}',
-                              style: AppTypography.labelMedium(color: _subtle)
-                                  .copyWith(fontSize: 11),
-                            ),
-                          ],
-                        ),
+                      child: Icon(_stageIcon(stage, isPickup),
+                          color: stageColor, size: 21),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            isRestaurantView
+                                ? '${l10n.orders} #${c.commandeID}'
+                                : restoNames[c.restauID] ??
+                                    '${l10n.orders} #${c.commandeID}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTypography.titleSmall(color: _ink)
+                                .copyWith(fontWeight: FontWeight.w800),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            isRestaurantView
+                                ? _orderDate(c)
+                                : '#${c.commandeID} · ${_orderDate(c)}',
+                            style: AppTypography.bodySmall(color: _subtle),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      _StatusBadge(status: status, color: statusColor),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(width: 8),
+                    _StatusBadge(status: stageLabel, color: stageColor),
+                  ],
                 ),
               ),
             ),
+          ),
 
-            // ── Mode de remise · paiement · total ──
+          // ── Mode de remise · paiement · total ──
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md, 0, AppSpacing.md, AppSpacing.sm + 2),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      _MetaChip(
+                        icon: isPickup
+                            ? Icons.shopping_bag_outlined
+                            : Icons.delivery_dining_rounded,
+                        label: isPickup ? 'À emporter' : 'Livraison',
+                      ),
+                      if (payLabel != null)
+                        _MetaChip(
+                          icon: paymentProviderIcon(_paymentProviderOf(c)),
+                          label: payLabel,
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  CurrencyUtil.formatPrice(c.totalAmount, country),
+                  style: AppTypography.titleSmall(color: _ink)
+                      .copyWith(fontWeight: FontWeight.w800),
+                ),
+              ],
+            ),
+          ),
+
+          // ── Paiement Mobile Money non confirmé (client) ──
+          if (!isRestaurantView && stage == OrderStage.awaitingPayment)
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.md, 0, AppSpacing.md, AppSpacing.sm),
+                  AppSpacing.md, 0, AppSpacing.md, AppSpacing.sm + 2),
+              child: _InfoPill(
+                icon: Icons.hourglass_top_rounded,
+                label: l10n.order_stage_awaiting_payment,
+                color: orderStageColor(OrderStage.awaitingPayment),
+              ),
+            ),
+
+          // ── Plats (repliable) ──
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md, 0, AppSpacing.md, AppSpacing.sm + 2),
+            child: _OrderDishes(
+              key: ValueKey('order_dishes_${c.commandeID}'),
+              orderId: c.commandeID,
+              loader: getLignes,
+              dishNames: dishNames,
+              country: country,
+              subtotalLabel: l10n.subtotal,
+            ),
+          ),
+
+          // ── Actions restaurateur ──
+          if (isOwner && stage != OrderStage.cancelled &&
+              stage != OrderStage.delivered)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md, 0, AppSpacing.md, AppSpacing.sm + 2),
               child: Row(
                 children: [
-                  Expanded(
-                    child: Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: [
-                        _MetaChip(
-                          icon: isPickup
-                              ? Icons.storefront_rounded
-                              : Icons.delivery_dining_rounded,
-                          label: isPickup ? 'À emporter' : 'Livraison',
-                        ),
-                        if (payLabel != null)
-                          _MetaChip(
-                            icon: paymentProviderIcon(_paymentProviderOf(c)),
-                            label: payLabel,
-                          ),
-                      ],
+                  if (primary != null) Expanded(child: primary),
+                  if (primary == null) const Spacer(),
+                  if (showRefuse) ...[
+                    const SizedBox(width: AppSpacing.sm),
+                    _IconActionButton(
+                      icon: Icons.block_rounded,
+                      color: AppColors.error,
+                      onTap: () => _refuse(c),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    CurrencyUtil.formatPrice(c.totalAmount, _country),
-                    style: AppTypography.labelLarge(color: _brandC)
-                        .copyWith(fontWeight: FontWeight.w800),
+                  ],
+                  const SizedBox(width: AppSpacing.sm),
+                  _IconActionButton(
+                    icon: Icons.chat_bubble_outline_rounded,
+                    color: _muted,
+                    onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => ChatScreen(
+                                orderId: c.commandeID,
+                                recipientName: 'Client #${c.commandeID}'))),
                   ),
                 ],
               ),
             ),
 
-            // ── Plats (repliable) ──
+          // ── Actions client ──
+          if (!isRestaurantView && orderStageCancellableByCustomer(stage))
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.md, 0, AppSpacing.md, AppSpacing.sm),
-              child: _OrderDishes(
-                key: ValueKey('order_dishes_${c.commandeID}'),
-                orderId: c.commandeID,
-                loader: getLignes,
-                dishNames: dishNames,
-                country: _country,
-                subtotalLabel: l10n.subtotal,
-              ),
-            ),
-
-            // ── Actions restaurateur ──
-            if (isRestaurantView && !isCancelled)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.md, 0, AppSpacing.md, AppSpacing.sm),
-                child: Row(
-                  children: [
-                    if (primary != null) Expanded(child: primary),
-                    if (primary == null) const Spacer(),
-                    if (canCancel) ...[
-                      const SizedBox(width: AppSpacing.sm),
-                      _IconActionButton(
-                        icon: Icons.close_rounded,
-                        color: AppColors.error,
-                        onTap: () => updateStatus(
-                            c.commandeID,
-                            isRestaurantView
-                                ? CommandeStatus.refused
-                                : CommandeStatus.cancelled),
-                      ),
-                    ],
-                    const SizedBox(width: AppSpacing.sm),
-                    _IconActionButton(
-                      icon: Icons.chat_rounded,
-                      color: AppColors.inkMuted,
-                      onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => ChatScreen(
-                                  orderId: c.commandeID,
-                                  recipientName: 'Client #${c.commandeID}'))),
-                    ),
-                  ],
-                ),
-              ),
-
-            // ── Évaluations (client, commande livrée) ──
-            if (!isRestaurantView && isDelivered)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.md, 0, AppSpacing.md, AppSpacing.sm),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _RateButton(
-                        label: l10n.user_orders_rate,
+                  AppSpacing.md, 0, AppSpacing.md, AppSpacing.sm + 2),
+              child: SizedBox(
+                width: double.infinity,
+                height: 44,
+                child: OutlinedButton.icon(
+                  onPressed: () => _cancel(c),
+                  icon: Icon(Icons.cancel_outlined,
+                      size: 18,
+                      color: AppColors.resolve(
+                          AppColors.error, AppDarkColors.error)),
+                  label: Text(
+                    l10n.commande_details_cancel_order,
+                    style: AppTypography.labelLarge(
                         color: AppColors.resolve(
-                            AppColors.accent, AppDarkColors.accent),
-                        onTap: () => _showRate(c.commandeID, c.restauID),
-                      ),
-                    ),
-                    if (c.livreurID != null) ...[
-                      const SizedBox(width: AppSpacing.sm),
-                      Expanded(
-                        child: _RateButton(
-                          label: l10n.user_orders_rate_driver,
-                          color: AppColors.resolve(
-                              AppColors.success, AppDarkColors.success),
-                          onTap: () => _showRateLivreur(c.livreurID!),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-
-            // ── Suivi livraison client ──
-            if (!isRestaurantView && !isCancelled)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.md, 4, AppSpacing.md, AppSpacing.md),
-                child: _DeliveryTracker(
-                  orderStatus: status,
-                  status: c.deliveryStatus,
-                  lat: c.livreurLat,
-                  lng: c.livreurLng,
-                ),
-              ),
-
-            // ── Pied : voir le détail ──
-            Divider(height: 1, color: _line.withValues(alpha: 0.5)),
-            Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () => _openDetails(c),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.md, vertical: 12),
-                  child: Row(
-                    children: [
-                      Text(
-                        l10n.user_orders_see_detail,
-                        style: AppTypography.labelMedium(color: _brandC)
-                            .copyWith(
-                                fontSize: 12, fontWeight: FontWeight.w700),
-                      ),
-                      const Spacer(),
-                      Icon(Icons.chevron_right_rounded,
-                          size: 20, color: _brandC),
-                    ],
+                            AppColors.error, AppDarkColors.error)),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(
+                        color: AppColors.resolve(
+                                AppColors.error, AppDarkColors.error)
+                            .withValues(alpha: 0.45)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppRadius.md)),
                   ),
                 ),
               ),
             ),
-          ],
-        ),
+          if (!isRestaurantView && stage == OrderStage.delivered)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md, 0, AppSpacing.md, AppSpacing.sm + 2),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _RateButton(
+                      label: l10n.user_orders_rate,
+                      color: _brandC,
+                      onTap: () => _showRate(c.commandeID, c.restauID),
+                    ),
+                  ),
+                  if (c.livreurID != null && !isPickup) ...[
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: _RateButton(
+                        label: l10n.user_orders_rate_driver,
+                        color: AppColors.resolve(
+                            AppColors.success, AppDarkColors.success),
+                        onTap: () => _showRateLivreur(c.livreurID!, c.commandeID),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+
+          // ── Suivi livraison client ──
+          if (!isRestaurantView &&
+              !isPickup &&
+              (stage == OrderStage.preparing ||
+                  stage == OrderStage.ready ||
+                  stage == OrderStage.onTheWay))
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md, 4, AppSpacing.md, AppSpacing.md),
+              child: _DeliveryTracker(
+                orderStatus: c.status,
+                status: c.deliveryStatus,
+                lat: c.livreurLat,
+                lng: c.livreurLng,
+              ),
+            ),
+
+          // ── Pied : voir le détail ──
+          Divider(height: 1, color: _line.withValues(alpha: 0.5)),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => _openDetails(c),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md, vertical: 12),
+                child: Row(
+                  children: [
+                    Text(
+                      l10n.user_orders_see_detail,
+                      style: AppTypography.labelMedium(color: _brandC)
+                          .copyWith(fontWeight: FontWeight.w700),
+                    ),
+                    const Spacer(),
+                    Icon(Icons.chevron_right_rounded, size: 20, color: _brandC),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
+  }
+
+  IconData _stageIcon(OrderStage stage, bool pickup) {
+    switch (stage) {
+      case OrderStage.awaitingPayment:
+        return Icons.hourglass_top_rounded;
+      case OrderStage.received:
+        return Icons.receipt_long_rounded;
+      case OrderStage.preparing:
+        return Icons.soup_kitchen_rounded;
+      case OrderStage.ready:
+        return pickup ? Icons.shopping_bag_rounded : Icons.check_circle_rounded;
+      case OrderStage.onTheWay:
+        return Icons.delivery_dining_rounded;
+      case OrderStage.delivered:
+        return Icons.task_alt_rounded;
+      case OrderStage.cancelled:
+        return Icons.cancel_rounded;
+    }
   }
 
   Widget _buildPendingFullPage() {
@@ -817,122 +923,6 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
     );
   }
 
-  Future<void> _showAssignLivreur(int id) async {
-    setState(() => isLoading = true);
-    try {
-      // 1. Fetch active command from Parse
-      final commandQuery = QueryBuilder<ParseObject>(ParseObject('Commande'))
-        ..whereEqualTo('commandeID', id);
-      final commandResp = await commandQuery.query();
-      if (!commandResp.success ||
-          commandResp.results == null ||
-          commandResp.results!.isEmpty) {
-        if (mounted) setState(() => isLoading = false);
-        return;
-      }
-      final cmdObj = commandResp.results!.first as ParseObject;
-      final restauID = cmdObj.get<int>('restaurateurID') ?? 0;
-      final addressID = cmdObj.get<int>('addressID') ?? 0;
-
-      // 2. Fetch addresses and calculate distance
-      final addresses = await Address.fetchAddressesFromDB();
-      final customerAddress = addresses
-          .firstWhere((a) => a.addressID == addressID, orElse: () => Address());
-      final restaurantAddress =
-          Address.getAddressByObject(addresses, "User", restauID);
-
-      final customerLat = double.tryParse(customerAddress.lat ?? '');
-      final customerLng = double.tryParse(customerAddress.long ?? '');
-      final restoLat = double.tryParse(restaurantAddress?.lat ?? '');
-      final restoLng = double.tryParse(restaurantAddress?.long ?? '');
-
-      double deliveryDistance = 0.0;
-      if (customerLat != null &&
-          customerLng != null &&
-          restoLat != null &&
-          restoLng != null) {
-        deliveryDistance =
-            _calculateDistanceKm(restoLat, restoLng, customerLat, customerLng);
-      }
-
-      // 3. Query online drivers from Parse
-      final driverQuery = QueryBuilder<ParseObject>(ParseObject('Users'))
-        ..whereEqualTo('roleID', 5)
-        ..whereEqualTo('isOnline', true);
-      final driverResp = await driverQuery.query();
-
-      final List<Users> filteredLivreurs = [];
-      if (driverResp.success && driverResp.results != null) {
-        for (final obj in driverResp.results!) {
-          final parseUser = obj as ParseObject;
-          final maxDist =
-              parseUser.get<num>('maxDeliveryDistance')?.toDouble() ?? 10.0;
-
-          if (deliveryDistance <= maxDist) {
-            final userMap = <String, dynamic>{
-              'userID': parseUser.get<int>('userID'),
-              'roleID': parseUser.get<int>('roleID'),
-              'firstname': parseUser.get<String>('firstname') ?? '',
-              'lastname': parseUser.get<String>('lastname') ?? '',
-              'username': parseUser.get<String>('username') ?? '',
-              'email': parseUser.get<String>('email') ?? '',
-              'telephone': parseUser.get<String>('telephone') ?? '',
-              'country': parseUser.get<String>('country') ?? '',
-              'status': parseUser.get<String>('status') ?? '',
-              'identity': parseUser.get<String>('identity') ?? '',
-              'addressID': parseUser.get<int>('addressID') ?? 0,
-            };
-            filteredLivreurs.add(Users.fromMap(userMap));
-          }
-        }
-      }
-
-      if (mounted) setState(() => isLoading = false);
-
-      if (filteredLivreurs.isEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content:
-                  Text(AppLocalizations.of(context)!.user_orders_no_driver)));
-        }
-        return;
-      }
-
-      if (!mounted) return;
-      showDialog(
-        context: context,
-        builder: (ctx) => _AssignLivreurDialog(
-          livreurs: filteredLivreurs,
-          commandeId: id,
-          onAssigned: () async {
-            await Commande.refreshLocalCommandes();
-            await loadOrders();
-          },
-        ),
-      );
-    } catch (e) {
-      if (mounted) setState(() => isLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('${AppLocalizations.of(context)!.error}: $e')));
-      }
-    }
-  }
-
-  double _calculateDistanceKm(
-      double lat1, double lon1, double lat2, double lon2) {
-    const earthRadius = 6371.0;
-    final dLat = (lat2 - lat1) * (3.141592653589793 / 180.0);
-    final dLon = (lon2 - lon1) * (3.141592653589793 / 180.0);
-    final a = sin(dLat / 2) * sin(dLat / 2) +
-        cos(lat1 * (3.141592653589793 / 180.0)) *
-            cos(lat2 * (3.141592653589793 / 180.0)) *
-            sin(dLon / 2) *
-            sin(dLon / 2);
-    final c = 2 * atan2(sqrt(a), sqrt(1 - a));
-    return earthRadius * c;
-  }
-
   Future<void> _showRate(int cmdId, int restauId) async {
     final lignes = await LigneCommande.fetchLignesCommandeByCommandeID(cmdId);
     if (!mounted) return;
@@ -941,11 +931,15 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
       builder: (_) => RatingDialog(
         targetType: 1,
         targetID: restauId,
+        orderId: cmdId,
         title: AppLocalizations.of(context)!.commande_details_rate_restaurant,
         lignes: lignes,
         dishNames: dishNames,
       ),
     );
+    if (mounted && result != null && result != "success") {
+      _snack(result, AppColors.error);
+    }
     if (mounted && result == "success") {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -958,15 +952,19 @@ class _UserOrdersPageState extends State<UserOrdersPage> {
     }
   }
 
-  Future<void> _showRateLivreur(int livreurID) async {
+  Future<void> _showRateLivreur(int livreurID, int orderId) async {
     final result = await showDialog<String>(
       context: context,
       builder: (_) => RatingDialog(
         targetType: 3,
         targetID: livreurID,
+        orderId: orderId,
         title: AppLocalizations.of(context)!.user_orders_rate_driver,
       ),
     );
+    if (mounted && result != null && result != "success") {
+      _snack(result, AppColors.error);
+    }
     if (mounted && result == "success") {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1502,190 +1500,88 @@ class _EmptyOrders extends StatelessWidget {
   }
 }
 
-// ═══════════════════════════════════════════════════════════
-// Dialogs
-// ═══════════════════════════════════════════════════════════
+// ── Filtres de la liste (par étape de commande) ───────────
+enum _OrderFilter { all, active, newOrders, preparing, ready, done, cancelled }
 
-class _ConfirmDialog extends StatelessWidget {
-  const _ConfirmDialog({
-    required this.isConfirm,
-    required this.commandeId,
-    this.actionStatus,
-  });
-  final bool isConfirm;
-  final int commandeId;
-  final String? actionStatus;
+extension on _OrderFilter {
+  bool matches(OrderStage stage) {
+    switch (this) {
+      case _OrderFilter.all:
+        return true;
+      case _OrderFilter.active:
+        return orderStageIsActive(stage);
+      case _OrderFilter.newOrders:
+        return stage == OrderStage.received ||
+            stage == OrderStage.awaitingPayment;
+      case _OrderFilter.preparing:
+        return stage == OrderStage.preparing;
+      case _OrderFilter.ready:
+        return stage == OrderStage.ready || stage == OrderStage.onTheWay;
+      case _OrderFilter.done:
+        return stage == OrderStage.delivered;
+      case _OrderFilter.cancelled:
+        return stage == OrderStage.cancelled;
+    }
+  }
 
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final color = isConfirm
-        ? AppColors.resolve(AppColors.success, AppDarkColors.success)
-        : AppColors.resolve(AppColors.error, AppDarkColors.error);
-    final action = actionStatus == CommandeStatus.preparing
-        ? 'Mettre en préparation'
-        : actionStatus == CommandeStatus.ready
-            ? 'Marquer prête'
-            : actionStatus == CommandeStatus.refused
-                ? 'Refuser'
-                : isConfirm
-                    ? AppLocalizations.of(context)!.user_orders_yes_confirm
-                    : AppLocalizations.of(context)!.user_orders_yes_cancel;
-    final prompt = actionStatus == CommandeStatus.preparing
-        ? 'Commencer la préparation de la commande #$commandeId ?'
-        : actionStatus == CommandeStatus.ready
-            ? 'La commande #$commandeId est-elle prête à être remise au livreur ?'
-            : actionStatus == CommandeStatus.refused
-                ? 'Refuser la commande #$commandeId ?'
-                : isConfirm
-                    ? AppLocalizations.of(context)!
-                        .user_orders_confirm_prompt(commandeId)
-                    : AppLocalizations.of(context)!
-                        .user_orders_cancel_prompt(commandeId);
-    return AlertDialog(
-      shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.xl)),
-      title: Row(children: [
-        Icon(
-            isConfirm
-                ? Icons.check_circle_outline_rounded
-                : Icons.cancel_outlined,
-            color: color,
-            size: 22),
-        const SizedBox(width: AppSpacing.sm),
-        Text(
-            actionStatus == CommandeStatus.preparing ||
-                    actionStatus == CommandeStatus.ready
-                ? action
-                : isConfirm
-                    ? AppLocalizations.of(context)!.confirm
-                    : AppLocalizations.of(context)!.cancel,
-            style: AppTypography.titleMedium(color: color)),
-      ]),
-      content: Text(
-        prompt,
-        style: AppTypography.bodyLarge(color: color),
-      ),
-      actions: [
-        TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(AppLocalizations.of(context)!.no)),
-        ElevatedButton(
-          onPressed: () => Navigator.pop(context, true),
-          style: ElevatedButton.styleFrom(backgroundColor: color),
-          child: Text(action),
-        ),
-      ],
-    );
+  String label(AppLocalizations l10n) {
+    switch (this) {
+      case _OrderFilter.all:
+        return l10n.all;
+      case _OrderFilter.active:
+        return l10n.orders_filter_active;
+      case _OrderFilter.newOrders:
+        return l10n.orders_filter_new;
+      case _OrderFilter.preparing:
+        return l10n.order_step_preparing;
+      case _OrderFilter.ready:
+        return l10n.orders_filter_ready;
+      case _OrderFilter.done:
+        return l10n.orders_filter_done;
+      case _OrderFilter.cancelled:
+        return l10n.orders_filter_cancelled;
+    }
   }
 }
 
-class _AssignLivreurDialog extends StatelessWidget {
-  const _AssignLivreurDialog({
-    required this.livreurs,
-    required this.commandeId,
-    required this.onAssigned,
+// ── Pastille d'information (attente livreur, paiement…) ───
+class _InfoPill extends StatelessWidget {
+  const _InfoPill({
+    required this.icon,
+    required this.label,
+    required this.color,
   });
 
-  final List<Users> livreurs;
-  final int commandeId;
-  final Future<void> Function() onAssigned;
+  final IconData icon;
+  final String label;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    return AlertDialog(
-      shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.xl)),
-      title: Row(children: [
-        Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-              color: AppColors.resolve(
-                  AppColors.brandSurface, AppDarkColors.brandSurface),
-              borderRadius: BorderRadius.circular(AppRadius.sm)),
-          child: Icon(Icons.delivery_dining_rounded,
-              color: AppColors.resolve(AppColors.brand, AppDarkColors.brand),
-              size: 16),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Text(AppLocalizations.of(context)!.user_orders_assign_driver,
-            style: AppTypography.titleMedium(
-                color: AppColors.resolve(AppColors.ink, AppDarkColors.ink))),
-      ]),
-      content: SizedBox(
-        width: double.maxFinite,
-        child: ListView.builder(
-          shrinkWrap: true,
-          itemCount: livreurs.length,
-          itemBuilder: (_, i) {
-            final l = livreurs[i];
-            return Container(
-              margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-              decoration: BoxDecoration(
-                color: AppColors.resolve(
-                    AppColors.surfaceWarm, AppDarkColors.surfaceWarm),
-                borderRadius: BorderRadius.circular(AppRadius.md),
-              ),
-              child: Material(
-                color: AppColors.resolve(
-                    AppColors.surfaceWarm, AppDarkColors.surfaceWarm),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: AppColors.resolve(
-                        AppColors.brandSurface, AppDarkColors.brandSurface),
-                    child: Text(
-                      l.firstname.isNotEmpty
-                          ? l.firstname[0].toUpperCase()
-                          : '?',
-                      style: AppTypography.labelLarge(
-                          color: AppColors.resolve(
-                              AppColors.brand, AppDarkColors.brand)),
-                    ),
-                  ),
-                  title: Text(
-                    '${l.firstname} ${l.lastname}',
-                    style: AppTypography.labelMedium(
-                        color: AppColors.resolve(
-                            AppColors.ink, AppDarkColors.ink)),
-                  ),
-                  subtitle: Text(
-                    l.telephone.toString(),
-                    style: AppTypography.bodyMedium(
-                            color: AppColors.resolve(
-                                AppColors.inkSubtle, AppDarkColors.inkSubtle))
-                        .copyWith(fontSize: 11),
-                  ),
-                  trailing: Icon(Icons.arrow_forward_ios_rounded,
-                      size: 14,
-                      color: AppColors.resolve(
-                          AppColors.inkSubtle, AppDarkColors.inkSubtle)),
-                  onTap: () async {
-                    Navigator.pop(context);
-                    try {
-                      final fn = ParseCloudFunction('assignLivreur');
-                      final resp = await fn.execute(parameters: {
-                        'commandeID': commandeId,
-                        'livreurID': l.userID,
-                      });
-                      if (resp.success) {
-                        await onAssigned();
-                      }
-                    } catch (_) {}
-                  },
-                ),
-              ),
-            );
-          },
-        ),
+    return Container(
+      height: 44,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(AppRadius.md),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text(AppLocalizations.of(context)!.cancel),
-        ),
-      ],
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.labelMedium(color: color)
+                  .copyWith(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

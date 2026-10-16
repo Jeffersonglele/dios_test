@@ -317,14 +317,15 @@ class Restaurant extends HiveObject {
     ParseFileBase? image,
     String? img_url,
     int? addressID,
-    String professionalType = 'amateur',
-    bool trainingCompleted = false,
-    bool isPro = false,
+    // null = inchangé : le serveur garde la valeur (ou la déduit).
+    String? professionalType,
+    bool? trainingCompleted,
+    bool? isPro,
     String currency = '',
     String country = '',
     String openingDays = 'Lun,Mar,Mer,Jeu,Ven,Sam',
     String recoveryMode = 'delivery',
-    int cityID = 1,
+    int? cityID,
     String paymentMethod = '',
     String mobileMoneyPhone = '',
     String iban = '',
@@ -394,7 +395,13 @@ class Restaurant extends HiveObject {
           longitude: longitude,
         );
         final updatedRestauID = res['restaurantID'] as int;
-        final restaurant = Restaurant(
+        final row = res['data'];
+        // La fiche renvoyée par le serveur fait foi (statut de validation,
+        // ville, devise et badge Pro sont fixés côté serveur).
+        final restaurant = row is Map
+            ? NodeCatalogService.restaurantFromRow(
+                Map<String, dynamic>.from(row))
+            : Restaurant(
           restaurantID: updatedRestauID,
           userID: userID,
           valid: valid,
@@ -411,23 +418,22 @@ class Restaurant extends HiveObject {
           openingHoursByDay: openingHoursByDay,
           deliveryFee: deliveryFee,
           isOpen: isOpen,
-          professionalType: professionalType,
-          trainingCompleted: trainingCompleted,
-          isPro: isPro,
+          professionalType: professionalType ?? 'amateur',
+          trainingCompleted: trainingCompleted ?? false,
+          isPro: isPro ?? false,
           currency: effectiveCurrency,
           country: effectiveCountry,
           rccm: rccm,
           latitude: latitude,
           longitude: longitude,
         );
-        if (restaurantID == null) {
+        try {
+          await DatabaseHelper.updateRestaurant(restaurant);
+        } catch (_) {
           await DatabaseHelper.createRestaurant(restaurant);
-        } else {
-          try {
-            await DatabaseHelper.updateRestaurant(restaurant);
-          } catch (_) {
-            await DatabaseHelper.createRestaurant(restaurant);
-          }
+        }
+        if (restaurant.userID == session.userId && restaurant.valid == 1) {
+          await SessionService.setRestaurantId(restaurant.restaurantID);
         }
         notifyDataChanged();
         return "success";
@@ -459,14 +465,14 @@ class Restaurant extends HiveObject {
       'deliveryFee': deliveryFee,
       'isOpen': isOpen,
       if (addressID != null) 'addressID': addressID,
-      'professionalType': professionalType,
-      'trainingCompleted': trainingCompleted,
-      'isPro': isPro,
+      'professionalType': professionalType ?? 'amateur',
+      'trainingCompleted': trainingCompleted ?? false,
+      'isPro': isPro ?? false,
       'currency': effectiveCurrency,
       'country': effectiveCountry,
       'openingDays': openingDays,
       'recoveryMode': recoveryMode,
-      'cityID': cityID,
+      'cityID': cityID ?? 1,
       'paymentMethod': paymentMethod,
       'mobileMoneyPhone': mobileMoneyPhone,
       'iban': iban,
@@ -513,9 +519,9 @@ class Restaurant extends HiveObject {
             openingHoursByDay: openingHoursByDay,
             deliveryFee: deliveryFee,
             isOpen: isOpen,
-            professionalType: professionalType,
-            trainingCompleted: trainingCompleted,
-            isPro: isPro,
+            professionalType: professionalType ?? 'amateur',
+            trainingCompleted: trainingCompleted ?? false,
+            isPro: isPro ?? false,
             currency: effectiveCurrency,
             country: effectiveCountry,
             rccm: rccm,
@@ -723,8 +729,10 @@ class Restaurant extends HiveObject {
 
   static Future<Restaurant?> fetchRestaurantByUserIdFromAPI(int userID) async {
     try {
+      // Le jeton permet au propriétaire de voir sa fiche non encore validée.
       final response = await NodeAuthService.getJson(
         '/restaurants',
+        token: await SessionService.readNodeToken(),
         queryParameters: {'userId': userID.toString(), 'showAll': 'true'},
       );
 

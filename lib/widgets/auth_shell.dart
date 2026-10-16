@@ -11,6 +11,7 @@ class AuthShell extends StatelessWidget {
     required this.form,
     this.footer,
     this.backgroundImage,
+    this.onBack,
   });
 
   final String title;
@@ -18,6 +19,9 @@ class AuthShell extends StatelessWidget {
   final Widget form;
   final Widget? footer;
   final ImageProvider? backgroundImage;
+
+  /// Affiche un bouton retour rond en haut à gauche lorsqu'il est fourni.
+  final VoidCallback? onBack;
 
   /// Rapport hauteur/largeur de l'illustration (1536 × 1024).
   static const double _imageRatio = 1024 / 1536;
@@ -46,7 +50,7 @@ class AuthShell extends StatelessWidget {
           final isWide = constraints.maxWidth >= 980;
 
           if (isWide) {
-            return Row(
+            final wide = Row(
               children: [
                 Expanded(
                   flex: 5,
@@ -102,6 +106,17 @@ class AuthShell extends StatelessWidget {
                       ),
                     ),
                   ),
+                ),
+              ],
+            );
+            if (onBack == null) return wide;
+            return Stack(
+              children: [
+                wide,
+                Positioned(
+                  top: 24,
+                  left: 24,
+                  child: _BackButton(onPressed: onBack!),
                 ),
               ],
             );
@@ -206,9 +221,55 @@ class AuthShell extends StatelessWidget {
                   ),
                 ),
               ),
+
+              // 3. Retour, au-dessus de l'illustration
+              if (onBack != null)
+                Positioned(
+                  top: MediaQuery.of(context).padding.top + 8,
+                  left: 16,
+                  child: _BackButton(onPressed: onBack!),
+                ),
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+class _BackButton extends StatelessWidget {
+  const _BackButton({required this.onPressed});
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final card = AppColors.resolve(AppColors.card, AppDarkColors.card);
+    final ink = AppColors.resolve(AppColors.ink, AppDarkColors.ink);
+    final border = AppColors.resolve(AppColors.border, AppDarkColors.border);
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: ink.withValues(alpha: 0.12),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Material(
+        color: card,
+        shape: CircleBorder(side: BorderSide(color: border)),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onPressed,
+          child: SizedBox(
+            width: 44,
+            height: 44,
+            child: Icon(Icons.arrow_back_rounded, color: ink, size: 22),
+          ),
+        ),
       ),
     );
   }

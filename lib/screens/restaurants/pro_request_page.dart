@@ -6,8 +6,6 @@ import 'package:dios_delices/theme/app_theme.dart';
 import 'package:dios_delices/utils/toast.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:path/path.dart' as p;
 
 class ProRequestPage extends StatefulWidget {
   const ProRequestPage({super.key});
@@ -20,33 +18,30 @@ class _ProRequestPageState extends State<ProRequestPage> {
   final _formKey = GlobalKey<FormState>();
   final _descriptionController = TextEditingController();
 
-  XFile? _identityFile;
-  XFile? _proDocFile;
+  /// Taille maximale acceptée par le serveur pour un justificatif.
+  static const _maxBytes = 5 * 1024 * 1024;
+
+  PlatformFile? _identityFile;
+  PlatformFile? _proDocFile;
   bool _isSubmitting = false;
 
-  String _mimeType(String? extension) {
-    switch (extension?.toLowerCase()) {
-      case 'pdf':
-        return 'application/pdf';
-      case 'png':
-        return 'image/png';
-      case 'jpg':
-      case 'jpeg':
-        return 'image/jpeg';
-      default:
-        return 'application/octet-stream';
-    }
+  /// État de la demande lu sur le serveur (null pendant le chargement).
+  ServerAccountState? _state;
+  bool _loadingState = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadState();
   }
 
-  String _documentExtension(String fileName) {
-    final extension = p.extension(fileName).toLowerCase();
-    const allowed = {'.pdf', '.jpg', '.jpeg', '.png'};
-    return allowed.contains(extension) ? extension : '.bin';
-  }
-
-  String _safeDocumentName(
-      String prefix, int userId, int timestamp, XFile file) {
-    return '${prefix}_${userId}_$timestamp${_documentExtension(file.name)}';
+  Future<void> _loadState() async {
+    final state = await SessionService.fetchServerAccountState();
+    if (!mounted) return;
+    setState(() {
+      _state = state;
+      _loadingState = false;
+    });
   }
 
   @override
@@ -55,36 +50,34 @@ class _ProRequestPageState extends State<ProRequestPage> {
     super.dispose();
   }
 
-  Future<void> _pickIdentityFile() async {
+  /// Fichier réel sur l'appareil : son chemin sert à l'envoi multipart.
+  Future<PlatformFile?> _pickDocument() async {
+    final l10n = AppLocalizations.of(context)!;
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
-      withData: true,
     );
     final file = result?.files.single;
-    if (file?.bytes != null) {
-      setState(() => _identityFile = XFile.fromData(
-            file!.bytes!,
-            name: file.name,
-            mimeType: _mimeType(file.extension),
-          ));
+    if (file == null) return null;
+    if (file.path == null) {
+      if (mounted) Toast(context, l10n.pro_request_error_file_access, false);
+      return null;
     }
+    if (file.size > _maxBytes) {
+      if (mounted) Toast(context, l10n.pro_request_error_file_size, false);
+      return null;
+    }
+    return file;
+  }
+
+  Future<void> _pickIdentityFile() async {
+    final file = await _pickDocument();
+    if (file != null && mounted) setState(() => _identityFile = file);
   }
 
   Future<void> _pickProDocFile() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
-      withData: true,
-    );
-    final file = result?.files.single;
-    if (file?.bytes != null) {
-      setState(() => _proDocFile = XFile.fromData(
-            file!.bytes!,
-            name: file.name,
-            mimeType: _mimeType(file.extension),
-          ));
-    }
+    final file = await _pickDocument();
+    if (file != null && mounted) setState(() => _proDocFile = file);
   }
 
   Future<void> _submit() async {
@@ -107,9 +100,9 @@ class _ProRequestPageState extends State<ProRequestPage> {
 
       final result = await ProDocument.submitDocuments(
         userID: session.userId,
-        restaurantID: session.restaurantId ?? 0,
-        pieceIdentitePath: _identityFile!.path,
-        kbisPath: _proDocFile!.path,
+        restaurantID: session.restaurantId ?? _state?.restaurantId ?? 0,
+        pieceIdentitePath: _identityFile!.path!,
+        kbisPath: _proDocFile!.path!,
         description: _descriptionController.text.trim(),
       );
 
@@ -117,7 +110,7 @@ class _ProRequestPageState extends State<ProRequestPage> {
 
       if (result == 'success') {
         Toast(context, l10n.pro_request_success, true);
-        Navigator.pop(context, true);
+        await _loadState();
       } else {
         Toast(context, result, false);
       }
@@ -158,13 +151,32 @@ class _ProRequestPageState extends State<ProRequestPage> {
                 style: AppTypography.titleSmall(color: ink)),
             backgroundColor: surface,
           ),
-          body: SingleChildScrollView(
+          body: _loadingState
+              ? Center(child: CircularProgressIndicator(color: brand))
+              : _statusOnly(l10n, ink, inkMuted, card, border, brand, success) ??
+          SingleChildScrollView(
             padding: const EdgeInsets.all(20),
             child: Form(
               key: _formKey,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  if (_state?.proRequestStatus == 'rejected') ...[
+                    _StatusCard(
+                      icon: Icons.error_outline_rounded,
+                      color: AppColors.resolve(
+                          AppColors.error, AppDarkColors.error),
+                      title: l10n.pro_request_rejected_title,
+                      body: _state!.proRequestRemark.trim().isEmpty
+                          ? l10n.pro_request_rejected_body
+                          : l10n.pro_request_rejected_reason(
+                              _state!.proRequestRemark.trim()),
+                      card: card,
+                      ink: ink,
+                      inkMuted: inkMuted,
+                    ),
+                    const SizedBox(height: 20),
+                  ],
                   Text(l10n.pro_request_subtitle,
                       style: AppTypography.bodyLarge(color: ink)),
                   const SizedBox(height: 24),
@@ -266,9 +278,116 @@ class _ProRequestPageState extends State<ProRequestPage> {
   }
 }
 
+extension on _ProRequestPageState {
+  /// Écran d'état quand aucune demande ne peut être envoyée : restaurant
+  /// déjà Pro, demande en cours d'examen ou restaurant pas encore validé.
+  Widget? _statusOnly(AppLocalizations l10n, Color ink, Color inkMuted,
+      Color card, Color border, Color brand, Color success) {
+    final state = _state;
+    if (state == null) return null;
+    final (IconData icon, Color color, String title, String body)? status =
+        state.restaurantIsPro
+            ? (
+                Icons.workspace_premium_rounded,
+                success,
+                l10n.pro_request_already_pro_title,
+                l10n.pro_request_already_pro_body
+              )
+            : state.proRequestStatus == 'pending'
+                ? (
+                    Icons.hourglass_top_rounded,
+                    brand,
+                    l10n.pro_request_pending_title,
+                    l10n.pro_request_pending_body
+                  )
+                : state.restaurantValid != 1
+                    ? (
+                        Icons.storefront_rounded,
+                        inkMuted,
+                        l10n.pro_request_needs_validation_title,
+                        l10n.pro_request_needs_validation_body
+                      )
+                    : null;
+    if (status == null) return null;
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        _StatusCard(
+          icon: status.$1,
+          color: status.$2,
+          title: status.$3,
+          body: status.$4,
+          card: card,
+          ink: ink,
+          inkMuted: inkMuted,
+        ),
+      ],
+    );
+  }
+}
+
+class _StatusCard extends StatelessWidget {
+  const _StatusCard({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.body,
+    required this.card,
+    required this.ink,
+    required this.inkMuted,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String body;
+  final Color card;
+  final Color ink;
+  final Color inkMuted;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: card,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: AppTypography.titleSmall(color: ink)),
+                const SizedBox(height: 4),
+                Text(body,
+                    style: AppTypography.bodyMedium(color: inkMuted)
+                        .copyWith(height: 1.4)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _DocumentPicker extends StatelessWidget {
   final String label;
-  final XFile? file;
+  final PlatformFile? file;
   final VoidCallback onPick;
   final AppLocalizations l10n;
   final Color ink;
