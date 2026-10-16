@@ -3,7 +3,8 @@ const { createCrudController } = require('./crud.controller');
 const { badRequest, handleControllerError, notFound, conflict } = require('./controller.utils');
 const dispatch = require('../services/delivery-dispatch.service');
 const geolocation = require('../services/geolocation.service');
-const { quoteDelivery } = require('../services/delivery-pricing.service');
+const { configurationForCity, quoteDelivery } = require('../services/delivery-pricing.service');
+const { currencyForCountry } = require('../services/country.service');
 const { broadcastDeliveryStatus } = require('../sockets/socket.manager');
 const dispatchCron = require('../cron/dispatch.cron');
 
@@ -92,8 +93,20 @@ async function activeConfig(req, res, next) {
   try {
     const cityId = req.query.cityId === undefined ? null : Number.parseInt(req.query.cityId, 10);
     if (req.query.cityId !== undefined && !Number.isInteger(cityId)) throw badRequest('cityId est invalide.');
+    // Avec une ville : tarif réellement appliqué (configuration de la ville
+    // ou grille par défaut du pays), comme dans le calcul des devis.
+    if (cityId !== null) {
+      const city = await prisma.city.findFirst({ where: { cityId, deletedAt: null } });
+      if (!city) throw notFound('Ville');
+      const effective = await configurationForCity(cityId, city.countryCode || city.country);
+      const record = await prisma.deliveryConfig.findFirst({
+        where: { active: true, cityId },
+        orderBy: { updatedAt: 'desc' },
+      });
+      return res.status(200).json({ data: { ...effective, cityId, configId: record?.configId ?? null, id: record?.id ?? null } });
+    }
     const record = await prisma.deliveryConfig.findFirst({
-      where: { active: true, ...(cityId === null ? {} : { cityId }) },
+      where: { active: true },
       orderBy: { updatedAt: 'desc' },
     });
     if (!record) throw notFound('Configuration de livraison');
@@ -246,59 +259,153 @@ async function updateDeliveryStatus(req, res, next) {
   }
 }
 
+/// Décalage horaire de l'app (Kinshasa, Cotonou : UTC+1) pour regrouper
+/// les gains par jour local.
+function appOffsetMinutes() {
+  const value = Number.parseInt(process.env.APP_UTC_OFFSET_MINUTES, 10);
+  return Number.isInteger(value) ? value : 60;
+}
+
+function localDayKey(date, offset) {
+  return new Date(date.getTime() + offset * 60000).toISOString().slice(0, 10);
+}
+
+/// Début (UTC) du jour local « AAAA-MM-JJ ».
+function localDayStart(key, offset) {
+  return new Date(Date.parse(`${key}T00:00:00.000Z`) - offset * 60000);
+}
+
+/// Période demandée : today | week (7 jours) | month (30 jours) | custom
+/// (startDate / endDate au format AAAA-MM-JJ, bornes incluses, 366 j max).
+function earningsRange(query, offset) {
+  const todayKey = localDayKey(new Date(), offset);
+  const shift = (key, days) => localDayKey(new Date(localDayStart(key, offset).getTime() + days * 86400000), offset);
+  const period = String(query.period || 'week').toLowerCase();
+  let fromKey;
+  let toKey = todayKey;
+  if (period === 'custom') {
+    const valid = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v || ''));
+    if (!valid(query.startDate) || !valid(query.endDate)) {
+      throw badRequest('Choisissez une date de début et une date de fin.');
+    }
+    fromKey = String(query.startDate);
+    toKey = String(query.endDate);
+    if (fromKey > toKey) [fromKey, toKey] = [toKey, fromKey];
+    if (toKey > todayKey) toKey = todayKey;
+    const days = (localDayStart(toKey, offset) - localDayStart(fromKey, offset)) / 86400000;
+    if (days > 366) throw badRequest('La période ne peut pas dépasser un an.');
+  } else if (period === 'today') {
+    fromKey = todayKey;
+  } else if (period === 'month') {
+    fromKey = shift(todayKey, -29);
+  } else {
+    fromKey = shift(todayKey, -6);
+  }
+  return {
+    period: ['today', 'month', 'custom'].includes(period) ? period : 'week',
+    fromKey,
+    toKey,
+    from: localDayStart(fromKey, offset),
+    to: new Date(localDayStart(toKey, offset).getTime() + 86400000),
+  };
+}
+
+/// Gains du livreur sur ses courses livrées : frais de livraison +
+/// pourboires, détail par jour et liste des courses.
 async function getCourierEarnings(req, res, next) {
   try {
-    const userId = req.auth.userId;
-    const period = String(req.query.period || 'week').toLowerCase();
+    const userId = Number(req.auth.userId);
+    const offset = appOffsetMinutes();
+    const range = earningsRange(req.query, offset);
 
-    const now = new Date();
-    let start;
-    if (period === 'today') {
-      start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    } else if (period === 'month') {
-      start = new Date(now.getFullYear(), now.getMonth(), 1);
-    } else {
-      // week (default): last 7 days inclusive
-      start = new Date(now);
-      start.setDate(start.getDate() - 6);
-      start.setHours(0, 0, 0, 0);
-    }
+    const [courier, orders] = await Promise.all([
+      prisma.user.findFirst({
+        where: { userId, deletedAt: null },
+        select: { country: true, cashOnHand: true },
+      }),
+      prisma.order.findMany({
+        where: {
+          delivererId: userId,
+          deletedAt: null,
+          status: { in: ['DELIVERED', 'LIVREE'] },
+          // Marge d'un jour : la date de remise exacte est lue sur la livraison.
+          updatedAt: { gte: new Date(range.from.getTime() - 86400000) },
+        },
+        orderBy: { updatedAt: 'desc' },
+        take: 2000,
+      }),
+    ]);
 
-    const m = {
-      delivery: prisma.delivery || prisma.deliveries,
-      order: prisma.order || prisma.orders || prisma.commande,
-      delivererPayout: prisma.delivererPayout || prisma.delivererPayouts,
-      tip: prisma.tip || prisma.tips,
+    const orderIds = orders.map((o) => o.orderId).filter(Number.isInteger);
+    const [deliveries, restaurants] = await Promise.all([
+      orderIds.length
+        ? prisma.delivery.findMany({
+            where: { orderId: { in: orderIds } },
+            select: { orderId: true, deliveredAt: true, quotedDistanceKm: true },
+          })
+        : [],
+      prisma.restaurant.findMany({
+        where: { restaurantId: { in: [...new Set(orders.map((o) => o.restaurantId).filter(Number.isInteger))] } },
+        select: { restaurantId: true, name: true },
+      }),
+    ]);
+    const deliveryByOrder = new Map(deliveries.map((d) => [d.orderId, d]));
+    const restaurantName = new Map(restaurants.map((r) => [r.restaurantId, r.name]));
+    const num = (v) => {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : 0;
     };
 
-    const deliveries = await m.delivery.count({
-      where: {
-        delivererId: userId,
-        status: 'DELIVERED',
-        deliveredAt: { gte: start },
-      },
-    });
+    const days = new Map();
+    for (let t = range.from.getTime(); t < range.to.getTime(); t += 86400000) {
+      const key = localDayKey(new Date(t), offset);
+      days.set(key, { date: key, gains: 0, deliveries: 0 });
+    }
 
-    const payoutAgg = await m.delivererPayout.aggregate({
-      where: { delivererId: userId, weekStart: { gte: start } },
-      _sum: { totalBasePay: true, totalDistancePay: true, totalTips: true, netAmount: true },
-    });
-
-    const base = Number(payoutAgg?._sum?.totalBasePay ?? 0);
-    const dist = Number(payoutAgg?._sum?.totalDistancePay ?? 0);
-    const tips = Number(payoutAgg?._sum?.totalTips ?? 0);
-    const net = Number(payoutAgg?._sum?.netAmount ?? 0);
-    const totalGains = net > 0 ? net : base + dist + tips;
+    const rows = [];
+    let totalFees = 0;
+    let totalTips = 0;
+    for (const order of orders) {
+      const delivery = deliveryByOrder.get(order.orderId);
+      const deliveredAt = delivery?.deliveredAt || order.updatedAt;
+      if (deliveredAt < range.from || deliveredAt >= range.to) continue;
+      const fee = num(order.deliveryFee ?? order.legacyDeliveryFee);
+      const tip = num(order.tipAmount);
+      totalFees += fee;
+      totalTips += tip;
+      const key = localDayKey(deliveredAt, offset);
+      const day = days.get(key);
+      if (day) {
+        day.gains += fee + tip;
+        day.deliveries += 1;
+      }
+      rows.push({
+        orderId: order.orderId,
+        deliveredAt: deliveredAt.toISOString(),
+        restaurantName: restaurantName.get(order.restaurantId) || null,
+        deliveryFee: fee,
+        tip,
+        total: fee + tip,
+        paymentMethod: order.paymentProvider || null,
+        distanceKm: delivery?.quotedDistanceKm != null ? num(delivery.quotedDistanceKm) : num(order.deliveryDistanceKm) || null,
+      });
+    }
+    rows.sort((a, b) => b.deliveredAt.localeCompare(a.deliveredAt));
 
     return res.status(200).json({
       data: {
-        period,
-        startDate: start.toISOString(),
-        totalLivraisons: deliveries,
-        totalBasePay: base,
-        totalDistancePay: dist,
-        totalPourboires: tips,
-        totalGains,
+        period: range.period,
+        startDate: range.fromKey,
+        endDate: range.toKey,
+        currency: currencyForCountry(courier?.country),
+        totalLivraisons: rows.length,
+        totalDeliveryFees: totalFees,
+        totalPourboires: totalTips,
+        totalGains: totalFees + totalTips,
+        averagePerDelivery: rows.length ? Math.round((totalFees + totalTips) / rows.length) : 0,
+        cashOnHand: num(courier?.cashOnHand),
+        dailyData: [...days.values()],
+        deliveries: rows.slice(0, 100),
       },
     });
   } catch (error) {

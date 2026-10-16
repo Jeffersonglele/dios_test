@@ -858,6 +858,20 @@ async function verifyRetrievalOrder(req, res, next) {
           },
         });
 
+        // La livraison est close et le livreur redevient disponible pour
+        // de nouvelles propositions (il restait « occupé » auparavant).
+        const deliveredAt = new Date();
+        await tx.delivery.updateMany({
+          where: { orderId: order.orderId, status: { notIn: ['CANCELLED', 'DELIVERED'] } },
+          data: { status: 'DELIVERED', deliveredAt },
+        });
+        if (order.delivererId) {
+          await tx.user.updateMany({
+            where: { userId: order.delivererId, deletedAt: null, courierStatus: 'BUSY' },
+            data: { courierStatus: 'ACTIVE' },
+          });
+        }
+
         if (isCashPayment && order.delivererId) {
           const deliverer = await tx.user.findFirst({
             where: { userId: order.delivererId, deletedAt: null },

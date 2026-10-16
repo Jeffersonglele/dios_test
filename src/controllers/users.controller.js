@@ -51,4 +51,31 @@ async function setIdentityStatus(req, res, next) {
   }
 }
 
-module.exports = { ...crud, updateProfile, setIdentityStatus, SELF_PROFILE_FIELDS, USER_FIELDS };
+/// Les réponses de la liste admin ne contiennent jamais le mot de passe chiffré.
+function withoutPasswords(handler) {
+  return (req, res, next) => {
+    const json = res.json.bind(res);
+    res.json = (body) => {
+      const strip = (row) => {
+        if (!row || typeof row !== 'object') return row;
+        const { password, ...rest } = row;
+        return rest;
+      };
+      if (body && Array.isArray(body.data)) return json({ ...body, data: body.data.map(strip) });
+      if (body && body.data && typeof body.data === 'object') return json({ ...body, data: strip(body.data) });
+      return json(body);
+    };
+    return handler(req, res, next);
+  };
+}
+
+module.exports = {
+  ...crud,
+  list: withoutPasswords(crud.list),
+  getById: withoutPasswords(crud.getById),
+  update: withoutPasswords(crud.update),
+  updateProfile,
+  setIdentityStatus,
+  SELF_PROFILE_FIELDS,
+  USER_FIELDS,
+};

@@ -31,7 +31,8 @@ function serializeUser(user) {
   if (!user) return null;
   const { password, ...safeUser } = user;
   const courierStatus = String(safeUser.courierStatus || '').toUpperCase();
-  const isOnline = courierStatus === 'ACTIVE' || courierStatus === 'ONLINE' || courierStatus === 'AVAILABLE';
+  // BUSY = en course : le livreur reste en ligne (sinon l'app le passe hors ligne).
+  const isOnline = ['ACTIVE', 'ONLINE', 'AVAILABLE', 'BUSY'].includes(courierStatus);
   return { ...safeUser, isOnline };
 }
 
@@ -440,7 +441,8 @@ async function resetPassword(req, res, next) {
       }),
       prisma.user.updateMany({
         where: { userId: authUser.legacyUserId, deletedAt: null },
-        data: { password: passwordHash },
+        // Un nouveau mot de passe satisfait le changement imposé (premier accès).
+        data: { password: passwordHash, mustChangePassword: false },
       }),
       prisma.verificationCode.update({
         where: { id: verification.id },
@@ -523,7 +525,8 @@ async function changePassword(req, res, next) {
       }),
       prisma.user.updateMany({
         where: { userId: authUser.legacyUserId, deletedAt: null },
-        data: { password: passwordHash },
+        // Un nouveau mot de passe satisfait le changement imposé (premier accès).
+        data: { password: passwordHash, mustChangePassword: false },
       }),
     ]);
     return res.status(200).json({ data: { message: 'Mot de passe mis à jour.' } });

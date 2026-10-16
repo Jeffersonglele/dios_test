@@ -62,6 +62,11 @@ Exemples (distance estimée) :
 | Bénin (FCFA) | 400 | 400 | 700 | 1 000 | 1 450 | 1 750 |
 | RDC (CDF) | 2 000 | 2 000 | 3 300 | 4 700 | 6 800 | 8 200 |
 
+> **Kinshasa a sa propre grille en base** (`delivery_configs`, ville n° 1),
+> qui prime sur la grille RDC ci-dessus : 1 000 CDF incluant les 2 premiers
+> km, puis 500 CDF/km, minimum 1 000 CDF, livraison jusqu'à 25 km. Cotonou
+> utilise la grille par défaut du Bénin.
+
 ### Quelle grille s'applique ?
 
 1. **Frais fixes du restaurant.** Si `restaurants.deliveryFee` est renseigné,
@@ -90,10 +95,14 @@ donc le tarif béninois.
 
 ### Modifier un tarif sans redéployer
 
-Insérer ou mettre à jour une ligne `delivery_configs` active pour la ville
-(`baseFee`, `perKmRate`, `minFee`, `maxDistanceKm`, `roundingIncrement`,
-`currency`…). Elle prend le pas sur la grille par défaut dès la requête
-suivante.
+Depuis l'app : **Admin → Configuration de livraison**. Chaque ville affiche
+le tarif réellement appliqué, avec des exemples à 1, 3, 5 et 10 km, et la
+grille se modifie ville par ville. Côté API, c'est une ligne
+`delivery_configs` active pour la ville (`baseFee`, `perKmRate`,
+`includedDistanceKm`, `minFee`, `maxDistanceKm`, `roundingIncrement`,
+`currency`). Elle prend le pas sur la grille par défaut dès la requête
+suivante. `GET /delivery-configs/active?cityId=…` renvoie le tarif
+appliqué et sa source (`CITY_CONFIGURATION` ou `DEFAULT_CONFIGURATION`).
 
 ---
 
@@ -183,7 +192,7 @@ Le code est dans `src/services/promo.service.js`.
 - **Données privées** : l'IBAN, le numéro Mobile Money, le RCCM et le motif de
   refus ne sont visibles que par le propriétaire et l'admin. `?showAll=true`
   n'est honoré que pour l'admin, ou pour le propriétaire sur sa propre fiche.
-- **Devenir Pro** : `POST /verification/pro-documents`.
+- **Devenir Pro** : `POST /pro-documents`.
   - Réservé au propriétaire d'un restaurant validé, avec une seule demande en
     attente à la fois.
   - Pièces demandées : pièce d'identité et RCCM, en PDF ou en photo.
@@ -200,7 +209,7 @@ Le code est dans `src/services/promo.service.js`.
 
 Un compte livreur (inscription avec `accountType: livreur` et `vehicleType`)
 doit envoyer son dossier avant de travailler :
-`POST /verification/courier-application`.
+`POST /courier-application`.
 
 - **Photo du visage**, obligatoire. Elle devient la photo de profil, visible
   par le client et le restaurant.
@@ -284,7 +293,39 @@ Dans les deux cas, l'acceptation **réserve la commande de façon atomique** :
 
 ---
 
-## 8. Variables d'environnement utiles
+## 8. Espace admin et super admin
+
+**Rôles** : `1` = admin d'un pays, `4` = super admin (tous les pays). Ces
+valeurs se règlent avec `ADMIN_ROLE_IDS` et `SUPER_ADMIN_ROLE_IDS`. Le code est
+dans `src/services/admin-scope.service.js`.
+
+- **Un admin ne gère que son pays**, et le serveur l'impose quel que soit
+  le filtre envoyé par l'app :
+  - les listes (utilisateurs, livreurs, demandes Pro, dossiers livreurs,
+    journal d'audit) et les statistiques sont limitées à son pays ;
+  - valider ou refuser un restaurant, une demande Pro ou un dossier livreur
+    hors de son pays renvoie 403 ;
+  - le pays de l'admin est lu en base, jamais dans la requête.
+- **Réservé au super admin** :
+  - création d'un administrateur (`POST /admin/users`) : un mot de passe
+    temporaire est envoyé par email, à changer à la première connexion ;
+  - indicateurs globaux (`GET /admin/super-stats`) : paiements, commissions
+    de la semaine, litiges ;
+  - suppression d'un compte administrateur.
+- **Suppression d'un compte** (`DELETE /admin/users/:id/force`) : suppression
+  logique du profil et du compte de connexion, qui ne peut plus se connecter.
+  On ne peut pas se supprimer soi-même.
+- **Journal d'audit** (`GET /audit-logs`) : chaque validation ou refus, chaque
+  changement d'identité ou de profil, chaque suppression, création d'admin ou
+  email envoyé est enregistré, avec l'auteur et le pays.
+- **Envoi d'email** (`POST /admin/send-email`) : l'email part réellement
+  (avant, la route répondait « envoyé » sans rien envoyer).
+- **Données sensibles** : les mots de passe chiffrés ne sont plus jamais
+  renvoyés dans les listes d'utilisateurs.
+
+---
+
+## 9. Variables d'environnement utiles
 
 Les variables de base (`DATABASE_URL`, `JWT_SECRET`, `CORS_ORIGINS`,
 Nyole, SMTP / Brevo, stockage) sont décrites dans
@@ -294,6 +335,7 @@ Nyole, SMTP / Brevo, stockage) sont décrites dans
 |---|---|---|
 | `ADMIN_NOTIFICATION_EMAIL` | *(vide)* | Adresse(s) de l'équipe, séparées par des virgules, prévenues de chaque nouvelle demande vendeur ou dossier livreur. Vide = pas d'email. |
 | `ADMIN_ROLE_IDS` | `1,4` | Rôles administrateurs. |
+| `SUPER_ADMIN_ROLE_IDS` | `4` | Rôles super administrateurs (tous les pays). |
 | `ROUTE_DISTANCE_FACTOR` | `1.25` | Passage de la distance à vol d'oiseau à une distance routière estimée. |
 | `DISPATCH_OFFER_LIMIT` | `3` | Livreurs sollicités par vague de propositions. |
 | `DISPATCH_OFFER_TTL_SECONDS` | `60` | Durée de validité d'une proposition. |
@@ -305,7 +347,7 @@ Nyole, SMTP / Brevo, stockage) sont décrites dans
 
 ---
 
-## 9. Migrations récentes
+## 10. Migrations récentes
 
 Les migrations sont appliquées automatiquement au déploiement.
 

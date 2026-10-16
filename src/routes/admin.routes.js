@@ -11,6 +11,8 @@ router.use(authenticate, authorize('ADMIN'));
 
 router.get('/dashboard-stats', adminController.getDashboardStats);
 router.post('/send-email', adminController.sendEmail);
+router.post('/users', adminController.createAdmin);
+router.get('/super-stats', adminController.getSuperAdminStats);
 router.delete('/users/:userId/force', adminController.forceDeleteUser);
 
 router.get('/pro-documents', adminController.getProDocuments);

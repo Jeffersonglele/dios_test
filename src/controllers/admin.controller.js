@@ -1,5 +1,8 @@
 const { badRequest, handleControllerError, canonicalCountry, notFound } = require('./controller.utils');
 const { IDENTITY, isIdentityVerified } = require('../services/courier.service');
+const {
+  adminContext, assertCountryInScope, recordAudit, requireSuperAdmin, scopedCountry,
+} = require('../services/admin-scope.service');
 const prisma = require('../config/prisma');
 const {
   sendSellerApprovedEmail,
@@ -8,7 +11,11 @@ const {
   sendRestaurantRejectedEmail,
   sendCourierApprovedEmail,
   sendCourierRejectedEmail,
+  sendAdminAccountEmail,
+  sendDirectMessageEmail,
 } = require('../services/email.service');
+const bcrypt = require('bcryptjs');
+const { randomBytes } = require('crypto');
 
 function restaurateurRoleId() {
   const configured = Number.parseInt(process.env.RESTAURATEUR_ROLE_ID || '3', 10);
@@ -49,11 +56,13 @@ function _model() {
   };
 }
 
+/// Chiffre d'affaires et commandes réalisées : commandes livrées.
+const DELIVERED_STATUSES = ['DELIVERED', 'LIVREE', 'delivered', 'Delivered'];
+
 async function getDashboardStats(req, res, next) {
   try {
     const m = _model();
-    const countryRaw = req.query?.country;
-    const country = countryRaw ? canonicalCountry(countryRaw) : null;
+    const country = scopedCountry(await adminContext(req), req.query?.country);
 
     const userWhere = { deletedAt: null };
     if (country) userWhere.country = country;
@@ -128,7 +137,7 @@ async function getDashboardStats(req, res, next) {
     const revenueAgg = await m.order.aggregate({
       where: {
         ...orderWhere,
-        status: { in: ['confirmed', 'Confirmed', 'CONFIRMED', 'delivered', 'Delivered', 'DELIVERED', 'paid', 'Paid', 'PAID'] },
+        status: { in: DELIVERED_STATUSES },
       },
       _sum: { totalAmount: true },
     });
@@ -137,7 +146,7 @@ async function getDashboardStats(req, res, next) {
     const confirmedCount = await m.order.count({
       where: {
         ...orderWhere,
-        status: { in: ['confirmed', 'Confirmed', 'CONFIRMED', 'delivered', 'Delivered', 'DELIVERED', 'paid', 'Paid', 'PAID'] },
+        status: { in: DELIVERED_STATUSES },
       },
     });
 
@@ -178,8 +187,7 @@ async function getDashboardStats(req, res, next) {
 async function getProDocuments(req, res, next) {
   try {
     const m = _model();
-    const countryRaw = req.query?.country;
-    const country = countryRaw ? canonicalCountry(countryRaw) : null;
+    const country = scopedCountry(await adminContext(req), req.query?.country);
 
     let docs;
     if (country) {
@@ -249,6 +257,10 @@ async function validateProDocuments(req, res, next) {
     }
     const previous = await m.proDocument.findFirst({ where: whereClause });
     if (!previous) throw notFound('Document professionnel');
+    const docOwner = previous.userId != null
+      ? await m.user.findFirst({ where: { userId: previous.userId }, select: { country: true } })
+      : null;
+    assertCountryInScope(await adminContext(req), docOwner?.country);
 
     const normalizedStatus = String(status || '').trim();
     const isApproved = normalizedStatus === 'approved';
@@ -327,6 +339,9 @@ async function validateProDocuments(req, res, next) {
       });
     }
 
+    await recordAudit(req, `courier_file:${normalizedStatus}`, {
+      documentId: doc.id, userId: previous.userId, remark: remark || null,
+    });
     return res.status(200).json({ data: doc });
   } catch (error) {
     return handleControllerError(error, next);
@@ -336,8 +351,7 @@ async function validateProDocuments(req, res, next) {
 async function getDeliveryDocuments(req, res, next) {
   try {
     const m = _model();
-    const countryRaw = req.query?.country;
-    const country = countryRaw ? canonicalCountry(countryRaw) : null;
+    const country = scopedCountry(await adminContext(req), req.query?.country);
 
     let identities;
     if (country) {
@@ -404,6 +418,10 @@ async function validateDeliveryDocuments(req, res, next) {
     }
     const previous = await m.identity.findFirst({ where: whereClause });
     if (!previous) throw notFound('Vérification d’identité');
+    const fileOwner = previous.userId != null
+      ? await m.user.findFirst({ where: { userId: previous.userId }, select: { country: true } })
+      : null;
+    assertCountryInScope(await adminContext(req), fileOwner?.country);
 
     // L'app admin envoie VALIDATED / REJECTED ; l'API historique approved / rejected.
     const rawStatus = String(status || '').trim().toLowerCase();
@@ -469,6 +487,9 @@ async function validateDeliveryDocuments(req, res, next) {
       });
     }
 
+    await recordAudit(req, `pro_document:${normalizedStatus}`, {
+      documentId: doc.id, userId: previous.userId, remark: remark || null,
+    });
     return res.status(200).json({ data: doc });
   } catch (error) {
     return handleControllerError(error, next);
@@ -514,7 +535,118 @@ async function getReferralStats(req, res, next) {
 
 async function sendEmail(req, res, next) {
   try {
+    const to = String(req.body.to || req.body.email || '').trim();
+    const subject = String(req.body.subject || '').trim();
+    const text = String(req.body.text || req.body.message || req.body.body || '').trim();
+    if (!to || !subject || !text) throw badRequest('Destinataire, objet et message sont obligatoires.');
+    await sendDirectMessageEmail({ to, subject, text });
+    await recordAudit(req, 'email:sent', { to, subject });
     return res.status(200).json({ success: true, message: 'Email envoyé' });
+  } catch (error) {
+    return handleControllerError(error, next);
+  }
+}
+
+/// Création d'un administrateur (super admin uniquement). Un mot de passe
+/// temporaire est envoyé par email ; il devra être changé à la connexion.
+async function createAdmin(req, res, next) {
+  try {
+    const context = await adminContext(req);
+    requireSuperAdmin(context);
+    const email = String(req.body.email || '').trim().toLowerCase();
+    const username = String(req.body.username || '').trim();
+    const firstname = String(req.body.firstname || '').trim() || null;
+    const lastname = String(req.body.lastname || '').trim() || null;
+    const roleId = Number(req.body.roleId) === 4 ? 4 : 1;
+    const country = canonicalCountry(req.body.country) || context.country;
+    if (!email || !username) throw badRequest('Email et nom d’utilisateur sont obligatoires.');
+    if (!country) throw badRequest('Pays de l’administrateur inconnu.');
+    const existing = await prisma.authUser.findFirst({
+      where: { OR: [{ email }, { username }] },
+    });
+    if (existing) {
+      const err = new Error('Un compte utilise déjà cet email ou ce nom d’utilisateur.');
+      err.statusCode = 409;
+      throw err;
+    }
+    const temporaryPassword = randomBytes(9).toString('base64url');
+    const passwordHash = await bcrypt.hash(temporaryPassword, 12);
+    const created = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          username, email, firstname, lastname, country, roleId,
+          password: passwordHash,
+          status: 'Verified',
+          identity: 'Verified',
+          accountType: 'ADMIN',
+          mustChangePassword: true,
+          ageConfirmed: true,
+        },
+      });
+      await tx.authUser.create({
+        data: {
+          username, email, firstname, lastname,
+          password: passwordHash,
+          emailVerified: true,
+          legacyUserId: user.userId,
+        },
+      });
+      return user;
+    });
+    await sendAdminAccountEmail({
+      to: email,
+      name: firstname || username,
+      accessLabel: roleId === 4 ? 'super administrateur' : `administrateur (${country})`,
+      username,
+      temporaryPassword,
+    }).catch((err) => console.error('[admin] email nouvel admin impossible', { message: err?.message }));
+    await recordAudit(req, 'admin:created', { userId: created.userId, email, roleId }, country);
+    const { password, ...safeUser } = created;
+    return res.status(201).json({ data: safeUser });
+  } catch (error) {
+    return handleControllerError(error, next);
+  }
+}
+
+/// Indicateurs du super admin : paiements, commissions et litiges.
+async function getSuperAdminStats(req, res, next) {
+  try {
+    requireSuperAdmin(await adminContext(req));
+    const country = req.query?.country ? canonicalCountry(req.query.country) : null;
+    const orderIds = country
+      ? (await prisma.order.findMany({ where: { country, deletedAt: null }, select: { orderId: true } }))
+        .map((o) => o.orderId)
+      : null;
+    const txWhere = { deletedAt: null, ...(orderIds ? { orderId: { in: orderIds } } : {}) };
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const [completed, pending, commissions, disputes] = await Promise.all([
+      prisma.transaction.count({ where: { ...txWhere, status: { in: ['COMPLETED', 'PAID', 'SUCCESS'] } } }),
+      prisma.transaction.count({
+        where: { ...txWhere, status: { in: ['INITIATED', 'PENDING', 'PENDING_CASH_COLLECTION'] } },
+      }),
+      prisma.transaction.aggregate({
+        where: { ...txWhere, createdAt: { gte: weekAgo }, status: { in: ['COMPLETED', 'PAID', 'SUCCESS'] } },
+        _sum: { commissionAmount: true },
+      }),
+      prisma.dispute.groupBy({
+        by: ['status'],
+        _count: { _all: true },
+        ...(orderIds ? { where: { orderId: { in: orderIds } } } : {}),
+      }),
+    ]);
+    const disputeCount = (statuses) => disputes
+      .filter((d) => statuses.includes(String(d.status).toUpperCase()))
+      .reduce((sum, d) => sum + d._count._all, 0);
+    return res.status(200).json({
+      data: {
+        weeklyCommissions: Number(commissions._sum.commissionAmount || 0),
+        paymentsCompleted: completed,
+        paymentsPending: pending,
+        disputesOpen: disputeCount(['OPEN']),
+        disputesInProgress: disputeCount(['IN_PROGRESS', 'IN_REVIEW', 'PENDING']),
+        disputesResolved: disputeCount(['RESOLVED', 'CLOSED', 'REFUNDED', 'REJECTED']),
+      },
+    });
   } catch (error) {
     return handleControllerError(error, next);
   }
@@ -535,7 +667,18 @@ async function forceDeleteUser(req, res, next) {
     if (!user) {
       return res.status(404).json({ success: false, message: 'Utilisateur introuvable.' });
     }
-    await m.user.delete({ where: { id: user.id } });
+    assertCountryInScope(await adminContext(req), user.country);
+    const context = await adminContext(req);
+    if (Number(user.userId) === context.userId) {
+      throw badRequest('Vous ne pouvez pas supprimer votre propre compte.');
+    }
+    if (adminRoleIds().includes(Number(user.roleId))) requireSuperAdmin(context);
+    const now = new Date();
+    await prisma.$transaction([
+      prisma.user.update({ where: { id: user.id }, data: { deletedAt: now, courierStatus: 'INACTIVE' } }),
+      prisma.authUser.updateMany({ where: { legacyUserId: user.userId, deletedAt: null }, data: { deletedAt: now } }),
+    ]);
+    await recordAudit(req, 'user:deleted', { userId: user.userId, email: user.email }, user.country);
     return res.status(200).json({ success: true });
   } catch (error) {
     return handleControllerError(error, next);
@@ -556,6 +699,7 @@ async function validateRestaurant(req, res, next) {
       resto = await m.restaurant.findFirst({ where: { id: restaurantId } });
     }
     if (!resto) throw notFound('Restaurant');
+    assertCountryInScope(await adminContext(req), resto.country);
 
     const newValid = Number(valid);
     if (![0, 1, 2].includes(newValid)) throw badRequest('valid doit valoir 0 (en attente), 1 (validé) ou 2 (refusé).');
@@ -613,6 +757,9 @@ async function validateRestaurant(req, res, next) {
       });
     }
 
+    await recordAudit(req, newValid === 1 ? 'restaurant:approved' : newValid === 2 ? 'restaurant:rejected' : 'restaurant:pending', {
+      restaurantId: updatedResto.restaurantId, name: updatedResto.name, remark: reviewRemark || null,
+    }, updatedResto.country);
     return res.status(200).json({ data: updatedResto });
   } catch (error) {
     return handleControllerError(error, next);
@@ -637,10 +784,12 @@ async function setIdentityStatus(req, res, next) {
       error.statusCode = 404;
       throw error;
     }
+    assertCountryInScope(await adminContext(req), user.country);
     const data = await m.user.update({
       where: { id: user.id },
       data: { identity: String(status || '').trim() },
     });
+    await recordAudit(req, 'user:identity', { userId: user.userId, identity: data.identity }, user.country);
     const { password, ...safeData } = data;
     return res.status(200).json({ data: safeData });
   } catch (error) {
@@ -691,6 +840,7 @@ async function getUserDetailsByLegacyId(req, res, next) {
       err.statusCode = 404;
       throw err;
     }
+    assertCountryInScope(await adminContext(req), user.country);
     const { password, ...safeUser } = user;
     const identity = await m.identity.findFirst({
       where: { userId: user.userId, deletedAt: null },
@@ -728,6 +878,7 @@ async function updateUserProfileByLegacyId(req, res, next) {
       err.statusCode = 404;
       throw err;
     }
+    assertCountryInScope(await adminContext(req), user.country);
     const allowedFields = ['firstname', 'lastname', 'username', 'email', 'telephone', 'telephoneLocal', 'telephoneE164', 'image'];
     const data = {};
     for (const field of allowedFields) {
@@ -749,6 +900,7 @@ async function updateUserProfileByLegacyId(req, res, next) {
         },
       });
     }
+    await recordAudit(req, 'user:profile', { userId: user.userId, fields: Object.keys(data) }, user.country);
     const { password, ...safeUpdated } = updated;
     return res.status(200).json({ data: safeUpdated });
   } catch (error) {
@@ -781,7 +933,7 @@ async function listCouriers(req, res, next) {
   try {
     const roleId = courierRoleId();
     const where = { deletedAt: null, roleId };
-    const country = req.query?.country ? canonicalCountry(req.query.country) : null;
+    const country = scopedCountry(await adminContext(req), req.query?.country);
     if (country) where.country = country;
     const users = await prisma.user.findMany({ where, orderBy: { createdAt: 'desc' }, take: 500 });
     const ids = users.map((u) => u.userId);
@@ -837,6 +989,8 @@ async function getCourier(req, res, next) {
 }
 
 module.exports = {
+  createAdmin,
+  getSuperAdminStats,
   listCouriers,
   getCourier,
   getDashboardStats,
