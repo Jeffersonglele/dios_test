@@ -4513,4 +4513,127 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get courier_admin_tap_to_view => 'Toucher pour agrandir';
+
+  @override
+  String get tariff_intro =>
+      'Frais de livraison appliqués à chaque commande : prise en charge + prix au km au-delà de la distance incluse, arrondis, jamais sous le minimum. Une ville sans grille propre utilise la grille par défaut de son pays.';
+
+  @override
+  String get tariff_no_city => 'Aucune ville active dans votre pays.';
+
+  @override
+  String get tariff_custom => 'Grille de la ville';
+
+  @override
+  String get tariff_default => 'Grille par défaut';
+
+  @override
+  String tariff_formula(
+      String base, String perKm, String included, String min, String max) {
+    return '$base de prise en charge, puis $perKm/km au-delà de $included km. Minimum $min. Livraison jusqu\'à $max km.';
+  }
+
+  @override
+  String get tariff_edit => 'Modifier la grille';
+
+  @override
+  String get tariff_base_fee => 'Prise en charge';
+
+  @override
+  String get tariff_per_km => 'Prix par km';
+
+  @override
+  String get tariff_included_km => 'Distance incluse (km)';
+
+  @override
+  String get tariff_min_fee => 'Minimum';
+
+  @override
+  String get tariff_max_km => 'Distance maximale (km)';
+
+  @override
+  String get tariff_rounding => 'Arrondi';
+
+  @override
+  String get earnings_load_error =>
+      'Impossible de charger vos gains. Tirez vers le bas pour réessayer.';
+
+  @override
+  String get earnings_pick_dates => 'Choisir les dates';
+
+  @override
+  String get earnings_period_custom => 'Dates…';
+
+  @override
+  String get earnings_title_today => 'Gains d\'aujourd\'hui';
+
+  @override
+  String get earnings_title_week => 'Gains des 7 derniers jours';
+
+  @override
+  String get earnings_title_month => 'Gains des 30 derniers jours';
+
+  @override
+  String earnings_title_range(String start, String end) {
+    return 'Gains du $start au $end';
+  }
+
+  @override
+  String earnings_deliveries_count(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count courses livrées',
+      one: '1 course livrée',
+      zero: 'Aucune course livrée',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get earnings_kpi_fees => 'Livraisons';
+
+  @override
+  String get earnings_kpi_tips => 'Pourboires';
+
+  @override
+  String get earnings_kpi_average => 'Par course';
+
+  @override
+  String earnings_cash_title(String amount) {
+    return '$amount d\'espèces en main';
+  }
+
+  @override
+  String get earnings_cash_body =>
+      'Encaissés auprès des clients, à reverser à Dios Délices.';
+
+  @override
+  String get earnings_empty => 'Aucune course livrée sur cette période.';
+
+  @override
+  String get earnings_chart_title => 'Gains par jour';
+
+  @override
+  String earnings_rides_title(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count courses',
+      one: '1 course',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get earnings_payment_cash => 'Espèces';
+
+  @override
+  String get earnings_payment_mobile => 'Mobile Money';
+
+  @override
+  String get earnings_payment_wallet => 'Portefeuille';
+
+  @override
+  String get earnings_tip_suffix => 'pourboire';
 }

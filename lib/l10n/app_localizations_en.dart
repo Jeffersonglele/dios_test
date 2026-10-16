@@ -4477,4 +4477,127 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get courier_admin_tap_to_view => 'Tap to enlarge';
+
+  @override
+  String get tariff_intro =>
+      'Delivery fees applied to every order: base fee + price per km beyond the included distance, rounded, never below the minimum. A city without its own grid uses its country\'s default grid.';
+
+  @override
+  String get tariff_no_city => 'No active city in your country.';
+
+  @override
+  String get tariff_custom => 'City grid';
+
+  @override
+  String get tariff_default => 'Default grid';
+
+  @override
+  String tariff_formula(
+      String base, String perKm, String included, String min, String max) {
+    return '$base base fee, then $perKm/km beyond $included km. Minimum $min. Delivery up to $max km.';
+  }
+
+  @override
+  String get tariff_edit => 'Edit grid';
+
+  @override
+  String get tariff_base_fee => 'Base fee';
+
+  @override
+  String get tariff_per_km => 'Price per km';
+
+  @override
+  String get tariff_included_km => 'Included distance (km)';
+
+  @override
+  String get tariff_min_fee => 'Minimum';
+
+  @override
+  String get tariff_max_km => 'Maximum distance (km)';
+
+  @override
+  String get tariff_rounding => 'Rounding';
+
+  @override
+  String get earnings_load_error =>
+      'Couldn\'t load your earnings. Pull down to retry.';
+
+  @override
+  String get earnings_pick_dates => 'Choose dates';
+
+  @override
+  String get earnings_period_custom => 'Dates…';
+
+  @override
+  String get earnings_title_today => 'Today\'s earnings';
+
+  @override
+  String get earnings_title_week => 'Earnings, last 7 days';
+
+  @override
+  String get earnings_title_month => 'Earnings, last 30 days';
+
+  @override
+  String earnings_title_range(String start, String end) {
+    return 'Earnings from $start to $end';
+  }
+
+  @override
+  String earnings_deliveries_count(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count delivered rides',
+      one: '1 delivered ride',
+      zero: 'No delivered ride',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get earnings_kpi_fees => 'Delivery fees';
+
+  @override
+  String get earnings_kpi_tips => 'Tips';
+
+  @override
+  String get earnings_kpi_average => 'Per ride';
+
+  @override
+  String earnings_cash_title(String amount) {
+    return '$amount cash on hand';
+  }
+
+  @override
+  String get earnings_cash_body =>
+      'Collected from customers, to be paid back to Dios Délices.';
+
+  @override
+  String get earnings_empty => 'No delivered ride in this period.';
+
+  @override
+  String get earnings_chart_title => 'Earnings per day';
+
+  @override
+  String earnings_rides_title(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count rides',
+      one: '1 ride',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get earnings_payment_cash => 'Cash';
+
+  @override
+  String get earnings_payment_mobile => 'Mobile Money';
+
+  @override
+  String get earnings_payment_wallet => 'Wallet';
+
+  @override
+  String get earnings_tip_suffix => 'tip';
 }

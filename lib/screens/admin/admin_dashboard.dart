@@ -903,22 +903,29 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ElevatedButton(
               onPressed: () async {
                 if (un.text.isEmpty || em.text.isEmpty) return;
-                final result = await Users.manageUser(
-                  roleID: selectedRole,
-                  telephone: '',
-                  password: '',
-                  password_crypte: '',
-                  firstname: fn.text,
-                  lastname: ln.text,
-                  email: em.text,
-                  username: un.text,
-                  status: 'Verified',
-                  identity: 'Verified',
-                  addressID: 0,
-                  country: _userCountry,
-                );
+                // Création sur le serveur Node (super admin) : mot de passe
+                // temporaire envoyé par email, à changer à la connexion.
+                String? failure;
+                try {
+                  final token = await SessionService.readNodeToken();
+                  if (token == null) throw const NodeAuthException('Session expirée.');
+                  await NodeAdminService.createAdmin(
+                    token: token,
+                    email: em.text,
+                    username: un.text,
+                    firstname: fn.text,
+                    lastname: ln.text,
+                    roleId: selectedRole,
+                    country: _userCountry,
+                  );
+                } on NodeAuthException catch (e) {
+                  failure = e.message;
+                } catch (e) {
+                  failure = e.toString();
+                }
                 if (!mounted) return;
-                final ok = result is int && result > 0;
+                final ok = failure == null;
+                final result = failure ?? '';
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                   content: Text(ok
                       ? AppLocalizations.of(context)!.admin_admin_created

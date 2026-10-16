@@ -1,4 +1,5 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:dios_delices/screens/dish/dish_details.dart';
 import 'package:dios_delices/screens/explore/meals_of_a_category.dart';
@@ -37,6 +38,11 @@ import 'widgets/session_guard.dart';
 import 'services/currency_service.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Fichier .env (clé CARTO). Facultatif : sans lui, l'app utilise OSM.
+  try {
+    await dotenv.load(fileName: '.env');
+  } catch (e) {}
 
   await DeviceInfo.init();
   await CurrencyService.instance.init();

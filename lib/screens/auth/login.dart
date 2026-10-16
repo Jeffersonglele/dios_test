@@ -2,6 +2,7 @@ import 'package:dios_delices/screens/users/user_identity_rejected.dart';
 import 'package:dios_delices/screens/onboarding/wait_identity_validation.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
@@ -368,6 +369,13 @@ class _LoginState extends ConsumerState<Login> {
           );
         }
         return;
+      }
+
+      // Email déjà vérifié côté serveur : on le mémorise, sinon le prochain
+      // démarrage redemanderait le code de vérification.
+      if (role.isAdmin || authenticatedUser.status == 'Verified') {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('userVerified', true);
       }
 
       if (role.isAdmin) {

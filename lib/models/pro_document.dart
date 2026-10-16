@@ -141,14 +141,14 @@ class ProDocument extends HiveObject {
       if (documentID == null) {
         // Create
         response = await NodeAuthService.postJson(
-          '/verification/pro-documents',
+          '/pro-documents',
           token: token,
           body: body,
         );
       } else {
         // Update
         response = await NodeAuthService.patchJson(
-          '/verification/pro-documents/$documentID',
+          '/pro-documents/$documentID',
           token: token,
           body: body,
         );
@@ -190,7 +190,7 @@ class ProDocument extends HiveObject {
 
     try {
       final response = await NodeAuthService.getJson(
-        '/verification/pro-documents',
+        '/pro-documents',
         token: token,
       );
 

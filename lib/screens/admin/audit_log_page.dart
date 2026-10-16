@@ -1,7 +1,8 @@
 import 'package:dios_delices/l10n/app_localizations.dart';
 import 'package:dios_delices/theme/app_theme.dart';
 import 'package:flutter/material.dart';
-import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
+import 'package:dios_delices/services/node_admin_service.dart';
+import 'package:dios_delices/services/session_service.dart';
 
 class AuditLogPage extends StatefulWidget {
   final String country;
@@ -12,7 +13,26 @@ class AuditLogPage extends StatefulWidget {
 }
 
 class _AuditLogPageState extends State<AuditLogPage> {
-  List<ParseObject> _logs = [];
+  List<Map<String, dynamic>> _logs = [];
+
+  /// Libellé lisible des actions enregistrées par le serveur.
+  static String _actionLabel(String action) {
+    const labels = {
+      'restaurant:approved': 'Restaurant validé',
+      'restaurant:rejected': 'Restaurant refusé',
+      'restaurant:pending': 'Restaurant remis en attente',
+      'pro_document:approved': 'Demande Pro validée',
+      'pro_document:rejected': 'Demande Pro refusée',
+      'courier_file:approved': 'Dossier livreur validé',
+      'courier_file:rejected': 'Dossier livreur refusé',
+      'user:identity': 'Identité modifiée',
+      'user:profile': 'Profil modifié',
+      'user:deleted': 'Compte supprimé',
+      'admin:created': 'Administrateur créé',
+      'email:sent': 'Email envoyé',
+    };
+    return labels[action] ?? action;
+  }
   bool _loading = true;
 
   @override
@@ -26,14 +46,11 @@ class _AuditLogPageState extends State<AuditLogPage> {
     setState(() => _loading = true);
 
     try {
-      // Requête sans filtre country car la colonne n'existe pas dans AuditLog
-      final q = QueryBuilder<ParseObject>(ParseObject('AuditLog'))
-        ..orderByDescending('createdAt')
-        ..setLimit(200);
-
-      final resp = await q.query();
-      if (resp.success && resp.results != null) {
-        if (mounted) setState(() => _logs = resp.results!.cast<ParseObject>());
+      // Le serveur limite le journal au pays de l'admin (tous pour le super admin).
+      final token = await SessionService.readNodeToken();
+      if (token != null) {
+        final logs = await NodeAdminService.getAuditLogs(token);
+        if (mounted) setState(() => _logs = logs);
       }
     } catch (e, st) {
       debugPrint('[AuditLogPage] Exception while loading: $e');
@@ -91,17 +108,26 @@ class _AuditLogPageState extends State<AuditLogPage> {
                     itemCount: _logs.length,
                     itemBuilder: (_, i) {
                       final log = _logs[i];
-                      final action = log.get<String>('action') ?? '';
-                      final details = log.get<String>('details') ?? '';
-                      final userName = log.get<String>('userName') ?? '';
-                      final date = log.createdAt;
+                      final action = log['action']?.toString() ?? '';
+                      final details = log['details']?.toString() ?? '';
+                      final userName = log['userName']?.toString() ?? '';
+                      final date =
+                          DateTime.tryParse('${log['createdAt']}')?.toLocal();
                       final dateStr = date != null
                           ? '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}'
                           : '';
 
                       IconData icon;
                       Color iconColor;
-                      if (action.toLowerCase().contains('suppr') ||
+                      if (action.contains('rejected')) {
+                        icon = Icons.block_rounded;
+                        iconColor = AppColors.resolve(
+                            AppColors.error, AppDarkColors.error);
+                      } else if (action.contains('approved')) {
+                        icon = Icons.verified_rounded;
+                        iconColor = AppColors.resolve(
+                            AppColors.success, AppDarkColors.success);
+                      } else if (action.toLowerCase().contains('suppr') ||
                           action.toLowerCase().contains('delete')) {
                         icon = Icons.delete_rounded;
                         iconColor = AppColors.resolve(
@@ -157,7 +183,7 @@ class _AuditLogPageState extends State<AuditLogPage> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(action,
+                                  Text(_actionLabel(action),
                                       style: AppTypography.bodyLarge(
                                         color: AppColors.resolve(
                                             AppColors.ink, AppDarkColors.ink),

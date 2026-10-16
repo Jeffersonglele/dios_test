@@ -165,6 +165,97 @@ class NodeAdminService {
     return data is Map ? Map<String, dynamic>.from(data) : null;
   }
 
+  /// Création d'un administrateur (super admin) : mot de passe temporaire
+  /// envoyé par email, à changer à la première connexion.
+  static Future<Map<String, dynamic>> createAdmin({
+    required String token,
+    required String email,
+    required String username,
+    String? firstname,
+    String? lastname,
+    required int roleId,
+    String? country,
+  }) async {
+    final response = await NodeAuthService.postJson(
+      '/admin/users',
+      token: token,
+      body: {
+        'email': email.trim(),
+        'username': username.trim(),
+        if (firstname?.trim().isNotEmpty == true) 'firstname': firstname!.trim(),
+        if (lastname?.trim().isNotEmpty == true) 'lastname': lastname!.trim(),
+        'roleId': roleId,
+        if (country?.trim().isNotEmpty == true) 'country': country!.trim(),
+      },
+    );
+    final data = response['data'];
+    return data is Map ? Map<String, dynamic>.from(data) : const {};
+  }
+
+  /// Indicateurs du super admin (paiements, commissions, litiges).
+  static Future<Map<String, dynamic>> getSuperAdminStats(String token,
+      {String? country}) async {
+    final response = await NodeAuthService.getJson(
+      '/admin/super-stats',
+      token: token,
+      queryParameters: country?.trim().isNotEmpty == true
+          ? {'country': country!.trim()}
+          : null,
+    );
+    final data = response['data'];
+    return data is Map ? Map<String, dynamic>.from(data) : const {};
+  }
+
+  /// Journal d'audit (limité au pays de l'admin par le serveur).
+  static Future<List<Map<String, dynamic>>> getAuditLogs(String token) async {
+    final response = await NodeAuthService.getJson(
+      '/audit-logs',
+      token: token,
+      queryParameters: const {'pageSize': '100'},
+    );
+    return _rows(response);
+  }
+
+  /// Villes ouvertes à la livraison.
+  static Future<List<Map<String, dynamic>>> getCities(String token) async {
+    final response = await NodeAuthService.getJson(
+      '/cities',
+      token: token,
+      queryParameters: const {'pageSize': '100'},
+    );
+    return _rows(response);
+  }
+
+  /// Tarif réellement appliqué dans une ville (configuration de la ville ou
+  /// grille par défaut du pays).
+  static Future<Map<String, dynamic>> getCityTariff(
+      String token, int cityId) async {
+    final response = await NodeAuthService.getJson(
+      '/delivery-configs/active',
+      token: token,
+      queryParameters: {'cityId': '$cityId'},
+    );
+    final data = response['data'];
+    return data is Map ? Map<String, dynamic>.from(data) : const {};
+  }
+
+  /// Enregistre la grille d'une ville (crée la configuration si besoin).
+  static Future<void> saveCityTariff({
+    required String token,
+    required int cityId,
+    String? configUuid,
+    required Map<String, dynamic> values,
+  }) async {
+    final body = {...values, 'cityId': cityId, 'active': true};
+    if (configUuid != null && configUuid.isNotEmpty) {
+      await NodeAuthService.patchJson('/delivery-configs/$configUuid',
+          token: token, body: body);
+    } else {
+      await NodeAuthService.postJson('/delivery-configs',
+          token: token, body: body);
+    }
+  }
+
   static Future<List<dynamic>> getDeliveryDocuments(String token,
       {String? country}) async {
     final query = <String, String>{};

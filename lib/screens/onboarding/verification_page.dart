@@ -14,7 +14,6 @@ import '../../services/session_service.dart';
 import '../../widgets/showConfetti.dart';
 import '../../utils/toast.dart';
 import '../splash/animated_splash_screen.dart';
-import 'courier_onboarding_page.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/swirling_loader.dart';
 
@@ -187,15 +186,11 @@ class _VerificationPageState extends State<VerificationPage> {
           Toast(context, l10n.verification_success, true);
 
           if (!mounted) return;
-          // Un livreur envoie d'abord sa photo et ses documents.
-          final isCourier = AppRole.fromId(widget.roleID).isDelivery;
+          // L'espace livreur vérifie lui-même le dossier (validé, en attente
+          // ou à envoyer) : un livreur déjà validé n'est pas renvoyé au dossier.
           Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (_) => isCourier
-                  ? const CourierOnboardingPage()
-                  : WelcomeScreen(),
-            ),
+            MaterialPageRoute(builder: (_) => WelcomeScreen()),
           );
         } catch (e) {
           if (!mounted) return;

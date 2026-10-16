@@ -8288,6 +8288,199 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Tap to enlarge'**
   String get courier_admin_tap_to_view;
+
+  /// No description provided for @tariff_intro.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery fees applied to every order: base fee + price per km beyond the included distance, rounded, never below the minimum. A city without its own grid uses its country\'s default grid.'**
+  String get tariff_intro;
+
+  /// No description provided for @tariff_no_city.
+  ///
+  /// In en, this message translates to:
+  /// **'No active city in your country.'**
+  String get tariff_no_city;
+
+  /// No description provided for @tariff_custom.
+  ///
+  /// In en, this message translates to:
+  /// **'City grid'**
+  String get tariff_custom;
+
+  /// No description provided for @tariff_default.
+  ///
+  /// In en, this message translates to:
+  /// **'Default grid'**
+  String get tariff_default;
+
+  /// No description provided for @tariff_formula.
+  ///
+  /// In en, this message translates to:
+  /// **'{base} base fee, then {perKm}/km beyond {included} km. Minimum {min}. Delivery up to {max} km.'**
+  String tariff_formula(
+      String base, String perKm, String included, String min, String max);
+
+  /// No description provided for @tariff_edit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit grid'**
+  String get tariff_edit;
+
+  /// No description provided for @tariff_base_fee.
+  ///
+  /// In en, this message translates to:
+  /// **'Base fee'**
+  String get tariff_base_fee;
+
+  /// No description provided for @tariff_per_km.
+  ///
+  /// In en, this message translates to:
+  /// **'Price per km'**
+  String get tariff_per_km;
+
+  /// No description provided for @tariff_included_km.
+  ///
+  /// In en, this message translates to:
+  /// **'Included distance (km)'**
+  String get tariff_included_km;
+
+  /// No description provided for @tariff_min_fee.
+  ///
+  /// In en, this message translates to:
+  /// **'Minimum'**
+  String get tariff_min_fee;
+
+  /// No description provided for @tariff_max_km.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum distance (km)'**
+  String get tariff_max_km;
+
+  /// No description provided for @tariff_rounding.
+  ///
+  /// In en, this message translates to:
+  /// **'Rounding'**
+  String get tariff_rounding;
+
+  /// No description provided for @earnings_load_error.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load your earnings. Pull down to retry.'**
+  String get earnings_load_error;
+
+  /// No description provided for @earnings_pick_dates.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose dates'**
+  String get earnings_pick_dates;
+
+  /// No description provided for @earnings_period_custom.
+  ///
+  /// In en, this message translates to:
+  /// **'Dates…'**
+  String get earnings_period_custom;
+
+  /// No description provided for @earnings_title_today.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s earnings'**
+  String get earnings_title_today;
+
+  /// No description provided for @earnings_title_week.
+  ///
+  /// In en, this message translates to:
+  /// **'Earnings, last 7 days'**
+  String get earnings_title_week;
+
+  /// No description provided for @earnings_title_month.
+  ///
+  /// In en, this message translates to:
+  /// **'Earnings, last 30 days'**
+  String get earnings_title_month;
+
+  /// No description provided for @earnings_title_range.
+  ///
+  /// In en, this message translates to:
+  /// **'Earnings from {start} to {end}'**
+  String earnings_title_range(String start, String end);
+
+  /// No description provided for @earnings_deliveries_count.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No delivered ride} =1{1 delivered ride} other{{count} delivered rides}}'**
+  String earnings_deliveries_count(int count);
+
+  /// No description provided for @earnings_kpi_fees.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery fees'**
+  String get earnings_kpi_fees;
+
+  /// No description provided for @earnings_kpi_tips.
+  ///
+  /// In en, this message translates to:
+  /// **'Tips'**
+  String get earnings_kpi_tips;
+
+  /// No description provided for @earnings_kpi_average.
+  ///
+  /// In en, this message translates to:
+  /// **'Per ride'**
+  String get earnings_kpi_average;
+
+  /// No description provided for @earnings_cash_title.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} cash on hand'**
+  String earnings_cash_title(String amount);
+
+  /// No description provided for @earnings_cash_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Collected from customers, to be paid back to Dios Délices.'**
+  String get earnings_cash_body;
+
+  /// No description provided for @earnings_empty.
+  ///
+  /// In en, this message translates to:
+  /// **'No delivered ride in this period.'**
+  String get earnings_empty;
+
+  /// No description provided for @earnings_chart_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Earnings per day'**
+  String get earnings_chart_title;
+
+  /// No description provided for @earnings_rides_title.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 ride} other{{count} rides}}'**
+  String earnings_rides_title(int count);
+
+  /// No description provided for @earnings_payment_cash.
+  ///
+  /// In en, this message translates to:
+  /// **'Cash'**
+  String get earnings_payment_cash;
+
+  /// No description provided for @earnings_payment_mobile.
+  ///
+  /// In en, this message translates to:
+  /// **'Mobile Money'**
+  String get earnings_payment_mobile;
+
+  /// No description provided for @earnings_payment_wallet.
+  ///
+  /// In en, this message translates to:
+  /// **'Wallet'**
+  String get earnings_payment_wallet;
+
+  /// No description provided for @earnings_tip_suffix.
+  ///
+  /// In en, this message translates to:
+  /// **'tip'**
+  String get earnings_tip_suffix;
 }
 
 class _AppLocalizationsDelegate

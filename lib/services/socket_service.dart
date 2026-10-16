@@ -108,8 +108,9 @@ class SocketService {
         IO.OptionBuilder()
             .setTransports(['websocket', 'polling'])
             .enableAutoConnect()
+            // pas de limite de tentatives : après une coupure réseau ou un
+            // réveil du serveur Render, le socket finit toujours par revenir
             .enableReconnection()
-            .setReconnectionAttempts(15)
             .setReconnectionDelay(2000)
             .setReconnectionDelayMax(10000)
             .setAuth({'token': token})

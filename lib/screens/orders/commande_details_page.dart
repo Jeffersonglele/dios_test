@@ -35,6 +35,7 @@ import '../../widgets/rating_dialog.dart';
 import '../../widgets/order_otp_widgets.dart';
 import '../../widgets/order_dispute_sheet.dart';
 import '../../utils/payment_provider_label.dart';
+import 'package:dios_delices/widgets/app_tile_layer.dart';
 
 // ── Code OTP de remise : accès tolérant aux champs de la commande ──────────
 // (ils renvoient null / false tant que le modèle Commande n'a pas
@@ -1770,11 +1771,7 @@ class _CommandeDetailsPageState extends State<CommandeDetailsPage>
                             InteractiveFlag.pinchZoom |
                             InteractiveFlag.doubleTapZoom)),
                 children: [
-                  TileLayer(
-                    urlTemplate:
-                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'com.diosdelices.app',
-                  ),
+                  appTileLayer(),
                   if (circles.isNotEmpty)
                     CircleLayer(circles: circles),
                   MarkerLayer(markers: markers),

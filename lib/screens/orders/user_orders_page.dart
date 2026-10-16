@@ -25,6 +25,7 @@ import 'commande_details_page.dart';
 import '../../widgets/rating_dialog.dart';
 import '../../widgets/order_otp_widgets.dart';
 import '../../utils/payment_provider_label.dart';
+import 'package:dios_delices/widgets/app_tile_layer.dart';
 
 // ── Code OTP de remise : accès tolérant aux champs de la commande ──────────
 // (ils renvoient null / false tant que le modèle Commande n'a pas
@@ -1742,11 +1743,7 @@ class _DeliveryTracker extends StatelessWidget {
                         const InteractionOptions(flags: InteractiveFlag.none),
                   ),
                   children: [
-                    TileLayer(
-                      urlTemplate:
-                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      userAgentPackageName: 'com.diosdelices.app',
-                    ),
+                    appTileLayer(),
                     MarkerLayer(markers: [
                       Marker(
                         point: LatLng(lat!, lng!),
@@ -1896,9 +1893,7 @@ class _DeliveryMapPageState extends State<DeliveryMapPage> {
                       bounds: bounds, padding: const EdgeInsets.all(40))
                   : null),
           children: [
-            TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.diosdelices.app'),
+            appTileLayer(),
             if (_route.isNotEmpty)
               PolylineLayer(polylines: [
                 Polyline(

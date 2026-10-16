@@ -19,7 +19,6 @@ class CurvedNavigationLivreur extends StatefulWidget {
 }
 
 class _CurvedNavigationLivreurState extends State<CurvedNavigationLivreur> {
-  late PageController _pageController;
   int _activePage = 0;
 
   final _pages = const [
@@ -53,7 +52,6 @@ class _CurvedNavigationLivreurState extends State<CurvedNavigationLivreur> {
   void initState() {
     super.initState();
     _activePage = widget.specified_index;
-    _pageController = PageController(initialPage: _activePage);
     _checkCourierFile();
   }
 
@@ -74,30 +72,21 @@ class _CurvedNavigationLivreurState extends State<CurvedNavigationLivreur> {
   }
 
   @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor:
           AppColors.resolve(AppColors.surface, AppDarkColors.surface),
       body: SafeArea(
-        child: PageView(
-          controller: _pageController,
-          onPageChanged: (index) => setState(() => _activePage = index),
-          children: _pages,
-        ),
+        // IndexedStack (et non PageView) : les onglets restent montés. Le
+        // tableau de bord gère le statut en ligne et le partage GPS ; avec un
+        // PageView il était détruit dès qu'on changeait d'onglet, ce qui
+        // coupait le partage de position sans action du livreur.
+        child: IndexedStack(index: _activePage, children: _pages),
       ),
       bottomNavigationBar: DiosNavBar(
         currentIndex: _activePage,
         items: _navItems,
-        onTap: (index) {
-          setState(() => _activePage = index);
-          _pageController.jumpToPage(index);
-        },
+        onTap: (index) => setState(() => _activePage = index),
       ),
     );
   }

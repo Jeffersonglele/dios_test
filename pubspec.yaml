@@ -46,6 +46,7 @@ dependencies:
   twilio_flutter: ^0.9.0
   file_picker: ^8.0.6
   cached_network_image: ^3.3.1
+  flutter_cache_manager: ^3.4.1
   syncfusion_flutter_pdfviewer: ^33.2.4
   fl_chart: ^0.69.2
   crypto: ^3.0.3
@@ -70,6 +71,7 @@ dependencies:
   audioplayers: ^6.0.0
   permission_handler: ^11.3.1
   http_parser: ^4.0.2
+  flutter_dotenv: ^6.0.1
 
 dev_dependencies:
   flutter_test:
@@ -94,6 +96,7 @@ flutter:
   uses-material-design: true
 
   assets:
+    - .env
     - assets/images/logo_big.jpg
     - assets/images/logo_big.png
     - assets/images/logo_sm01.jpg

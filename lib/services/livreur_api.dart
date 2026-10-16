@@ -31,13 +31,12 @@ class LivreurApi {
     if (token == null) return {'success': false, 'totalLivraisons': 0, 'totalGains': 0};
 
     try {
+      String day(DateTime d) =>
+          '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
       final params = <String, String>{'period': period};
-      if (startDate != null) {
-        params['startDate'] = startDate.toIso8601String().split('T')[0];
-      }
-      if (endDate != null) {
-        params['endDate'] = endDate.toIso8601String().split('T')[0];
-      }
+      // Dates locales (le serveur regroupe par jour local).
+      if (startDate != null) params['startDate'] = day(startDate);
+      if (endDate != null) params['endDate'] = day(endDate);
 
       final response = await NodeAuthService.getJson(
         '/couriers/me/earnings',

@@ -85,7 +85,7 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
   void _initAnimations() {
     _splashController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1800),
+      duration: const Duration(milliseconds: 900),
     );
 
     _logoScale = Tween<double>(begin: 0.5, end: 1.0).animate(
@@ -130,7 +130,9 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
   }
 
   Future<void> _bootstrapApp() async {
-    await Future.delayed(const Duration(milliseconds: 1800));
+    // Le logo reste au moins le temps de son animation (≈ 0,9 s) ; le
+    // chargement démarre en même temps au lieu d'attendre 1,8 s avant.
+    final minimumSplash = Future.delayed(const Duration(milliseconds: 900));
     final isConnected = await _checkConnectivity();
     if (!isConnected) {
       if (!mounted) return;
@@ -140,7 +142,7 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
     if (!mounted) return;
     setState(() => _isLoading = true);
     try {
-      await AppBootstrapService.syncInitialData();
+      await Future.wait([AppBootstrapService.syncInitialData(), minimumSplash]);
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);

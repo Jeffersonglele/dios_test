@@ -1900,5 +1900,87 @@
     }
   },
   "courier_admin_busy": "On a delivery",
-  "courier_admin_tap_to_view": "Tap to enlarge"
+  "courier_admin_tap_to_view": "Tap to enlarge",
+  "tariff_intro": "Delivery fees applied to every order: base fee + price per km beyond the included distance, rounded, never below the minimum. A city without its own grid uses its country's default grid.",
+  "tariff_no_city": "No active city in your country.",
+  "tariff_custom": "City grid",
+  "tariff_default": "Default grid",
+  "tariff_formula": "{base} base fee, then {perKm}/km beyond {included} km. Minimum {min}. Delivery up to {max} km.",
+  "@tariff_formula": {
+    "placeholders": {
+      "base": {
+        "type": "String"
+      },
+      "perKm": {
+        "type": "String"
+      },
+      "included": {
+        "type": "String"
+      },
+      "min": {
+        "type": "String"
+      },
+      "max": {
+        "type": "String"
+      }
+    }
+  },
+  "tariff_edit": "Edit grid",
+  "tariff_base_fee": "Base fee",
+  "tariff_per_km": "Price per km",
+  "tariff_included_km": "Included distance (km)",
+  "tariff_min_fee": "Minimum",
+  "tariff_max_km": "Maximum distance (km)",
+  "tariff_rounding": "Rounding",
+  "earnings_load_error": "Couldn't load your earnings. Pull down to retry.",
+  "earnings_pick_dates": "Choose dates",
+  "earnings_period_custom": "Dates…",
+  "earnings_title_today": "Today's earnings",
+  "earnings_title_week": "Earnings, last 7 days",
+  "earnings_title_month": "Earnings, last 30 days",
+  "earnings_title_range": "Earnings from {start} to {end}",
+  "@earnings_title_range": {
+    "placeholders": {
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      }
+    }
+  },
+  "earnings_deliveries_count": "{count, plural, =0{No delivered ride} =1{1 delivered ride} other{{count} delivered rides}}",
+  "@earnings_deliveries_count": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "earnings_kpi_fees": "Delivery fees",
+  "earnings_kpi_tips": "Tips",
+  "earnings_kpi_average": "Per ride",
+  "earnings_cash_title": "{amount} cash on hand",
+  "@earnings_cash_title": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "earnings_cash_body": "Collected from customers, to be paid back to Dios Délices.",
+  "earnings_empty": "No delivered ride in this period.",
+  "earnings_chart_title": "Earnings per day",
+  "earnings_rides_title": "{count, plural, =1{1 ride} other{{count} rides}}",
+  "@earnings_rides_title": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "earnings_payment_cash": "Cash",
+  "earnings_payment_mobile": "Mobile Money",
+  "earnings_payment_wallet": "Wallet",
+  "earnings_tip_suffix": "tip"
 }

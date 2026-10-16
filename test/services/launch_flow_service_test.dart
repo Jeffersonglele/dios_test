@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('LaunchFlowService.decideDestination', () {
-    test('shows onboarding on first launch even when a session exists', () {
+    test('opens home directly when a session exists, even on first launch', () {
       final destination = LaunchFlowService.decideDestination(
         isFirstLaunch: true,
         session: const UserSession(
@@ -13,6 +13,19 @@ void main() {
           role: AppRole.admin,
           country: 'France',
           isLoggedIn: true,
+        ),
+      );
+
+      expect(destination, LaunchDestination.home);
+    });
+
+    test('shows onboarding on first launch without a session', () {
+      final destination = LaunchFlowService.decideDestination(
+        isFirstLaunch: true,
+        session: const UserSession(
+          userId: 0,
+          role: AppRole.unknown,
+          country: 'France',
         ),
       );
 

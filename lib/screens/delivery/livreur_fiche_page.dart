@@ -241,16 +241,18 @@ class _LivreurFichePageState extends State<LivreurFichePage> {
   }
 
   Widget _card({required Widget child}) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.resolve(AppColors.card, AppDarkColors.card),
+    // Material (et non DecoratedBox) pour que les ListTile cliquables
+    // affichent leur effet d'encre sur le fond de la carte.
+    return Material(
+      color: AppColors.resolve(AppColors.card, AppDarkColors.card),
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(
+        side: BorderSide(
             color: AppColors.resolve(AppColors.border, AppDarkColors.border),
             width: 0.6),
       ),
-      child: child,
+      child: Padding(padding: const EdgeInsets.all(16), child: child),
     );
   }
 

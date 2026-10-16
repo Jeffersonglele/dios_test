@@ -16,17 +16,10 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../services/order_tracking_service.dart';
+import '../../widgets/app_tile_layer.dart';
 import '../../widgets/courier_card.dart';
 import '../chat/chat_screen.dart';
 import '../orders/commande_details_page.dart';
-
-/// Fond de carte épuré « Positron » de CARTO.
-const String kTileUrl =
-    'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png';
-const List<String> kTileSubdomains = ['a', 'b', 'c', 'd'];
-
-/// Identifiant envoyé aux serveurs de tuiles (à remplacer par votre applicationId).
-const String kTileUserAgent = 'com.diosdelices.app';
 
 /// Centre de repli (Cotonou) tant qu'aucune position n'est connue.
 const LatLng _kFallbackCenter = LatLng(6.3703, 2.3912);
@@ -866,12 +859,7 @@ class _LivreurMapPageState extends State<LivreurMapPage>
               },
             ),
             children: [
-              TileLayer(
-                urlTemplate:
-                    'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
-                userAgentPackageName: kTileUserAgent,
-                maxZoom: 19,
-              ),
+              appTileLayer(),
               _animated(_buildZoneLayer),
               _animated(_buildRouteLayer),
               _animated(_buildTrailLayer),
@@ -1730,9 +1718,9 @@ class _LivreurMapPageState extends State<LivreurMapPage>
                   ),
 
                   const SizedBox(height: 10),
-                  // crédit obligatoire du fond de carte (Esri Light Gray)
+                  // crédit obligatoire du fond de carte (OpenStreetMap)
                   Text(
-                    'Tiles © Esri — Esri, HERE, Garmin, © OpenStreetMap contributors',
+                    kTileAttribution,
                     style: TextStyle(fontSize: 9, color: _muted),
                   ),
                 ],

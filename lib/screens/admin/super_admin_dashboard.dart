@@ -1,7 +1,8 @@
 import 'package:dios_delices/l10n/app_localizations.dart';
 import 'package:dios_delices/theme/app_theme.dart';
 import 'package:flutter/material.dart';
-import 'package:parse_server_sdk_flutter/parse_server_sdk_flutter.dart';
+import 'package:dios_delices/services/node_admin_service.dart';
+import 'package:dios_delices/services/session_service.dart';
 
 class SuperAdminDashboard extends StatefulWidget {
   final String? country;
@@ -30,16 +31,11 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard>
   Future<void> _fetchData() async {
     setState(() => _loading = true);
     try {
-      final fnStats = ParseCloudFunction('getSuperAdminDashboardStats');
-      final resStats = await fnStats.execute(parameters: {
-        if (widget.country != null && widget.country!.isNotEmpty)
-          'country': widget.country,
-      });
-
-      if (resStats.success && resStats.result != null) {
-        final data = resStats.result as Map<String, dynamic>;
-        if (data['success'] == true && data['stats'] != null) {
-          final stats = data['stats'] as Map<String, dynamic>;
+      final token = await SessionService.readNodeToken();
+      if (token != null) {
+        final stats = await NodeAdminService.getSuperAdminStats(token,
+            country: widget.country);
+        if (stats.isNotEmpty) {
           if (mounted) {
             setState(() {
               _weeklyCommissions =
@@ -98,7 +94,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard>
                   _StatsCard(
                     title: l10n.superAdminWeeklyCommissions ??
                         'Commissions hebdomadaires',
-                    value: '\$${_weeklyCommissions.toStringAsFixed(2)}',
+                    value: _weeklyCommissions.toStringAsFixed(0),
                     color: AppColors.brand,
                     icon: Icons.attach_money,
                   ),

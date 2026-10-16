@@ -201,20 +201,22 @@ class _DeliveryDashboardState extends State<DeliveryDashboard>
           setState(() => isOnline = online);
         }
         if (online) {
-          _startSharingLocation(_currentActiveDeliveryId());
+          // ce rechargement tourne à chaque évènement de commande : ne pas
+          // relancer le GPS s'il tourne déjà
+          if (_positionStreamSub == null) {
+            _startSharingLocation(_currentActiveDeliveryId());
+          } else {
+            activeCommandeID = _currentActiveDeliveryId() ?? activeCommandeID;
+          }
         } else {
           _stopSharingLocation();
         }
-      } else if (mounted) {
-        // Le cache ne doit jamais reconnecter automatiquement un livreur.
-        await prefs.setBool('driver_online_$driverID', false);
-        setState(() => isOnline = false);
-        _stopSharingLocation();
       }
+      // Serveur injoignable : on garde l'état actuel. Seul le serveur ou un
+      // clic du livreur change le statut (le cache ne remet jamais en ligne :
+      // au démarrage isOnline vaut false).
     } catch (e) {
       debugPrint('❌ Erreur chargement statut: $e');
-      if (mounted) setState(() => isOnline = false);
-      _stopSharingLocation();
     }
   }
 

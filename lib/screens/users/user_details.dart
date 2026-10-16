@@ -11,6 +11,7 @@ import 'package:dios_delices/core/app_role.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dios_delices/services/node_admin_service.dart';
+import 'package:dios_delices/services/node_auth_service.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import '../../models/identity.dart';
 import '../../models/users.dart';
@@ -1207,9 +1208,23 @@ class _UserDetailsState extends ConsumerState<UserDetails> {
     );
   }
 
+  /// Statut d'identité enregistré sur le serveur Node.
+  Future<String> _setIdentity(int userId, String status) async {
+    try {
+      final token = await SessionService.readNodeToken();
+      if (token == null) return 'Session expirée.';
+      await NodeAdminService.setIdentityStatus(userId, status, token);
+      return 'success';
+    } on NodeAuthException catch (e) {
+      return e.message;
+    } catch (e) {
+      return e.toString();
+    }
+  }
+
   Future<void> _validateUsers(Users users) async {
     final l10n = AppLocalizations.of(context)!;
-    String updateResult = await Users.updateIdentity(users.userID, "Verified");
+    String updateResult = await _setIdentity(users.userID, "Verified");
     if (updateResult == "success") {
       bool emailSent = await _sendEmailToUser(users, true);
       if (emailSent) {
@@ -1229,7 +1244,7 @@ class _UserDetailsState extends ConsumerState<UserDetails> {
 
   Future<void> _rejectUsers(Users users, String remark) async {
     final l10n = AppLocalizations.of(context)!;
-    String updateResult = await Users.updateIdentity(users.userID, "Rejected");
+    String updateResult = await _setIdentity(users.userID, "Rejected");
     if (updateResult == "success") {
       bool emailSent = await _sendEmailToUser(users, false, remark);
       if (emailSent) {

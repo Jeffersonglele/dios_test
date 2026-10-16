@@ -1,3 +1,5 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 class AppConfig {
   const AppConfig._();
 
@@ -21,4 +23,14 @@ class AppConfig {
     'NODE_API_URL',
     defaultValue: 'https://dios-delices.onrender.com',
   );
+
+  /// Clé CARTO des fonds de carte (gratuite : carto.com/basemaps/apikey).
+  /// Jamais écrite dans le code. Lue depuis `--dart-define=CARTO_API_KEY=xxxx`
+  /// si fournie, sinon depuis le fichier `.env` (chargé dans `main`).
+  /// Sans clé, l'app utilise les tuiles OpenStreetMap standard.
+  static String get cartoApiKey {
+    const fromDefine = String.fromEnvironment('CARTO_API_KEY');
+    if (fromDefine.isNotEmpty) return fromDefine;
+    return dotenv.env['CARTO_API_KEY'] ?? '';
+  }
 }

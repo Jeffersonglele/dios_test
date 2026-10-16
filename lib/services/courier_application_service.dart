@@ -47,7 +47,7 @@ class CourierApplicationService {
         ? await _upload(licensePath, token)
         : null;
     await NodeAuthService.postJson(
-      '/verification/courier-application',
+      '/courier-application',
       token: token,
       body: {
         'photoUrl': photoUrl,

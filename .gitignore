@@ -52,3 +52,6 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 .aider*
+
+# Clés passées au lancement (--dart-define-from-file)
+dart_defines.json
